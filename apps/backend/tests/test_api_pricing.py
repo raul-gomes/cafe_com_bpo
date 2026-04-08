@@ -41,13 +41,16 @@ def test_post_calculate_returns_422_for_negative_numeric_values(client):
     assert response.status_code == 422
     assert "greater than or equal to 0" in response.text
 
+from unittest.mock import patch
+
 def test_post_calculate_does_not_expose_internal_traceback_on_domain_error(client):
     payload = get_valid_payload()
-    # At least check the endpoint wraps generic exceptions cleanly
-    response = client.post("/api/pricing/calculate", json=payload)
-    assert response.status_code == 501
+    with patch("src.domain.PricingCalculator.calculate_final_price", side_effect=ValueError("Domain logical failure")):
+        response = client.post("/api/pricing/calculate", json=payload)
+    
+    assert response.status_code == 400
     assert "detail" in response.json()
-    assert "Traceback" not in response.text
+    assert "Domain logical failure" in response.text
 
 def test_post_calculate_returns_consistent_error_shape(client):
     payload = get_valid_payload()
