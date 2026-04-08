@@ -2,6 +2,7 @@ import React from 'react';
 import { Navbar } from '../components/ui/Navbar';
 import { Button } from '../components/ui/Button';
 import { FadeIn } from '../components/ui/FadeIn';
+import { Link } from 'react-router-dom';
 
 const HomePage: React.FC = () => {
   return (
@@ -112,11 +113,11 @@ const HomePage: React.FC = () => {
             Sub Patrocinio Sancti Ioseph
           </p>
           <div style={{ display: 'flex', justifyContent: 'center', gap: '20px', fontSize: '12px', color: 'var(--text-secondary-light)' }}>
-            <a href="#" style={{ color: 'var(--text-secondary-light)' }}>Contato</a>
-            <a href="#" style={{ color: 'var(--text-secondary-light)' }}>Mentoria</a>
-            <a href="#" style={{ color: 'var(--text-secondary-light)' }}>Residência em BPO</a>
-            <a href="#" style={{ color: 'var(--text-secondary-light)' }}>Encontros ao vivo</a>
-            <a href="#" style={{ color: 'var(--text-secondary-light)' }}>Parcerias</a>
+            <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)' }}>Contato</Link>
+            <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)' }}>Mentoria</Link>
+            <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)' }}>Residência em BPO</Link>
+            <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)' }}>Encontros ao vivo</Link>
+            <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)' }}>Parcerias</Link>
           </div>
           <p style={{ fontSize: '12px', color: 'rgba(255,255,255,0.3)', marginTop: '40px' }}>
             © 2025 Ghuto César.
