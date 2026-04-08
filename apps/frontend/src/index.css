@@ -1,10 +1,10 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap');
 
 :root {
-  /* Apple Design System Constants - Swapped for Cafe Premium Green */
-  --premium-green: #00D06C;
-  --premium-green-dark: #00A656;
-  --premium-green-light: #33D989;
+  /* Apple Design System Constants - Swapped for Cafe Premium Yellow */
+  --premium-yellow: #F6B828;
+  --premium-yellow-dark: #cc9314;
+  --premium-yellow-light: #ffd257;
   
   --bg-black: #000000;
   --bg-dark-surface: #1d1d1f;
@@ -46,7 +46,7 @@ body {
 
 a {
   text-decoration: none;
-  color: var(--premium-green);
+  color: var(--premium-yellow);
   transition: color 0.2s ease;
 }
 
@@ -93,14 +93,14 @@ a:hover {
 }
 
 .btn-primary {
-  background-color: var(--premium-green);
+  background-color: var(--premium-yellow);
   color: #000000;
   border: 1px solid transparent;
   font-weight: 600;
 }
 
 .btn-primary:hover {
-  background-color: var(--premium-green-light);
+  background-color: var(--premium-yellow-light);
   transform: translateY(-2px);
   text-decoration: none;
 }
@@ -119,13 +119,13 @@ a:hover {
 
 .btn-pill {
   background-color: transparent;
-  color: var(--premium-green);
-  border: 1px solid var(--premium-green);
+  color: var(--premium-yellow);
+  border: 1px solid var(--premium-yellow);
   border-radius: 980px;
   font-weight: 400;
 }
 .btn-pill:hover {
-  background-color: rgba(0, 208, 108, 0.1);
+  background-color: rgba(246, 184, 40, 0.1);
   text-decoration: none;
 }
 
@@ -135,7 +135,7 @@ a:hover {
 /* Typographic Utility Classes */
 h1.apple-display { font: var(--text-display); margin-bottom: 24px; }
 h2.apple-heading { font: var(--text-heading-1); margin-bottom: 24px; }
-h3.apple-subheading { font: var(--text-heading-2); margin-bottom: 16px; color: var(--premium-green); }
+h3.apple-subheading { font: var(--text-heading-2); margin-bottom: 16px; color: var(--premium-yellow); }
 
 p.apple-body {
   font: var(--text-body);
@@ -192,8 +192,8 @@ p.apple-body {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background-color: var(--premium-green);
-  box-shadow: 0 0 12px var(--premium-green);
+  background-color: var(--premium-yellow);
+  box-shadow: 0 0 12px var(--premium-yellow);
 }
 
 .bento-grid {
