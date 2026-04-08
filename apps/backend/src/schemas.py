@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, EmailStr
 from decimal import Decimal
 from typing import List, Optional
+from uuid import UUID
 
 class OperationContextSchema(BaseModel):
     """
@@ -47,3 +48,16 @@ class PricingCalculateResponse(BaseModel):
     final_price: Decimal
     breakdown: PricingBreakdownSchema
     assumptions: dict
+
+class UserCreate(BaseModel):
+    email: EmailStr = Field(..., description="E-mail principal do usuário.")
+    password: str = Field(..., min_length=8, description="Senha forte.")
+
+class UserResponse(BaseModel):
+    id: UUID
+    email: EmailStr
+    is_active: bool
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str
