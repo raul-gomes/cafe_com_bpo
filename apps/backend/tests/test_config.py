@@ -17,4 +17,4 @@ def test_settings_fail_when_required_env_is_missing(monkeypatch):
     monkeypatch.delenv("DATABASE_URL", raising=False)
     
     with pytest.raises(ValidationError):
-        Settings()
+        Settings(_env_file=None)
