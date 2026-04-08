@@ -30,7 +30,7 @@ const HomePage: React.FC = () => {
                   </Button>
                 </a>
                 <a href="#about">
-                  <Button variant="outline" size="normal">
+                  <Button variant="outline" size="large">
                     Conhecer a verdade
                   </Button>
                 </a>
