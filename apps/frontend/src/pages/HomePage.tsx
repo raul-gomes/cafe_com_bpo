@@ -42,16 +42,11 @@ const HomePage: React.FC = () => {
             </FadeIn>
             <FadeIn delay={3}>
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px' }}>
-                <a href="https://hotmart.com/pt-br/club/ocafe" target="_blank" rel="noreferrer">
+                <Link to="/login">
                   <Button variant="primary" size="large">
                     FAZER PARTE DA REALIDADE
                   </Button>
-                </a>
-                <a href="#about">
-                  <Button variant="outline" size="large">
-                    Conhecer a verdade
-                  </Button>
-                </a>
+                </Link>
               </div>
             </FadeIn>
           </div>
@@ -107,10 +102,15 @@ const HomePage: React.FC = () => {
                 </div>
 
                 {/* Square Card 1 */}
-                <div className="bento-item bento-square" style={{ backgroundColor: 'var(--premium-green)' }}>
+                <div className="bento-item bento-square" style={{ 
+                  backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.9)), url("/networking-bg.png")', 
+                  backgroundSize: 'cover', 
+                  backgroundPosition: 'center',
+                  border: '1px solid rgba(0, 208, 108, 0.3)'
+                }}>
                   <div>
-                    <h3 className="apple-subheading" style={{ margin: 0, color: '#000000' }}>Networking Bruto</h3>
-                    <p style={{ color: 'rgba(0,0,0,0.8)', marginTop: '12px', fontSize: '15px', lineHeight: '1.5' }}>
+                    <h3 className="apple-subheading" style={{ margin: 0, color: 'var(--premium-green)' }}>Networking Bruto</h3>
+                    <p style={{ color: 'var(--text-light)', marginTop: '12px', fontSize: '15px', lineHeight: '1.5' }}>
                       Pares de trincheira para trocar estratégia de guerra. Sem ilusão.
                     </p>
                   </div>
