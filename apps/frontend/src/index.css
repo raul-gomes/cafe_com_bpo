@@ -22,12 +22,12 @@
   --nav-height: 48px;
   --max-width: 980px;
 
-  /* Typography Scale */
-  --text-display: 600 56px/1.07 'Inter', sans-serif;
-  --text-heading-1: 600 40px/1.10 'Inter', sans-serif;
-  --text-heading-2: 400 28px/1.14 'Inter', sans-serif;
-  --text-body: 400 17px/1.47 'Inter', sans-serif;
-  --text-small: 400 14px/1.29 'Inter', sans-serif;
+  /* Typography Scale - Simplified and Unified */
+  --text-display: 600 48px/1.15 'Inter', sans-serif;
+  --text-heading-1: 600 36px/1.2 'Inter', sans-serif;
+  --text-heading-2: 600 28px/1.25 'Inter', sans-serif;
+  --text-body: 400 18px/1.5 'Inter', sans-serif;
+  --text-small: 400 14px/1.5 'Inter', sans-serif;
 }
 
 * {
@@ -42,7 +42,6 @@ body {
   color: var(--text-light);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  line-height: center;
 }
 
 a {
@@ -63,7 +62,7 @@ a:hover {
 }
 
 .apple-section {
-  padding: 120px 0;
+  padding: 100px 0;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -82,34 +81,66 @@ a:hover {
   color: var(--text-primary-dark);
 }
 
+/* Button Classes for clean Hover */
+.btn-base {
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+}
+
+.btn-primary {
+  background-color: var(--premium-green);
+  color: #000000;
+  border: 1px solid transparent;
+  font-weight: 600;
+}
+
+.btn-primary:hover {
+  background-color: var(--premium-green-light);
+  transform: translateY(-2px);
+  text-decoration: none;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: var(--text-light);
+  border: 1px solid var(--text-light);
+  border-radius: 980px;
+  font-weight: 400;
+}
+.btn-outline:hover {
+  background-color: rgba(255,255,255,0.1);
+  text-decoration: none;
+}
+
+.btn-pill {
+  background-color: transparent;
+  color: var(--premium-green);
+  border: 1px solid var(--premium-green);
+  border-radius: 980px;
+  font-weight: 400;
+}
+.btn-pill:hover {
+  background-color: rgba(0, 208, 108, 0.1);
+  text-decoration: none;
+}
+
+.btn-size-normal { padding: 8px 20px; font-size: 16px; border-radius: 8px; }
+.btn-size-large { padding: 14px 28px; font-size: 18px; border-radius: 8px; }
+
 /* Typographic Utility Classes */
-h1.apple-display {
-  font: var(--text-display);
-  letter-spacing: -0.28px;
-  margin-bottom: 12px;
-}
-
-h2.apple-heading {
-  font: var(--text-heading-1);
-  margin-bottom: 24px;
-}
-
-h3.apple-subheading {
-  font: var(--text-heading-2);
-  letter-spacing: 0.196px;
-  margin-bottom: 16px;
-  color: var(--text-secondary-light);
-}
-
-.bg-light h3.apple-subheading {
-  color: var(--text-secondary-dark);
-}
+h1.apple-display { font: var(--text-display); margin-bottom: 24px; }
+h2.apple-heading { font: var(--text-heading-1); margin-bottom: 24px; }
+h3.apple-subheading { font: var(--text-heading-2); margin-bottom: 16px; color: var(--premium-green); }
 
 p.apple-body {
   font: var(--text-body);
-  letter-spacing: -0.374px;
-  max-width: 600px;
-  margin: 0 auto 32px auto;
+  max-width: 650px;
+  margin: 0 auto 24px auto;
 }
 
 /* Animations */

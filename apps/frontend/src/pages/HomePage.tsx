@@ -18,7 +18,7 @@ const HomePage: React.FC = () => {
               </h1>
             </FadeIn>
             <FadeIn delay={2}>
-              <p className="apple-body" style={{ color: 'var(--text-secondary-light)', fontSize: '21px', maxWidth: '600px' }}>
+              <p className="apple-body" style={{ color: 'var(--text-secondary-light)' }}>
                 Para quem cansou da estética do sucesso e procura a ética do trabalho real.
               </p>
             </FadeIn>
@@ -76,7 +76,7 @@ const HomePage: React.FC = () => {
             </FadeIn>
             <FadeIn delay={3}>
               <div style={{ marginTop: '60px', padding: '40px', backgroundColor: 'var(--bg-dark-surface)', borderRadius: '12px' }}>
-                <h3 className="apple-heading" style={{ fontSize: '28px', color: 'var(--premium-green)' }}>
+                <h3 className="apple-subheading" style={{ margin: 0 }}>
                   O Café não é um curso. É um laboratório de sobrevivência.
                 </h3>
               </div>
@@ -88,7 +88,7 @@ const HomePage: React.FC = () => {
         <section className="apple-section bg-black" style={{ paddingBottom: '60px' }}>
           <div className="apple-container">
             <FadeIn>
-              <h2 className="apple-heading" style={{ fontSize: '48px' }}>A porta está destrancada.</h2>
+              <h2 className="apple-heading" style={{ fontSize: '42px' }}>A porta está destrancada.</h2>
               <p className="apple-body" style={{ color: 'var(--text-secondary-light)' }}>
                 Sem contrato anual. Sem fidelidade.<br/>Você fica pela utilidade, não pela obrigação.
               </p>
