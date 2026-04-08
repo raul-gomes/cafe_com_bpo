@@ -56,7 +56,6 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
-    is_active: bool
 
 class TokenResponse(BaseModel):
     access_token: str
