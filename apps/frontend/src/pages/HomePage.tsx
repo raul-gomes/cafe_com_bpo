@@ -11,7 +11,14 @@ const HomePage: React.FC = () => {
 
       <main>
         {/* Section 1: Hero (Dark Mode) */}
-        <section className="apple-section bg-black" style={{ minHeight: '100vh', paddingTop: '120px' }}>
+        <section className="apple-section bg-black" style={{ 
+          minHeight: '100vh', 
+          paddingTop: '120px',
+          backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.5), rgba(0,0,0,1)), url("/hero-bg.png")',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundRepeat: 'no-repeat'
+        }}>
           <div className="apple-container">
             <FadeIn delay={1}>
               <h1 className="apple-display" style={{ maxWidth: '800px', margin: '0 auto 24px auto' }}>
