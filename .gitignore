@@ -1,0 +1,54 @@
+# Node / Frontend
+apps/frontend/node_modules/
+apps/frontend/dist/
+apps/frontend/.eslintcache
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+
+# Python / Backend
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+apps/backend/venv/
+apps/backend/.venv/
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Environment Variables
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Testing and Coverage
+.coverage
+.tox/
+.pytest_cache/
+apps/backend/htmlcov/
+apps/frontend/coverage/
+
+# OS / Editors
+.DS_Store
+.DS_Store?
+._*
+.Trashes
+ehthumbs.db
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Docker Data
+postgres_data/
+
+# Logs
+*.log
