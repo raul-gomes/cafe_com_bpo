@@ -72,7 +72,7 @@ const HomePage: React.FC = () => {
           </div>
         </section>
 
-        {/* Section 3: The Author / Bento Grid (Dark Mode) */}
+        {/* Section 3: The Reality & Laboratório (Combined Bento Grid) */}
         <section className="apple-section bg-black">
           <div className="apple-container" style={{ maxWidth: 'var(--max-width)' }}>
             <FadeIn delay={1}>
@@ -80,14 +80,14 @@ const HomePage: React.FC = () => {
             </FadeIn>
             <FadeIn delay={2}>
               <p className="apple-body" style={{ color: 'var(--text-secondary-light)' }}>
-                Ninguém te contou que crescer dói. Que a rotina operacional mastiga sonhos enquanto você resolve B.O de cliente.
+                O BPO contábil não aceita amadores. Ninguém te contou que crescer dói. Que a rotina operacional mastiga sonhos enquanto você resolve B.O de cliente.
               </p>
             </FadeIn>
             
             <FadeIn delay={3}>
               <div className="bento-grid">
                 
-                {/* Wide Card 1 */}
+                {/* Row 1 */}
                 <div className="bento-item bento-wide">
                   <div>
                     <h3 className="apple-subheading" style={{ margin: 0, color: 'var(--text-light)' }}>Simulador de Precificação</h3>
@@ -101,7 +101,6 @@ const HomePage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Square Card 1 */}
                 <div className="bento-item bento-square" style={{ 
                   backgroundImage: 'linear-gradient(to bottom, rgba(0,0,0,0.4), rgba(0,0,0,0.9)), url("/networking-bg.png")', 
                   backgroundSize: 'cover', 
@@ -116,56 +115,33 @@ const HomePage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Square Card 2 */}
-                <div className="bento-item bento-square">
-                   <div>
-                    <h3 className="apple-subheading" style={{ margin: 0, color: 'var(--text-light)' }}>Ghuto César</h3>
-                    <p style={{ color: 'var(--text-secondary-light)', marginTop: '12px', fontSize: '15px', lineHeight: '1.5' }}>
-                      Ligo a câmera não para mostrar troféus, mas para te mostrar o pó embaixo do tapete.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Wide Card 2 */}
-                <div className="bento-item bento-wide glass-panel" style={{ border: 'none' }}>
-                  <h3 className="apple-subheading" style={{ margin: 0, color: 'var(--premium-yellow)', fontSize: '24px' }}>
-                    O Café não é um curso. É um laboratório de sobrevivência.
-                  </h3>
-                </div>
-
-              </div>
-            </FadeIn>
-          </div>
-        </section>
-
-        {/* Section 4: Copywriting Mosaic (Pain Points) */}
-        <section className="apple-section bg-black" style={{ paddingTop: '20px' }}>
-          <div className="apple-container" style={{ maxWidth: 'var(--max-width)' }}>
-            <FadeIn>
-              <h2 className="apple-heading" style={{ fontSize: '32px', marginBottom: '40px' }}>O BPO contábil não aceita amadores.</h2>
-            </FadeIn>
-            <FadeIn delay={1}>
-              <div className="bento-grid" style={{ marginTop: '0px' }}>
-                
+                {/* Row 2: Copywriting Mosaic Integration */}
                 <div className="bento-item bento-square" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
                   <h4 style={{ color: 'var(--premium-yellow)', fontSize: '20px', marginBottom: '12px' }}>Margem Mutilada</h4>
-                  <p style={{ color: 'var(--text-secondary-light)', fontSize: '14px', lineHeight: '1.6' }}>
-                    Sua agência cresceu, mas o dinheiro não sobra. Você trabalha 14 horas por dia e o fluxo de caixa sangra todo dia 5. Nós mapeamos os ralos financeiros para você estancar o prejuízo.
+                  <p style={{ color: 'var(--text-secondary-light)', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>
+                    Sua agência cresceu, mas o dinheiro não sobra. Você trabalha 14 horas por dia e o fluxo sangra todo dia 5.
                   </p>
                 </div>
 
                 <div className="bento-item bento-square" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
                   <h4 style={{ color: 'var(--premium-yellow)', fontSize: '20px', marginBottom: '12px' }}>Escalada Torta</h4>
-                  <p style={{ color: 'var(--text-secondary-light)', fontSize: '14px', lineHeight: '1.6' }}>
-                    Planilhas resolvem problemas de 10 clientes, mas quebram a sua empresa aos 50. Construir uma operação robusta significa parar de depender da memória do seu operador titular.
+                  <p style={{ color: 'var(--text-secondary-light)', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>
+                    Planilhas resolvem problemas de 10 clientes, mas quebram a sua empresa aos 50. Pare de depender da memória titular.
                   </p>
                 </div>
 
                 <div className="bento-item bento-square" style={{ backgroundColor: 'rgba(255,255,255,0.02)' }}>
                   <h4 style={{ color: 'var(--premium-yellow)', fontSize: '20px', marginBottom: '12px' }}>Caos Tributário</h4>
-                  <p style={{ color: 'var(--text-secondary-light)', fontSize: '14px', lineHeight: '1.6' }}>
-                    Multas por esquecimento não são acidentes de percurso. São defeitos gritantes na sua linha de montagem e no manuseio de DARFs. Assuma o controle absoluto.
+                  <p style={{ color: 'var(--text-secondary-light)', fontSize: '14px', lineHeight: '1.6', margin: 0 }}>
+                    Multas por esquecimento não são acidentes. São defeitos gritantes na sua linha de montagem e no manuseio de DARFs.
                   </p>
+                </div>
+
+                {/* Row 3: Glass Banner */}
+                <div className="bento-item bento-wide glass-panel" style={{ border: 'none', gridColumn: 'span 12' }}>
+                  <h3 className="apple-subheading" style={{ margin: 0, color: 'var(--premium-yellow)', fontSize: '24px' }}>
+                    O Café não é um curso. É um laboratório de sobrevivência.
+                  </h3>
                 </div>
 
               </div>
@@ -194,16 +170,21 @@ const HomePage: React.FC = () => {
       </main>
 
       {/* Footer Restructured */}
-      <footer className="bg-black" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '24px 40px' }}>
-        <div style={{ maxWidth: 'var(--max-width)', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-          <p style={{ fontFamily: 'Times New Roman, serif', fontStyle: 'italic', fontSize: '16px', color: 'rgba(255,255,255,0.5)', margin: 0 }}>
-            Sub Patrocinio Sancti Ioseph
-          </p>
-          <div style={{ display: 'flex', gap: '24px', fontSize: '13px' }}>
+      <footer className="bg-black" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', padding: '60px 40px' }}>
+        <div style={{ maxWidth: 'var(--max-width)', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '40px' }}>
+          <div>
+            <p style={{ fontSize: '14px', color: 'var(--text-secondary-light)', marginBottom: '8px', fontStyle: 'italic' }}>
+              "Sê útil. Deixa rastro." São Josemaria Escrivá
+            </p>
+            <p style={{ fontFamily: 'Times New Roman, serif', fontStyle: 'italic', fontSize: '14px', color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+              Sub Patrocinio Sancti Ioseph
+            </p>
+          </div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', fontSize: '14px' }}>
             <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = 'var(--text-light)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary-light)'}>Contato</Link>
             <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = 'var(--text-light)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary-light)'}>Mentoria</Link>
             <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = 'var(--text-light)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary-light)'}>Residência em BPO</Link>
-            <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = 'var(--text-light)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary-light)'}>Encontros ao vivo</Link>
+            <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = 'var(--text-light)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary-light)'}>Encontros ao Vivo</Link>
             <Link to="/em-construcao" style={{ color: 'var(--text-secondary-light)', transition: 'color 0.2s ease' }} onMouseOver={e => e.currentTarget.style.color = 'var(--text-light)'} onMouseOut={e => e.currentTarget.style.color = 'var(--text-secondary-light)'}>Parcerias</Link>
           </div>
         </div>

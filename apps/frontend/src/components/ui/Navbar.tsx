@@ -38,7 +38,9 @@ export const Navbar: React.FC = () => {
   return (
     <nav style={containerStyle}>
       <div style={navContentStyle}>
-        <Link to="/" style={brandStyle}>Café com BPO</Link>
+        <Link to="/" style={brandStyle}>
+          <img src="/logo.png" alt="Café com BPO Logo" style={{ height: '36px', display: 'block' }} />
+        </Link>
         <div style={{ display: 'flex', gap: '20px' }}>
           <Link to="/simulador" style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>Simulador</Link>
           <Link to="/login" style={{ color: 'rgba(255,255,255,0.8)', fontSize: '12px' }}>Login</Link>
