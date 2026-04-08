@@ -145,14 +145,8 @@ p.apple-body {
 
 /* Animations */
 @keyframes fadeUp {
-  from {
-    opacity: 0;
-    transform: translateY(30px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
+  from { opacity: 0; transform: translateY(30px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 .animate-fade-up {
@@ -163,3 +157,92 @@ p.apple-body {
 .delay-1 { animation-delay: 0.2s; }
 .delay-2 { animation-delay: 0.4s; }
 .delay-3 { animation-delay: 0.6s; }
+
+/* UI UX Pro Max - Premium Geometric & Glass elements */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 16px;
+  padding: 32px;
+}
+
+.metrics-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 980px;
+  padding: 8px 24px;
+  margin-top: 24px;
+}
+
+.metric-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  color: var(--text-secondary-light);
+}
+
+.metric-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--premium-green);
+  box-shadow: 0 0 12px var(--premium-green);
+}
+
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+  width: 100%;
+  margin-top: 60px;
+}
+
+.bento-item {
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 20px;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  text-align: left;
+  transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1), background 0.4s ease;
+}
+
+.bento-item:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.06);
+}
+
+.bento-wide { grid-column: span 8; }
+.bento-square { grid-column: span 4; }
+
+@media (max-width: 900px) {
+  .bento-wide, .bento-square { grid-column: span 12; }
+}
+
+.watermark-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 16vw;
+  font-weight: 800;
+  color: rgba(0, 0, 0, 0.03);
+  pointer-events: none;
+  white-space: nowrap;
+  z-index: 0;
+  letter-spacing: -2px;
+}
+
+.content-relative {
+  position: relative;
+  z-index: 1;
+}

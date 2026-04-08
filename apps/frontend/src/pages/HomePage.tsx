@@ -22,6 +22,16 @@ const HomePage: React.FC = () => {
               <p className="apple-body" style={{ color: 'var(--text-secondary-light)' }}>
                 Para quem cansou da estética do sucesso e procura a ética do trabalho real.
               </p>
+              
+              <div className="metrics-badge">
+                <div className="metric-item">
+                  <div className="metric-dot"></div>
+                  <span>+ de 500 escritórios transformados</span>
+                </div>
+                <div className="metric-item" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px' }}>
+                  <span style={{ color: 'var(--premium-green)', fontWeight: 600 }}>100% Cenários Reais</span>
+                </div>
+              </div>
             </FadeIn>
             <FadeIn delay={3}>
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px' }}>
@@ -41,8 +51,10 @@ const HomePage: React.FC = () => {
         </section>
 
         {/* Section 2: Statement (Light Mode) */}
-        <section id="about" className="apple-section bg-light">
-          <div className="apple-container" style={{ maxWidth: '700px' }}>
+        <section id="about" className="apple-section bg-light" style={{ position: 'relative', overflow: 'hidden' }}>
+          <div className="watermark-text">PROCESSO</div>
+          
+          <div className="apple-container content-relative" style={{ maxWidth: '700px' }}>
             <FadeIn>
               <h2 className="apple-heading">Se procura atalhos, está no lugar errado.</h2>
               <p className="apple-body" style={{ color: 'var(--text-primary-dark)' }}>
@@ -58,28 +70,62 @@ const HomePage: React.FC = () => {
           </div>
         </section>
 
-        {/* Section 3: The Author / Reality (Dark Mode) */}
+        {/* Section 3: The Author / Bento Grid (Dark Mode) */}
         <section className="apple-section bg-black">
-          <div className="apple-container" style={{ maxWidth: '700px' }}>
+          <div className="apple-container" style={{ maxWidth: 'var(--max-width)' }}>
             <FadeIn delay={1}>
               <h2 className="apple-heading">A solidão do operador custa caro.</h2>
             </FadeIn>
             <FadeIn delay={2}>
               <p className="apple-body" style={{ color: 'var(--text-secondary-light)' }}>
-                Ninguém te contou que crescer dói. Que a rotina operacional mastiga sonhos enquanto você resolve BO de cliente. Sozinho, você é uma ilha cercada por incertezas.
-              </p>
-              <p className="apple-body" style={{ color: 'var(--text-secondary-light)' }}>
-                Eu sou Ghuto César. E não, não sou seu "mestre". Sou só o cara teimoso que decidiu questionar se o que os gurus vendem funciona no mundo real.
-              </p>
-              <p className="apple-body" style={{ color: 'var(--text-secondary-light)' }}>
-                Ligo a câmera não para mostrar troféu, mas para mostrar a sujeira debaixo do tapete do BPO. Meus erros, meus testes, minhas teimosias. Se você procura um herói sem falhas, compre um gibi. Se procura um par de trincheira para trocar estratégia de guerra, bem-vindo.
+                Ninguém te contou que crescer dói. Que a rotina operacional mastiga sonhos enquanto você resolve B.O de cliente.
               </p>
             </FadeIn>
+            
             <FadeIn delay={3}>
-              <div style={{ marginTop: '60px', padding: '40px', backgroundColor: 'var(--bg-dark-surface)', borderRadius: '12px' }}>
-                <h3 className="apple-subheading" style={{ margin: 0 }}>
-                  O Café não é um curso. É um laboratório de sobrevivência.
-                </h3>
+              <div className="bento-grid">
+                
+                {/* Wide Card 1 */}
+                <div className="bento-item bento-wide">
+                  <div>
+                    <h3 className="apple-subheading" style={{ margin: 0, color: 'var(--text-light)' }}>Simulador de Precificação</h3>
+                    <p style={{ color: 'var(--text-secondary-light)', marginTop: '12px', fontSize: '15px', lineHeight: '1.5' }}>
+                      Nós desenvolvemos uma engine conectada diretamente a um complexo motor Python. 
+                      Acesse regras matemáticas rígidas que impedem você de vender seu serviço de BPO e terminar pagando para trabalhar.
+                    </p>
+                  </div>
+                  <div style={{ marginTop: '40px' }}>
+                    <Link to="/simulador" style={{ fontSize: '14px', fontWeight: 600 }}>Acessar motor {'->'}</Link>
+                  </div>
+                </div>
+
+                {/* Square Card 1 */}
+                <div className="bento-item bento-square" style={{ backgroundColor: 'var(--premium-green)' }}>
+                  <div>
+                    <h3 className="apple-subheading" style={{ margin: 0, color: '#000000' }}>Networking Bruto</h3>
+                    <p style={{ color: 'rgba(0,0,0,0.8)', marginTop: '12px', fontSize: '15px', lineHeight: '1.5' }}>
+                      Pares de trincheira para trocar estratégia de guerra. Sem ilusão.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Square Card 2 */}
+                <div className="bento-item bento-square">
+                   <div>
+                    <h3 className="apple-subheading" style={{ margin: 0, color: 'var(--text-light)' }}>Ghuto César</h3>
+                    <p style={{ color: 'var(--text-secondary-light)', marginTop: '12px', fontSize: '15px', lineHeight: '1.5' }}>
+                      Ligo a câmera não para mostrar troféus, mas para te mostrar o pó embaixo do tapete.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Wide Card 2 */}
+                <div className="bento-item bento-wide glass-panel" style={{ border: 'none' }}>
+                  <h3 className="apple-subheading" style={{ margin: 0, color: 'var(--premium-green)', fontSize: '24px' }}>
+                    O Café não é um curso. É um laboratório de sobrevivência.
+                  </h3>
+                </div>
+
               </div>
             </FadeIn>
           </div>
