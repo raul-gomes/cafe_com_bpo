@@ -92,7 +92,7 @@ export const PricingCalculatorLayout: React.FC = () => {
     update(index, { ...svc, active: !svc.active });
   };
 
-  const fmt = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+  const fmt = (v: number | string) => Number(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
 
   // Custom UI State
   const currentScenario = getValues('desired_profit_margin');
@@ -321,7 +321,7 @@ export const PricingCalculatorLayout: React.FC = () => {
       <div>
         <div className="summary-card">
           <div className="sum-header">
-            <h2>Resumo da Precificação (API Pydantic)</h2>
+            <h2>Resumo da Precificação</h2>
           </div>
           <div className="sum-body">
             {calculationError ? (
