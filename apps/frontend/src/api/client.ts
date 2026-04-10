@@ -1,3 +1,4 @@
+/// <reference types="vite/client" />
 import axios from 'axios';
 
 // TODO: Ponto de melhoria - Transição do armazenamento de sessão para Cookies HttpOnly
