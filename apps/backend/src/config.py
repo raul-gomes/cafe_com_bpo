@@ -7,6 +7,13 @@ class Settings(BaseSettings):
     jwt_secret: str = "super_cafe_secret"
     jwt_algorithm: str = "HS256"
 
+    # OAuth Settings
+    google_client_id: str = "dummy_google_id"
+    google_client_secret: str = "dummy_google_secret"
+    microsoft_client_id: str = "dummy_ms_id"
+    microsoft_client_secret: str = "dummy_ms_secret"
+    oauth_redirect_uri: str = "http://localhost:8000/auth" # Base URI for callback
+
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
 @lru_cache()

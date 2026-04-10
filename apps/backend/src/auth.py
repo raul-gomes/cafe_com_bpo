@@ -74,6 +74,18 @@ class AuthService:
             
         return TokenService.create_access_token(user_id=str(user.id))
 
+    def authenticate_oauth_user(self, email: str, provider: str) -> str:
+        user = self.user_repo.get_user_by_email(email)
+        if not user:
+            user = self.user_repo.create_user(
+                email=email,
+                password_hash="oauth_login",
+                auth_provider=provider
+            )
+            self.user_repo.session.commit()
+            
+        return TokenService.create_access_token(user_id=str(user.id))
+
 from typing import Annotated
 from fastapi import Depends
 from src.database import get_db_session
