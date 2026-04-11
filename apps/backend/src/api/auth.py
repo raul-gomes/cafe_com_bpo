@@ -3,6 +3,7 @@ from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 from src.schemas import UserCreate, UserResponse, TokenResponse
 from src.auth import AuthService, get_current_user
+from src.logger_config import log
 
 from sqlalchemy.orm import Session
 from src.database import get_db_session
@@ -21,8 +22,11 @@ def register(
     service: AuthServiceDep
 ):
     try:
-        return service.register_user(user_data)
+        new_user = service.register_user(user_data)
+        log.info(f"💾 Novo usuário registrado: {user_data.email} | Empresa: {user_data.company or 'N/A'}")
+        return new_user
     except ValueError as e:
+        log.warning(f"⚠️ Falha de validação no registro ({user_data.email}): {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.post("/login", response_model=TokenResponse)
@@ -32,7 +36,10 @@ def login(
 ):
     token = service.authenticate_user(form_data.username, form_data.password)
     if not token:
+        log.warning(f"🚫 Tentativa de login inválida: {form_data.username}")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
+    
+    log.info(f"🔑 Usuário logado com sucesso: {form_data.username}")
     return {"access_token": token, "token_type": "bearer"}
 
 @router.get("/me", response_model=UserResponse)
@@ -81,6 +88,8 @@ def oauth_callback(
             raise ValueError("Não foi possível obter o e-mail do perfil OAuth.")
             
         token = service.authenticate_oauth_user(email=email, provider=provider)
+        log.info(f"🌐 Login OAuth ({provider}) bem-sucedido: {email}")
         return {"access_token": token, "token_type": "bearer"}
     except Exception as e:
+        log.error(f"❌ Erro crítico no fluxo OAuth ({provider}): {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))

@@ -53,5 +53,6 @@ postgres_data/
 
 # Logs
 *.log
+apps/backend/logs/
 
 docs/

@@ -5,9 +5,13 @@ from src.config import get_settings
 from src.api.pricing import router as pricing_router
 from src.api.auth import router as auth_router
 from src.api.proposals import router as proposals_router
+from src.logger_config import setup_logging, log
 import os
+import time
+from fastapi import Request
 
 def create_app() -> FastAPI:
+    setup_logging()
     # Disable docs in test/prod depending on needs, but we'll leave defaults for now
     app = FastAPI(title="Café com BPO API", version="0.1.0")
     
@@ -33,6 +37,19 @@ def create_app() -> FastAPI:
     app.include_router(pricing_router)
     app.include_router(auth_router)
     app.include_router(proposals_router)
+
+    @app.middleware("http")
+    async def log_requests(request: Request, call_next):
+        start_time = time.time()
+        response = await call_next(request)
+        process_time = (time.time() - start_time) * 1000
+        
+        log.info(
+            f"HTTP {request.method} {request.url.path} - "
+            f"Status: {response.status_code} - "
+            f"Time: {process_time:.2f}ms"
+        )
+        return response
 
     return app
 

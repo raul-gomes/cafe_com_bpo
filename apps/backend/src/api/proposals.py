@@ -5,6 +5,7 @@ from src.database import get_db_session
 from src.schemas import ProposalCreate, ProposalResponse, UserResponse
 from src.repositories import PricingScenarioRepository
 from src.auth import get_current_user
+from src.logger_config import log
 
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
 
@@ -31,9 +32,11 @@ def create_proposal(
             result_payload=proposal.result_payload
         )
         repo.session.commit()
+        log.info(f"📄 Proposta salva: '{proposal.client_name}' | ID: {new_scenario.id} | Usuário: {current_user.email}")
         return new_scenario
     except Exception as e:
         repo.session.rollback()
+        log.error(f"❌ Erro ao salvar proposta para {current_user.email}: {str(e)}")
         raise HTTPException(status_code=400, detail=str(e))
 
 @router.get("/", response_model=List[ProposalResponse])
@@ -44,7 +47,9 @@ def list_proposals(
     """
     Lista todas as propostas salvas do usuário logado.
     """
-    return repo.list_scenarios_by_user(current_user.id)
+    proposals = repo.list_scenarios_by_user(current_user.id)
+    log.debug(f"📋 Usuário {current_user.email} listou seu histórico ({len(proposals)} itens)")
+    return proposals
 
 @router.get("/{proposal_id}", response_model=ProposalResponse)
 def get_proposal(
@@ -61,7 +66,10 @@ def get_proposal(
         scenario_id=uuid.UUID(proposal_id)
     )
     if not scenario:
+        log.warning(f"🕵️ Tentativa de acesso a proposta inexistente ou IDOR: {proposal_id} por {current_user.email}")
         raise HTTPException(status_code=404, detail="Proposta não encontrada")
+    
+    log.debug(f"🔍 Proposta visualizada: {proposal_id} ({scenario.client_name})")
     return scenario
 
 @router.delete("/{proposal_id}", status_code=204)
@@ -79,6 +87,9 @@ def delete_proposal(
         scenario_id=uuid.UUID(proposal_id)
     )
     if not success:
+        log.warning(f"⚠️ Falha na exclusão (não encontrado ou IDOR): {proposal_id} por {current_user.email}")
         raise HTTPException(status_code=404, detail="Proposta não encontrada ou acesso negado")
+    
     repo.session.commit()
+    log.info(f"🗑️ Proposta excluída: {proposal_id} por {current_user.email}")
     return None
