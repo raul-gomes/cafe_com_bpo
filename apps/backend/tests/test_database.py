@@ -1,7 +1,7 @@
 from alembic.config import Config
 from alembic import command
 from sqlalchemy import inspect
-from src.database import engine
+from src.core.database import engine
 
 def test_alembic_upgrade_applies_schema_successfully():
     """

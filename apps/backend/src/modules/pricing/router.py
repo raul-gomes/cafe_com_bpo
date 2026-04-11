@@ -1,13 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated
-from src.schemas import PricingCalculateRequest, PricingCalculateResponse
-from src.services import PricingService
-from src.logger_config import log
+from .schemas import PricingCalculateRequest, PricingCalculateResponse
+from .service import PricingService
+from src.core.logger import log
 
 router = APIRouter(prefix="/api/pricing", tags=["pricing"])
 
 def get_pricing_service() -> PricingService:
-    # Dependency Injection isolada caso o Service evolua ou exija conexão DB atrelada.
     return PricingService()
 
 PricingServiceDep = Annotated[PricingService, Depends(get_pricing_service)]
@@ -17,13 +16,6 @@ def calculate_pricing_endpoint(
     request: PricingCalculateRequest,
     service: PricingServiceDep
 ):
-    """
-    Recebe os insumos por HTTP JSON, repassa ao PricingService (Camada Application) 
-    para ser orquestrado contra o Motor Contábil.
-
-    Raises:
-        HTTPException: Tratamentos de exceção controlados pela estrutura da API.
-    """
     try:
         log.debug(f"🧮 Processando simulação para {request.operation.people_count} colaboradores.")
         result = service.calculate_pricing(request)

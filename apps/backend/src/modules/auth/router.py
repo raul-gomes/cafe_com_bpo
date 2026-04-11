@@ -1,12 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
-from src.schemas import UserCreate, UserResponse, TokenResponse
-from src.auth import AuthService, get_current_user
-from src.logger_config import log
-
 from sqlalchemy.orm import Session
-from src.database import get_db_session
+
+from src.core.database import get_db_session
+from src.core.logger import log
+from .schemas import UserCreate, UserResponse, TokenResponse
+from .service import AuthService, get_current_user
+from .oauth.service import OAuthStateService, GoogleOAuthProvider, MicrosoftOAuthProvider
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -45,9 +46,6 @@ def login(
 @router.get("/me", response_model=UserResponse)
 def get_me(user: CurrentUserDep):
     return user
-
-from src.oauth import OAuthStateService, GoogleOAuthProvider, MicrosoftOAuthProvider
-from fastapi import Query
 
 @router.get("/{provider}/login")
 def oauth_login(provider: str):

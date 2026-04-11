@@ -3,11 +3,15 @@ import os
 from fastapi.testclient import TestClient
 
 # Set environment before loading the app/settings
+os.environ["MODE"] = "test"
 if "DATABASE_URL" not in os.environ:
-    os.environ["DATABASE_URL"] = "postgresql+psycopg://postgres:postgres_password@db:5432/cafe_bpo"
+    os.environ["DATABASE_URL"] = "postgresql+psycopg://postgres:postgres_password@localhost:5432/cafe_bpo"
+
+from src.core.config import get_settings
+get_settings.cache_clear()
 
 from src.main import create_app
-from src.database import engine, Base
+from src.core.database import engine, Base
 from sqlalchemy.orm import Session
 
 @pytest.fixture

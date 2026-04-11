@@ -1,6 +1,6 @@
 import pytest
 from decimal import Decimal
-from src.domain import (
+from src.modules.pricing.domain.engine import (
     OperationContext,
     ServiceItem,
     PricingInput,

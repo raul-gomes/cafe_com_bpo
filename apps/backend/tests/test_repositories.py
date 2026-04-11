@@ -1,6 +1,7 @@
 import pytest
 from uuid import uuid4
-from src.repositories import UserRepository, PricingScenarioRepository
+from src.modules.auth.repository import UserRepository
+from src.modules.proposals.repository import PricingScenarioRepository
 from sqlalchemy.exc import IntegrityError
 
 def test_create_user_persists_record(db_session):

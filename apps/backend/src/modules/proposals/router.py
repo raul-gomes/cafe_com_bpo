@@ -1,11 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated, List
 from sqlalchemy.orm import Session
-from src.database import get_db_session
-from src.schemas import ProposalCreate, ProposalResponse, UserResponse
-from src.repositories import PricingScenarioRepository
-from src.auth import get_current_user
-from src.logger_config import log
+import uuid
+
+from src.core.database import get_db_session
+from src.core.logger import log
+from src.modules.auth.service import get_current_user
+from src.modules.auth.schemas import UserResponse
+from .schemas import ProposalCreate, ProposalResponse
+from .repository import PricingScenarioRepository
 
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
 
@@ -21,9 +24,6 @@ def create_proposal(
     repo: RepoDep,
     current_user: CurrentUserDep
 ):
-    """
-    Salva uma nova proposta comercial vinculada ao usuário logado.
-    """
     try:
         new_scenario = repo.create_scenario(
             user_id=current_user.id,
@@ -44,9 +44,6 @@ def list_proposals(
     repo: RepoDep,
     current_user: CurrentUserDep
 ):
-    """
-    Lista todas as propostas salvas do usuário logado.
-    """
     proposals = repo.list_scenarios_by_user(current_user.id)
     log.debug(f"📋 Usuário {current_user.email} listou seu histórico ({len(proposals)} itens)")
     return proposals
@@ -57,10 +54,6 @@ def get_proposal(
     repo: RepoDep,
     current_user: CurrentUserDep
 ):
-    """
-    Retorna os detalhes de uma proposta específica do usuário.
-    """
-    import uuid
     scenario = repo.get_scenario_by_id(
         user_id=current_user.id,
         scenario_id=uuid.UUID(proposal_id)
@@ -78,10 +71,6 @@ def delete_proposal(
     repo: RepoDep,
     current_user: CurrentUserDep
 ):
-    """
-    Remove uma proposta do histórico do usuário.
-    """
-    import uuid
     success = repo.delete_scenario(
         user_id=current_user.id,
         scenario_id=uuid.UUID(proposal_id)

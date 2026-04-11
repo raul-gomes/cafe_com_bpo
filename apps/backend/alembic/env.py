@@ -5,9 +5,10 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from src.database import Base
-from src.models import User, PricingScenario
-from src.config import get_settings
+from src.core.database import Base
+from src.modules.auth.models import User
+from src.modules.proposals.models import PricingScenario
+from src.core.config import get_settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

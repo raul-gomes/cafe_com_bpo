@@ -1,16 +1,18 @@
 import pytest
 from unittest.mock import patch, MagicMock
-from src.models import User
+from src.modules.auth.models import User
 from uuid import uuid4
 
 @pytest.fixture
 def mock_httpx_post():
     with patch("httpx.post") as mock_post:
+        mock_post.return_value.is_error = False
         yield mock_post
 
 @pytest.fixture
 def mock_httpx_get():
     with patch("httpx.get") as mock_get:
+        mock_get.return_value.is_error = False
         yield mock_get
 
 def test_google_oauth_redirect_returns_valid_url(client):
@@ -30,7 +32,7 @@ def test_google_callback_creates_user_on_first_login(client, db_session, mock_ht
     mock_httpx_get.return_value.status_code = 200
     mock_httpx_get.return_value.json.return_value = {"email": email}
 
-    with patch("src.oauth.OAuthStateService.validate_state", return_value=True):
+    with patch("src.modules.auth.oauth.service.OAuthStateService.validate_state", return_value=True):
         response = client.get("/auth/google/callback?code=fake_code&state=valid_state")
         
         assert response.status_code == 200
@@ -52,7 +54,7 @@ def test_google_callback_logs_in_existing_user(client, db_session, mock_httpx_po
     mock_httpx_get.return_value.status_code = 200
     mock_httpx_get.return_value.json.return_value = {"email": email}
 
-    with patch("src.oauth.OAuthStateService.validate_state", return_value=True):
+    with patch("src.modules.auth.oauth.service.OAuthStateService.validate_state", return_value=True):
         response = client.get("/auth/google/callback?code=abc&state=xyz")
         assert response.status_code == 200
         assert "access_token" in response.json()
@@ -67,7 +69,7 @@ def test_microsoft_callback_creates_or_reuses_user(client, db_session, mock_http
     mock_httpx_get.return_value.status_code = 200
     mock_httpx_get.return_value.json.return_value = {"userPrincipalName": email} 
 
-    with patch("src.oauth.OAuthStateService.validate_state", return_value=True):
+    with patch("src.modules.auth.oauth.service.OAuthStateService.validate_state", return_value=True):
         response = client.get("/auth/microsoft/callback?code=abc&state=xyz")
         assert response.status_code == 200
         assert "access_token" in response.json()
@@ -77,7 +79,7 @@ def test_microsoft_callback_creates_or_reuses_user(client, db_session, mock_http
         assert user.auth_provider == "microsoft"
 
 def test_oauth_callback_rejects_invalid_state(client):
-    with patch("src.oauth.OAuthStateService.validate_state", return_value=False):
+    with patch("src.modules.auth.oauth.service.OAuthStateService.validate_state", return_value=False):
         response = client.get("/auth/google/callback?code=abc&state=invalid")
         assert response.status_code == 400
         assert "state" in response.json().get("detail", "").lower()
@@ -88,7 +90,7 @@ def test_oauth_callback_handles_profile_without_email(client, mock_httpx_post, m
     mock_httpx_get.return_value.status_code = 200
     mock_httpx_get.return_value.json.return_value = {"id": "12345"} 
 
-    with patch("src.oauth.OAuthStateService.validate_state", return_value=True):
+    with patch("src.modules.auth.oauth.service.OAuthStateService.validate_state", return_value=True):
         response = client.get("/auth/google/callback?code=abc&state=valid_state")
         assert response.status_code == 400
         assert "e-mail" in response.json().get("detail", "").lower()

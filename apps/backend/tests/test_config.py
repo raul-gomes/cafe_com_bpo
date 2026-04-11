@@ -1,6 +1,6 @@
 import os
 import pytest
-from src.config import Settings
+from src.core.config import Settings
 from pydantic import ValidationError
 
 def test_settings_load_from_environment(monkeypatch):

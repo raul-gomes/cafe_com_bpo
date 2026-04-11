@@ -1,7 +1,7 @@
 import sys
 import logging
 from loguru import logger
-from src.config import get_settings
+from src.core.config import get_settings
 
 settings = get_settings()
 
@@ -12,25 +12,28 @@ def setup_logging():
     logging.getLogger("fastapi").handlers = []
 
     # Configuração central do Loguru - Formato JSON
-    config = {
-        "handlers": [
-            {
-                "sink": sys.stdout,
-                "format": "{message}",
-                "level": "DEBUG" if settings.mode == "development" else "INFO",
-                "serialize": True, # Ativa saída em JSON estruturado
-            },
-            {
-                "sink": "logs/server.json", # Mudança na extensão para refletir o formato
-                "format": "{message}",
-                "level": "INFO",
-                "rotation": "10 MB",
-                "retention": "7 days",
-                "compression": "zip",
-                "serialize": True, # Ativa saída em JSON estruturado
-            },
-        ],
-    }
+    handlers = [
+        {
+            "sink": sys.stdout,
+            "format": "{message}",
+            "level": "DEBUG" if settings.mode == "development" else "INFO",
+            "serialize": True, # Ativa saída em JSON estruturado
+        }
+    ]
+
+    # Só ativa logs de arquivo se não estivermos em modo de teste
+    if settings.mode != "test":
+        handlers.append({
+            "sink": "logs/server.json",
+            "format": "{message}",
+            "level": "INFO",
+            "rotation": "10 MB",
+            "retention": "7 days",
+            "compression": "zip",
+            "serialize": True,
+        })
+
+    config = {"handlers": handlers}
 
     logger.configure(**config)
     

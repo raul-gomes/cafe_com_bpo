@@ -6,6 +6,7 @@ class Settings(BaseSettings):
     database_url: str
     jwt_secret: str
     jwt_algorithm: str
+    access_token_expire_minutes: int = 30
 
     # OAuth Settings
     google_client_id: str

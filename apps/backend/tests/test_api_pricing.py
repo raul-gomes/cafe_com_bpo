@@ -45,7 +45,7 @@ from unittest.mock import patch
 
 def test_post_calculate_does_not_expose_internal_traceback_on_domain_error(client):
     payload = get_valid_payload()
-    with patch("src.domain.PricingCalculator.calculate_final_price", side_effect=ValueError("Domain logical failure")):
+    with patch("src.modules.pricing.domain.engine.PricingCalculator.calculate_final_price", side_effect=ValueError("Domain logical failure")):
         response = client.post("/api/pricing/calculate", json=payload)
     
     assert response.status_code == 400
