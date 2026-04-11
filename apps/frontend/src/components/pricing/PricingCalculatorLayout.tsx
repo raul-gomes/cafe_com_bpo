@@ -3,6 +3,8 @@ import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { pricingFormSchema, PricingFormData } from '../../schemas/pricing';
 import { calculatePricing } from '../../lib/pricingEngine';
+import { useGeneratePDF } from '../../lib/useGeneratePDF';
+import logoAsset from '../../assets/logo.png';
 
 // ─── Catálogo de Serviços Inicial ─────────────────────────────────────────────
 const INITIAL_SERVICES = [
@@ -77,7 +79,9 @@ export const PricingCalculatorLayout: React.FC = () => {
     update(index, { ...svc, active: !svc.active });
   };
 
-  // ── Estado do formulário "Adicionar serviço" ──────────────────────────────
+  // ── Hook de geração de PDF ───────────────────────────────────────────
+  const { generate: generatePDF, isGenerating, error: pdfError } = useGeneratePDF();
+  const [clientName, setClientName] = useState('');
   const [newSvcName, setNewSvcName] = useState('');
   const [newSvcType, setNewSvcType] = useState<'time' | 'fixed'>('time');
   const [newSvcNum, setNewSvcNum]   = useState(10);
@@ -363,11 +367,49 @@ export const PricingCalculatorLayout: React.FC = () => {
               </div>
             </div>
 
+            {pdfError && (
+              <div style={{ color: 'var(--ds-error)', fontSize: '12px', marginTop: '8px', textAlign: 'center' }}>
+                {pdfError}
+              </div>
+            )}
+
+            {/* Campo nome do cliente */}
+            <div style={{ marginTop: '12px' }}>
+              <label style={{ fontSize: '10px', color: 'var(--ds-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
+                Nome do cliente (para o PDF)
+              </label>
+              <input
+                type="text"
+                value={clientName}
+                onChange={e => setClientName(e.target.value)}
+                placeholder="Ex: Empresa XYZ Ltda."
+                style={{
+                  width: '100%', padding: '8px 10px',
+                  background: 'var(--ds-surface-2)',
+                  border: '1.5px solid rgba(255,255,255,0.1)',
+                  borderRadius: 'var(--radius-md)',
+                  color: 'var(--ds-text)',
+                  fontSize: '13px',
+                  fontFamily: 'Inter, sans-serif',
+                  outline: 'none',
+                }}
+              />
+            </div>
+
             <button
               className="btn-pdf"
-              onClick={() => window.alert('O gerador de PDF será implementado na próxima fase!')}
+              disabled={isGenerating || !pricing}
+              onClick={() => {
+                if (!pricing) return;
+                generatePDF({
+                  form: getValues(),
+                  pricing,
+                  logoUrl: logoAsset,
+                  clientName: clientName || 'Cliente',
+                });
+              }}
             >
-              Gerar Proposta Comercial (PDF)
+              {isGenerating ? 'Gerando PDF...' : 'Gerar Proposta Comercial (PDF)'}
             </button>
           </div>
         </div>
