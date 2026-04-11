@@ -1,0 +1,105 @@
+/* ═══════════════════════════════════════════════════════
+   CAFÉ COM BPO — LOGIN PAGE STYLES
+   Todas as variáveis e classes da tela de login ficam aqui.
+   Nunca use valores inline no JSX: use estas classes.
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* Login page layout */
+  --login-padding-top:    calc(var(--nav-height) + 40px);
+  --login-padding-sides:  24px;
+
+  /* BPO watermark */
+  --login-bpo-size:          clamp(180px, 38vw, 420px);
+  --login-bpo-letter-spacing: -12px;
+  --login-bpo-color:         rgba(251, 191, 36, 0.06);
+  --login-bpo-bottom:        -20px;
+  --login-bpo-right:         -20px;
+
+  /* Glow blobs */
+  --login-glow-top-size:     700px;
+  --login-glow-top-color:    rgba(251, 191, 36, 0.08);
+  --login-glow-bottom-size:  500px;
+  --login-glow-bottom-color: rgba(251, 191, 36, 0.05);
+
+  /* Footer note */
+  --login-footer-size: 12px;
+}
+
+/* ── PAGE WRAPPER ── */
+.login-page {
+  min-height: 100vh;
+  background: var(--ds-black);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: var(--login-padding-sides);
+  padding-top: var(--login-padding-top);
+  position: relative;
+  overflow: hidden;
+}
+
+/* ── GLOW BLOBS ── */
+.login-glow-top {
+  position: absolute;
+  top: -60px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--login-glow-top-size);
+  height: 300px;
+  background: radial-gradient(ellipse at center, var(--login-glow-top-color) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.login-glow-bottom {
+  position: absolute;
+  bottom: -100px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: var(--login-glow-bottom-size);
+  height: 300px;
+  background: radial-gradient(ellipse at center, var(--login-glow-bottom-color) 0%, transparent 70%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* ── CONTENT STACK (form + footer note) ── */
+/* Wrapper tem a mesma largura do card para podermos ancorar
+   o BPO watermark na borda direita deste container.          */
+.login-content {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 420px;  /* igual ao max-width do LoginForm card */
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* ── BPO WATERMARK ── */
+/* Ancorado no rodapé da página (.login-page é o pai relativo).
+   right negativo faz o texto ultrapassar a borda direita.    */
+.login-bpo-watermark {
+  position: absolute;
+  bottom: var(--login-bpo-bottom);
+  right: var(--login-bpo-right);
+  font-size: var(--login-bpo-size);
+  font-weight: 800;
+  color: var(--login-bpo-color);
+  letter-spacing: var(--login-bpo-letter-spacing);
+  white-space: nowrap;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  z-index: 0;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── FOOTER NOTE ── */
+.login-footer-note {
+  margin-top: 24px;
+  font-size: var(--login-footer-size);
+  color: var(--ds-text-subtle);
+}

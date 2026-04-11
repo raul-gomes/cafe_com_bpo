@@ -21,7 +21,7 @@ services:
     build:
       context: ./apps/backend
     environment:
-      - DATABASE_URL=postgresql://postgres:postgres_password@db:5432/cafe_bpo
+      - DATABASE_URL=postgresql+psycopg://postgres:postgres_password@db:5432/cafe_bpo
       - MODE=development
     ports:
       - "8000:8000"

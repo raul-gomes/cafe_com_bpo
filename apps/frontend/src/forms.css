@@ -265,6 +265,14 @@
 }
 @media (max-width: 600px) { .add-row { grid-template-columns: 1fr; } }
 
+/* Ensure "add service" inputs/selects also use dark style */
+.add-row .field input,
+.add-row .field select {
+  background: var(--ds-surface-2);
+  border-color: rgba(255,255,255,0.1);
+  color: var(--ds-text);
+}
+
 /* ── BUTTONS (used inline calculator) ── */
 .btn {
   padding: 9px 16px; border-radius: var(--radius-md);

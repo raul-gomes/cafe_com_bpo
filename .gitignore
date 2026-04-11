@@ -52,3 +52,5 @@ postgres_data/
 
 # Logs
 *.log
+
+docs/

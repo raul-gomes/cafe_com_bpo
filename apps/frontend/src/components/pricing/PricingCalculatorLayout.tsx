@@ -23,10 +23,10 @@ export const PricingCalculatorLayout: React.FC = () => {
     resolver: zodResolver(pricingFormSchema) as any,
     defaultValues: {
       operation: {
-        total_cost: 8000,
-        people_count: 2,
-        hours_per_month: 220,
-        tax_rate: 0.06,
+        total_cost: 0,
+        people_count: 0,
+        hours_per_month: 0,
+        tax_rate: 0,
         commission_rate: 0,
       },
       services: INITIAL_SERVICES,
@@ -242,7 +242,7 @@ export const PricingCalculatorLayout: React.FC = () => {
                           </label>
                         </td>
                         <td>
-                          <div style={{fontWeight: 600, fontSize: '.84rem', color: '#111'}}>
+                          <div style={{fontWeight: 600, fontSize: '.84rem', color: 'var(--ds-text)'}}>
                             {svc.name}
                             {svc.tip && <span className="tt tt-left" data-tip={svc.tip}>?</span>}
                           </div>
@@ -255,7 +255,7 @@ export const PricingCalculatorLayout: React.FC = () => {
                         </td>
                         <td style={{textAlign: 'center'}}>
                           {isTime ? (
-                            <span style={{fontSize: '.8rem', color: '#6b7280'}}>{isActive ? fmt(valueCalculated) : '—'}</span>
+                            <span style={{fontSize: '.8rem', color: 'var(--ds-text-muted)'}}>{isActive ? fmt(valueCalculated) : '—'}</span>
                           ) : (
                             <input type="number" className="val-inp" {...register(`services.${index}.fixed_value`, {valueAsNumber: true})} disabled={!isActive} />
                           )}
@@ -274,18 +274,18 @@ export const PricingCalculatorLayout: React.FC = () => {
             <div className="add-row">
               <div className="field">
                 <div className="field-label">Nome do serviço</div>
-                <input type="text" value={newSvcName} onChange={e => setNewSvcName(e.target.value)} placeholder="Ex: Conciliação diária" style={{padding:'9px 12px', border:'1.5px solid #e5e7eb', borderRadius:'8px', width:'100%'}}/>
+                <input type="text" value={newSvcName} onChange={e => setNewSvcName(e.target.value)} placeholder="Ex: Conciliação diária" />
               </div>
               <div className="field">
                 <div className="field-label">Tipo</div>
-                <select value={newSvcType} onChange={e => setNewSvcType(e.target.value as any)} style={{padding:'9px 12px', border:'1.5px solid #e5e7eb', borderRadius:'8px', width:'100%'}}>
+                <select value={newSvcType} onChange={e => setNewSvcType(e.target.value as any)}>
                   <option value="time">Por tempo</option>
                   <option value="fixed">Fixo</option>
                 </select>
               </div>
               <div className="field">
                 <div className="field-label">{newSvcType === 'time' ? 'Tempo (min)' : 'Valor (R$)'}</div>
-                <input type="number" value={newSvcNum} onChange={e => setNewSvcNum(Number(e.target.value))} style={{padding:'9px 12px', border:'1.5px solid #e5e7eb', borderRadius:'8px', width:'100%'}}/>
+                <input type="number" value={newSvcNum} onChange={e => setNewSvcNum(Number(e.target.value))} />
               </div>
               <div style={{display:'flex', alignItems:'flex-end'}}>
                 <button type="button" onClick={handleAddNew} className="btn btn-black" style={{width:'100%', height: '42px', display:'flex', justifyContent:'center'}}>Adicionar</button>

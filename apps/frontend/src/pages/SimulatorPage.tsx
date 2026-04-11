@@ -11,8 +11,8 @@ const SimulatorPage: React.FC = () => {
       <main style={{ paddingTop: '80px', background: 'var(--bg)' }}>
         <FadeIn delay={1}>
           <div className="app-header">
-            <h1 style={{color: '#000'}}>Calculadora Open BPO</h1>
-            <p style={{color: '#333'}}>Preencha com a realidade da sua operação e descubra o valor justo gerado dinamicamente pela API de Python.</p>
+            <h1>Calculadora Open BPO</h1>
+            <p>Preencha com a realidade da sua operação e descubra o valor justo gerado dinamicamente pela API de Python.</p>
           </div>
         </FadeIn>
         

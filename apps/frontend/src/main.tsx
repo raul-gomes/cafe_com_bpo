@@ -4,6 +4,7 @@ import App from './App.tsx'
 import { AppProviders } from './providers/AppProviders'
 import './index.css'
 import './forms.css'
+import './login.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
