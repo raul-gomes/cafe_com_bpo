@@ -78,8 +78,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
 
         <h2 className="modal-title" id="modal-title">Acesse seu relatório</h2>
         <p className="modal-sub">
-          Crie sua conta gratuitamente para baixar a proposta em PDF
-          e acessar o portal Café com BPO.
+          Crie sua conta gratuitamente para baixar a proposta em PDF.
         </p>
 
         {serverError && (
@@ -139,7 +138,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
                   id="reg-password"
                   type={showPw ? 'text' : 'password'}
                   autoComplete="new-password"
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                   className={errors.password ? 'input-error' : ''}
                   {...register('password')}
                 />

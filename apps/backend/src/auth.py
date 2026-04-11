@@ -108,4 +108,9 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], session: Ann
     user = repo.get_user_by_id(uuid.UUID(user_id))
     if user is None:
         raise HTTPException(status_code=401, detail="Usuário não encontrado")
-    return UserResponse(id=user.id, email=user.email)
+    return UserResponse(
+        id=user.id, 
+        email=user.email,
+        name=user.name,
+        company=user.company
+    )

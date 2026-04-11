@@ -2,6 +2,7 @@ from pydantic import BaseModel, Field, EmailStr
 from decimal import Decimal
 from typing import List, Optional
 from uuid import UUID
+from datetime import datetime
 
 class OperationContextSchema(BaseModel):
     """
@@ -64,3 +65,15 @@ class UserResponse(BaseModel):
 class TokenResponse(BaseModel):
     access_token: str
     token_type: str
+
+class ProposalCreate(BaseModel):
+    client_name: str
+    input_payload: dict
+    result_payload: dict
+
+class ProposalResponse(BaseModel):
+    id: UUID
+    client_name: str
+    input_payload: dict
+    result_payload: dict
+    created_at: datetime

@@ -4,6 +4,7 @@ from datetime import datetime
 from src.config import get_settings
 from src.api.pricing import router as pricing_router
 from src.api.auth import router as auth_router
+from src.api.proposals import router as proposals_router
 import os
 
 def create_app() -> FastAPI:
@@ -31,6 +32,7 @@ def create_app() -> FastAPI:
 
     app.include_router(pricing_router)
     app.include_router(auth_router)
+    app.include_router(proposals_router)
 
     return app
 

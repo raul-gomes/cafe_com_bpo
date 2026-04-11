@@ -24,6 +24,8 @@ const INITIAL_SERVICES = [
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
 
+const SESSION_KEY = 'cafe_bpo_proposal';
+
 const termLabels: Record<number, string> = {
   0: 'por mês',
   0.05: 'a cada 3 meses',
@@ -48,7 +50,29 @@ export const PricingCalculatorLayout: React.FC = () => {
     },
   });
 
-  const { fields, append, remove, update } = useFieldArray({ control, name: 'services' });
+  const { fields, append, remove, update, reset } = useFieldArray({ control, name: 'services' });
+
+  // ── Restaura estado do sessionStorage se existir ──────────────────────────
+  React.useEffect(() => {
+    const raw = sessionStorage.getItem(SESSION_KEY);
+    if (raw) {
+      try {
+        const saved = JSON.parse(raw);
+        if (saved.form) {
+          // Usamos reset() do react-hook-form para carregar o form completo
+          setValue('operation', saved.form.operation);
+          setValue('desired_profit_margin', saved.form.desired_profit_margin);
+          setValue('term_discount', saved.form.term_discount);
+          // Para services, como estamos usando fieldArray, precisamos de um cuidado extra
+          // mas o setValue para o array completo costuma funcionar bem no RHF
+          setValue('services', saved.form.services);
+          setClientName(saved.clientName || '');
+        }
+      } catch (e) {
+        console.error('Erro ao restaurar sessão:', e);
+      }
+    }
+  }, [setValue]);
 
   // ── Observa TODOS os campos reativamente ──────────────────────────────────
   const watchedValues = useWatch({ control }) as PricingFormData;

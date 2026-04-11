@@ -19,10 +19,6 @@ export const ProposalDownloadGate: React.FC<ProposalDownloadGateProps> = ({
   return (
     <>
       <div className="proposal-gate">
-        <p className="proposal-gate-hint">
-          Sua proposta está pronta. Crie uma conta gratuita para baixar o PDF
-          e guardar este resultado no seu portal.
-        </p>
         <button
           className="btn-download-pdf"
           onClick={() => setModalOpen(true)}
