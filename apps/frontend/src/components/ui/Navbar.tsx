@@ -93,6 +93,32 @@ export const Navbar: React.FC = () => {
                   zIndex: 10000
                 }}>
                   <button
+                    onClick={() => {
+                      setIsMenuOpen(false);
+                      navigate('/dashboard');
+                    }}
+                    style={{
+                      width: '100%',
+                      padding: '10px 12px',
+                      background: 'transparent',
+                      border: 'none',
+                      borderRadius: 'var(--radius-md)',
+                      color: '#fff',
+                      fontSize: '13px',
+                      fontWeight: 500,
+                      textAlign: 'left',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '8px',
+                      transition: 'background 0.2s'
+                    }}
+                    onMouseOver={e => e.currentTarget.style.background = 'rgba(255,255,255,0.06)'}
+                    onMouseOut={e => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <span>📊</span> Minhas Propostas
+                  </button>
+                  <button
                     onClick={handleLogout}
                     style={{
                       width: '100%',

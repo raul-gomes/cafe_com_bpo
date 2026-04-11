@@ -4,6 +4,7 @@ import LoginPage from './pages/LoginPage'
 import SimulatorPage from './pages/SimulatorPage'
 import UnderConstructionPage from './pages/UnderConstructionPage'
 import ProposalPreviewPage from './pages/ProposalPreviewPage'
+import { DashboardPage } from './pages/DashboardPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 
 export function buildRouter() {
@@ -34,7 +35,7 @@ export function buildRouter() {
       children: [
         {
           path: '',
-          element: <div className="p-10 text-2xl" data-testid="dashboard-content">Dashboard Privado da BPO (Apenas autenticados)</div>,
+          element: <DashboardPage />,
         }
       ]
     },

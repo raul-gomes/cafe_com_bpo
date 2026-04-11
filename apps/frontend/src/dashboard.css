@@ -1,0 +1,142 @@
+:root {
+  --dashboard-bg: #0a0a0a;
+  --card-bg: rgba(255, 255, 255, 0.03);
+  --card-border: rgba(255, 255, 255, 0.08);
+}
+
+.dashboard-container {
+  min-height: 100vh;
+  background-color: var(--dashboard-bg);
+  padding-top: calc(var(--nav-height) + 40px);
+  padding-bottom: 80px;
+  color: #fff;
+}
+
+.dashboard-content {
+  max-width: var(--max-width);
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.dashboard-header {
+  margin-bottom: 48px;
+  animation: fadeInDown 0.6s ease-out;
+}
+
+.dashboard-header h1 {
+  font-size: 32px;
+  font-weight: 800;
+  margin-bottom: 8px;
+  letter-spacing: -1px;
+}
+
+.dashboard-header p {
+  color: var(--ds-text-muted);
+  font-size: 16px;
+}
+
+.proposal-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 24px;
+}
+
+.proposal-card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+}
+
+.proposal-card:hover {
+  transform: translateY(-4px);
+  background: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.15);
+  box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+}
+
+.proposal-card .client-badge {
+  background: rgba(255, 191, 0, 0.1);
+  color: var(--ds-primary);
+  padding: 4px 10px;
+  border-radius: 100px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  width: fit-content;
+}
+
+.proposal-card h3 {
+  font-size: 18px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.proposal-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  color: var(--ds-text-muted);
+}
+
+.proposal-price {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  margin-top: 8px;
+}
+
+.proposal-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.btn-icon {
+  background: rgba(255,255,255,0.05);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  padding: 8px;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+}
+
+.btn-icon:hover {
+  background: rgba(255,255,255,0.15);
+}
+
+.btn-delete {
+  color: #ff453a;
+}
+
+.btn-delete:hover {
+  background: rgba(255, 69, 58, 0.15);
+  border-color: rgba(255, 69, 58, 0.3);
+}
+
+@keyframes fadeInDown {
+  from { opacity: 0; transform: translateY(-20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.empty-state {
+  text-align: center;
+  padding: 80px 0;
+  border: 2px dashed var(--card-border);
+  border-radius: var(--radius-lg);
+  color: var(--ds-text-muted);
+}

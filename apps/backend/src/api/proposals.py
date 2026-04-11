@@ -45,3 +45,40 @@ def list_proposals(
     Lista todas as propostas salvas do usuário logado.
     """
     return repo.list_scenarios_by_user(current_user.id)
+
+@router.get("/{proposal_id}", response_model=ProposalResponse)
+def get_proposal(
+    proposal_id: str,
+    repo: RepoDep,
+    current_user: CurrentUserDep
+):
+    """
+    Retorna os detalhes de uma proposta específica do usuário.
+    """
+    import uuid
+    scenario = repo.get_scenario_by_id(
+        user_id=current_user.id,
+        scenario_id=uuid.UUID(proposal_id)
+    )
+    if not scenario:
+        raise HTTPException(status_code=404, detail="Proposta não encontrada")
+    return scenario
+
+@router.delete("/{proposal_id}", status_code=204)
+def delete_proposal(
+    proposal_id: str,
+    repo: RepoDep,
+    current_user: CurrentUserDep
+):
+    """
+    Remove uma proposta do histórico do usuário.
+    """
+    import uuid
+    success = repo.delete_scenario(
+        user_id=current_user.id,
+        scenario_id=uuid.UUID(proposal_id)
+    )
+    if not success:
+        raise HTTPException(status_code=404, detail="Proposta não encontrada ou acesso negado")
+    repo.session.commit()
+    return None
