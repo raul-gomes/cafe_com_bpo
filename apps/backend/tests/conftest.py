@@ -3,7 +3,8 @@ import os
 from fastapi.testclient import TestClient
 
 # Set environment before loading the app/settings
-os.environ["DATABASE_URL"] = "postgresql+psycopg://postgres:postgres_password@localhost:5432/cafe_bpo"
+if "DATABASE_URL" not in os.environ:
+    os.environ["DATABASE_URL"] = "postgresql+psycopg://postgres:postgres_password@db:5432/cafe_bpo"
 
 from src.main import create_app
 from src.database import engine, Base

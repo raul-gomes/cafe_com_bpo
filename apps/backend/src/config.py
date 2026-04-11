@@ -4,7 +4,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     mode: str = "development"
     database_url: str
-    jwt_secret: str = "super_cafe_secret"
+    jwt_secret: str = "7e15d862e6e66e63283f51680650965b2d718501239634e9f783efc70b86a079" # 32-byte hex
     jwt_algorithm: str = "HS256"
 
     # OAuth Settings
