@@ -17,7 +17,8 @@ class UserRepository:
         """
         self.session = session
 
-    def create_user(self, email: str, password_hash: str, auth_provider: str = "local") -> User:
+    def create_user(self, email: str, password_hash: str, auth_provider: str = "local",
+                    name: Optional[str] = None, company: Optional[str] = None) -> User:
         """
         Cria e persiste um novo usuário no banco de dados.
 
@@ -25,6 +26,8 @@ class UserRepository:
             email (str): E-mail do usuário.
             password_hash (str): Hash criptografado da senha.
             auth_provider (str): Provedor de autenticação (padrão local).
+            name (str, optional): Nome completo do usuário.
+            company (str, optional): Empresa do usuário.
 
         Returns:
             User: Objeto User recém criado.
@@ -32,7 +35,8 @@ class UserRepository:
         Raises:
             IntegrityError: Caso o e-mail já esteja cadastrado.
         """
-        user = User(email=email, password_hash=password_hash, auth_provider=auth_provider)
+        user = User(email=email, password_hash=password_hash, auth_provider=auth_provider,
+                    name=name, company=company)
         self.session.add(user)
         self.session.flush()
         return user

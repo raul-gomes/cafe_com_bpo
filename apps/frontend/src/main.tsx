@@ -5,6 +5,7 @@ import { AppProviders } from './providers/AppProviders'
 import './index.css'
 import './forms.css'
 import './login.css'
+import './proposal.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

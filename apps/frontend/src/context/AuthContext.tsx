@@ -4,7 +4,16 @@ import { apiClient, authStorage } from '../api/client';
 interface User {
   id: string;
   email: string;
+  name?: string;
+  company?: string;
   created_at?: string;
+}
+
+interface RegisterPayload {
+  name: string;
+  email: string;
+  company?: string;
+  password: string;
 }
 
 interface AuthContextType {
@@ -13,6 +22,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (token: string) => Promise<void>;
   logout: () => void;
+  register: (payload: RegisterPayload) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -56,12 +66,24 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     setUser(null);
   };
 
+  const register = async (payload: RegisterPayload): Promise<void> => {
+    // Cria o usuário no backend e faz login imediato via /auth/login
+    await apiClient.post('/auth/register', payload);
+    const loginResp = await apiClient.post<{ access_token: string }>('/auth/login', null, {
+      params: { username: payload.email, password: payload.password },
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      data: new URLSearchParams({ username: payload.email, password: payload.password }),
+    });
+    await login(loginResp.data.access_token);
+  };
+
   const value: AuthContextType = {
     user,
     isAuthenticated: !!user,
     isLoading,
     login,
     logout,
+    register,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

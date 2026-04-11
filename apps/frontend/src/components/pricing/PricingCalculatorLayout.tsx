@@ -1,10 +1,10 @@
 import React, { useState, useMemo } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
+import { useNavigate } from 'react-router-dom';
 import { pricingFormSchema, PricingFormData } from '../../schemas/pricing';
 import { calculatePricing } from '../../lib/pricingEngine';
-import { useGeneratePDF } from '../../lib/useGeneratePDF';
-import logoAsset from '../../assets/logo.png';
+import { saveProposalSession } from '../../pages/ProposalPreviewPage';
 
 // ─── Catálogo de Serviços Inicial ─────────────────────────────────────────────
 const INITIAL_SERVICES = [
@@ -79,8 +79,8 @@ export const PricingCalculatorLayout: React.FC = () => {
     update(index, { ...svc, active: !svc.active });
   };
 
-  // ── Hook de geração de PDF ───────────────────────────────────────────
-  const { generate: generatePDF, isGenerating, error: pdfError } = useGeneratePDF();
+  // ── Navegação para a proposta ─────────────────────────────────────────────
+  const navigate = useNavigate();
   const [clientName, setClientName] = useState('');
   const [newSvcName, setNewSvcName] = useState('');
   const [newSvcType, setNewSvcType] = useState<'time' | 'fixed'>('time');
@@ -367,16 +367,10 @@ export const PricingCalculatorLayout: React.FC = () => {
               </div>
             </div>
 
-            {pdfError && (
-              <div style={{ color: 'var(--ds-error)', fontSize: '12px', marginTop: '8px', textAlign: 'center' }}>
-                {pdfError}
-              </div>
-            )}
-
             {/* Campo nome do cliente */}
             <div style={{ marginTop: '12px' }}>
               <label style={{ fontSize: '10px', color: 'var(--ds-text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'block', marginBottom: '6px' }}>
-                Nome do cliente (para o PDF)
+                Nome do cliente (para a proposta)
               </label>
               <input
                 type="text"
@@ -392,24 +386,25 @@ export const PricingCalculatorLayout: React.FC = () => {
                   fontSize: '13px',
                   fontFamily: 'Inter, sans-serif',
                   outline: 'none',
+                  boxSizing: 'border-box',
                 }}
               />
             </div>
 
             <button
               className="btn-pdf"
-              disabled={isGenerating || !pricing}
+              disabled={!pricing}
               onClick={() => {
                 if (!pricing) return;
-                generatePDF({
+                saveProposalSession({
                   form: getValues(),
                   pricing,
-                  logoUrl: logoAsset,
                   clientName: clientName || 'Cliente',
                 });
+                navigate('/proposta');
               }}
             >
-              {isGenerating ? 'Gerando PDF...' : 'Gerar Proposta Comercial (PDF)'}
+              Ver Proposta Comercial
             </button>
           </div>
         </div>

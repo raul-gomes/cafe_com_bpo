@@ -1,0 +1,593 @@
+/* ═══════════════════════════════════════════════════════
+   CAFÉ COM BPO — PROPOSAL PAGE STYLES
+   Todos os tokens e classes da proposta HTML ficam aqui.
+   Zero hex hardcoded nos componentes — use estas variáveis.
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ── Layout ── */
+  --proposal-max-width:      860px;
+  --proposal-section-gap:    80px;
+  --proposal-page-padding:   clamp(24px, 5vw, 64px);
+
+  /* ── Cover ── */
+  --proposal-cover-bg:       linear-gradient(135deg, #000 55%, #0d0800 100%);
+  --proposal-cover-min-h:    460px;
+
+  /* ── Superfícies ── */
+  --proposal-card-bg:        rgba(255, 255, 255, 0.03);
+  --proposal-card-border:    rgba(255, 255, 255, 0.07);
+  --proposal-card-radius:    12px;
+  --proposal-card-padding:   20px 24px;
+
+  /* ── Cores ── */
+  --proposal-yellow:         var(--ds-primary);
+  --proposal-yellow-glow:    rgba(251, 191, 36, 0.10);
+  --proposal-yellow-border:  rgba(251, 191, 36, 0.25);
+  --proposal-text:           var(--ds-text);
+  --proposal-text-muted:     var(--ds-text-muted);
+  --proposal-surface:        var(--ds-surface);
+
+  /* ── Tipografia ── */
+  --proposal-value-size:     clamp(40px, 7vw, 80px);
+  --proposal-title-size:     clamp(28px, 4vw, 42px);
+  --proposal-label-size:     11px;
+  --proposal-label-spacing:  0.08em;
+
+  /* ── Animações ── */
+  --proposal-enter-duration: 0.65s;
+  --proposal-enter-easing:   cubic-bezier(0.16, 1, 0.3, 1);
+  --proposal-stagger-1:      0ms;
+  --proposal-stagger-2:      130ms;
+  --proposal-stagger-3:      260ms;
+  --proposal-stagger-4:      390ms;
+
+  /* ── Watermark ── */
+  --proposal-bpo-size:       clamp(140px, 30vw, 320px);
+  --proposal-bpo-color:      rgba(251, 191, 36, 0.04);
+
+  /* ── Modal ── */
+  --modal-backdrop:          rgba(0, 0, 0, 0.72);
+  --modal-width:             420px;
+  --modal-radius:            16px;
+  --modal-padding:           36px;
+  --modal-enter-duration:    280ms;
+  --modal-enter-easing:      cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* ── Animação base de entrada ─────────────────────────────── */
+@keyframes proposalFadeUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes proposalCountUp {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes modalEnter {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes backdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Aplicar animação escalonada nas seções ─────────────────── */
+.prop-section {
+  opacity: 0;
+  animation: proposalFadeUp var(--proposal-enter-duration) var(--proposal-enter-easing) forwards;
+  animation-delay: var(--proposal-stagger-1);
+}
+.prop-section[data-delay="1"] { animation-delay: var(--proposal-stagger-1); }
+.prop-section[data-delay="2"] { animation-delay: var(--proposal-stagger-2); }
+.prop-section[data-delay="3"] { animation-delay: var(--proposal-stagger-3); }
+.prop-section[data-delay="4"] { animation-delay: var(--proposal-stagger-4); }
+
+/* ── Página wrapper ──────────────────────────────────────────── */
+.proposal-page {
+  min-height: 100vh;
+  background: var(--ds-black);
+  padding-top: var(--nav-height);
+}
+
+.proposal-inner {
+  max-width: var(--proposal-max-width);
+  margin: 0 auto;
+  padding: 40px var(--proposal-page-padding) 80px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--proposal-section-gap);
+}
+
+/* ── COVER SECTION ───────────────────────────────────────────── */
+.prop-cover {
+  position: relative;
+  background: var(--proposal-cover-bg);
+  border-radius: 16px;
+  border: 1px solid var(--proposal-card-border);
+  min-height: var(--proposal-cover-min-h);
+  overflow: hidden;
+  padding: 48px 48px 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.prop-cover-accent {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  background: var(--proposal-yellow);
+}
+
+.prop-cover-logo {
+  height: 36px;
+  width: auto;
+  margin-bottom: 36px;
+  object-fit: contain;
+  object-position: left center;
+}
+
+.prop-cover-tag {
+  font-size: var(--proposal-label-size);
+  color: var(--proposal-yellow);
+  font-weight: 700;
+  letter-spacing: var(--proposal-label-spacing);
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.prop-cover-title {
+  font-size: var(--proposal-title-size);
+  font-weight: 800;
+  color: var(--proposal-text);
+  line-height: 1.2;
+  margin-bottom: 8px;
+}
+
+.prop-cover-sub {
+  font-size: 15px;
+  color: var(--proposal-text-muted);
+  line-height: 1.6;
+  margin-bottom: 36px;
+  max-width: 520px;
+}
+
+.prop-cover-meta {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+  padding-top: 24px;
+  border-top: 1px solid var(--proposal-card-border);
+}
+
+.prop-cover-meta-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.prop-meta-label {
+  font-size: 9px;
+  color: var(--proposal-text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+}
+
+.prop-meta-value {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--proposal-text);
+}
+
+.prop-meta-value--accent {
+  color: var(--proposal-yellow);
+  font-size: 18px;
+}
+
+/* Watermark BPO na capa */
+.prop-cover-bpo {
+  position: absolute;
+  bottom: -20px;
+  right: -10px;
+  font-size: var(--proposal-bpo-size);
+  font-weight: 800;
+  color: var(--proposal-bpo-color);
+  letter-spacing: -8px;
+  line-height: 1;
+  pointer-events: none;
+  user-select: none;
+  font-family: 'Inter', sans-serif;
+}
+
+/* ── SECTION HEADER ─────────────────────────────────────────── */
+.prop-section-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--proposal-yellow);
+  letter-spacing: var(--proposal-label-spacing);
+  text-transform: uppercase;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--proposal-card-border);
+}
+
+/* ── OPERATION GRID ─────────────────────────────────────────── */
+.prop-op-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 12px;
+}
+
+.prop-op-item {
+  background: var(--proposal-card-bg);
+  border: 1px solid var(--proposal-card-border);
+  border-radius: var(--proposal-card-radius);
+  padding: var(--proposal-card-padding);
+}
+
+.prop-op-label {
+  font-size: 9px;
+  color: var(--proposal-text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.prop-op-value {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--proposal-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.prop-op-value--accent {
+  color: var(--proposal-yellow);
+}
+
+/* ── SERVICES TABLE ─────────────────────────────────────────── */
+.prop-svc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.prop-svc-table thead tr {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.prop-svc-table th {
+  text-align: left;
+  padding: 8px 12px;
+  font-size: 9px;
+  font-weight: 700;
+  color: var(--proposal-text-muted);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  border-bottom: 1px solid var(--proposal-card-border);
+}
+
+.prop-svc-table th:last-child,
+.prop-svc-table td:last-child {
+  text-align: right;
+}
+
+.prop-svc-table td {
+  padding: 12px;
+  border-bottom: 1px solid var(--proposal-card-border);
+  color: var(--proposal-text);
+  vertical-align: middle;
+}
+
+.prop-svc-table tr:last-child td { border-bottom: none; }
+
+/* ── FINANCIAL BREAKDOWN ────────────────────────────────────── */
+.prop-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.prop-breakdown-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--proposal-card-border);
+  font-size: 13px;
+}
+
+.prop-breakdown-label { color: var(--proposal-text-muted); }
+.prop-breakdown-value { font-weight: 600; color: var(--proposal-text); font-variant-numeric: tabular-nums; }
+.prop-breakdown-discount { font-weight: 600; color: #4ade80; font-variant-numeric: tabular-nums; }
+
+.prop-breakdown-subtotal {
+  display: flex;
+  justify-content: space-between;
+  padding: 12px 0 8px;
+  font-size: 13px;
+  border-top: 1px solid rgba(255,255,255,0.15);
+  margin-top: 2px;
+  font-weight: 700;
+  color: var(--proposal-text);
+}
+
+/* ── VALOR FINAL ────────────────────────────────────────────── */
+.prop-final-box {
+  background: var(--proposal-yellow-glow);
+  border: 1px solid var(--proposal-yellow-border);
+  border-radius: 16px;
+  padding: 40px 36px;
+  text-align: center;
+  margin-top: 32px;
+}
+
+.prop-final-label {
+  font-size: var(--proposal-label-size);
+  color: var(--proposal-text-muted);
+  letter-spacing: var(--proposal-label-spacing);
+  text-transform: uppercase;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.prop-final-value {
+  font-size: var(--proposal-value-size);
+  font-weight: 800;
+  color: var(--proposal-yellow);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+  animation: proposalCountUp 0.8s var(--proposal-enter-easing) forwards;
+}
+
+.prop-final-period {
+  font-size: 13px;
+  color: var(--proposal-text-muted);
+  margin-top: 8px;
+}
+
+/* ── DOWNLOAD GATE ──────────────────────────────────────────── */
+.proposal-gate {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 48px 24px;
+  border-top: 1px solid var(--proposal-card-border);
+}
+
+.proposal-gate-hint {
+  font-size: 13px;
+  color: var(--proposal-text-muted);
+  text-align: center;
+  max-width: 360px;
+  line-height: 1.6;
+}
+
+.btn-download-pdf {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--proposal-yellow);
+  color: var(--ds-black);
+  font-size: 15px;
+  font-weight: 700;
+  padding: 14px 32px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  font-family: 'Inter', sans-serif;
+  min-height: 48px;
+}
+
+.btn-download-pdf:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 32px rgba(251, 191, 36, 0.3);
+}
+
+.btn-download-pdf:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+/* ── REGISTER MODAL ─────────────────────────────────────────── */
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: var(--modal-backdrop);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: backdropIn 200ms ease forwards;
+}
+
+.modal-box {
+  width: 100%;
+  max-width: var(--modal-width);
+  background: var(--ds-surface);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--modal-radius);
+  padding: var(--modal-padding);
+  position: relative;
+  animation: modalEnter var(--modal-enter-duration) var(--modal-enter-easing) forwards;
+}
+
+.modal-close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: none;
+  border: none;
+  color: var(--proposal-text-muted);
+  cursor: pointer;
+  font-size: 20px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  transition: color 0.15s;
+}
+.modal-close:hover { color: var(--proposal-text); }
+
+.modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--proposal-text);
+  margin-bottom: 4px;
+}
+
+.modal-sub {
+  font-size: 13px;
+  color: var(--proposal-text-muted);
+  margin-bottom: 24px;
+  line-height: 1.5;
+}
+
+.modal-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-field label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--proposal-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 6px;
+}
+
+.modal-field input {
+  width: 100%;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1.5px solid rgba(255, 255, 255, 0.1);
+  border-radius: 8px;
+  color: var(--proposal-text);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.15s;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.modal-field input:focus {
+  border-color: var(--proposal-yellow);
+}
+
+.modal-field input.input-error {
+  border-color: var(--ds-error, #ef4444);
+}
+
+.modal-field-error {
+  font-size: 11px;
+  color: var(--ds-error, #ef4444);
+  margin-top: 4px;
+}
+
+.modal-password-wrap {
+  position: relative;
+}
+
+.modal-password-wrap input {
+  padding-right: 44px;
+}
+
+.modal-pw-toggle {
+  position: absolute;
+  right: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--proposal-text-muted);
+  font-size: 14px;
+  padding: 4px;
+  min-width: 28px;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-pw-toggle:hover { color: var(--proposal-text); }
+
+.modal-submit {
+  width: 100%;
+  padding: 14px;
+  background: var(--proposal-yellow);
+  color: var(--ds-black);
+  font-size: 14px;
+  font-weight: 700;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: 'Inter', sans-serif;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  min-height: 48px;
+  margin-top: 4px;
+}
+
+.modal-submit:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(251, 191, 36, 0.25);
+}
+
+.modal-submit:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.modal-footer-link {
+  text-align: center;
+  font-size: 12px;
+  color: var(--proposal-text-muted);
+  margin-top: 12px;
+}
+
+.modal-footer-link a,
+.modal-footer-link button {
+  color: var(--proposal-yellow);
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0;
+  text-decoration: underline;
+  font-family: 'Inter', sans-serif;
+}
+
+.modal-server-error {
+  font-size: 12px;
+  color: var(--ds-error, #ef4444);
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  border-radius: 6px;
+  padding: 10px 14px;
+  line-height: 1.5;
+}
+
+/* ── Responsividade ─────────────────────────────────────────── */
+@media (max-width: 600px) {
+  .prop-cover { padding: 32px 24px 28px; }
+  .prop-cover-meta { gap: 20px; }
+  .prop-op-grid { grid-template-columns: 1fr 1fr; }
+  .prop-final-box { padding: 28px 20px; }
+  .modal-box { padding: 28px 20px; }
+}

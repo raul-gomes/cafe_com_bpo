@@ -50,12 +50,16 @@ class AuthService:
             hashed_pw = PasswordService.hash_password(payload.password)
             user = self.user_repo.create_user(
                 email=payload.email,
-                password_hash=hashed_pw
+                password_hash=hashed_pw,
+                name=payload.name,
+                company=payload.company,
             )
             self.user_repo.session.commit()
             return UserResponse(
                 id=user.id,
-                email=user.email
+                email=user.email,
+                name=user.name,
+                company=user.company,
             )
         except IntegrityError:
             self.user_repo.session.rollback()

@@ -3,6 +3,7 @@ import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import SimulatorPage from './pages/SimulatorPage'
 import UnderConstructionPage from './pages/UnderConstructionPage'
+import ProposalPreviewPage from './pages/ProposalPreviewPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 
 export function buildRouter() {
@@ -18,6 +19,10 @@ export function buildRouter() {
     {
       path: '/simulador',
       element: <SimulatorPage />,
+    },
+    {
+      path: '/proposta',
+      element: <ProposalPreviewPage />,
     },
     {
       path: '/em-construcao',
