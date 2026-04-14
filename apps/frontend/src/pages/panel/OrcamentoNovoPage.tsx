@@ -29,6 +29,23 @@ export const OrcamentoNovoPage: React.FC = () => {
         }
       };
       fetchProposal();
+    } else {
+      // Se não há ID, verifica se há uma simulação pendente no sessionStorage
+      const raw = sessionStorage.getItem('cafe_bpo_proposal');
+      if (raw) {
+        try {
+          const saved = JSON.parse(raw);
+          if (saved.form) {
+            setInitialData(saved.form);
+            setClientName(saved.clientName || '');
+            // Opcional: remover da sessão após carregar? 
+            // Melhor manter para evitar perda em refresh antes de salvar.
+          }
+        } catch (e) {
+          console.error('Erro ao carregar simulação pendente:', e);
+        }
+      }
+      setLoading(false);
     }
   }, [id, navigate]);
 

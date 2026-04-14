@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/ui/Navbar';
 import { ProposalPreview } from '../components/proposal/ProposalPreview';
 import { PricingFormData } from '../schemas/pricing';
@@ -16,10 +17,16 @@ export interface ProposalSession {
 
 export default function ProposalPreviewPage() {
   const navigate = useNavigate();
+  const { isAuthenticated } = useAuth();
   const [proposal, setProposal] = useState<ProposalSession | null>(null);
   const [notFound, setNotFound]  = useState(false);
 
   useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/painel/novo-orcamento');
+      return;
+    }
+
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) {
       setNotFound(true);
@@ -30,7 +37,7 @@ export default function ProposalPreviewPage() {
     } catch {
       setNotFound(true);
     }
-  }, []);
+  }, [isAuthenticated, navigate]);
 
   const generatedAt = new Date().toLocaleDateString('pt-BR', {
     day: '2-digit',

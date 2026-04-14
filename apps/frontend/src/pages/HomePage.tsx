@@ -3,8 +3,12 @@ import { Navbar } from '../components/ui/Navbar';
 import { Button } from '../components/ui/Button';
 import { FadeIn } from '../components/ui/FadeIn';
 import { Link } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 const HomePage: React.FC = () => {
+  const { isAuthenticated } = useAuth();
+  const targetPath = isAuthenticated ? '/painel' : '/login';
+
   return (
     <div style={{ paddingBottom: '100px' }}>
       <Navbar />
@@ -42,7 +46,7 @@ const HomePage: React.FC = () => {
             </FadeIn>
             <FadeIn delay={3}>
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px' }}>
-                <Link to="/login">
+                <Link to={targetPath}>
                   <Button variant="primary" size="large">
                     FAZER PARTE DA REALIDADE
                   </Button>
@@ -158,7 +162,7 @@ const HomePage: React.FC = () => {
                 Sem contrato anual. Sem fidelidade.<br/>Você fica pela utilidade, não pela obrigação.
               </p>
               <div style={{ marginTop: '40px' }}>
-                 <Link to="/login">
+                 <Link to={targetPath}>
                   <Button variant="primary" size="large">
                     ACESSO IMEDIATO
                   </Button>

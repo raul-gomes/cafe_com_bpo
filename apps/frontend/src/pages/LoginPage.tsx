@@ -1,7 +1,19 @@
 import { Navbar } from '../components/ui/Navbar';
 import { LoginForm } from '../components/auth/LoginForm';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage() {
+  const { isAuthenticated, isLoading } = useAuth();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      navigate('/painel');
+    }
+  }, [isAuthenticated, isLoading, navigate]);
+
   return (
     <div className="login-page">
       <Navbar />

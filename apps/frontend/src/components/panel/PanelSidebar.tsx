@@ -40,7 +40,11 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
       <aside className={`panel-sidebar ${isOpen ? 'open' : ''}`}>
         {/* Brand */}
         {/* Brand */}
-        <div className="panel-sidebar__brand" style={{ justifyContent: 'center', padding: '20px 0' }}>
+        <div 
+          className="panel-sidebar__brand" 
+          style={{ justifyContent: 'center', padding: '20px 0', cursor: 'pointer' }}
+          onClick={() => navigate('/')}
+        >
           <img src={logoSide} alt="Café com BPO" style={{ height: '50px', width: 'auto' }} />
         </div>
 
