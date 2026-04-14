@@ -65,6 +65,35 @@ def get_proposal(
     log.debug(f"🔍 Proposta visualizada: {proposal_id} ({scenario.client_name})")
     return scenario
 
+@router.put("/{proposal_id}", response_model=ProposalResponse)
+def update_proposal(
+    proposal_id: str,
+    proposal: ProposalCreate,
+    repo: RepoDep,
+    current_user: CurrentUserDep
+):
+    try:
+        updated = repo.update_scenario(
+            user_id=current_user.id,
+            scenario_id=uuid.UUID(proposal_id),
+            client_name=proposal.client_name,
+            input_payload=proposal.input_payload,
+            result_payload=proposal.result_payload
+        )
+        if not updated:
+            log.warning(f"⚠️ Tentativa de atualização de proposta inexistente ou IDOR: {proposal_id} por {current_user.email}")
+            raise HTTPException(status_code=404, detail="Proposta não encontrada")
+        
+        repo.session.commit()
+        log.info(f"📝 Proposta atualizada: '{proposal.client_name}' | ID: {proposal_id} | Usuário: {current_user.email}")
+        return updated
+    except HTTPException:
+        raise
+    except Exception as e:
+        repo.session.rollback()
+        log.error(f"❌ Erro ao atualizar proposta {proposal_id}: {str(e)}")
+        raise HTTPException(status_code=400, detail=str(e))
+
 @router.delete("/{proposal_id}", status_code=204)
 def delete_proposal(
     proposal_id: str,

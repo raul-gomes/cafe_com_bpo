@@ -4,9 +4,6 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { pricingFormSchema, PricingFormData } from '../../schemas/pricing';
 import { calculatePricing } from '../../lib/pricingEngine';
-import { saveProposalSession } from '../../pages/ProposalPreviewPage';
-import { useGeneratePDF } from '../../lib/useGeneratePDF';
-import logoAsset from '../../assets/logo.png';
 
 // ─── Catálogo de Serviços Inicial (Metodologia BPO v4) ─────────────────────────
 const INITIAL_SERVICES = [
@@ -31,31 +28,16 @@ const INITIAL_SERVICES = [
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
 
-interface PricingCalculatorLayoutProps {
-  initialData?: PricingFormData;
-  initialClientName?: string;
-  isSaving?: boolean;
-  onSave?: (data: PricingFormData, clientName: string) => void;
-  saveButtonLabel?: string;
-}
-
-export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = ({
-  initialData,
-  initialClientName = '',
-  isSaving = false,
-  onSave,
-  saveButtonLabel = 'Salvar Proposta'
-}) => {
+export const PublicPricingSimulator: React.FC = () => {
   const navigate = useNavigate();
-  const { generate: generatePDF, isGenerating } = useGeneratePDF();
-  const [clientName, setClientName] = useState(initialClientName);
+  const [clientName, setClientName] = useState('');
   const [newSvcName, setNewSvcName] = useState('');
   const [newSvcType, setNewSvcType] = useState<'time' | 'fixed'>('time');
   const [newSvcNum, setNewSvcNum]   = useState(10);
 
-  const { register, control, getValues, setValue, reset, formState: { errors } } = useForm<PricingFormData>({
+  const { register, control, getValues, setValue, formState: { errors } } = useForm<PricingFormData>({
     resolver: zodResolver(pricingFormSchema) as any,
-    defaultValues: initialData || {
+    defaultValues: {
       operation: {
         total_cost: 0,
         people_count: 0,
@@ -70,29 +52,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   });
 
   const { fields, append, remove, update } = useFieldArray({ control, name: 'services' });
-
-  useEffect(() => {
-    if (initialData) {
-      reset(initialData);
-      setClientName(initialClientName);
-    }
-  }, [initialData, initialClientName, reset]);
-
   const watchedValues = useWatch({ control }) as PricingFormData;
-
-  const pricing = useMemo(() => {
-    const op = watchedValues?.operation;
-    const svcs = watchedValues?.services ?? [];
-    const margin = watchedValues?.desired_profit_margin ?? 0.5;
-    const discount = watchedValues?.term_discount ?? 0;
-    if (!op) return null;
-    return calculatePricing(op, svcs, margin, discount);
-  }, [watchedValues]);
-
-  const op = watchedValues?.operation;
-  const totalHours  = (op?.people_count || 0) * (op?.hours_per_month || 0);
-  const costPerHour = totalHours > 0 ? (op?.total_cost || 0) / totalHours : 0;
-  const costPerMin  = costPerHour / 60;
 
   const currentScenario = watchedValues?.desired_profit_margin ?? 0.5;
   const currentTerm     = watchedValues?.term_discount ?? 0;
@@ -102,50 +62,28 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
     update(index, { ...svc, active: !svc.active });
   };
 
-  const handleAddNew = () => {
-    if (!newSvcName.trim()) return;
-    append({
-      id: Date.now(),
-      name: newSvcName,
-      type: newSvcType,
-      minutes_per_execution: newSvcType === 'time' ? newSvcNum : 0,
-      fixed_value: newSvcType === 'fixed' ? newSvcNum : 0,
-      monthly_quantity: 1,
-      active: true,
-      tip: 'Serviço personalizado',
-    });
-    setNewSvcName('');
-    setNewSvcNum(10);
+  const handleVisualize = () => {
+    const form = getValues();
+    const result = calculatePricing(form.operation, form.services, form.desired_profit_margin, form.term_discount);
+    
+    const simulationState = { 
+      form, 
+      pricing: result,
+      clientName: clientName || 'Empresa'
+    };
+    sessionStorage.setItem('cafe_bpo_proposal', JSON.stringify(simulationState));
+    navigate('/proposta');
   };
 
-  const handlePrimaryAction = () => {
-    if (!pricing) return;
-    if (onSave) {
-      onSave(getValues(), clientName || 'Cliente');
-    } else {
-      saveProposalSession({
-        form: getValues(),
-        pricing,
-        clientName: clientName || 'Cliente',
-      });
-      navigate('/proposta');
-    }
-  };
-
-  const handleDownload = async () => {
-    if (!pricing) return;
-    await generatePDF({
-      form: getValues(),
-      pricing,
-      logoUrl: logoAsset,
-      clientName: clientName || 'Cliente'
-    });
-  };
+  const op = watchedValues?.operation;
+  const totalHours  = (op?.people_count || 0) * (op?.hours_per_month || 0);
+  const costPerHour = totalHours > 0 ? (op?.total_cost || 0) / totalHours : 0;
+  const costPerMin  = costPerHour / 60;
 
   return (
-    <div className="calculator-wrapper">
+    <div className="calculator-wrapper public-simulator" style={{ maxWidth: '1000px', margin: '0 auto' }}>
       <div className="app-body">
-        <div className="left-col">
+        <div className="left-col" style={{ width: '100%' }}>
           {/* Nome do Cliente */}
           <div className="card" style={{ marginBottom: '24px' }}>
             <div className="card-body" style={{ padding: '20px' }}>
@@ -174,7 +112,6 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                 <div className="field">
                   <div className="field-label">Custo total mensal (R$)</div>
                   <input type="number" {...register('operation.total_cost', { valueAsNumber: true })} min="0" step="100" />
-                  {errors.operation?.total_cost && <div className="error-text">{errors.operation.total_cost.message}</div>}
                 </div>
                 <div className="field">
                   <div className="field-label">Pessoas na operação</div>
@@ -244,7 +181,6 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                       <th>Serviço</th>
                       <th style={{ width: '76px', textAlign: 'center' }}>Qtd/mês</th>
                       <th style={{ width: '108px', textAlign: 'center' }}>Valor (Custo)</th>
-                      <th></th>
                     </tr>
                   </thead>
                   <tbody>
@@ -268,7 +204,6 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                           <td>
                             <div style={{ fontWeight: 600, fontSize: '.84rem', color: 'var(--ds-text)' }}>
                               {svc.name}
-                              {svc.tip && <span className="tt tt-left" data-tip={svc.tip}>?</span>}
                             </div>
                             <div style={{ marginTop: '2px' }}>
                               {!isFixed ? <span className="badge-time">Tempo</span> : <span className="badge-fixed">Fixo</span>}
@@ -285,41 +220,17 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                               <input type="number" className="val-inp" {...register(`services.${index}.fixed_value`, { valueAsNumber: true })} disabled={!isActive} />
                             )}
                           </td>
-                          <td>
-                            <button type="button" className="btn-rm" onClick={() => remove(index)}>✕</button>
-                          </td>
                         </tr>
                       );
                     })}
                   </tbody>
                 </table>
               </div>
-
-              <div className="add-row">
-                <div className="field">
-                  <div className="field-label">Nome do serviço</div>
-                  <input type="text" value={newSvcName} onChange={e => setNewSvcName(e.target.value)} placeholder="Ex: Conciliação diária" />
-                </div>
-                <div className="field">
-                  <div className="field-label">Tipo</div>
-                  <select value={newSvcType} onChange={e => setNewSvcType(e.target.value as 'time' | 'fixed')}>
-                    <option value="time">Por tempo</option>
-                    <option value="fixed">Fixo</option>
-                  </select>
-                </div>
-                <div className="field">
-                  <div className="field-label">{newSvcType === 'time' ? 'Tempo (min)' : 'Valor (R$)'}</div>
-                  <input type="number" value={newSvcNum} onChange={e => setNewSvcNum(Number(e.target.value))} />
-                </div>
-                <div style={{ display: 'flex', alignItems: 'flex-end' }}>
-                  <button type="button" onClick={handleAddNew} className="btn btn-black" style={{ width: '100%', height: '42px' }}>Adicionar</button>
-                </div>
-              </div>
             </div>
           </div>
 
           {/* PASSO 4 — Prazo */}
-          <div className="card" style={{ marginBottom: '80px' }}>
+          <div className="card" style={{ marginBottom: '40px' }}>
             <div className="card-header">
               <span className="step-badge">4</span>
               <h2>Prazo de pagamento</h2>
@@ -339,55 +250,20 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
               </div>
             </div>
           </div>
-        </div>
-      </div>
 
-      {/* ── FIXED SUMMARY BAR (BOTTOM) ───────────────────────────────────────────── */}
-      <div className="calculator-summary-bar">
-        <div className="summary-bar__main">
-          <span className="summary-bar__label">Total Mensal Sugerido</span>
-          <span className="summary-bar__value">{fmt(pricing?.final_price ?? 0)}</span>
-        </div>
-
-        <div className="summary-bar__stats">
-          <div className="summary-bar__stat-item">
-            <span className="summary-bar__stat-lbl">Margem de Lucro</span>
-            <span className="summary-bar__stat-val">{(currentScenario * 100).toFixed(0)}%</span>
+          {/* CTA FINAL */}
+          <div style={{ paddingBottom: '100px', textAlign: 'center', marginTop: '40px' }}>
+            <button 
+              className="ds-btn ds-btn-primary" 
+              style={{ width: '100%', maxWidth: '600px', height: '60px', fontSize: '18px', fontWeight: 800 }}
+              onClick={handleVisualize}
+            >
+              Visualizar Proposta Detalhada
+            </button>
+            <p style={{ marginTop: '12px', fontSize: '14px', color: 'var(--ds-text-muted)' }}>
+              Acesse agora para visualizar os cálculos completos, impostos e gerar seu PDF.
+            </p>
           </div>
-          <div className="summary-bar__stat-item">
-            <span className="summary-bar__stat-lbl">Serviços Ativos</span>
-            <span className="summary-bar__stat-val">
-              {watchedValues?.services?.filter(s => s.active).length || 0}
-            </span>
-          </div>
-        </div>
-
-        <div className="summary-bar__actions">
-          <button 
-            className="ds-btn ds-btn-ghost" 
-            onClick={handleDownload}
-            disabled={!pricing || isGenerating}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            {isGenerating ? 'Gerando...' : 'Baixar Proposta'}
-          </button>
-          
-          <button 
-            className="ds-btn ds-btn-primary" 
-            onClick={handlePrimaryAction}
-            disabled={!pricing || isSaving}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
-            {isSaving ? 'Salvando...' : saveButtonLabel}
-          </button>
         </div>
       </div>
     </div>

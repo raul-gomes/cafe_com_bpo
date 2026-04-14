@@ -6,6 +6,7 @@ import './index.css'
 import './forms.css'
 import './login.css'
 import './proposal.css'
+import './panel.css'
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

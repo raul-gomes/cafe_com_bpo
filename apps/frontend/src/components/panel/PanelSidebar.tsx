@@ -2,6 +2,7 @@ import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import logo from '../../assets/logo.png';
+import logoSide from '../../assets/logo-side.png';
 
 interface PanelSidebarProps {
   isOpen: boolean;
@@ -38,11 +39,9 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
       />
       <aside className={`panel-sidebar ${isOpen ? 'open' : ''}`}>
         {/* Brand */}
-        <div className="panel-sidebar__brand">
-          <img src={logo} alt="Café com BPO" />
-          <span className="panel-sidebar__brand-text">
-            Café com <span>BPO</span>
-          </span>
+        {/* Brand */}
+        <div className="panel-sidebar__brand" style={{ justifyContent: 'center', padding: '20px 0' }}>
+          <img src={logoSide} alt="Café com BPO" style={{ height: '50px', width: 'auto' }} />
         </div>
 
         {/* Profile */}

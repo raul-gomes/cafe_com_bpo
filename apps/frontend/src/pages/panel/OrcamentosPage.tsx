@@ -175,11 +175,11 @@ export const OrcamentosPage: React.FC = () => {
               <div
                 key={p.id}
                 className="orcamento-card"
-                onClick={() => navigate(`/painel/editar-orcamento/${p.id}`)}
+                onClick={() => navigate(`/painel/orcamento/${p.id}`)}
                 role="button"
                 tabIndex={0}
                 onKeyDown={e => {
-                  if (e.key === 'Enter') navigate(`/painel/editar-orcamento/${p.id}`);
+                  if (e.key === 'Enter') navigate(`/painel/orcamento/${p.id}`);
                 }}
               >
                 <div className="orcamento-card__info">

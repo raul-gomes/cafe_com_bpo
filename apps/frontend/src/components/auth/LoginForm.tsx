@@ -25,8 +25,13 @@ export const LoginForm: React.FC = () => {
       const response = await apiClient.post('/auth/login', formData, {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
-      await login(response.data.access_token);
-      navigate('/dashboard');
+      const res = await login(response.data.access_token);
+      
+      if (res && (res as any).syncedProposalId) {
+        navigate(`/painel/orcamento/${(res as any).syncedProposalId}`);
+      } else {
+        navigate('/painel');
+      }
     } catch (error: any) {
       setGenericError(error.response?.data?.detail || 'Credenciais inválidas. Tente novamente.');
     }
@@ -59,6 +64,12 @@ export const LoginForm: React.FC = () => {
           Entre com sua conta BPO
         </p>
       </div>
+
+        {sessionStorage.getItem('cafe_bpo_proposal') && (
+          <div className="ds-alert ds-alert-warning" style={{ marginBottom: '20px', textAlign: 'center' }}>
+            <strong>Quase lá!</strong> Faça login ou cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
+          </div>
+        )}
 
       {genericError && (
         <div className="ds-alert ds-alert-error" style={{ marginBottom: '20px' }}>

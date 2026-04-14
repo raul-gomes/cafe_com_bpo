@@ -15,6 +15,11 @@ export default function LoginPage() {
 
       {/* Container de conteúdo */}
       <div className="login-content">
+        {sessionStorage.getItem('cafe_bpo_proposal') && (
+          <div className="ds-alert ds-alert-warning" style={{ marginBottom: '20px', textAlign: 'center' }}>
+            <strong>Quase lá!</strong> Faça login ou cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
+          </div>
+        )}
         <LoginForm />
         <p className="login-footer-note">
           Café com BPO © {new Date().getFullYear()}

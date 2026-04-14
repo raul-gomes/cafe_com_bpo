@@ -1,11 +1,9 @@
 /**
- * Motor de precificação local — espelho de apps/backend/src/domain.py
- *
- * Se a lógica de cálculo mudar no Python (PricingCalculator),
- * este arquivo deve ser atualizado em sincronia.
- *
- * Vantagem: cálculo instantâneo no cliente, sem latência de rede.
- * O backend é acionado apenas para persistir a proposta aprovada no BD.
+ * Motor de precificação local — Metodologia Café com BPO (v4)
+ * 
+ * Este motor espelha a lógica da planilha oficial e do simulador HTML.
+ * A principal característica é o markup sobre o faturamento para impostos 
+ * e comissões, garantindo que a margem de lucro seja real.
  */
 
 export interface OperationInput {
@@ -46,7 +44,7 @@ export interface PricingBreakdown {
 export interface PricingResult {
   /** Preço final com desconto de prazo aplicado */
   final_price: number;
-  /** Preço base antes do desconto de prazo */
+  /** Preço base antes do desconto de prazo (Subtotal) */
   price_before_discount: number;
   /** Valor absoluto do desconto de prazo */
   discount_amount: number;
@@ -55,15 +53,13 @@ export interface PricingResult {
 
 /**
  * Calcula o preço final de uma proposta BPO.
- * Retorna null se os parâmetros operacionais forem inválidos (pessoas/horas = 0).
- *
- * Pipeline (igual ao Python):
- *   1. cost_per_hour  = total_cost / (people_count × hours_per_month)
- *   2. cost_per_min   = cost_per_hour / 60
- *   3. service_cost   = (min × qty × cost_per_min) | fixed_value × qty
- *   4. profit_amount  = total_service_cost × margin
- *   5. tax markup     = price_before_tax / (1 - tax_rate) — fórmula do domain.py
- *   6. final_price    = price_with_tax × (1 - term_discount)
+ * 
+ * Pipeline Metodologia v4:
+ *   1. Custo Operacional: cost_per_min = total_cost / (people * hours * 60)
+ *   2. Custo do Serviço: (tempo * qty * cost_per_min) OU (valor_fixo * qty)
+ *   3. Margem de Lucro: total_service_cost * margin
+ *   4. Preço com Impostos (Markup): (Custo + Lucro) / (1 - Impostos - Comissão)
+ *   5. Desconto de Prazo: Preço Final = Preço com Impostos * (1 - desconto)
  */
 export function calculatePricing(
   operation: OperationInput,
@@ -73,15 +69,15 @@ export function calculatePricing(
 ): PricingResult | null {
   const { total_cost, people_count, hours_per_month, tax_rate, commission_rate } = operation;
 
-  // Guarda de divisão por zero — mesmo comportamento do PricingCalculator.calculate_cost_per_hour
+  // Guarda de divisão por zero
   if (people_count <= 0 || hours_per_month <= 0) return null;
 
-  // Passo 1 — custo por hora e por minuto
+  // Passo 1 — Custo por minuto da operação
   const total_hours = people_count * hours_per_month;
   const cost_per_hour = total_cost / total_hours;
   const cost_per_minute = cost_per_hour / 60;
 
-  // Passo 2 — custo por serviço ativo
+  // Passo 2 — Soma dos custos de todos os serviços ativos
   const activeServices = services.filter(s => s.active);
 
   const service_costs: ServiceCostItem[] = activeServices.map(s => ({
@@ -95,23 +91,29 @@ export function calculatePricing(
 
   const total_service_cost = service_costs.reduce((acc, s) => acc + s.cost, 0);
 
-  // Passo 3 — margem de lucro
+  // Passo 3 — Lucro desejado
   const profit_amount = total_service_cost * desired_profit_margin;
   const price_before_tax = total_service_cost + profit_amount;
 
-  // Passo 4 — impostos + comissão via markup (ref: PricingCalculator.calculate_tax_amount)
-  // Fórmula: price_with_tax = price_before_tax / (1 - tax_rate)
-  const effective_tax_rate = Math.min((tax_rate || 0) + (commission_rate || 0), 0.9999);
-  const price_with_tax = price_before_tax / (1 - effective_tax_rate);
+  // Passo 4 — Markup de Impostos e Comissão (Fator de Divisão)
+  // O markup garante que os impostos sejam calculados sobre o preço de venda final.
+  const tax_commission_sum = (tax_rate || 0) + (commission_rate || 0);
+  const denominator = 1 - tax_commission_sum;
+  
+  // Proteção contra denominador zero ou negativo (markup > 100%)
+  const price_with_tax = denominator > 0 
+    ? price_before_tax / denominator 
+    : price_before_tax * (1 + tax_commission_sum);
+
   const tax_amount = price_with_tax - price_before_tax;
 
-  // Passo 5 — desconto de prazo
+  // Passo 5 — Aplicação do desconto de prazo (Mensal, Trimestral, Anual)
   const price_before_discount = price_with_tax;
   const discount_amount = price_before_discount * (term_discount || 0);
   const final_price = price_before_discount - discount_amount;
 
   return {
-    final_price,
+    final_price: Math.max(0, final_price),
     price_before_discount,
     discount_amount,
     breakdown: {

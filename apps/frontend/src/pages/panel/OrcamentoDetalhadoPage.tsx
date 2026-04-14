@@ -153,17 +153,36 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
           <div className="detalhe-card__value-sub">Valor mensal estimado</div>
 
           <div className="detalhe-breakdown" style={{ marginTop: '24px' }}>
-            <div className="detalhe-breakdown__row">
-              <span className="detalhe-breakdown__label">Base de Cálculo</span>
-              <span className="detalhe-breakdown__value">{formatPrice(result.base_price || 0)}</span>
-            </div>
-            <div className="detalhe-breakdown__row">
-              <span className="detalhe-breakdown__label">Complexidade ({proposal.input_payload?.complexity})</span>
-              <span className="detalhe-breakdown__value">x {result.complexity_multiplier?.toFixed(2)}</span>
-            </div>
+            {result.breakdown ? (
+              <>
+                <div className="detalhe-breakdown__row">
+                  <span className="detalhe-breakdown__label">Custo Operacional</span>
+                  <span className="detalhe-breakdown__value">{formatPrice(result.breakdown.total_service_cost || 0)}</span>
+                </div>
+                <div className="detalhe-breakdown__row">
+                  <span className="detalhe-breakdown__label">Margem de Lucro</span>
+                  <span className="detalhe-breakdown__value">+{formatPrice(result.breakdown.profit_amount || 0)}</span>
+                </div>
+                <div className="detalhe-breakdown__row">
+                  <span className="detalhe-breakdown__label">Impostos / Comissões</span>
+                  <span className="detalhe-breakdown__value">+{formatPrice(result.breakdown.tax_amount || 0)}</span>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="detalhe-breakdown__row">
+                  <span className="detalhe-breakdown__label">Base de Cálculo</span>
+                  <span className="detalhe-breakdown__value">{formatPrice(result.base_price || 0)}</span>
+                </div>
+                <div className="detalhe-breakdown__row">
+                  <span className="detalhe-breakdown__label">Complexidade ({proposal.input_payload?.complexity || 'N/A'})</span>
+                  <span className="detalhe-breakdown__value">x {result.complexity_multiplier?.toFixed(2) || '1.00'}</span>
+                </div>
+              </>
+            )}
             <div className="detalhe-breakdown__divider" />
             <div className="detalhe-breakdown__row--total">
-              <span className="detalhe-breakdown__label">Total</span>
+              <span className="detalhe-breakdown__label">Total Sugerido</span>
               <span className="detalhe-breakdown__value">{formatPrice(result.final_price || 0)}</span>
             </div>
           </div>
@@ -173,14 +192,21 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
         <div className="detalhe-card">
           <div className="detalhe-card__title">Escopo do Serviço</div>
           <div className="detalhe-breakdown">
-             {proposal.input_payload?.services?.map((service: string, idx: number) => (
-                <div key={idx} className="detalhe-breakdown__row">
-                    <span className="detalhe-breakdown__label">
-                        <span style={{ color: 'var(--ds-primary)', marginRight: '8px' }}>✓</span>
-                        {service}
-                    </span>
-                </div>
-             ))}
+             {proposal.input_payload?.services?.map((service: any, idx: number) => {
+                const serviceName = typeof service === 'object' ? service.name : service;
+                const isActive = typeof service === 'object' ? service.active : true;
+                
+                if (!isActive && typeof service === 'object') return null;
+
+                return (
+                  <div key={idx} className="detalhe-breakdown__row">
+                      <span className="detalhe-breakdown__label">
+                          <span style={{ color: 'var(--ds-primary)', marginRight: '8px' }}>✓</span>
+                          {serviceName}
+                      </span>
+                  </div>
+                );
+             })}
              {!proposal.input_payload?.services && <p className="detalhe-breakdown__label">Lista de serviços não informada.</p>}
           </div>
         </div>
@@ -188,32 +214,51 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
         {/* Card Dados do Cliente */}
         <div className="detalhe-card detalhe-card--full">
            <div className="detalhe-card__title">Dados do Cliente e Simulação</div>
-           <div className="perfil-form">
+            <div className="perfil-form">
                 <div className="ds-input-group">
                     <label className="ds-label">Empresa</label>
                     <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
                         {proposal.client_name}
                     </div>
                 </div>
-                <div className="ds-input-group">
-                    <label className="ds-label">Complexidade</label>
-                    <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
-                        {proposal.input_payload?.complexity || 'Não informado'}
+                {proposal.input_payload?.operation ? (
+                  <>
+                    <div className="ds-input-group">
+                        <label className="ds-label">Custo Operacional Mensal</label>
+                        <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
+                            {formatPrice(proposal.input_payload.operation.total_cost || 0)}
+                        </div>
                     </div>
-                </div>
-                <div className="ds-input-group">
-                    <label className="ds-label">Faturamento Mensal</label>
-                    <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
-                        {formatPrice(proposal.input_payload?.revenue || 0)}
+                    <div className="ds-input-group">
+                        <label className="ds-label">Capacidade (Horas/Mês)</label>
+                        <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
+                            {(proposal.input_payload.operation.people_count * proposal.input_payload.operation.hours_per_month) || 0}h
+                        </div>
                     </div>
-                </div>
-                <div className="ds-input-group">
-                    <label className="ds-label">Volume de Lançamentos</label>
-                    <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
-                        {proposal.input_payload?.transactions || 0} lançamentos
+                    <div className="ds-input-group">
+                        <label className="ds-label">Margem Desejada</label>
+                        <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
+                            {(proposal.input_payload.desired_profit_margin * 100).toFixed(0)}%
+                        </div>
                     </div>
-                </div>
-           </div>
+                  </>
+                ) : (
+                  <>
+                    <div className="ds-input-group">
+                        <label className="ds-label">Complexidade</label>
+                        <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
+                            {proposal.input_payload?.complexity || 'Não informado'}
+                        </div>
+                    </div>
+                    <div className="ds-input-group">
+                        <label className="ds-label">Faturamento Mensal</label>
+                        <div className="ds-input" style={{ background: 'rgba(255,255,255,0.03)', border: 'none' }}>
+                            {formatPrice(proposal.input_payload?.revenue || 0)}
+                        </div>
+                    </div>
+                  </>
+                )}
+            </div>
         </div>
       </div>
     </div>

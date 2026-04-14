@@ -30,6 +30,18 @@ class PricingScenarioRepository:
             PricingScenario.user_id == user_id
         ).first()
 
+    def update_scenario(self, user_id: uuid.UUID, scenario_id: uuid.UUID, client_name: str, input_payload: dict, result_payload: dict) -> Optional[PricingScenario]:
+        scenario = self.get_scenario_by_id(user_id=user_id, scenario_id=scenario_id)
+        if not scenario:
+            return None
+        
+        scenario.client_name = client_name
+        scenario.input_payload = input_payload
+        scenario.result_payload = result_payload
+        
+        self.session.flush()
+        return scenario
+
     def delete_scenario(self, user_id: uuid.UUID, scenario_id: uuid.UUID) -> bool:
         scenario = self.get_scenario_by_id(user_id=user_id, scenario_id=scenario_id)
         if scenario:

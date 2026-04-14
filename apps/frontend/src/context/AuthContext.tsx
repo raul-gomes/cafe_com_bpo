@@ -22,9 +22,9 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string) => Promise<void>;
+  login: (token: string) => Promise<{ syncedProposalId?: string } | void>;
   logout: () => void;
-  register: (payload: RegisterPayload) => Promise<void>;
+  register: (payload: RegisterPayload) => Promise<{ syncedProposalId?: string } | void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -61,7 +61,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const login = async (token: string) => {
     authStorage.setToken(token);
     await checkToken(); // Re-check the token sets the user
-    await syncPendingProposal();
+    const proposalId = await syncPendingProposal();
+    return { syncedProposalId: proposalId };
   };
 
   const logout = () => {
@@ -72,27 +73,31 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   /**
    * Verifica se há uma proposta no sessionStorage e a salva no banco.
    */
-  const syncPendingProposal = async () => {
+  const syncPendingProposal = async (): Promise<string | undefined> => {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return;
 
     try {
       const saved = JSON.parse(raw);
       if (saved.form && saved.pricing) {
-        await apiClient.post('/api/proposals/', {
+        const response = await apiClient.post<{ id: string }>('/api/proposals/', {
           client_name: saved.clientName || 'Cliente',
           input_payload: saved.form,
           result_payload: saved.pricing,
         });
-        // Opcional: manter no sessionStorage para o simulador restaurar o estado, 
-        // mas o backend agora já tem a cópia oficial.
+        
+        // Limpa o sessionStorage após salvar com sucesso
+        sessionStorage.removeItem(SESSION_KEY);
+        
+        return response.data.id;
       }
     } catch (e) {
       console.error('Falha ao sincronizar proposta pendente:', e);
     }
+    return undefined;
   };
 
-  const register = async (payload: RegisterPayload): Promise<void> => {
+  const register = async (payload: RegisterPayload) => {
     // Cria o usuário no backend e faz login imediato via /auth/login
     await apiClient.post('/auth/register', payload);
     
@@ -104,7 +109,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
     // O login já chama o syncPendingProposal internamente
-    await login(loginResp.data.access_token);
+    return await login(loginResp.data.access_token);
   };
 
   const value: AuthContextType = {

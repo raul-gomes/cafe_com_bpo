@@ -8,6 +8,7 @@ from src.core.logger import setup_logging, log
 from src.modules.pricing.router import router as pricing_router
 from src.modules.auth.router import router as auth_router
 from src.modules.proposals.router import router as proposals_router
+from src.modules.gallery.router import router as gallery_router
 
 def create_app() -> FastAPI:
     setup_logging()
@@ -41,6 +42,7 @@ def create_app() -> FastAPI:
     app.include_router(pricing_router)
     app.include_router(auth_router)
     app.include_router(proposals_router)
+    app.include_router(gallery_router)
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):

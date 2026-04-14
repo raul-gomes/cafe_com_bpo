@@ -40,7 +40,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
   const onSubmit = async (data: RegisterFormData) => {
     setServerError(null);
     try {
-      await authRegister({
+      const res = await authRegister({
         name: data.name,
         email: data.email,
         company: data.company,
@@ -55,9 +55,13 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({
         clientName: clientName || data.name,
       });
 
-      // Fecha modal e volta ao simulador com a proposta aberta
+      // Fecha modal e vai para a proposta no painel (ou painel geral)
       onClose();
-      navigate('/simulador');
+      if (res && (res as any).syncedProposalId) {
+        navigate(`/painel/orcamento/${(res as any).syncedProposalId}`);
+      } else {
+        navigate('/painel');
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.detail ?? 'Erro ao criar conta. Tente novamente.';
       setServerError(Array.isArray(msg) ? msg[0]?.msg ?? String(msg) : String(msg));

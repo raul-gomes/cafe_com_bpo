@@ -1,11 +1,16 @@
-import { createBrowserRouter } from 'react-router-dom'
+import { createBrowserRouter, Navigate } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
 import SimulatorPage from './pages/SimulatorPage'
 import UnderConstructionPage from './pages/UnderConstructionPage'
 import ProposalPreviewPage from './pages/ProposalPreviewPage'
-import { DashboardPage } from './pages/DashboardPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
+import { PanelLayout } from './components/panel/PanelLayout'
+import { OrcamentosPage } from './pages/panel/OrcamentosPage'
+import { OrcamentoNovoPage } from './pages/panel/OrcamentoNovoPage'
+import { OrcamentoDetalhadoPage } from './pages/panel/OrcamentoDetalhadoPage'
+import { PerfilPage } from './pages/panel/PerfilPage'
+import { GaleriaArquivosPage } from './pages/panel/GaleriaArquivosPage'
 
 export function buildRouter() {
   return createBrowserRouter([
@@ -31,11 +36,41 @@ export function buildRouter() {
     },
     {
       path: '/dashboard',
+      element: <Navigate to="/painel" replace />,
+    },
+    {
+      path: '/painel',
       element: <ProtectedRoute />,
       children: [
         {
           path: '',
-          element: <DashboardPage />,
+          element: <PanelLayout />,
+          children: [
+            {
+              path: '',
+              element: <OrcamentosPage />,
+            },
+            {
+              path: 'novo-orcamento',
+              element: <OrcamentoNovoPage />,
+            },
+            {
+              path: 'editar-orcamento/:id',
+              element: <OrcamentoNovoPage />,
+            },
+            {
+              path: 'orcamento/:id',
+              element: <OrcamentoDetalhadoPage />,
+            },
+            {
+              path: 'perfil',
+              element: <PerfilPage />,
+            },
+            {
+              path: 'galeria',
+              element: <GaleriaArquivosPage />,
+            }
+          ]
         }
       ]
     },

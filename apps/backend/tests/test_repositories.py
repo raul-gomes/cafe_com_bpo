@@ -60,3 +60,24 @@ def test_delete_scenario_removes_record(db_session):
     res = repo.delete_scenario(user_id=user.id, scenario_id=scenario.id)
     assert res is True
     assert repo.get_scenario_by_id(user_id=user.id, scenario_id=scenario.id) is None
+
+def test_update_scenario_modifies_record(db_session):
+    user_repo = UserRepository(db_session)
+    user = user_repo.create_user(email="sc_up@test.com", password_hash="hash")
+
+    repo = PricingScenarioRepository(db_session)
+    scenario = repo.create_scenario(user_id=user.id, client_name="Old Name", input_payload={"v": 1}, result_payload={"p": 100})
+    
+    # Este método ainda não existe, o teste falhará (RED)
+    updated = repo.update_scenario(
+        user_id=user.id, 
+        scenario_id=scenario.id, 
+        client_name="New Name", 
+        input_payload={"v": 2}, 
+        result_payload={"p": 200}
+    )
+    
+    assert updated is not None
+    assert updated.client_name == "New Name"
+    assert updated.input_payload == {"v": 2}
+    assert updated.result_payload == {"p": 200}
