@@ -33,6 +33,12 @@ export default function LoginPage() {
           </div>
         )}
         <LoginForm />
+        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--ds-text-subtle)' }}>
+          Não possui conta?{' '}
+          <a href="/cadastro" style={{ color: 'var(--ds-primary)', textDecoration: 'none', fontWeight: 500 }}>
+            Cadastre-se
+          </a>
+        </div>
         <p className="login-footer-note">
           Café com BPO © {new Date().getFullYear()}
         </p>

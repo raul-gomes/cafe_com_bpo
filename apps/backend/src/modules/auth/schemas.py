@@ -13,6 +13,7 @@ class UserResponse(BaseModel):
     email: EmailStr
     name: Optional[str] = None
     company: Optional[str] = None
+    avatar_url: str | None = None
 
 class TokenResponse(BaseModel):
     access_token: str

@@ -63,3 +63,33 @@ def test_error_messages_do_not_allow_user_enumeration(client):
     response = client.post("/auth/login", data=form_data)
     assert response.status_code == 401
     assert response.json()["detail"] == "Credenciais inválidas"
+
+def test_upload_avatar_success(client):
+    email = f"avatar_user_{uuid4()}@cafe.com"
+    payload = {"email": email, "password": "StrongPassword123!"}
+    client.post("/auth/register", json=payload)
+    resp = client.post("/auth/login", data={"username": email, "password": "StrongPassword123!"})
+    token = resp.json()["access_token"]
+    
+    # Fake file payload
+    file_payload = {"file": ("test_avatar.png", b"fake_image_content", "image/png")}
+    response = client.post(
+        "/auth/me/avatar",
+        headers={"Authorization": f"Bearer {token}"},
+        files=file_payload
+    )
+    
+    assert response.status_code == 200
+    data = response.json()
+    assert "avatar_url" in data
+    assert data["avatar_url"].startswith("/avatars/")
+    assert data["avatar_url"].endswith(".png")
+
+def test_upload_avatar_requires_auth(client):
+    file_payload = {"file": ("test_avatar.png", b"fake_image_content", "image/png")}
+    response = client.post(
+        "/auth/me/avatar",
+        files=file_payload
+    )
+    
+    assert response.status_code == 401

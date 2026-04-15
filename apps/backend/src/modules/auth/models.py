@@ -14,6 +14,7 @@ class User(Base):
     password_hash = Column(String(255), nullable=False)
     name = Column(String(150), nullable=True)
     company = Column(String(150), nullable=True)
+    avatar_url = Column(String(500), nullable=True)
     auth_provider = Column(String(50), default="local", nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

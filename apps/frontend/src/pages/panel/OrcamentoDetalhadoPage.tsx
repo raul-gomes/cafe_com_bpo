@@ -3,6 +3,8 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useGeneratePDF } from '../../lib/useGeneratePDF';
 import logoAsset from '../../assets/logo.png';
+import { useAuth } from '../../context/AuthContext';
+import { getApiUrl } from '../../api/client';
 
 interface Proposal {
   id: string;
@@ -17,6 +19,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { generate: generatePDF } = useGeneratePDF();
 
   const fetchProposal = async () => {
@@ -37,10 +40,11 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
 
   const handlePrint = async () => {
     if (!proposal) return;
+    const finalLogoUrl = user?.avatar_url ? `${getApiUrl()}${user.avatar_url}` : logoAsset;
     await generatePDF({
       form: proposal.input_payload,
       pricing: proposal.result_payload,
-      logoUrl: logoAsset,
+      logoUrl: finalLogoUrl,
       clientName: proposal.client_name
     });
   };

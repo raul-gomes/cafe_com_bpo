@@ -1,7 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
 from sqlalchemy.orm import Session
+import os
+import shutil
+import uuid
 
 from src.core.database import get_db_session
 from src.core.logger import log
@@ -46,6 +49,49 @@ def login(
 @router.get("/me", response_model=UserResponse)
 def get_me(user: CurrentUserDep):
     return user
+
+@router.post("/me/avatar", response_model=UserResponse)
+def upload_avatar(
+    user: CurrentUserDep,
+    service: AuthServiceDep,
+    file: UploadFile = File(...)
+):
+    valid_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in valid_extensions:
+        raise HTTPException(status_code=400, detail="Formato de imagem inválido. Use PNG, JPG ou WEBP.")
+    
+    # Criar pasta se não existir
+    os.makedirs("storage/avatars", exist_ok=True)
+    
+    # Gerar nome único para o arquivo
+    filename = f"{uuid.uuid4()}{ext}"
+    filepath = os.path.join("storage/avatars", filename)
+    
+    # Salvar arquivo no disco
+    with open(filepath, "wb") as buffer:
+        shutil.copyfileobj(file.file, buffer)
+    
+    # Atualizar no banco
+    avatar_url = f"/avatars/{filename}"
+    
+    # Get the db model for the current user
+    db_user = service.user_repo.get_user_by_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+        
+    db_user.avatar_url = avatar_url
+    service.user_repo.session.commit()
+    service.user_repo.session.refresh(db_user)
+    
+    log.info(f"🖼️ Novo avatar para o usuário {db_user.email}: {avatar_url}")
+    return UserResponse(
+        id=db_user.id,
+        email=db_user.email,
+        name=db_user.name,
+        company=db_user.company,
+        avatar_url=db_user.avatar_url
+    )
 
 @router.get("/{provider}/login")
 def oauth_login(provider: str):

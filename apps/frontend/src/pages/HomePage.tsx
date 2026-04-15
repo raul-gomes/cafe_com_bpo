@@ -34,15 +34,6 @@ const HomePage: React.FC = () => {
                 Para quem cansou da estética do sucesso e procura a ética do trabalho real.
               </p>
               
-              <div className="metrics-badge">
-                <div className="metric-item">
-                  <div className="metric-dot"></div>
-                  <span>+ de 500 escritórios transformados</span>
-                </div>
-                <div className="metric-item" style={{ borderLeft: '1px solid rgba(255,255,255,0.1)', paddingLeft: '16px' }}>
-                  <span style={{ color: 'var(--premium-yellow)', fontWeight: 600 }}>100% Cenários Reais</span>
-                </div>
-              </div>
             </FadeIn>
             <FadeIn delay={3}>
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px' }}>

@@ -97,7 +97,9 @@ export function calculatePricing(
 
   // Passo 4 — Markup de Impostos e Comissão (Fator de Divisão)
   // O markup garante que os impostos sejam calculados sobre o preço de venda final.
-  const tax_commission_sum = (tax_rate || 0) + (commission_rate || 0);
+  const tax_rate_pct = (tax_rate || 0) / 100;
+  const commission_rate_pct = (commission_rate || 0) / 100;
+  const tax_commission_sum = tax_rate_pct + commission_rate_pct;
   const denominator = 1 - tax_commission_sum;
   
   // Proteção contra denominador zero ou negativo (markup > 100%)

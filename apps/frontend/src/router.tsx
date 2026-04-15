@@ -1,6 +1,7 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
 import HomePage from './pages/HomePage'
 import LoginPage from './pages/LoginPage'
+import CadastroPage from './pages/CadastroPage'
 import SimulatorPage from './pages/SimulatorPage'
 import UnderConstructionPage from './pages/UnderConstructionPage'
 import ProposalPreviewPage from './pages/ProposalPreviewPage'
@@ -21,6 +22,10 @@ export function buildRouter() {
     {
       path: '/login',
       element: <LoginPage />,
+    },
+    {
+      path: '/cadastro',
+      element: <CadastroPage />,
     },
     {
       path: '/simulador',

@@ -445,8 +445,8 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
                   { label: 'Custo Total Mensal',  value: fmt(form.operation.total_cost) },
                   { label: 'Pessoas na Operação', value: `${form.operation.people_count} pessoa(s)` },
                   { label: 'Horas / Mês',         value: `${form.operation.hours_per_month}h` },
-                  { label: 'Simples Nacional',    value: pct(form.operation.tax_rate) },
-                  { label: 'Comissão de Vendas',  value: pct(form.operation.commission_rate || 0) },
+                  { label: 'Simples Nacional',    value: pct((form.operation.tax_rate || 0) / 100) },
+                  { label: 'Comissão de Vendas',  value: pct((form.operation.commission_rate || 0) / 100) },
                   { label: 'Custo / Hora',        value: fmt(pricing.breakdown.cost_per_hour), accent: true },
                 ].map(item => (
                   <View key={item.label} style={s.opItem}>

@@ -5,6 +5,8 @@ import { apiClient } from '../api/client';
 import { ProposalListCard } from '../components/dashboard/ProposalListCard';
 import { useGeneratePDF } from '../lib/useGeneratePDF';
 import logoAsset from '../assets/logo.png';
+import { useAuth } from '../context/AuthContext';
+import { getApiUrl } from '../api/client';
 import '../dashboard.css';
 
 interface Proposal {
@@ -21,6 +23,7 @@ export const DashboardPage: React.FC = () => {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { generate: generatePDF } = useGeneratePDF();
 
   const fetchProposals = async () => {
@@ -51,10 +54,11 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleDownload = async (proposal: Proposal) => {
+    const finalLogoUrl = user?.avatar_url ? `${getApiUrl()}${user.avatar_url}` : logoAsset;
     await generatePDF({
       form: proposal.input_payload,
       pricing: proposal.result_payload,
-      logoUrl: logoAsset,
+      logoUrl: finalLogoUrl,
       clientName: proposal.client_name
     });
   };

@@ -18,8 +18,8 @@ export const operationContextSchema = z.object({
   total_cost: z.number().min(0, 'Custo total não pode ser negativo'),
   people_count: z.number().min(1, 'A operação precisa de pelo menos 1 pessoa'),
   hours_per_month: z.number().min(1, 'Horas por mês deve ser pelo menos 1'),
-  tax_rate: z.number().min(0).max(1, 'A taxa deve estar entre 0 e 1 (ex. 0.15)'),
-  commission_rate: z.number().min(0).max(1).default(0),
+  tax_rate: z.number().min(0).max(100, 'A taxa deve ser no máximo 100%'),
+  commission_rate: z.number().min(0).max(100).default(0),
 });
 
 export type OperationContextFormData = z.output<typeof operationContextSchema>;

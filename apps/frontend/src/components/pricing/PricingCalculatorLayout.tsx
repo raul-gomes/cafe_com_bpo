@@ -7,6 +7,9 @@ import { calculatePricing } from '../../lib/pricingEngine';
 import { saveProposalSession } from '../../pages/ProposalPreviewPage';
 import { useGeneratePDF } from '../../lib/useGeneratePDF';
 import logoAsset from '../../assets/logo.png';
+import { getClients, createClient, ClientData } from '../../api/clients';
+import { useAuth } from '../../context/AuthContext';
+import { getApiUrl } from '../../api/client';
 
 // ─── Catálogo de Serviços Inicial (Metodologia BPO v4) ─────────────────────────
 const INITIAL_SERVICES = [
@@ -47,8 +50,15 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   saveButtonLabel = 'Salvar Proposta'
 }) => {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const { generate: generatePDF, isGenerating } = useGeneratePDF();
   const [clientName, setClientName] = useState(initialClientName);
+
+  const [clients, setClients] = useState<ClientData[]>([]);
+  const [showClientMenu, setShowClientMenu] = useState(false);
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClient, setNewClient] = useState({ name: '', cnpj: '', phone: '', email: '' });
+
   const [newSvcName, setNewSvcName] = useState('');
   const [newSvcType, setNewSvcType] = useState<'time' | 'fixed'>('time');
   const [newSvcNum, setNewSvcNum]   = useState(10);
@@ -76,6 +86,9 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
       reset(initialData);
       setClientName(initialClientName);
     }
+    
+    // Load clients
+    getClients().then(setClients).catch(console.error);
   }, [initialData, initialClientName, reset]);
 
   const watchedValues = useWatch({ control }) as PricingFormData;
@@ -118,8 +131,11 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
     setNewSvcNum(10);
   };
 
+  const activeServicesCount = watchedValues?.services?.filter(s => s.active).length || 0;
+  const hasActiveService = activeServicesCount > 0;
+
   const handlePrimaryAction = () => {
-    if (!pricing) return;
+    if (!pricing || !hasActiveService) return;
     if (onSave) {
       onSave(getValues(), clientName || 'Cliente');
     } else {
@@ -133,13 +149,29 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   };
 
   const handleDownload = async () => {
-    if (!pricing) return;
+    if (!pricing || !hasActiveService) return;
+    const finalLogoUrl = user?.avatar_url ? `${getApiUrl()}${user.avatar_url}` : logoAsset;
     await generatePDF({
       form: getValues(),
       pricing,
-      logoUrl: logoAsset,
+      logoUrl: finalLogoUrl,
       clientName: clientName || 'Cliente'
     });
+  };
+
+  const handleAddNewClient = async () => {
+    if (!newClient.name) return;
+    try {
+      const created = await createClient(newClient);
+      setClients([...clients, created]);
+      setClientName(created.name);
+      setShowNewClientForm(false);
+      setNewClient({ name: '', cnpj: '', phone: '', email: '' });
+      setShowClientMenu(false);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao criar cliente');
+    }
   };
 
   return (
@@ -147,18 +179,77 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
       <div className="app-body">
         <div className="left-col">
           {/* Nome do Cliente */}
-          <div className="card" style={{ marginBottom: '24px' }}>
+          <div className="card" style={{ marginBottom: '24px', overflow: 'visible' }}>
             <div className="card-body" style={{ padding: '20px' }}>
-              <div className="field">
-                <div className="field-label">Nome da Empresa / Cliente</div>
-                <input 
-                  type="text" 
-                  value={clientName} 
-                  onChange={e => setClientName(e.target.value)} 
-                  placeholder="Ex: Empresa XYZ Ltda." 
-                  className="ds-input"
-                  style={{ fontSize: '16px', fontWeight: 600 }}
-                />
+              <div className="field" style={{ position: 'relative' }}>
+                <div className="field-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
+                  <span>Nome da Empresa / Cliente</span>
+                  <button type="button" onClick={() => setShowNewClientForm(!showNewClientForm)} className="ds-btn ds-btn-ghost" style={{ padding: '0 8px', height: '20px', fontSize: '11px' }}>
+                    + Nova Empresa
+                  </button>
+                </div>
+
+                {!showNewClientForm ? (
+                  <>
+                    <input 
+                      type="text" 
+                      value={clientName} 
+                      onChange={e => {
+                        setClientName(e.target.value);
+                        setShowClientMenu(true);
+                      }} 
+                      onFocus={() => setShowClientMenu(true)}
+                      onBlur={() => setTimeout(() => setShowClientMenu(false), 200)}
+                      placeholder="Busque ou digite o nome do cliente..." 
+                      className="ds-input"
+                      style={{ fontSize: '16px', fontWeight: 600 }}
+                    />
+                    {showClientMenu && clients.length > 0 && (
+                      <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--ds-surface)', border: '1px solid var(--ds-border)', borderRadius: '4px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
+                        {clients.filter(c => c.name.toLowerCase().includes(clientName.toLowerCase())).map(c => (
+                          <div 
+                            key={c.id} 
+                            style={{ padding: '10px 16px', cursor: 'pointer', borderBottom: '1px solid var(--ds-border)', transition: 'background 0.2s' }}
+                            onMouseDown={() => {
+                              setClientName(c.name);
+                              setShowClientMenu(false);
+                            }}
+                            onMouseEnter={e => (e.currentTarget.style.background = 'var(--ds-surface-hover)')}
+                            onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+                          >
+                            <div style={{ fontWeight: 600, color: 'var(--ds-white)', fontSize: '14px' }}>{c.name}</div>
+                            {(c.cnpj || c.email) && <div style={{ fontSize: '11px', color: 'var(--ds-text-subtle)' }}>{c.cnpj} {c.email}</div>}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <div style={{ background: 'var(--ds-surface-hover)', padding: '16px', borderRadius: '6px', border: '1px solid var(--ds-border)', marginTop: '8px' }}>
+                     <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                        <div>
+                          <label className="ds-label" style={{ fontSize: '11px' }}>Nome</label>
+                          <input type="text" className="ds-input" value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} />
+                        </div>
+                        <div>
+                          <label className="ds-label" style={{ fontSize: '11px' }}>CNPJ</label>
+                          <input type="text" className="ds-input" value={newClient.cnpj} onChange={e => setNewClient({...newClient, cnpj: e.target.value})} />
+                        </div>
+                        <div>
+                          <label className="ds-label" style={{ fontSize: '11px' }}>Telefone</label>
+                          <input type="text" className="ds-input" value={newClient.phone} onChange={e => setNewClient({...newClient, phone: e.target.value})} />
+                        </div>
+                        <div>
+                          <label className="ds-label" style={{ fontSize: '11px' }}>E-mail</label>
+                          <input type="email" className="ds-input" value={newClient.email} onChange={e => setNewClient({...newClient, email: e.target.value})} />
+                        </div>
+                     </div>
+                     <div style={{ display: 'flex', gap: '8px', marginTop: '16px', justifyContent: 'flex-end' }}>
+                        <button type="button" className="ds-btn ds-btn-ghost" onClick={() => setShowNewClientForm(false)}>Cancelar</button>
+                        <button type="button" className="ds-btn ds-btn-primary" onClick={handleAddNewClient} disabled={!newClient.name}>Salvar e Selecionar</button>
+                     </div>
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -186,11 +277,13 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                 </div>
                 <div className="field">
                   <div className="field-label">Simples Nacional (%)</div>
-                  <input type="number" {...register('operation.tax_rate', { valueAsNumber: true, setValueAs: v => (v === "" ? 0 : parseFloat(v) / 100) })} placeholder="ex: 6" step="0.1" />
+                  <input type="number" {...register('operation.tax_rate', { valueAsNumber: true })} placeholder="ex: 6" step="0.1" />
+                  {errors.operation?.tax_rate && <div className="error-text" style={{fontSize: '11px', color: '#dc2626', marginTop: '4px'}}>{errors.operation.tax_rate.message}</div>}
                 </div>
                 <div className="field">
                   <div className="field-label">Comissão de Vendas (%)</div>
-                  <input type="number" {...register('operation.commission_rate', { valueAsNumber: true, setValueAs: v => (v === "" ? 0 : parseFloat(v) / 100) })} placeholder="ex: 5" step="0.1" />
+                  <input type="number" {...register('operation.commission_rate', { valueAsNumber: true })} placeholder="ex: 5" step="0.1" />
+                  {errors.operation?.commission_rate && <div className="error-text" style={{fontSize: '11px', color: '#dc2626', marginTop: '4px'}}>{errors.operation.commission_rate.message}</div>}
                 </div>
                 <div className="field">
                   <div className="field-label">Custo/hora — calculado</div>
@@ -362,11 +455,16 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
           </div>
         </div>
 
-        <div className="summary-bar__actions">
+        <div className="summary-bar__actions" style={{ display: 'flex', alignItems: 'center' }}>
+          {!hasActiveService && (
+             <div style={{ color: '#ef4444', fontSize: '13px', marginRight: '16px', fontWeight: 600 }}>
+               ⚠️ Ative pelo menos um serviço
+             </div>
+          )}
           <button 
             className="ds-btn ds-btn-ghost" 
             onClick={handleDownload}
-            disabled={!pricing || isGenerating}
+            disabled={!pricing || isGenerating || !hasActiveService}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
@@ -379,7 +477,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
           <button 
             className="ds-btn ds-btn-primary" 
             onClick={handlePrimaryAction}
-            disabled={!pricing || isSaving}
+            disabled={!pricing || isSaving || !hasActiveService}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />

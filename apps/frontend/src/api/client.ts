@@ -7,8 +7,10 @@ import axios from 'axios';
 
 const LOCAL_STORAGE_KEY = '@cafe_bpo:token_v1';
 
+export const getApiUrl = () => import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
 export const apiClient = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'http://localhost:8000',
+  baseURL: getApiUrl(),
   headers: {
     'Content-Type': 'application/json',
   },
