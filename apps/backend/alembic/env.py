@@ -9,6 +9,7 @@ from src.core.database import Base
 from src.modules.auth.models import User
 from src.modules.proposals.models import PricingScenario
 from src.modules.clients.models import Client
+from src.modules.network.models import DiscussionPost, DiscussionComment, Notification
 from src.core.config import get_settings
 
 # this is the Alembic Config object, which provides
