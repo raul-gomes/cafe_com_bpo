@@ -34,15 +34,16 @@ export const PublicPricingSimulator: React.FC = () => {
   const [newSvcName, setNewSvcName] = useState('');
   const [newSvcType, setNewSvcType] = useState<'time' | 'fixed'>('time');
   const [newSvcNum, setNewSvcNum]   = useState(10);
+  const [localHourlyCost, setLocalHourlyCost] = useState('');
 
   const { register, control, getValues, setValue, formState: { errors } } = useForm<PricingFormData>({
     resolver: zodResolver(pricingFormSchema) as any,
     defaultValues: {
       operation: {
         total_cost: 0,
-        people_count: 0,
-        hours_per_month: 0,
-        tax_rate: 0,
+        people_count: 1,
+        hours_per_month: 160,
+        tax_rate: 6,
         commission_rate: 0,
       },
       services: INITIAL_SERVICES,
@@ -79,6 +80,32 @@ export const PublicPricingSimulator: React.FC = () => {
   const totalHours  = (op?.people_count || 0) * (op?.hours_per_month || 0);
   const costPerHour = totalHours > 0 ? (op?.total_cost || 0) / totalHours : 0;
   const costPerMin  = costPerHour / 60;
+
+  useEffect(() => {
+    if (!localHourlyCost) {
+       if (costPerHour > 0) setLocalHourlyCost(costPerHour.toFixed(2));
+    } else {
+       const parsedLocal = parseFloat(localHourlyCost.replace(',', '.'));
+       if (isNaN(parsedLocal) || Math.abs(parsedLocal - costPerHour) > 0.1) {
+          setLocalHourlyCost(costPerHour > 0 ? costPerHour.toFixed(2) : '');
+       }
+    }
+  }, [costPerHour, localHourlyCost]);
+
+  const handleHourlyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+     let valStr = e.target.value.replace(',', '.');
+     setLocalHourlyCost(valStr);
+     const val = parseFloat(valStr);
+     if (!isNaN(val) && totalHours > 0) {
+        setValue('operation.total_cost', parseFloat((val * totalHours).toFixed(2)), { 
+            shouldDirty: true, 
+            shouldTouch: true, 
+            shouldValidate: true 
+        });
+     } else if (valStr === '' || isNaN(val)) {
+        setValue('operation.total_cost', 0, { shouldValidate: true });
+     }
+  };
 
   return (
     <div className="calculator-wrapper public-simulator" style={{ maxWidth: '1000px', margin: '0 auto' }}>
@@ -130,8 +157,14 @@ export const PublicPricingSimulator: React.FC = () => {
                   <input type="number" {...register('operation.commission_rate', { valueAsNumber: true, setValueAs: v => (v === "" ? 0 : parseFloat(v) / 100) })} placeholder="ex: 5" step="0.1" />
                 </div>
                 <div className="field">
-                  <div className="field-label">Custo/hora — calculado</div>
-                  <input type="text" value={fmt(costPerHour)} readOnly disabled />
+                  <div className="field-label">Custo/hora (R$)</div>
+                  <input 
+                    type="text" 
+                    value={localHourlyCost} 
+                    onChange={handleHourlyChange} 
+                    placeholder="ex: 35.00"
+                    autoComplete="off"
+                  />
                 </div>
               </div>
 

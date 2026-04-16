@@ -12,7 +12,7 @@ class ClientRepository:
         return self.session.query(Client).filter(Client.id == client_id, Client.user_id == user_id).first()
 
     def get_by_user(self, user_id: UUID) -> List[Client]:
-        return self.session.query(Client).filter(Client.user_id == user_id).order_by(Client.name).all()
+        return self.session.query(Client).filter(Client.user_id == user_id, Client.deleted_at.is_(None)).order_by(Client.name).all()
 
     def create(self, client_in: ClientCreate, user_id: UUID) -> Client:
         client_data = client_in.model_dump()
@@ -31,5 +31,6 @@ class ClientRepository:
         return client
 
     def delete(self, client: Client) -> None:
-        self.session.delete(client)
+        from datetime import datetime, timezone
+        client.deleted_at = datetime.now(timezone.utc)
         self.session.commit()

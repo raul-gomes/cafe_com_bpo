@@ -87,3 +87,7 @@ export const getNotifications = async (limit = 20): Promise<PaginatedNotificatio
   const { data } = await apiClient.get('/api/network/notifications', { params: { limit } });
   return data;
 };
+
+export const markNotificationRead = async (notificationId: string): Promise<void> => {
+  await apiClient.patch(`/api/network/notifications/${notificationId}/read`);
+};

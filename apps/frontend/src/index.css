@@ -366,3 +366,17 @@ p.apple-body { font: var(--text-body-lg); max-width: 650px; margin: 0 auto 24px 
   letter-spacing: -3px;
 }
 .content-relative { position: relative; z-index: 1; }
+
+/* Perfil Grid */
+.perfil-responsive-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 40px;
+  align-items: start;
+  width: 100%;
+}
+@media (max-width: 900px) {
+  .perfil-responsive-grid {
+    grid-template-columns: 1fr;
+  }
+}

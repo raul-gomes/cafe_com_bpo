@@ -71,6 +71,15 @@ def create_comment(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+@router.get("/posts/{post_id}/comments", response_model=list[CommentResponse])
+def get_post_comments(
+    post_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    repo = NetworkRepository(db)
+    return repo.get_comments(post_id)
+
 @router.get("/notifications", response_model=PaginatedNotifications)
 def get_notifications(
     limit: int = 20,
@@ -80,3 +89,22 @@ def get_notifications(
     repo = NetworkRepository(db)
     items, total = repo.get_notifications(current_user.id, limit)
     return {"items": items, "total": total}
+
+@router.patch("/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
+def mark_notification_read(
+    notification_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    repo = NetworkRepository(db)
+    repo.mark_notification_read(current_user.id, notification_id)
+    return None
+
+@router.patch("/notifications/read", status_code=status.HTTP_204_NO_CONTENT)
+def mark_notifications_read(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session)
+):
+    repo = NetworkRepository(db)
+    repo.mark_notifications_read(current_user.id)
+    return None

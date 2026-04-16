@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
-import { getClients, createClient, ClientData, uploadAvatar } from '../../api/clients';
+import { getClients, createClient, deleteClient, ClientData, uploadAvatar } from '../../api/clients';
 import { getApiUrl } from '../../api/client';
+import { Button } from '../../components/ui/Button';
+import { maskCNPJ, maskPhone, onlyNumbers } from '../../lib/formatters';
 
 export const PerfilPage: React.FC = () => {
   const { user } = useAuth();
@@ -86,13 +88,33 @@ export const PerfilPage: React.FC = () => {
   const handleAddClient = async () => {
     if (!newClient.name) return;
     try {
-      await createClient(newClient);
+      const payload = {
+        name: newClient.name,
+        cnpj: onlyNumbers(newClient.cnpj),
+        phone: onlyNumbers(newClient.phone),
+        email: newClient.email.trim() || undefined
+      };
+      await createClient(payload);
       setShowNewClientForm(false);
       setNewClient({ name: '', cnpj: '', phone: '', email: '' });
       await loadClients();
     } catch (e) {
       console.error(e);
       alert('Erro ao criar cliente.');
+    }
+  };
+
+  const handleDeleteClient = async (id: string, name: string) => {
+    if (!window.confirm(`Deseja remover a empresa "${name}"? Esta ação não afetará propostas já emitidas.`)) return;
+    
+    try {
+      // Optistic update
+      setClients(prev => prev.filter(c => c.id !== id));
+      await deleteClient(id);
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao excluir cliente.');
+      await loadClients(); // revert
     }
   };
 
@@ -104,26 +126,28 @@ export const PerfilPage: React.FC = () => {
         <span style={{ color: 'var(--ds-primary)' }}>Meu Perfil</span>
       </div>
 
-      <div className="panel-content__header">
-        <h1>Meu Perfil</h1>
-        <p>Gerencie suas informações pessoais e da sua empresa.</p>
-      </div>
-
-      <div className="perfil-card">
-        <div className="perfil-card__avatar-section">
-          {avatarPreview ? (
-            <div className="perfil-card__avatar-large" style={{ backgroundImage: `url(${avatarPreview})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' }}>
-              {initials}
-            </div>
-          ) : (
-            <div className="perfil-card__avatar-large">{initials}</div>
-          )}
-          
-          <div className="perfil-card__avatar-info">
-            <h2>{formData.name || 'Usuário'}</h2>
-            <p>{formData.email}</p>
+      <div className="perfil-responsive-grid">
+        {/* LADO ESQUERDO: MEU PERFIL */}
+        <div>
+          <div style={{ marginBottom: '16px' }}>
+            <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ds-white)' }}>Meu perfil</h2>
+            <p style={{ color: 'var(--ds-text-muted)', fontSize: '13px', marginTop: '2px' }}>Gerencie suas informações pessoais e da sua empresa.</p>
           </div>
-        </div>
+          <div className="perfil-card" style={{ height: 'calc(100% - 66px)' }}>
+            <div className="perfil-card__avatar-section">
+              {avatarPreview ? (
+                <div className="perfil-card__avatar-large" style={{ backgroundImage: `url(${avatarPreview})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' }}>
+                  {initials}
+                </div>
+              ) : (
+                <div className="perfil-card__avatar-large">{initials}</div>
+              )}
+              
+              <div className="perfil-card__avatar-info">
+                <h2 style={{ fontSize: '16px' }}>{formData.name || 'Usuário'}</h2>
+                <p>{formData.email}</p>
+              </div>
+            </div>
 
         <form className="perfil-form" onSubmit={handleSubmit}>
           <div className="ds-input-group">
@@ -166,12 +190,25 @@ export const PerfilPage: React.FC = () => {
 
           <div className="ds-input-group perfil-form__full" style={{ marginTop: '16px' }}>
             <label className="ds-label">Upload da Logo (Avatar)</label>
-            <input
-              type="file"
-              accept="image/png, image/jpeg, image/webp"
-              onChange={handleAvatarChange}
-              style={{ color: 'var(--ds-text-muted)', fontSize: '13px' }}
-            />
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '4px' }}>
+              <label 
+                htmlFor="avatar-upload"
+                className="ds-btn ds-btn-outline ds-btn-sm" 
+                style={{ cursor: 'pointer', textAlign: 'center' }}
+              >
+                Escolher Arquivo
+              </label>
+              <input
+                id="avatar-upload"
+                type="file"
+                accept="image/png, image/jpeg, image/webp"
+                onChange={handleAvatarChange}
+                style={{ display: 'none' }}
+              />
+              <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                {avatarFile ? avatarFile.name : 'Nenhum arquivo selecionado'}
+              </span>
+            </div>
             <p style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', marginTop: '4px' }}>Esta logo aparecerá na capa das propostas PDF em alta resolução.</p>
           </div>
 
@@ -182,71 +219,107 @@ export const PerfilPage: React.FC = () => {
           )}
 
           <div className="perfil-form__actions">
-            <button type="submit" className="ds-btn ds-btn-primary" disabled={isSaving}>
-              {isSaving ? 'Salvando...' : 'Salvar Alterações'}
-            </button>
+            <Button 
+              type="submit" 
+              label="Salvar Alterações" 
+              isLoading={isSaving} 
+            />
           </div>
         </form>
-      </div>
+          </div>
+        </div>
 
-      <div className="perfil-card" style={{ marginTop: '40px' }}>
-         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-            <div>
-              <h2 style={{ color: 'var(--ds-white)', fontSize: '16px' }}>Meus Clientes / Empresas</h2>
-              <p style={{ color: 'var(--ds-text-muted)', fontSize: '12px' }}>Gerencie as empresas vinculadas a você para uso nas precificações.</p>
-            </div>
-            <button className="ds-btn ds-btn-ghost" onClick={() => setShowNewClientForm(!showNewClientForm)}>
-              {showNewClientForm ? 'Cancelar' : '+ Adicionar Empresa'}
-            </button>
-         </div>
-
-         {showNewClientForm && (
-           <div style={{ backgroundColor: 'var(--ds-surface)', padding: '16px', borderRadius: '8px', marginBottom: '24px', border: '1px solid var(--ds-border)' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                <div className="ds-input-group">
-                  <label className="ds-label">Nome da Empresa</label>
-                  <input type="text" className="ds-input" value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} placeholder="Nome" />
-                </div>
-                <div className="ds-input-group">
-                  <label className="ds-label">CNPJ</label>
-                  <input type="text" className="ds-input" value={newClient.cnpj} onChange={e => setNewClient({...newClient, cnpj: e.target.value})} placeholder="00.000.000/0000-00" />
-                </div>
-                <div className="ds-input-group">
-                  <label className="ds-label">Telefone</label>
-                  <input type="text" className="ds-input" value={newClient.phone} onChange={e => setNewClient({...newClient, phone: e.target.value})} placeholder="(11) 99999-9999" />
-                </div>
-                <div className="ds-input-group">
-                  <label className="ds-label">E-mail</label>
-                  <input type="email" className="ds-input" value={newClient.email} onChange={e => setNewClient({...newClient, email: e.target.value})} placeholder="contato@empresa.com" />
-                </div>
+        {/* LADO DIREITO: MINHAS EMPRESAS */}
+        <div>
+           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+              <div>
+                <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ds-white)', marginBottom: '2px' }}>Minhas empresas</h2>
+                <p style={{ color: 'var(--ds-text-muted)', fontSize: '13px' }}>Empresas corporativas vinculadas a você.</p>
               </div>
-              <button 
-                className="ds-btn ds-btn-primary" 
-                style={{ marginTop: '16px' }}
-                onClick={handleAddClient}
-                disabled={!newClient.name}
-              >
-                Salvar Empresa
-              </button>
+              <Button 
+                variant={showNewClientForm ? 'outline' : 'primary'}
+                size="sm"
+                onClick={() => setShowNewClientForm(!showNewClientForm)}
+                label={showNewClientForm ? 'Cancelar' : '+ Nova Empresa'}
+              />
            </div>
-         )}
+           
+           <div className="perfil-card" style={{ height: 'calc(100% - 66px)', display: 'flex', flexDirection: 'column', gap: '16px', background: 'transparent', border: 'none', padding: 0 }}>
+             {showNewClientForm && (
+               <div style={{ backgroundColor: 'var(--ds-surface)', padding: '16px', borderRadius: '8px', border: '1px solid var(--ds-border)' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div className="ds-input-group">
+                      <label className="ds-label">Nome da Empresa</label>
+                      <input type="text" className="ds-input" value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} placeholder="Nome" />
+                    </div>
+                    <div className="ds-input-group">
+                      <label className="ds-label">CNPJ</label>
+                      <input 
+                        type="text" 
+                        className="ds-input" 
+                        value={newClient.cnpj} 
+                        onChange={e => setNewClient({...newClient, cnpj: maskCNPJ(e.target.value)})} 
+                        placeholder="00.000.000/0000-00" 
+                      />
+                    </div>
+                    <div className="ds-input-group">
+                      <label className="ds-label">Telefone</label>
+                      <input 
+                        type="text" 
+                        className="ds-input" 
+                        value={newClient.phone} 
+                        onChange={e => setNewClient({...newClient, phone: maskPhone(e.target.value)})} 
+                        placeholder="(00) 00000-0000" 
+                      />
+                    </div>
+                  </div>
+                  <Button 
+                    style={{ marginTop: '16px', width: '100%' }}
+                    onClick={handleAddClient}
+                    disabled={!newClient.name}
+                    label="Salvar Empresa"
+                  />
+               </div>
+             )}
 
-         {clients.length > 0 ? (
-           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {clients.map(c => (
-                <div key={c.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 16px', backgroundColor: 'var(--ds-surface-hover)', borderRadius: '6px', border: '1px solid var(--ds-border)' }}>
-                   <div>
-                     <strong style={{ color: 'var(--ds-white)', fontSize: '14px', display: 'block' }}>{c.name}</strong>
-                     <span style={{ color: 'var(--ds-text-subtle)', fontSize: '12px' }}>{c.cnpj || 'Sem CNPJ'} • {c.email || 'Sem E-mail'}</span>
-                   </div>
-                </div>
-              ))}
+             {clients.length > 0 ? (
+               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  {clients.map(c => (
+                    <div 
+                      key={c.id}
+                      className="orcamento-card"
+                    >
+                       <div className="orcamento-card__info">
+                         <span className="orcamento-card__client">{c.name}</span>
+                         <div className="orcamento-card__meta" style={{ marginTop: '2px', display: 'flex', gap: '8px' }}>
+                           <span>{c.cnpj ? maskCNPJ(c.cnpj) : 'Sem CNPJ'}</span>
+                           {c.phone && (
+                             <>
+                               <span className="orcamento-card__meta-dot" />
+                               <span>{maskPhone(c.phone)}</span>
+                             </>
+                           )}
+                         </div>
+                       </div>
+                       <div className="orcamento-card__actions">
+                         <button 
+                           className="orcamento-card__action-btn orcamento-card__action-btn--delete" 
+                           onClick={() => handleDeleteClient(c.id, c.name)}
+                           title="Excluir Empresa"
+                         >
+                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                         </button>
+                       </div>
+                    </div>
+                  ))}
+               </div>
+             ) : (
+               <div style={{ textAlign: 'center', padding: '32px', color: 'var(--ds-text-subtle)', fontSize: '13px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px' }}>
+                  Nenhuma empresa cadastrada.
+               </div>
+             )}
            </div>
-         ) : (
-           <div style={{ textAlign: 'center', padding: '32px', color: 'var(--ds-text-subtle)', fontSize: '13px' }}>
-              Nenhuma empresa cadastrada.
-           </div>
-         )}
+        </div>
       </div>
     </div>
   );

@@ -793,7 +793,7 @@
 
 /* ─── Perfil Page ─── */
 .perfil-page {
-  max-width: 640px;
+  max-width: 1200px;
   animation: panelFadeIn 0.4s ease-out;
 }
 

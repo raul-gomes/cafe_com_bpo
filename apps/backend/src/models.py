@@ -1,6 +1,6 @@
 from sqlalchemy import Column, String, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
-from src.database import Base
+from src.core.database import Base
 from src.modules.network.models import DiscussionPost, DiscussionComment, Notification
 import uuid
 

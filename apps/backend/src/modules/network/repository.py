@@ -97,3 +97,15 @@ class NetworkRepository:
         total = query.count()
         items = query.order_by(desc(Notification.created_at)).limit(limit).all()
         return items, total
+
+    def get_comments(self, post_id: UUID):
+        query = self.session.query(DiscussionComment).filter(DiscussionComment.post_id == post_id, DiscussionComment.deleted_at.is_(None))
+        return query.order_by(DiscussionComment.created_at).all()
+
+    def mark_notification_read(self, user_id: UUID, notification_id: UUID) -> None:
+        self.session.query(Notification).filter(
+            Notification.user_id == user_id,
+            Notification.id == notification_id
+        ).update({"is_read": True})
+        self.session.commit()
+

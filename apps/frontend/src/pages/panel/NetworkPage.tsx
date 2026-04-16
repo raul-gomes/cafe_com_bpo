@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { getPosts, createPost, PaginatedPosts } from '../../api/network';
-import { RichTextEditor } from '../ui/RichTextEditor';
+import { RichTextEditor } from '../../components/ui/RichTextEditor';
+import { NotificationBell } from '../../components/panel/NotificationBell';
 
 export const NetworkPage: React.FC = () => {
   const [data, setData] = useState<PaginatedPosts | null>(null);
@@ -54,90 +54,132 @@ export const NetworkPage: React.FC = () => {
   };
 
   return (
-    <div style={{ maxWidth: '800px', margin: '0 auto' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-        <h2>Fórum da Comunidade</h2>
-        <button 
-          className="btn-primary" 
-          onClick={() => setShowForm(!showForm)}
-        >
-          {showForm ? 'Cancelar' : 'Criar Tópico'}
-        </button>
+    <>
+      <div className="panel-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', fontWeight: 600 }}>
+        <span style={{ color: 'var(--ds-primary)' }}>Comunidade</span>
+      </div>
+
+      <div className="panel-content__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+        <div>
+          <h1>Fórum da Comunidade</h1>
+          <p>Discuta, tire dúvidas e faça networking com outros profissionais de BPO.</p>
+        </div>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+          <NotificationBell />
+          <button 
+            className={showForm ? "ds-btn ds-btn-ghost" : "ds-btn ds-btn-primary"} 
+            onClick={() => setShowForm(!showForm)}
+            style={{ gap: '8px' }}
+          >
+            {showForm ? 'Cancelar' : 'Criar Tópico'}
+          </button>
+        </div>
       </div>
 
       {error && <div className="alert-error" style={{ marginBottom: '16px' }}>{error}</div>}
 
       {showForm && (
-        <form onSubmit={handleCreate} style={{ background: 'var(--panel-bg)', padding: '24px', borderRadius: '8px', marginBottom: '32px', border: '1px solid var(--border-color)' }}>
-          <div className="form-group">
-            <label>Título do Tópico</label>
-            <input 
-              type="text" 
-              className="form-control" 
-              value={newTitle} 
-              onChange={e => setNewTitle(e.target.value)} 
-              placeholder="Descreva seu desafio ou dúvida"
-            />
+        <form onSubmit={handleCreate} className="panel-card" style={{ marginBottom: '32px', border: '1px solid rgba(255,255,255,0.07)', background: 'var(--ds-surface)' }}>
+          <div className="ds-card-header">
+             <h3 style={{ margin: 0, fontSize: '18px' }}>Novo Tópico</h3>
           </div>
-          <div className="form-group" style={{ marginTop: '16px' }}>
-            <label>Mensagem</label>
-            <RichTextEditor 
-              value={newMessage} 
-              onChange={setNewMessage} 
-              placeholder="Detalhe mais informações aqui..."
-            />
+          <div className="ds-card-body">
+            <div className="ds-input-group">
+              <label className="ds-label">Título do Tópico</label>
+              <input 
+                type="text" 
+                className="ds-input" 
+                value={newTitle} 
+                onChange={e => setNewTitle(e.target.value)} 
+                placeholder="Descreva seu desafio ou dúvida de forma clara"
+              />
+            </div>
+            <div className="ds-input-group" style={{ marginTop: '16px' }}>
+              <label className="ds-label">Mensagem</label>
+              <div style={{ background: 'var(--ds-surface-2)', borderRadius: 'var(--radius-md)' }}>
+                <RichTextEditor 
+                  value={newMessage} 
+                  onChange={setNewMessage} 
+                  placeholder="Detalhe mais informações aqui..."
+                />
+              </div>
+            </div>
+            <div className="ds-input-group" style={{ marginTop: '16px' }}>
+              <label className="ds-label">Tags (separadas por vírgula)</label>
+              <input 
+                type="text" 
+                className="ds-input" 
+                value={newTags} 
+                onChange={e => setNewTags(e.target.value)} 
+                placeholder="ex: duvida, vendas, operacional"
+              />
+            </div>
+            <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
+              <button type="submit" className="ds-btn ds-btn-primary">Publicar Tópico</button>
+            </div>
           </div>
-          <div className="form-group" style={{ marginTop: '16px' }}>
-            <label>Tags (separadas por vírgula)</label>
-            <input 
-              type="text" 
-              className="form-control" 
-              value={newTags} 
-              onChange={e => setNewTags(e.target.value)} 
-              placeholder="ex: duvida, vendas, operacional"
-            />
-          </div>
-          <button type="submit" className="btn-primary" style={{ marginTop: '16px' }}>Publicar Tópico</button>
         </form>
       )}
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: '40px' }}>Carregando comunidade...</div>
+        <div className="orcamentos-list">
+          {Array.from({ length: 4 }).map((_, i) => (
+             <div key={i} className="orcamento-card">
+               <div className="orcamento-card__info">
+                 <div className="panel-skeleton" style={{ width: '60%', height: '16px', marginBottom: '8px' }} />
+                 <div className="panel-skeleton" style={{ width: '40%', height: '12px' }} />
+               </div>
+             </div>
+          ))}
+        </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+        <div className="orcamentos-list">
           {data?.items.length === 0 && (
-            <div style={{ padding: '40px', textAlign: 'center', background: 'var(--panel-bg)', borderRadius: '8px', border: '1px solid var(--border-color)' }}>
-              Nenhum tópico encontrado. Seja o primeiro a puxar um assunto!
+            <div className="panel-empty">
+               <h3 style={{ marginTop: '16px' }}>Nenhum tópico encontrado</h3>
+               <p>Seja o primeiro a puxar um assunto!</p>
             </div>
           )}
           {data?.items.map(post => (
             <div 
               key={post.id} 
-              className="forum-post-card"
-              style={{ padding: '20px', background: 'var(--panel-bg)', borderRadius: '8px', border: '1px solid var(--border-color)', cursor: 'pointer', transition: ' border-color 0.2s', display: 'flex', flexDirection: 'column', gap: '12px' }}
+              className="orcamento-card"
               onClick={() => navigate(`/painel/forum/${post.id}`)}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--primary-color)')}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-color)')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => {
+                if (e.key === 'Enter') navigate(`/painel/forum/${post.id}`);
+              }}
+              style={{ alignItems: 'flex-start' }}
             >
-              <h3 style={{ margin: 0, color: 'var(--primary-color)', fontSize: '18px' }}>{post.title}</h3>
-              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                {post.tags.map(tag => (
-                  <span key={tag} style={{ background: 'rgba(255,191,0,0.1)', color: 'var(--primary-color)', padding: '2px 8px', borderRadius: '12px', fontSize: '12px', fontWeight: 'bold' }}>
-                    #{tag}
-                  </span>
-                ))}
+              <div className="orcamento-card__info" style={{ flex: 1 }}>
+                <div style={{ fontSize: '16px', fontWeight: 'bold', color: '#fff', marginBottom: '8px' }}>
+                  {post.title}
+                </div>
+                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap', marginBottom: '8px' }}>
+                  {post.tags.map(tag => (
+                    <span key={tag} style={{ background: 'rgba(255,191,0,0.1)', color: 'var(--ds-primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 'bold' }}>
+                      #{tag}
+                    </span>
+                  ))}
+                </div>
+                <div className="orcamento-card__meta">
+                  Autor: {post.author.name || post.author.email || 'Usuário'}
+                  <span className="orcamento-card__meta-dot" />
+                  {post.comments_count} {post.comments_count === 1 ? 'resposta' : 'respostas'}
+                  <span className="orcamento-card__meta-dot" />
+                  {new Date(post.created_at).toLocaleDateString('pt-BR')}
+                </div>
               </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between', color: 'var(--text-secondary)', fontSize: '14px', marginTop: '8px' }}>
-                <span title={post.author.email}>Autor: {post.author.name || 'Usuário'}</span>
-                <span style={{ display: 'flex', gap: '16px' }}>
-                  <span>{post.comments_count} comentários</span>
-                  <span>{new Date(post.created_at).toLocaleDateString()}</span>
-                </span>
+              <div className="orcamento-card__actions" style={{ marginLeft: '16px' }}>
+                <button className="ds-btn ds-btn-ghost ds-btn-sm">
+                  Ler Tópico
+                </button>
               </div>
             </div>
           ))}
         </div>
       )}
-    </div>
+    </>
   );
 };

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell } from 'lucide-react';
-import { getNotifications, PaginatedNotifications } from '../../api/network';
+import { getNotifications, markNotificationRead, PaginatedNotifications } from '../../api/network';
 
 export const NotificationBell: React.FC = () => {
   const [data, setData] = useState<PaginatedNotifications | null>(null);
@@ -34,21 +34,41 @@ export const NotificationBell: React.FC = () => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const handleNotificationClick = (notificationId: string, postId: string) => {
+    setIsOpen(false);
+    
+    // Optimistic UI update
+    if (data) {
+      setData({
+        ...data,
+        items: data.items.map(n => n.id === notificationId ? { ...n, is_read: true } : n)
+      });
+    }
+
+    markNotificationRead(notificationId).then(() => {
+        // Redireciona logo em seguida para não ter o risco de cancelar o request
+        navigate(`/painel/forum/${postId}`);
+    }).catch((e) => {
+        console.error(e);
+        navigate(`/painel/forum/${postId}`);
+    });
+  };
+
   const unreadCount = data?.items.filter((n) => !n.is_read).length || 0;
 
   return (
     <div className="notification-bell-container" ref={dropdownRef} style={{ position: 'relative' }}>
       <button 
-        style={{ background: 'none', border: 'none', cursor: 'pointer', position: 'relative', marginTop: '6px', marginRight: '16px' }}
+        style={{ background: 'transparent', border: 'none', cursor: 'pointer', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
         onClick={() => setIsOpen(!isOpen)}
         aria-label="Notificações"
       >
-        <Bell size={22} color="#fff" />
+        <Bell size={24} color="#fff" />
         {unreadCount > 0 && (
           <span style={{
             position: 'absolute', top: '-4px', right: '-4px',
-            background: 'var(--primary-color)', color: '#000',
-            borderRadius: '50%', width: '16px', height: '16px',
+            background: 'var(--ds-primary)', color: '#000', border: '2px solid var(--ds-surface)',
+            borderRadius: '50%', width: '18px', height: '18px',
             fontSize: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold'
           }}>
             {unreadCount}
@@ -58,16 +78,16 @@ export const NotificationBell: React.FC = () => {
 
       {isOpen && (
         <div style={{
-          position: 'absolute', top: '100%', right: '16px', marginTop: '8px',
-          width: '300px', background: 'var(--panel-bg)', border: '1px solid var(--border-color)',
-          borderRadius: '8px', zIndex: 100, boxShadow: '0 10px 25px rgba(0,0,0,0.5)', overflow: 'hidden'
+          position: 'absolute', top: '100%', right: '0', marginTop: '8px',
+          width: '300px', background: 'var(--ds-surface)', border: '1px solid rgba(255,255,255,0.07)',
+          borderRadius: 'var(--radius-md)', zIndex: 100, boxShadow: '0 10px 25px rgba(0,0,0,0.5)', overflow: 'hidden'
         }}>
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border-color)', fontWeight: 'bold' }}>
+          <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)', fontWeight: 'bold' }}>
             Notificações
           </div>
           <div style={{ maxHeight: '300px', overflowY: 'auto' }}>
-            {data?.items.length === 0 ? (
-              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+            {!data || data.items.length === 0 ? (
+              <div style={{ padding: '16px', textAlign: 'center', color: 'var(--ds-text-muted)' }}>
                 Nenhuma notificação nova.
               </div>
             ) : (
@@ -75,19 +95,16 @@ export const NotificationBell: React.FC = () => {
                 <div 
                   key={notif.id} 
                   style={{ 
-                    padding: '12px 16px', borderBottom: '1px solid var(--border-color)',
-                    background: notif.is_read ? 'transparent' : 'rgba(255,255,255,0.05)',
+                    padding: '12px 16px', borderBottom: '1px solid rgba(255,255,255,0.07)',
+                    background: notif.is_read ? 'transparent' : 'rgba(251,191,36,0.1)',
                     cursor: 'pointer' 
                   }}
-                  onClick={() => {
-                    setIsOpen(false);
-                    navigate(`/painel/forum/${notif.post_id}`);
-                  }}
+                  onClick={() => handleNotificationClick(notif.id, notif.post_id)}
                 >
                   <p style={{ margin: 0, fontSize: '13px' }}>
                     Alguém respondeu ao seu tópico!
                   </p>
-                  <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                  <span style={{ fontSize: '11px', color: 'var(--ds-text-subtle)' }}>
                     {new Date(notif.created_at).toLocaleDateString()}
                   </span>
                 </div>
