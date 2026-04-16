@@ -12,6 +12,8 @@ import { OrcamentoNovoPage } from './pages/panel/OrcamentoNovoPage'
 import { OrcamentoDetalhadoPage } from './pages/panel/OrcamentoDetalhadoPage'
 import { PerfilPage } from './pages/panel/PerfilPage'
 import { GaleriaArquivosPage } from './pages/panel/GaleriaArquivosPage'
+import { NetworkPage } from './pages/panel/NetworkPage'
+import { NetworkPostPage } from './pages/panel/NetworkPostPage'
 
 export function buildRouter() {
   return createBrowserRouter([
@@ -74,6 +76,14 @@ export function buildRouter() {
             {
               path: 'galeria',
               element: <GaleriaArquivosPage />,
+            },
+            {
+              path: 'forum',
+              element: <NetworkPage />,
+            },
+            {
+              path: 'forum/:id',
+              element: <NetworkPostPage />,
             }
           ]
         }

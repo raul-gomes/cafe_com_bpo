@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { NotificationBell } from './NotificationBell';
 
 interface PanelNavbarProps {
   title: string;
@@ -51,7 +52,9 @@ export const PanelNavbar: React.FC<PanelNavbarProps> = ({ title, onToggleSidebar
         <h1 className="panel-navbar__title">{title}</h1>
       </div>
 
-      <div className="panel-navbar__actions">
+      <div className="panel-navbar__actions" style={{ display: 'flex', alignItems: 'center' }}>
+        <NotificationBell />
+
         {/* User Avatar with Dropdown */}
         <div className="panel-navbar__user" ref={dropdownRef}>
           <button 
