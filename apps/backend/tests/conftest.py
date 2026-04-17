@@ -7,12 +7,12 @@ os.environ["MODE"] = "test"
 if "DATABASE_URL" not in os.environ:
     os.environ["DATABASE_URL"] = "postgresql+psycopg://postgres:postgres_password@localhost:5432/cafe_bpo"
 
-from src.core.config import get_settings
+from src.core.config import get_settings  # noqa: E402
 get_settings.cache_clear()
 
-from src.main import create_app
-from src.core.database import engine, Base
-from sqlalchemy.orm import Session
+from src.main import create_app  # noqa: E402
+from src.core.database import engine, Base  # noqa: E402
+from sqlalchemy.orm import Session  # noqa: E402
 
 @pytest.fixture
 def client():
