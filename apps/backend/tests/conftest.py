@@ -27,9 +27,11 @@ test_engine = create_engine(
     json_serializer=lambda obj: json.dumps(obj, default=str),
     json_deserializer=json.loads
 )
+import src.core.database  # noqa: E402
 # Monkey patch o motor de banco de dados e SessionLocal para os testes
 src.core.database.engine = test_engine
 
+from sqlalchemy.orm import sessionmaker
 src.core.database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 # Force table creation at import time for SQLite
@@ -51,7 +53,7 @@ def client():
 @pytest.fixture
 def db_session():
     """Test database session."""
-    session = Session(bind=engine)
+    session = Session(bind=test_engine)
     session.begin_nested()
     yield session
     session.rollback()
