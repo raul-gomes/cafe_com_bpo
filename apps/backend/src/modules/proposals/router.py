@@ -32,6 +32,7 @@ def create_proposal(
             result_payload=proposal.result_payload
         )
         repo.session.commit()
+        repo.session.refresh(new_scenario)
         log.info(f"📄 Proposta salva: '{proposal.client_name}' | ID: {new_scenario.id} | Usuário: {current_user.email}")
         return new_scenario
     except Exception as e:
@@ -85,6 +86,7 @@ def update_proposal(
             raise HTTPException(status_code=404, detail="Proposta não encontrada")
         
         repo.session.commit()
+        repo.session.refresh(updated)
         log.info(f"📝 Proposta atualizada: '{proposal.client_name}' | ID: {proposal_id} | Usuário: {current_user.email}")
         return updated
     except HTTPException:
