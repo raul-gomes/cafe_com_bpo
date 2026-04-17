@@ -3,8 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/ui/Navbar';
 import { ProposalPreview } from '../components/proposal/ProposalPreview';
-import { PricingFormData } from '../schemas/pricing';
-import { PricingResult } from '../lib/pricingEngine';
 
 import { SESSION_KEY, ProposalSession } from '../schemas/proposalSession';
 

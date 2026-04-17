@@ -1,5 +1,5 @@
-from sqlalchemy import Column, String, DateTime, func, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID, JSONB
+from sqlalchemy import Column, String, DateTime, func, ForeignKey, JSON
+from sqlalchemy.dialects.postgresql import UUID
 from src.core.database import Base
 from src.modules.network.models import DiscussionPost, DiscussionComment, Notification
 from src.modules.tasks.models import Task
@@ -35,7 +35,7 @@ class PricingScenario(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
     client_name = Column(String(255), nullable=False)
-    input_payload = Column(JSONB, nullable=False)
-    result_payload = Column(JSONB, nullable=False)
+    input_payload = Column(JSON, nullable=False)
+    result_payload = Column(JSON, nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)
