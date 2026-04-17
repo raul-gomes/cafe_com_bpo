@@ -6,6 +6,10 @@ from fastapi.testclient import TestClient
 os.environ["MODE"] = "test"
 os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 
+# Ensure a fresh database file for each test session to avoid "no such column" errors
+if os.path.exists("./test.db"):
+    os.remove("./test.db")
+
 from src.core.config import get_settings  # noqa: E402
 get_settings.cache_clear()
 
