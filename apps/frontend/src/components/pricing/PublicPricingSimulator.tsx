@@ -162,7 +162,7 @@ export const PublicPricingSimulator: React.FC = () => {
     },
   });
 
-  const { update } = useFieldArray({ control, name: 'services' });
+  const { fields, update } = useFieldArray({ control, name: 'services' });
   const watchedValues = useWatch({ control }) as PricingFormData;
 
   const currentScenario = watchedValues?.desired_profit_margin ?? 0.5;
@@ -381,7 +381,7 @@ export const PublicPricingSimulator: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {fields.map((svc, index) => {
+                    {fields.map((svc: any, index: number) => {
                       const svcData   = watchedValues?.services?.[index];
                       const isActive  = svcData?.active ?? false;
                       const isFixed   = svc.type === 'fixed';

@@ -12,8 +12,8 @@ const taskSchema = z.object({
   title: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
   description: z.string().optional(),
   client_id: z.string().uuid('Selecione uma empresa'),
-  status: z.enum(['todo', 'doing', 'done']).default('todo'),
-  priority: z.enum(['low', 'medium', 'high']).default('medium'),
+  status: z.enum(['todo', 'doing', 'done']),
+  priority: z.enum(['low', 'medium', 'high']),
   deadline: z.string().optional(),
 });
 
@@ -124,7 +124,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
           {task ? 'Atualize os detalhes da tarefa operacional.' : 'Organize o fluxo operacional para um de seus clientes.'}
         </p>
 
-        <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleSubmit(onSubmit as any)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="ds-form-group">
             <label className="ds-label">Título da Tarefa</label>
             <input 

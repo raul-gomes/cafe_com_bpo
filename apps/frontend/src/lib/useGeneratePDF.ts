@@ -51,7 +51,7 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
         }),
       });
 
-      const blob = await pdf(doc).toBlob();
+      const blob = await pdf(doc as any).toBlob();
 
       // Gera o download automático no browser
       const url = URL.createObjectURL(blob);

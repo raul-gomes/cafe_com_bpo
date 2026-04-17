@@ -3,11 +3,12 @@ import { apiClient, authStorage } from '../api/client';
 
 const SESSION_KEY = 'cafe_bpo_proposal';
 
-interface User {
+export interface User {
   id: string;
   email: string;
   name?: string;
   company?: string;
+  avatar_url?: string;
   created_at?: string;
 }
 

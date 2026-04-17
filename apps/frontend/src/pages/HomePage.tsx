@@ -38,7 +38,7 @@ const HomePage: React.FC = () => {
             <FadeIn delay={3}>
               <div style={{ display: 'flex', gap: '16px', justifyContent: 'center', marginTop: '40px' }}>
                 <Link to={targetPath}>
-                  <Button variant="primary" size="large">
+                  <Button variant="primary" size="lg">
                     FAZER PARTE DA REALIDADE
                   </Button>
                 </Link>
@@ -154,7 +154,7 @@ const HomePage: React.FC = () => {
               </p>
               <div style={{ marginTop: '40px' }}>
                  <Link to={targetPath}>
-                  <Button variant="primary" size="large">
+                  <Button variant="primary" size="lg">
                     ACESSO IMEDIATO
                   </Button>
                 </Link>

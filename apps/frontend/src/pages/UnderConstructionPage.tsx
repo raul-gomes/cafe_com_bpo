@@ -23,7 +23,7 @@ const UnderConstructionPage: React.FC = () => {
             </FadeIn>
             <FadeIn delay={3}>
               <Link to="/">
-                <Button variant="outline" size="normal">
+                <Button variant="outline" size="md">
                   Voltar para a base
                 </Button>
               </Link>

@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../client';
-import { TaskResponse, TaskCreate, TaskUpdate } from '../../../schemas/tasks';
+import { TaskResponse, TaskCreate, TaskUpdate } from '../../schemas/tasks';
 
 export const useTasks = () => {
   const queryClient = useQueryClient();
@@ -55,7 +55,7 @@ export const useTasks = () => {
         }
         return { previousTasks };
       },
-      onError: (err, variables, context) => {
+      onError: (_err, _variables, context) => {
         if (context?.previousTasks) {
           queryClient.setQueryData(['tasks'], context.previousTasks);
         }
