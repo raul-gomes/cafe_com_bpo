@@ -29,7 +29,7 @@ jobs:
           pip install ruff  # Linter rápido para CI
           
       - name: Lint with Ruff
-        run: ruff check .
+        run: ruff check --fix .
         
       - name: Run Tests with Pytest
         env:

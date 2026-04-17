@@ -1,5 +1,4 @@
-import pytest
-import json
+
 
 def test_pricing_calculator_rejects_malformed_json(client):
     # Payload com tipos errados (ex: string onde deve ser number)
