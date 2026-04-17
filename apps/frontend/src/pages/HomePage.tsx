@@ -10,7 +10,7 @@ const HomePage: React.FC = () => {
   const targetPath = isAuthenticated ? '/painel' : '/login';
 
   return (
-    <div style={{ paddingBottom: '100px' }}>
+    <div style={{ paddingBottom: '100px' }} data-testid="home-page">
       <Navbar />
 
       <main>

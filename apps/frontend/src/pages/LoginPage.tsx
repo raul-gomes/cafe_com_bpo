@@ -15,7 +15,7 @@ export default function LoginPage() {
   }, [isAuthenticated, isLoading, navigate]);
 
   return (
-    <div className="login-page">
+    <div className="login-page" data-testid="login-page">
       <Navbar />
 
       {/* Glow blobs decorativos */}

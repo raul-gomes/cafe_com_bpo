@@ -14,6 +14,13 @@ from src.main import create_app  # noqa: E402
 from src.core.database import engine, Base  # noqa: E402
 from sqlalchemy.orm import Session  # noqa: E402
 
+@pytest.fixture(scope="session", autouse=True)
+def setup_database():
+    """Cria todas as tabelas antes de rodar os testes."""
+    Base.metadata.create_all(bind=engine)
+    yield
+    Base.metadata.drop_all(bind=engine)
+
 @pytest.fixture
 def client():
     app = create_app()
@@ -22,8 +29,7 @@ def client():
 
 @pytest.fixture
 def db_session():
-    """Test veritabanı oturumu oluştur."""
-    Base.metadata.create_all(bind=engine)
+    """Test database session."""
     session = Session(bind=engine)
     session.begin_nested()
     yield session
