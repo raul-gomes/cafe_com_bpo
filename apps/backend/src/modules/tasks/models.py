@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, func, ForeignKey, UUID
+from sqlalchemy import Column, String, DateTime, func, ForeignKey, UUID, Text
 from src.core.database import Base
 import uuid
 
