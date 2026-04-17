@@ -33,7 +33,7 @@ jobs:
         
       - name: Run Tests with Pytest
         env:
-          DATABASE_URL: sqlite:///:memory:  # DB em memória para testes rápidos no CI
+          DATABASE_URL: "sqlite:///:memory:"
           JWT_SECRET: "test-secret-key-at-least-32-chars-long"
           JWT_ALGORITHM: "HS256"
           MODE: "test"
