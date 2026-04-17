@@ -8,6 +8,7 @@ class ClientBase(BaseModel):
     cnpj: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[EmailStr] = None
+    color: Optional[str] = None
 
 class ClientCreate(ClientBase):
     pass

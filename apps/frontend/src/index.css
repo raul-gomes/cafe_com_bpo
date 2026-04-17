@@ -380,3 +380,251 @@ p.apple-body { font: var(--text-body-lg); max-width: 650px; margin: 0 auto 24px 
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── TOOLTIP (.tt) ─── */
+.tt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px; 
+  height: 16px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ds-text-subtle);
+  font-size: 10px;
+  font-weight: 700;
+  cursor: help;
+  flex-shrink: 0;
+  margin-left: 6px;
+  vertical-align: middle;
+  transition: all 0.2s ease;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}
+
+.tt:hover { 
+  background: var(--ds-primary); 
+  color: var(--ds-primary-text);
+  border-color: var(--ds-primary);
+}
+
+.tt::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e293b;
+  color: #f1f5f9;
+  font-size: 12px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  white-space: pre-line;
+  width: 260px;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 500;
+  font-weight: 400;
+  line-height: 1.5;
+  box-shadow: 0 10px 25px -5px rgba(0,0,0,0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  text-transform: none;
+}
+
+.tt:hover::after { 
+  opacity: 1; 
+  transform: translateX(-50%) translateY(-5px);
+}
+
+.tt.tt-left::after { 
+  left: auto; 
+  right: 0; 
+  transform: none; 
+}
+.tt.tt-left:hover::after {
+  transform: translateY(-5px);
+}
+
+/* ─── TUTORIAL PANEL ─── */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  z-index: 900;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
+}
+.tutorial-overlay.open { opacity: 1; pointer-events: all; }
+
+.tutorial-panel {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(460px, 100vw);
+  background: #0f172a; /* Slate 900 */
+  z-index: 1000;
+  transform: translateX(100%);
+  transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  display: flex;
+  flex-direction: column;
+  box-shadow: -10px 0 30px rgba(0,0,0,0.5);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+}
+.tutorial-panel.open { transform: translateX(0); }
+
+.tutorial-panel__header {
+  padding: 24px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+.tutorial-panel__header h2 {
+  font-size: 18px;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 4px;
+}
+.tutorial-panel__header p {
+  font-size: 13px;
+  color: #94a3b8;
+}
+
+.tutorial-panel__content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.tutorial-panel__step-tag {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--ds-primary);
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.tutorial-panel__title {
+  font-size: 20px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 16px;
+  line-height: 1.3;
+}
+
+.tutorial-panel__text {
+  font-size: 14px;
+  color: #cbd5e1;
+  line-height: 1.6;
+  margin-bottom: 20px;
+}
+
+.tutorial-panel__checklist {
+  list-style: none;
+  padding: 0;
+  margin: 20px 0;
+}
+.tutorial-panel__checklist li {
+  position: relative;
+  padding-left: 28px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  color: #e2e8f0;
+}
+.tutorial-panel__checklist li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--ds-primary);
+  font-weight: 700;
+}
+
+.tutorial-panel__insight {
+  background: rgba(255, 191, 36, 0.05);
+  border-left: 4px solid var(--ds-primary);
+  padding: 16px;
+  margin: 24px 0;
+  border-radius: 0 8px 8px 0;
+}
+.tutorial-panel__insight strong {
+  display: block;
+  color: var(--ds-primary);
+  font-size: 12px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.tutorial-panel__insight p {
+  font-size: 13px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+.tutorial-panel__example {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 10px;
+  padding: 16px;
+  margin: 20px 0;
+}
+.tutorial-panel__example-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #3b82f6;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+.tutorial-panel__example-text {
+  font-size: 13px;
+  color: #93c5fd;
+  margin: 0;
+}
+
+.tutorial-panel__footer {
+  padding: 20px 24px;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #0f172a;
+}
+
+
+/* ─── AJUSTES DE TOOLTIP E HINTS ─── */
+.card {
+  /* overflow: visible; */ /* Ensure tooltips are not clipped */
+  position: relative;
+}
+
+.ds-hint {
+  font-size: 11px;
+  color: var(--ds-text-disabled);
+  margin-top: 5px;
+  line-height: 1.4;
+  font-weight: 400;
+}
+
+.tutorial-panel {
+  background: #0a0a0a; /* Darker for Cafe BPO */
+  border-left: 2px solid var(--ds-primary);
+}
+
+.tutorial-panel__title {
+  color: var(--ds-primary);
+}
+
+.tutorial-panel__header {
+  background: #000;
+}
+
+.tutorial-panel__insight {
+  background: rgba(234, 179, 8, 0.08);
+}
+
+/* Fix tooltip clipping by ensuring parent stack context or specifically overriding card */
+.card-body {
+  overflow: visible !important;
+}

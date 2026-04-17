@@ -17,6 +17,7 @@ class Client(Base):
     cnpj = Column(String(50), nullable=True)
     phone = Column(String(50), nullable=True)
     email = Column(String(255), nullable=True)
+    color = Column(String(10), nullable=True) # Armazena hex ex: #4287f5
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False)

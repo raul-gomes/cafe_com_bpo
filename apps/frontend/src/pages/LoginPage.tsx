@@ -10,7 +10,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
-      navigate('/painel');
+      navigate('/painel/tarefas');
     }
   }, [isAuthenticated, isLoading, navigate]);
 

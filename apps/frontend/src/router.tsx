@@ -14,6 +14,7 @@ import { PerfilPage } from './pages/panel/PerfilPage'
 import { GaleriaArquivosPage } from './pages/panel/GaleriaArquivosPage'
 import { NetworkPage } from './pages/panel/NetworkPage'
 import { NetworkPostPage } from './pages/panel/NetworkPostPage'
+import { TasksPage } from './pages/panel/TasksPage'
 
 export function buildRouter() {
   return createBrowserRouter([
@@ -84,6 +85,10 @@ export function buildRouter() {
             {
               path: 'forum/:id',
               element: <NetworkPostPage />,
+            },
+            {
+              path: 'tarefas',
+              element: <TasksPage />,
             }
           ]
         }

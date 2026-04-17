@@ -64,6 +64,119 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   const [newSvcNum, setNewSvcNum]   = useState(10);
   const [localHourlyCost, setLocalHourlyCost] = useState('');
 
+  // Tutorial State
+  const [showTutorial, setShowTutorial] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
+
+  const tutorialSteps = [
+    {
+      id: 1,
+      tag: 'Passo 1 — Configurações da operação',
+      title: 'Custo total mensal: o que entra nesse número?',
+      text: 'Este é o campo mais importante da calculadora. Ele representa quanto custa sua empresa existir por mês, independente de faturar ou não.',
+      items: [
+        'Pró-labore (seu salário como sócio)',
+        'Salários de colaboradores e encargos',
+        'Aluguel, sistemas e ferramentas',
+        'Contador, internet e marketing'
+      ],
+      example: 'Operação com 1 pessoa: pró-labore R$ 4.000 + sistemas R$ 500 + contador R$ 400 + internet/telefone R$ 200 + marketing R$ 300 = R$ 5.400/mês',
+      insight: 'O padrão desta calculadora (R$ 8.000) é uma referência para operação com 2 pessoas. Ajuste para a sua realidade.'
+    },
+    {
+      id: 2,
+      tag: 'Passo 2 — Pessoas e horas',
+      title: 'Pessoas na operação e horas trabalhadas',
+      text: 'Com esses dois campos a calculadora descobre quanto custa cada hora do seu trabalho (Custo/Hora).',
+      items: [
+        'Pessoas: apenas quem executa serviços para clientes.',
+        'Horas/mês: apenas horas produtivas dedicadas a clientes.'
+      ],
+      example: '22 dias úteis × 6h dedicadas = 132h/mês. Se dedicar 8h/dia = 176h/mês.',
+      insight: 'Se o seu custo é fixo e você trabalha menos horas, seu custo por hora sobe — e o preço dos serviços precisa acompanhar.'
+    },
+    {
+      id: 3,
+      tag: 'Passo 3 — Impostos e comissão',
+      title: 'Simples Nacional e comissão de vendas',
+      text: 'Impostos e comissões são calculados "de fora para dentro" para garantir que sua margem não seja corroída.',
+      items: [
+        'Simples Nacional: Alíquota sobre o faturamento.',
+        'Comissão: Percentual pago para parcerias/indicação.'
+      ],
+      example: 'Se cobra R$ 1.000 e paga 6% de Simples = R$ 60 para o governo. A calculadora já embuti isso no preço final.',
+      insight: 'Não sabe sua alíquota? Use 6% como estimativa conservadora.'
+    },
+    {
+      id: 4,
+      tag: 'Passo 4 — Serviços por Tempo',
+      title: 'Serviços por tempo: o que são?',
+      text: 'Serviços precificados com base em minutos de execução × custo do seu minuto de trabalho.',
+      items: [
+        'Emissão de NF automática (1,3 min)',
+        'Emissão de NF avulsa (2,3 min)',
+        'Agendamento de pagamentos (5 min)'
+      ],
+      insight: 'Os tempos padrão são referências. Quanto mais preciso o seu tempo, mais precisa a sua precificação.'
+    },
+    {
+      id: 5,
+      tag: 'Passo 5 — Serviços Fixos',
+      title: 'Serviços de valor fixo: responsabilidade',
+      text: 'Alguns serviços têm um valor de mercado ou de responsabilidade que vai além do tempo gasto.',
+      items: [
+        'Gestão de conta caixa (R$ 4.500): Risco e responsabilidade.',
+        'Cobrança ativa (R$ 1.500): Valor de resultado.',
+        'Reunião mensal (R$ 250): Valor da hora estratégica.'
+      ],
+      insight: 'Os valores padrão são referências de mercado. Ajuste conforme o perfil do cliente e a complexidade.'
+    },
+    {
+      id: 6,
+      tag: 'Passo 6 — Cenários',
+      title: 'Conservador, Moderado ou Agressivo?',
+      text: 'O cenário define sua margem de lucro sobre o custo operacional.',
+      items: [
+        'Conservador (30%): Clientes iniciais ou entrada em mercado.',
+        'Moderado (50%): Equilíbrio ideal (recomendado).',
+        'Agressivo (100%): Histórico comprovado e alto valor.'
+      ],
+      insight: 'Evite o Conservador como padrão. Ele pode criar uma ancoragem muito baixa para reajustes futuros.'
+    },
+    {
+      id: 7,
+      tag: 'Passo 7 — Prazo',
+      title: 'Prazo como ferramenta comercial',
+      text: 'O desconto por prazo incentiva contratos mais longos e previsibilidade de caixa.',
+      items: [
+        'Mensal: Sem desconto. Flexibilidade total.',
+        'Trimestral: 5% de desconto. 3 meses garantidos.',
+        'Anual: 10% de desconto. 12 meses de fluxo certo.'
+      ],
+      insight: 'Sempre apresente as 3 opções. O cliente tende a escolher o anual pelo custo-benefício, e você ganha retenção.'
+    },
+    {
+      id: 8,
+      tag: 'Passo 8 — Proposta PDF',
+      title: 'Como usar o PDF gerado',
+      text: 'A proposta profissional detalha os serviços e a metodologia de valor.',
+      items: [
+        'Preencha dados da sua empresa para o rodapé.',
+        'Use link da Logo para profissionalismo.',
+        'Defina validade (7 a 15 dias) para gerar urgência.'
+      ],
+      insight: 'Envie por PDF, não só o link. Isso garante que o cliente veja a apresentação exatamente como você planejou.'
+    }
+  ];
+
+  const nextStep = () => setCurrentStep(prev => Math.min(prev + 1, tutorialSteps.length));
+  const prevStep = () => setCurrentStep(prev => Math.max(prev - 1, 1));
+
+  const openTutorialStep = (step: number) => {
+    setCurrentStep(step);
+    setShowTutorial(true);
+  };
+
   const { register, control, getValues, setValue, reset, formState: { errors } } = useForm<PricingFormData>({
     resolver: zodResolver(pricingFormSchema) as any,
     defaultValues: initialData || {
@@ -161,28 +274,32 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   const activeServicesCount = watchedValues?.services?.filter(s => s.active).length || 0;
   const hasActiveService = activeServicesCount > 0;
 
+  // Validação do Cliente
+  const isClientValid = clients.some(c => c.name.trim().toLowerCase() === clientName.trim().toLowerCase());
+  const showClientError = clientName.trim().length > 0 && !isClientValid && !showNewClientForm;
+
   const handlePrimaryAction = () => {
-    if (!pricing || !hasActiveService) return;
+    if (!pricing || !hasActiveService || !isClientValid) return;
     if (onSave) {
-      onSave(getValues(), clientName || 'Cliente');
+      onSave(getValues(), clientName);
     } else {
       saveProposalSession({
         form: getValues(),
         pricing,
-        clientName: clientName || 'Cliente',
+        clientName: clientName,
       });
       navigate('/proposta');
     }
   };
 
   const handleDownload = async () => {
-    if (!pricing || !hasActiveService) return;
+    if (!pricing || !hasActiveService || !isClientValid) return;
     const finalLogoUrl = user?.avatar_url ? `${getApiUrl()}${user.avatar_url}` : logoAsset;
     await generatePDF({
       form: getValues(),
       pricing,
       logoUrl: finalLogoUrl,
-      clientName: clientName || 'Cliente'
+      clientName: clientName
     });
   };
 
@@ -205,13 +322,24 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
     <div className="calculator-wrapper">
       <div className="app-body">
         <div className="left-col">
+          {/* Cabeçalho da Página com Acesso ao Guia */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', marginBottom: '16px' }}>
+            <button 
+              onClick={() => openTutorialStep(1)} 
+              className="ds-btn ds-btn-primary ds-btn-sm" 
+              style={{ fontWeight: 700 }}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '6px' }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+              Guia
+            </button>
+          </div>
           {/* Nome do Cliente */}
           <div className="card" style={{ marginBottom: '24px', overflow: 'visible' }}>
             <div className="card-body" style={{ padding: '20px' }}>
               <div className="field" style={{ position: 'relative' }}>
                 <div className="field-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span>Nome da Empresa / Cliente</span>
-                  <button type="button" onClick={() => setShowNewClientForm(!showNewClientForm)} className="ds-btn ds-btn-ghost" style={{ padding: '0 8px', height: '20px', fontSize: '11px' }}>
+                  <button type="button" onClick={() => setShowNewClientForm(!showNewClientForm)} className="ds-btn ds-btn-primary" style={{ padding: '0 12px', height: '28px', fontSize: '12px', fontWeight: 600 }}>
                     + Nova Empresa
                   </button>
                 </div>
@@ -228,9 +356,19 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                       onFocus={() => setShowClientMenu(true)}
                       onBlur={() => setTimeout(() => setShowClientMenu(false), 200)}
                       placeholder="Busque ou digite o nome do cliente..." 
-                      className="ds-input"
-                      style={{ fontSize: '16px', fontWeight: 600 }}
+                      className={`ds-input ${showClientError ? 'error' : ''}`}
+                      style={{ 
+                        fontSize: '16px', 
+                        fontWeight: 600,
+                        borderColor: showClientError ? '#ef4444' : undefined
+                      }}
                     />
+                    {showClientError && (
+                      <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                        Empresa não encontrada. Selecione da lista ou cadastre uma nova.
+                      </div>
+                    )}
                     {showClientMenu && clients.length > 0 && (
                       <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 10, background: 'var(--ds-surface)', border: '1px solid var(--ds-border)', borderRadius: '4px', marginTop: '4px', maxHeight: '200px', overflowY: 'auto', boxShadow: '0 4px 12px rgba(0,0,0,0.5)' }}>
                         {clients.filter(c => c.name.toLowerCase().includes(clientName.toLowerCase())).map(c => (
@@ -282,38 +420,67 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
           </div>
 
           {/* PASSO 1 — Operação */}
-          <div className="card">
-            <div className="card-header">
-              <span className="step-badge">1</span>
-              <h2>Configurações da sua operação</h2>
+          <div className="card" style={{ overflow: 'visible' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className="step-badge">1</span>
+                <h2>Configurações da sua operação</h2>
+              </div>
+              <button onClick={() => openTutorialStep(1)} className="ds-btn ds-btn-ghost ds-btn-sm" style={{ fontSize: '11px', opacity: 0.7 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Explicar
+              </button>
             </div>
             <div className="card-body">
               <div className="config-grid">
                 <div className="field">
-                  <div className="field-label">Custo total mensal (R$)</div>
+                  <div className="field-label">
+                    Custo total mensal (R$)
+                    <span className="tt" data-tip="Tudo que a empresa paga por mês para existir: pró-labore, salários, sistemas, contador, aluguel, internet, marketing.">?</span>
+                  </div>
                   <input type="number" {...register('operation.total_cost', { valueAsNumber: true })} min="0" step="100" />
+                  <div className="ds-hint">Exemplo: pró-labore R$ 2.500 + sistemas + contador + internet. Ajuste para sua realidade.</div>
                   {errors.operation?.total_cost && <div className="error-text">{errors.operation.total_cost.message}</div>}
                 </div>
                 <div className="field">
-                  <div className="field-label">Pessoas na operação</div>
+                  <div className="field-label">
+                    Pessoas na operação
+                    <span className="tt" data-tip="Apenas quem executa serviços para clientes diretamente. Um sócio que só cuida do administrativo não entra.">?</span>
+                  </div>
                   <input type="number" {...register('operation.people_count', { valueAsNumber: true })} min="1" />
+                  <div className="ds-hint">Apenas executores de serviços.</div>
                 </div>
                 <div className="field">
-                  <div className="field-label">Horas / mês (por pessoa)</div>
+                  <div className="field-label">
+                    Horas / mês (por pessoa)
+                    <span className="tt" data-tip="Horas reais dedicadas a clientes, não total de horas trabalhadas. Descontar reuniões internas, prospecção, estudos.">?</span>
+                  </div>
                   <input type="number" {...register('operation.hours_per_month', { valueAsNumber: true })} min="1" />
+                  <div className="ds-hint">220h = jornada integral. 132h = 6h/dia útil.</div>
                 </div>
                 <div className="field">
-                  <div className="field-label">Simples Nacional (%)</div>
+                  <div className="field-label">
+                    Simples Nacional (%)
+                    <span className="tt" data-tip="Alíquota do faturamento. Consulte seu contador ou a última guia DAS.">?</span>
+                  </div>
                   <input type="number" {...register('operation.tax_rate', { valueAsNumber: true })} placeholder="ex: 6" step="0.1" />
+                  <div className="ds-hint">Consulte sua última guia DAS ou seu contador.</div>
                   {errors.operation?.tax_rate && <div className="error-text" style={{fontSize: '11px', color: '#dc2626', marginTop: '4px'}}>{errors.operation.tax_rate.message}</div>}
                 </div>
                 <div className="field">
-                  <div className="field-label">Comissão de Vendas (%)</div>
+                  <div className="field-label">
+                    Comissão de Vendas (%)
+                    <span className="tt" data-tip="Se você paga percentual para quem indica clientes. Deixe 0 se não houver.">?</span>
+                  </div>
                   <input type="number" {...register('operation.commission_rate', { valueAsNumber: true })} placeholder="ex: 5" step="0.1" />
+                  <div className="ds-hint">Zero se não há parceria de indicação.</div>
                   {errors.operation?.commission_rate && <div className="error-text" style={{fontSize: '11px', color: '#dc2626', marginTop: '4px'}}>{errors.operation.commission_rate.message}</div>}
                 </div>
                 <div className="field">
-                  <div className="field-label">Custo/hora (R$)</div>
+                  <div className="field-label">
+                    Custo/hora (R$)
+                    <span className="tt" data-tip="Calculado automaticamente: custo total ÷ horas úteis totais. Determina o preço base por minuto de serviço.">?</span>
+                  </div>
                   <input 
                     type="text" 
                     value={localHourlyCost} 
@@ -321,6 +488,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                     placeholder="ex: 35.00"
                     autoComplete="off"
                   />
+                  <div className="ds-hint">Calculado automaticamente. Não editável.</div>
                 </div>
               </div>
 
@@ -333,18 +501,24 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
           </div>
 
           {/* PASSO 2 — Cenário */}
-          <div className="card">
-            <div className="card-header">
-              <span className="step-badge">2</span>
-              <h2>Cenário de precificação</h2>
+          <div className="card" style={{ overflow: 'visible' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className="step-badge">2</span>
+                <h2>Cenário de precificação</h2>
+              </div>
+              <button onClick={() => openTutorialStep(6)} className="ds-btn ds-btn-ghost ds-btn-sm" style={{ fontSize: '11px', opacity: 0.7 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Explicar
+              </button>
             </div>
             <div className="card-body">
               <div className="scenario-grid">
-                {([
+                {[
                   { value: 0.30, label: 'Conservador', pct: '30%', why: 'Para conquistar clientes iniciais.' },
                   { value: 0.50, label: 'Moderado',    pct: '50%', why: 'Equilíbrio (recomendado).' },
                   { value: 1.00, label: 'Agressivo',   pct: '100%', why: 'Dobra a margem no markup.' },
-                ] as const).map(({ value, label, pct, why }) => (
+                ].map(({ value, label, pct, why }) => (
                   <button key={value} type="button" className={`scenario-btn ${currentScenario === value ? 'active' : ''}`} onClick={() => setValue('desired_profit_margin', value)} >
                     <div className="sc-name">{label}</div>
                     <div className="sc-pct">{pct}</div>
@@ -356,13 +530,19 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
           </div>
 
           {/* PASSO 3 — Serviços */}
-          <div className="card">
-            <div className="card-header">
-              <span className="step-badge">3</span>
-              <h2>Serviços incluídos no contrato</h2>
+          <div className="card" style={{ overflow: 'visible' }}>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className="step-badge">3</span>
+                <h2>Serviços incluídos no contrato</h2>
+              </div>
+              <button onClick={() => openTutorialStep(4)} className="ds-btn ds-btn-ghost ds-btn-sm" style={{ fontSize: '11px', opacity: 0.7 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Explicar
+              </button>
             </div>
             <div className="card-body">
-              <div style={{ overflowX: 'auto' }}>
+            <div style={{ overflow: 'visible' }}>
                 <table className="svc-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr>
@@ -446,19 +626,26 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
 
           {/* PASSO 4 — Prazo */}
           <div className="card" style={{ marginBottom: '80px' }}>
-            <div className="card-header">
-              <span className="step-badge">4</span>
-              <h2>Prazo de pagamento</h2>
+            <div className="card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <span className="step-badge">4</span>
+                <h2>Prazo de pagamento</h2>
+              </div>
+              <button onClick={() => openTutorialStep(7)} className="ds-btn ds-btn-ghost ds-btn-sm" style={{ fontSize: '11px', opacity: 0.7 }}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '4px' }}><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+                Explicar
+              </button>
             </div>
             <div className="card-body">
               <div className="term-grid">
-                {([
-                  { value: 0,    label: 'Mensal',     disc: '0% desc.' },
-                  { value: 0.05, label: 'Trimestral', disc: '5% desc.' },
-                  { value: 0.10, label: 'Anual',      disc: '10% desc.' },
-                ] as const).map(({ value, label, disc }) => (
-                  <button key={value} type="button" className={`term-btn ${currentTerm === value ? 'active' : ''}`} onClick={() => setValue('term_discount', value)} >
-                    <div className="t-name">{label}</div>
+                {[
+                  { value: 0,    label: 'Mensal',     disc: '0% desc.', tip: 'Sem desconto. Flexibilidade total para o cliente.' },
+                  { value: 0.05, label: 'Trimestral', disc: '5% desc.', tip: '3 meses garantidos. Equilíbrio entre risco e benefício.' },
+                  { value: 0.10, label: 'Anual',      disc: '10% desc.', tip: '12 meses garantidos. Melhor previsibilidade de caixa.' },
+                ].map(({ value, label, disc, tip }) => (
+                  <button key={value} type="button" className={`term-btn ${currentTerm === value ? 'active' : ''}`} onClick={() => setValue('term_discount', value)}>
+                    <span className="tt" data-tip={tip} style={{ position: 'absolute', top: '8px', left: '8px' }}>?</span>
+                    <div className="t-name" style={{ marginTop: '8px' }}>{label}</div>
                     <div className="t-disc">{disc}</div>
                   </button>
                 ))}
@@ -468,7 +655,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
         </div>
       </div>
 
-      {/* ── FIXED SUMMARY BAR (BOTTOM) ───────────────────────────────────────────── */}
+      {/* SUMMARY BAR (BOTTOM) */}
       <div className="calculator-summary-bar">
         <div className="summary-bar__main">
           <span className="summary-bar__label">Total Mensal Sugerido</span>
@@ -477,11 +664,17 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
 
         <div className="summary-bar__stats">
           <div className="summary-bar__stat-item">
-            <span className="summary-bar__stat-lbl">Margem de Lucro</span>
+            <span className="summary-bar__stat-lbl">Margem</span>
             <span className="summary-bar__stat-val">{(currentScenario * 100).toFixed(0)}%</span>
           </div>
           <div className="summary-bar__stat-item">
-            <span className="summary-bar__stat-lbl">Serviços Ativos</span>
+            <span className="summary-bar__stat-lbl">Prazo</span>
+            <span className="summary-bar__stat-val">
+              {currentTerm === 0.1 ? 'Anual' : currentTerm === 0.05 ? 'Trimestral' : 'Mensal'}
+            </span>
+          </div>
+          <div className="summary-bar__stat-item">
+            <span className="summary-bar__stat-lbl">Serviços</span>
             <span className="summary-bar__stat-val">
               {watchedValues?.services?.filter(s => s.active).length || 0}
             </span>
@@ -497,7 +690,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
           <button 
             className="ds-btn ds-btn-ghost" 
             onClick={handleDownload}
-            disabled={!pricing || isGenerating || !hasActiveService}
+            disabled={!pricing || isGenerating || !hasActiveService || !isClientValid}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
               <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
@@ -510,7 +703,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
           <button 
             className="ds-btn ds-btn-primary" 
             onClick={handlePrimaryAction}
-            disabled={!pricing || isSaving || !hasActiveService}
+            disabled={!pricing || isSaving || !hasActiveService || !isClientValid}
           >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
               <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
@@ -519,6 +712,68 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
             </svg>
             {isSaving ? 'Salvando...' : saveButtonLabel}
           </button>
+        </div>
+      </div>
+
+      {/* ─── TUTORIAL PANEL ──────────────────────────────────────────────────────── */}
+      <div className={`tutorial-overlay ${showTutorial ? 'open' : ''}`} onClick={() => setShowTutorial(false)} />
+      <div className={`tutorial-panel ${showTutorial ? 'open' : ''}`}>
+        <div className="tutorial-panel__header">
+          <div>
+            <h2>Guia de Precificação</h2>
+            <p>Metodologia oficial Café com BPO</p>
+          </div>
+          <button onClick={() => setShowTutorial(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px' }}>
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+          </button>
+        </div>
+
+        <div className="tutorial-panel__content">
+          {tutorialSteps.map(step => (
+            <div key={step.id} style={{ display: currentStep === step.id ? 'block' : 'none' }}>
+              <div className="tutorial-panel__step-tag">{step.tag}</div>
+              <h3 className="tutorial-panel__title">{step.title}</h3>
+              <p className="tutorial-panel__text">{step.text}</p>
+              
+              <ul className="tutorial-panel__checklist">
+                {step.items.map((item, idx) => <li key={idx}>{item}</li>)}
+              </ul>
+
+              {step.example && (
+                <div className="tutorial-panel__example">
+                  <div className="tutorial-panel__example-label">Exemplo Real</div>
+                  <p className="tutorial-panel__example-text">{step.example}</p>
+                </div>
+              )}
+
+              {step.insight && (
+                <div className="tutorial-panel__insight">
+                  <strong>Sacada Extra</strong>
+                  <p>{step.insight}</p>
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+
+        <div className="tutorial-panel__footer">
+          <div style={{ color: '#64748b', fontSize: '13px' }}>Passo {currentStep} de {tutorialSteps.length}</div>
+          <div style={{ display: 'flex', gap: '8px' }}>
+            <button 
+              className="ds-btn ds-btn-ghost ds-btn-sm" 
+              onClick={prevStep}
+              disabled={currentStep === 1}
+            >
+              Anterior
+            </button>
+            <button 
+              className="ds-btn ds-btn-primary ds-btn-sm" 
+              onClick={currentStep === tutorialSteps.length ? () => setShowTutorial(false) : nextStep}
+              style={{ fontWeight: 700 }}
+            >
+              {currentStep === tutorialSteps.length ? 'Entendi!' : 'Próximo'}
+            </button>
+          </div>
         </div>
       </div>
     </div>

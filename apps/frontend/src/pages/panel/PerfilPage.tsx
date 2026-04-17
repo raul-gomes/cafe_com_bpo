@@ -29,6 +29,10 @@ export const PerfilPage: React.FC = () => {
   const [showNewClientForm, setShowNewClientForm] = useState(false);
   const [newClient, setNewClient] = useState({ name: '', cnpj: '', phone: '', email: '' });
 
+  // Edit Client state
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editForm, setEditForm] = useState({ name: '', cnpj: '', phone: '', email: '' });
+
   useEffect(() => {
     loadClients();
   }, []);
@@ -101,6 +105,38 @@ export const PerfilPage: React.FC = () => {
     } catch (e) {
       console.error(e);
       alert('Erro ao criar cliente.');
+    }
+  };
+
+  const handleStartEdit = (client: ClientData) => {
+    setEditingId(client.id);
+    setEditForm({
+      name: client.name,
+      cnpj: client.cnpj ? maskCNPJ(client.cnpj) : '',
+      phone: client.phone ? maskPhone(client.phone) : '',
+      email: client.email || ''
+    });
+  };
+
+  const handleCancelEdit = () => {
+    setEditingId(null);
+  };
+
+  const handleUpdateClient = async () => {
+    if (!editingId || !editForm.name) return;
+    try {
+      const payload = {
+        name: editForm.name,
+        cnpj: onlyNumbers(editForm.cnpj),
+        phone: onlyNumbers(editForm.phone),
+        email: editForm.email.trim() || undefined
+      };
+      await apiClient.put(`/clients/${editingId}`, payload);
+      setEditingId(null);
+      await loadClients();
+    } catch (e) {
+      console.error(e);
+      alert('Erro ao atualizar cliente.');
     }
   };
 
@@ -272,6 +308,16 @@ export const PerfilPage: React.FC = () => {
                         placeholder="(00) 00000-0000" 
                       />
                     </div>
+                    <div className="ds-input-group">
+                      <label className="ds-label">E-mail de Contato</label>
+                      <input 
+                        type="email" 
+                        className="ds-input" 
+                        value={newClient.email} 
+                        onChange={e => setNewClient({...newClient, email: e.target.value})} 
+                        placeholder="email@daempresa.com" 
+                      />
+                    </div>
                   </div>
                   <Button 
                     style={{ marginTop: '16px', width: '100%' }}
@@ -284,34 +330,77 @@ export const PerfilPage: React.FC = () => {
 
              {clients.length > 0 ? (
                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {clients.map(c => (
-                    <div 
-                      key={c.id}
-                      className="orcamento-card"
-                    >
-                       <div className="orcamento-card__info">
-                         <span className="orcamento-card__client">{c.name}</span>
-                         <div className="orcamento-card__meta" style={{ marginTop: '2px', display: 'flex', gap: '8px' }}>
-                           <span>{c.cnpj ? maskCNPJ(c.cnpj) : 'Sem CNPJ'}</span>
-                           {c.phone && (
-                             <>
-                               <span className="orcamento-card__meta-dot" />
-                               <span>{maskPhone(c.phone)}</span>
-                             </>
-                           )}
+                  {clients.map(c => {
+                    const isEditing = editingId === c.id;
+
+                    if (isEditing) {
+                      return (
+                        <div key={c.id} style={{ backgroundColor: 'var(--ds-surface)', padding: '16px', borderRadius: '8px', border: '1px solid var(--ds-primary)', boxShadow: '0 0 15px rgba(234, 179, 8, 0.1)' }}>
+                           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                              <div className="ds-input-group">
+                                <label className="ds-label">Nome da Empresa</label>
+                                <input type="text" className="ds-input" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
+                              </div>
+                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div className="ds-input-group">
+                                  <label className="ds-label">CNPJ</label>
+                                  <input type="text" className="ds-input" value={editForm.cnpj} onChange={e => setEditForm({...editForm, cnpj: maskCNPJ(e.target.value)})} />
+                                </div>
+                                <div className="ds-input-group">
+                                  <label className="ds-label">Telefone</label>
+                                  <input type="text" className="ds-input" value={editForm.phone} onChange={e => setEditForm({...editForm, phone: maskPhone(e.target.value)})} />
+                                </div>
+                              </div>
+                              <div className="ds-input-group">
+                                <label className="ds-label">E-mail de Contato</label>
+                                <input type="email" className="ds-input" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} />
+                              </div>
+                           </div>
+                           <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
+                              <Button variant="outline" size="sm" style={{ flex: 1 }} onClick={handleCancelEdit} label="Cancelar" />
+                              <Button variant="primary" size="sm" style={{ flex: 1 }} onClick={handleUpdateClient} label="Salvar" />
+                           </div>
+                        </div>
+                      );
+                    }
+
+                    return (
+                      <div 
+                        key={c.id}
+                        className="orcamento-card"
+                        onClick={() => handleStartEdit(c)}
+                        style={{ cursor: 'pointer' }}
+                      >
+                         <div className="orcamento-card__info">
+                           <span className="orcamento-card__client">{c.name}</span>
+                           <div className="orcamento-card__meta" style={{ marginTop: '2px', display: 'flex', gap: '8px' }}>
+                             <span>{c.cnpj ? maskCNPJ(c.cnpj) : 'Sem CNPJ'}</span>
+                             {c.phone && (
+                               <>
+                                 <span className="orcamento-card__meta-dot" />
+                                 <span>{maskPhone(c.phone)}</span>
+                               </>
+                             )}
+                             {c.email && (
+                               <>
+                                 <span className="orcamento-card__meta-dot" />
+                                 <span style={{ textTransform: 'none' }}>{c.email}</span>
+                               </>
+                             )}
+                           </div>
                          </div>
-                       </div>
-                       <div className="orcamento-card__actions">
-                         <button 
-                           className="orcamento-card__action-btn orcamento-card__action-btn--delete" 
-                           onClick={() => handleDeleteClient(c.id, c.name)}
-                           title="Excluir Empresa"
-                         >
-                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                         </button>
-                       </div>
-                    </div>
-                  ))}
+                         <div className="orcamento-card__actions" onClick={e => e.stopPropagation()}>
+                           <button 
+                             className="orcamento-card__action-btn orcamento-card__action-btn--delete" 
+                             onClick={() => handleDeleteClient(c.id, c.name)}
+                             title="Excluir Empresa"
+                           >
+                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
+                           </button>
+                         </div>
+                      </div>
+                    );
+                  })}
                </div>
              ) : (
                <div style={{ textAlign: 'center', padding: '32px', color: 'var(--ds-text-subtle)', fontSize: '13px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px' }}>

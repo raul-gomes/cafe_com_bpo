@@ -16,6 +16,13 @@ class ClientRepository:
 
     def create(self, client_in: ClientCreate, user_id: UUID) -> Client:
         client_data = client_in.model_dump()
+        
+        # Garante uma cor contrastante se não informada
+        if not client_data.get("color"):
+            import random
+            palette = ["#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", "#06b6d4", "#10b981", "#6366f1"]
+            client_data["color"] = random.choice(palette)
+            
         new_client = Client(**client_data, user_id=user_id)
         self.session.add(new_client)
         self.session.commit()

@@ -2,6 +2,8 @@ from sqlalchemy import Column, String, DateTime, func, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from src.core.database import Base
 from src.modules.network.models import DiscussionPost, DiscussionComment, Notification
+from src.modules.tasks.models import Task
+from src.modules.clients.models import Client
 import uuid
 
 class User(Base):

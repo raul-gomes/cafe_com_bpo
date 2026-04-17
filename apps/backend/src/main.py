@@ -13,6 +13,7 @@ from src.modules.proposals.router import router as proposals_router
 from src.modules.gallery.router import router as gallery_router
 from src.modules.clients.router import router as clients_router
 from src.modules.network.router import router as network_router
+from src.modules.tasks.router import router as tasks_router
 
 def create_app() -> FastAPI:
     setup_logging()
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     app.include_router(gallery_router)
     app.include_router(clients_router)
     app.include_router(network_router)
+    app.include_router(tasks_router)
 
     os.makedirs("storage/avatars", exist_ok=True)
     app.mount("/avatars", StaticFiles(directory="storage/avatars"), name="avatars")

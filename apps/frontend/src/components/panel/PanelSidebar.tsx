@@ -1,7 +1,6 @@
 import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import logo from '../../assets/logo.png';
 import logoSide from '../../assets/logo-side.png';
 
 interface PanelSidebarProps {
@@ -24,7 +23,6 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
   };
 
   const isActive = (path: string) => {
-    // Current route logic
     if (path === '/painel' && (location.pathname === '/painel' || location.pathname === '/painel/')) return true;
     if (path !== '/painel' && location.pathname.startsWith(path)) return true;
     return false;
@@ -38,8 +36,6 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
         aria-hidden="true"
       />
       <aside className={`panel-sidebar ${isOpen ? 'open' : ''}`}>
-        {/* Brand */}
-        {/* Brand */}
         <div 
           className="panel-sidebar__brand" 
           style={{ justifyContent: 'center', padding: '20px 0', cursor: 'pointer' }}
@@ -48,7 +44,6 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
           <img src={logoSide} alt="Café com BPO" style={{ height: '50px', width: 'auto' }} />
         </div>
 
-        {/* Profile */}
         <div className="panel-sidebar__profile">
           <div className="panel-sidebar__avatar">{initials}</div>
           <div className="panel-sidebar__user-info">
@@ -58,18 +53,27 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
           <button 
             className="panel-sidebar__edit-btn"
             onClick={() => handleNav('/painel/perfil')}
-            aria-label="Editar perfil"
           >
             Editar Perfil
           </button>
         </div>
 
-        {/* Unified Menu */}
         <div className="panel-sidebar__section">
           <div className="panel-sidebar__section-title">Menu Principal</div>
           <nav className="panel-sidebar__nav">
             <button
-              className={`panel-sidebar__nav-item ${isActive('/painel') && !isActive('/painel/perfil') && !isActive('/painel/galeria') && !isActive('/painel/novo-orcamento') ? 'active' : ''}`}
+              className={`panel-sidebar__nav-item ${isActive('/painel/tarefas') ? 'active' : ''}`}
+              onClick={() => handleNav('/painel/tarefas')}
+            >
+              <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 11l3 3L22 4" />
+                <path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+              </svg>
+              Gestão de Tarefas
+            </button>
+
+            <button
+              className={`panel-sidebar__nav-item ${isActive('/painel') && !isActive('/painel/perfil') && !isActive('/painel/galeria') && !isActive('/painel/novo-orcamento') && !isActive('/painel/tarefas') ? 'active' : ''}`}
               onClick={() => handleNav('/painel')}
             >
               <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -104,10 +108,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
         </div>
 
         <div className="panel-sidebar__footer">
-          <button 
-            className="panel-sidebar__logout-btn"
-            onClick={logout}
-          >
+          <button className="panel-sidebar__logout-btn" onClick={logout}>
             <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
               <polyline points="16 17 21 12 16 7" />
@@ -115,9 +116,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
             </svg>
             Sair da conta
           </button>
-          <div className="panel-sidebar__footer-copy">
-            Café com BPO 2026
-          </div>
+          <div className="panel-sidebar__footer-copy">Café com BPO 2026</div>
         </div>
       </aside>
     </>
