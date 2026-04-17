@@ -1,10 +1,11 @@
 import pytest
 import os
+import json
 from fastapi.testclient import TestClient
 
 from sqlalchemy import create_engine
 from sqlalchemy.pool import StaticPool
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 from src.core.database import Base
 
 # Set environment before loading the app/settings
@@ -17,7 +18,6 @@ get_settings.cache_clear()
 from src.main import create_app  # noqa: E402
 from src.core.database import engine as db_engine  # noqa: E402
 
-import json
 # O motor de banco de dados original deve ser reconfigurado para usar :memory: e StaticPool nos testes
 # para que o esquema persista enquanto a sessão estiver ativa.
 test_engine = create_engine(
@@ -28,10 +28,8 @@ test_engine = create_engine(
     json_deserializer=json.loads
 )
 # Monkey patch o motor de banco de dados e SessionLocal para os testes
-import src.core.database
 src.core.database.engine = test_engine
 
-from sqlalchemy.orm import sessionmaker
 src.core.database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 # Force table creation at import time for SQLite
@@ -40,9 +38,9 @@ Base.metadata.create_all(bind=test_engine)
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
     """Cria todas as tabelas antes de rodar os testes."""
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=test_engine)
     yield
-    Base.metadata.drop_all(bind=engine)
+    Base.metadata.drop_all(bind=test_engine)
 
 @pytest.fixture
 def client():
