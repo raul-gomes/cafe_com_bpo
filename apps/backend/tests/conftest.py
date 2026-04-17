@@ -4,14 +4,16 @@ from fastapi.testclient import TestClient
 
 # Set environment before loading the app/settings
 os.environ["MODE"] = "test"
-if "DATABASE_URL" not in os.environ:
-    os.environ["DATABASE_URL"] = "postgresql+psycopg://postgres:postgres_password@localhost:5432/cafe_bpo"
+os.environ["DATABASE_URL"] = "sqlite:///./test.db"
 
 from src.core.config import get_settings  # noqa: E402
 get_settings.cache_clear()
 
 from src.main import create_app  # noqa: E402
 from src.core.database import engine, Base  # noqa: E402
+# Force table creation at import time for SQLite
+Base.metadata.create_all(bind=engine)
+
 from sqlalchemy.orm import Session  # noqa: E402
 
 @pytest.fixture(scope="session", autouse=True)
