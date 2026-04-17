@@ -6,14 +6,7 @@ import { ProposalPreview } from '../components/proposal/ProposalPreview';
 import { PricingFormData } from '../schemas/pricing';
 import { PricingResult } from '../lib/pricingEngine';
 
-const SESSION_KEY = 'cafe_bpo_proposal';
-
-/** Estrutura salva no sessionStorage pelo PricingCalculatorLayout */
-export interface ProposalSession {
-  form: PricingFormData;
-  pricing: PricingResult;
-  clientName: string;
-}
+import { SESSION_KEY, ProposalSession } from '../schemas/proposalSession';
 
 export default function ProposalPreviewPage() {
   const navigate = useNavigate();
@@ -82,7 +75,3 @@ export default function ProposalPreviewPage() {
   );
 }
 
-/** Utilitário para salvar a proposta no sessionStorage antes de navegar */
-export function saveProposalSession(data: ProposalSession) {
-  sessionStorage.setItem(SESSION_KEY, JSON.stringify(data));
-}

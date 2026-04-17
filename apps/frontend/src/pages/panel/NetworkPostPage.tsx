@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getPost, getComments, createComment, deletePost, PostResponse, CommentResponse } from '../../api/network';
@@ -16,7 +16,7 @@ export const NetworkPostPage: React.FC = () => {
   const [error, setError] = useState('');
   const [showReplyPanel, setShowReplyPanel] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
     try {
@@ -29,11 +29,11 @@ export const NetworkPostPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     loadData();
-  }, [id]);
+  }, [loadData]);
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();

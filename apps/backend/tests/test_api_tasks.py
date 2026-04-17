@@ -87,7 +87,7 @@ def test_task_isolation(client):
     
     user_b = f"user_b_{uuid4()}@cafe.com"
     auth_b = get_auth_header(client, user_b)
-    comp_b = create_client(client, auth_b, "Empresa B")
+    create_client(client, auth_b, "Empresa B")
     
     # Usuário A cria tarefa
     client.post("/tasks/", json={

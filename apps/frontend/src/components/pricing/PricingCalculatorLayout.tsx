@@ -4,7 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { pricingFormSchema, PricingFormData } from '../../schemas/pricing';
 import { calculatePricing } from '../../lib/pricingEngine';
-import { saveProposalSession } from '../../pages/ProposalPreviewPage';
+import { saveProposalSession } from '../../schemas/proposalSession';
 import { useGeneratePDF } from '../../lib/useGeneratePDF';
 import logoAsset from '../../assets/logo.png';
 import { getClients, createClient, ClientData } from '../../api/clients';
@@ -233,7 +233,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   }, [costPerHour, localHourlyCost]);
 
   const handleHourlyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     let valStr = e.target.value.replace(',', '.');
+     const valStr = e.target.value.replace(',', '.');
      setLocalHourlyCost(valStr);
      const val = parseFloat(valStr);
      if (!isNaN(val) && totalHours > 0) {

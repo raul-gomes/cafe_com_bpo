@@ -19,10 +19,11 @@ export const FadeIn: React.FC<FadeInProps> = ({ children, delay }) => {
       });
     });
 
-    if (domRef.current) observer.observe(domRef.current);
+    const currentRef = domRef.current;
+    if (currentRef) observer.observe(currentRef);
 
     return () => {
-      if (domRef.current) observer.unobserve(domRef.current);
+      if (currentRef) observer.unobserve(currentRef);
     };
   }, []);
 

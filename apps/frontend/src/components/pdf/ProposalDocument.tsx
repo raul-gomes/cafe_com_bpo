@@ -6,7 +6,7 @@
  */
 import React from 'react';
 import {
-  Document, Page, View, Text, Image, StyleSheet, Font,
+  Document, Page, View, Text, Image, StyleSheet,
 } from '@react-pdf/renderer';
 import { PricingFormData } from '../../schemas/pricing';
 import { PricingResult } from '../../lib/pricingEngine';

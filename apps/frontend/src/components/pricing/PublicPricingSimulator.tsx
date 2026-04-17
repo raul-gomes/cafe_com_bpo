@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useForm, useFieldArray, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
@@ -31,9 +31,6 @@ const fmt = (v: number) =>
 export const PublicPricingSimulator: React.FC = () => {
   const navigate = useNavigate();
   const [clientName, setClientName] = useState('');
-  const [newSvcName, setNewSvcName] = useState('');
-  const [newSvcType, setNewSvcType] = useState<'time' | 'fixed'>('time');
-  const [newSvcNum, setNewSvcNum]   = useState(10);
   const [localHourlyCost, setLocalHourlyCost] = useState('');
 
   // Tutorial State
@@ -149,7 +146,7 @@ export const PublicPricingSimulator: React.FC = () => {
     setShowTutorial(true);
   };
 
-  const { register, control, getValues, setValue, formState: { errors } } = useForm<PricingFormData>({
+  const { register, control, getValues, setValue } = useForm<PricingFormData>({
     resolver: zodResolver(pricingFormSchema) as any,
     defaultValues: {
       operation: {
@@ -165,7 +162,7 @@ export const PublicPricingSimulator: React.FC = () => {
     },
   });
 
-  const { fields, append, remove, update } = useFieldArray({ control, name: 'services' });
+  const { update } = useFieldArray({ control, name: 'services' });
   const watchedValues = useWatch({ control }) as PricingFormData;
 
   const currentScenario = watchedValues?.desired_profit_margin ?? 0.5;
@@ -206,7 +203,7 @@ export const PublicPricingSimulator: React.FC = () => {
   }, [costPerHour, localHourlyCost]);
 
   const handleHourlyChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-     let valStr = e.target.value.replace(',', '.');
+     const valStr = e.target.value.replace(',', '.');
      setLocalHourlyCost(valStr);
      const val = parseFloat(valStr);
      if (!isNaN(val) && totalHours > 0) {

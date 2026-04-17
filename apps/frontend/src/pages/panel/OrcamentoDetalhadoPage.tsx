@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { useGeneratePDF } from '../../lib/useGeneratePDF';
@@ -22,7 +22,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   const { user } = useAuth();
   const { generate: generatePDF } = useGeneratePDF();
 
-  const fetchProposal = async () => {
+  const fetchProposal = useCallback(async () => {
     try {
       setLoading(true);
       const resp = await apiClient.get<Proposal>(`/api/proposals/${id}`);
@@ -32,11 +32,11 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [id]);
 
   useEffect(() => {
     if (id) fetchProposal();
-  }, [id]);
+  }, [id, fetchProposal]);
 
   const handlePrint = async () => {
     if (!proposal) return;

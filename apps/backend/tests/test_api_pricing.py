@@ -1,3 +1,4 @@
+from unittest.mock import patch
 
 
 def get_valid_payload():
@@ -41,7 +42,7 @@ def test_post_calculate_returns_422_for_negative_numeric_values(client):
     assert response.status_code == 422
     assert "greater than or equal to 0" in response.text
 
-from unittest.mock import patch
+
 
 def test_post_calculate_does_not_expose_internal_traceback_on_domain_error(client):
     payload = get_valid_payload()

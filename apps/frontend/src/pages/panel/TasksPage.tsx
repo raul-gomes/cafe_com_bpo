@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, CheckCircle2, Clock, AlertCircle, Eye, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, CheckCircle2, Clock, AlertCircle, Eye, X } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
