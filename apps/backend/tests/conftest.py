@@ -2,24 +2,15 @@ import pytest
 import os
 import json
 from fastapi.testclient import TestClient
-
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.pool import StaticPool
 from sqlalchemy.orm import Session, sessionmaker
-from src.core.database import Base
 
-# Set environment before loading the app/settings
+# 1. Configurar ambiente ANTES de qualquer import do projeto
 os.environ["MODE"] = "test"
 os.environ["DATABASE_URL"] = "sqlite://"
 
-from src.core.config import get_settings  # noqa: E402
-get_settings.cache_clear()
-
-from src.main import create_app  # noqa: E402
-from src.core.database import engine as db_engine  # noqa: E402
-
-# O motor de banco de dados original deve ser reconfigurado para usar :memory: e StaticPool nos testes
-# para que o esquema persista enquanto a sessão estiver ativa.
+# 2. Criar engine de teste com StaticPool para persistência em memória (:memory:)
 test_engine = create_engine(
     "sqlite://",
     connect_args={"check_same_thread": False},
@@ -27,32 +18,41 @@ test_engine = create_engine(
     json_serializer=lambda obj: json.dumps(obj, default=str),
     json_deserializer=json.loads
 )
-import src.core.database  # noqa: E402
-# Monkey patch o motor de banco de dados e SessionLocal para os testes
-src.core.database.engine = test_engine
 
-from sqlalchemy.orm import sessionmaker
+# 3. Patch IMEDIATO do src.core.database ANTES de importar o app
+import src.core.database  # noqa: E402
+src.core.database.engine = test_engine
 src.core.database.SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
-# Force table creation at import time for SQLite
+# 4. Agora importar o restante do projeto
+from src.core.config import get_settings  # noqa: E402
+from src.main import create_app  # noqa: E402
+from src.core.database import Base  # noqa: E402
+
+get_settings.cache_clear()
+
+# 5. Criar tabelas IMEDIATAMENTE no import do conftest
 Base.metadata.create_all(bind=test_engine)
 
 @pytest.fixture(scope="session", autouse=True)
 def setup_database():
-    """Cria todas as tabelas antes de rodar os testes."""
+    """Garante que as tabelas existam antes de qualquer teste."""
     Base.metadata.create_all(bind=test_engine)
     yield
-    Base.metadata.drop_all(bind=test_engine)
+    # No :memory: com StaticPool, o drop_all não é estritamente necessário no fim da sessão
+    # mas ajuda a validar limpeza se necessário.
+    # Base.metadata.drop_all(bind=test_engine)
 
 @pytest.fixture
 def client():
+    """Cria um cliente de teste usando o app configurado com banco em memória."""
     app = create_app()
     with TestClient(app) as test_client:
         yield test_client
 
 @pytest.fixture
 def db_session():
-    """Test database session."""
+    """Sessão de banco de dados para testes unitários."""
     session = Session(bind=test_engine)
     session.begin_nested()
     yield session
