@@ -7,6 +7,7 @@ import UnderConstructionPage from './pages/UnderConstructionPage'
 import ProposalPreviewPage from './pages/ProposalPreviewPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PanelLayout } from './components/panel/PanelLayout'
+import { DashboardPage } from './pages/panel/DashboardPage'
 import { OrcamentosPage } from './pages/panel/OrcamentosPage'
 import { OrcamentoNovoPage } from './pages/panel/OrcamentoNovoPage'
 import { OrcamentoDetalhadoPage } from './pages/panel/OrcamentoDetalhadoPage'
@@ -56,6 +57,10 @@ export function buildRouter() {
           children: [
             {
               path: '',
+              element: <DashboardPage />,
+            },
+            {
+              path: 'orcamentos',
               element: <OrcamentosPage />,
             },
             {

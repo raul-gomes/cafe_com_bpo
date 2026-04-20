@@ -14,6 +14,7 @@ from src.modules.gallery.router import router as gallery_router
 from src.modules.clients.router import router as clients_router
 from src.modules.network.router import router as network_router
 from src.modules.tasks.router import router as tasks_router
+from src.modules.dashboard.router import router as dashboard_router
 
 def create_app() -> FastAPI:
     setup_logging()
@@ -24,15 +25,15 @@ def create_app() -> FastAPI:
         version="1.1.0"
     )
     
+    settings = get_settings()
+    
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+        allow_origins=settings.cors_origins.split(","),
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    settings = get_settings()
 
     @app.get("/health")
     def health_check():
@@ -51,6 +52,7 @@ def create_app() -> FastAPI:
     app.include_router(clients_router)
     app.include_router(network_router)
     app.include_router(tasks_router)
+    app.include_router(dashboard_router)
 
     os.makedirs("storage/avatars", exist_ok=True)
     app.mount("/avatars", StaticFiles(directory="storage/avatars"), name="avatars")

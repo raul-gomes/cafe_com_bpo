@@ -30,7 +30,7 @@ class OAuthStateService:
 class GoogleOAuthProvider:
     @staticmethod
     def build_authorization_url(state: str) -> str:
-        base_url = "https://accounts.google.com/o/oauth2/v2/auth"
+        base_url = settings.google_auth_url
         params = {
             "client_id": settings.google_client_id,
             "redirect_uri": settings.oauth_redirect_uri.format(provider="google"),
@@ -45,7 +45,7 @@ class GoogleOAuthProvider:
 
     @staticmethod
     def exchange_code_for_token(code: str) -> dict:
-        url = "https://oauth2.googleapis.com/token"
+        url = settings.google_token_url
         data = {
             "code": code,
             "client_id": settings.google_client_id,
@@ -60,7 +60,7 @@ class GoogleOAuthProvider:
 
     @staticmethod
     def fetch_user_profile(access_token: str) -> dict:
-        url = "https://www.googleapis.com/oauth2/v3/userinfo"
+        url = settings.google_userinfo_url
         headers = {"Authorization": f"Bearer {access_token}"}
         res = httpx.get(url, headers=headers)
         if res.is_error:
@@ -70,8 +70,7 @@ class GoogleOAuthProvider:
 class MicrosoftOAuthProvider:
     @staticmethod
     def build_authorization_url(state: str) -> str:
-        tenant = "common"
-        base_url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize"
+        base_url = settings.microsoft_auth_url
         params = {
             "client_id": settings.microsoft_client_id,
             "response_type": "code",
@@ -85,8 +84,7 @@ class MicrosoftOAuthProvider:
 
     @staticmethod
     def exchange_code_for_token(code: str) -> dict:
-        tenant = "common"
-        url = f"https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token"
+        url = settings.microsoft_token_url
         data = {
             "client_id": settings.microsoft_client_id,
             "scope": "openid profile email User.Read",
@@ -102,7 +100,7 @@ class MicrosoftOAuthProvider:
 
     @staticmethod
     def fetch_user_profile(access_token: str) -> dict:
-        url = "https://graph.microsoft.com/v1.0/me"
+        url = settings.microsoft_userinfo_url
         headers = {"Authorization": f"Bearer {access_token}"}
         res = httpx.get(url, headers=headers)
         if res.is_error:

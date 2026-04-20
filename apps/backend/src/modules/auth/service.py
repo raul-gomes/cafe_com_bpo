@@ -28,7 +28,7 @@ class AuthService:
                 email=user.email,
                 name=user.name,
                 company=user.company,
-                avatar_url=user.avatar_url
+                avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url
             )
         except IntegrityError:
             self.user_repo.session.rollback()
@@ -81,5 +81,5 @@ def get_current_user(
         email=user.email,
         name=user.name,
         company=user.company,
-        avatar_url=user.avatar_url
+        avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url
     )

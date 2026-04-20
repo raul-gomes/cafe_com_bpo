@@ -62,6 +62,19 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
           <div className="panel-sidebar__section-title">Menu Principal</div>
           <nav className="panel-sidebar__nav">
             <button
+              className={`panel-sidebar__nav-item ${isActive('/painel') && !isActive('/painel/perfil') && !isActive('/painel/galeria') && !isActive('/painel/novo-orcamento') && !isActive('/painel/tarefas') && !isActive('/painel/orcamentos') ? 'active' : ''}`}
+              onClick={() => handleNav('/painel')}
+            >
+              <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+              Início
+            </button>
+
+            <button
               className={`panel-sidebar__nav-item ${isActive('/painel/tarefas') ? 'active' : ''}`}
               onClick={() => handleNav('/painel/tarefas')}
             >
@@ -73,14 +86,11 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
             </button>
 
             <button
-              className={`panel-sidebar__nav-item ${isActive('/painel') && !isActive('/painel/perfil') && !isActive('/painel/galeria') && !isActive('/painel/novo-orcamento') && !isActive('/painel/tarefas') ? 'active' : ''}`}
-              onClick={() => handleNav('/painel')}
+              className={`panel-sidebar__nav-item ${isActive('/painel/orcamentos') ? 'active' : ''}`}
+              onClick={() => handleNav('/painel/orcamentos')}
             >
               <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
               </svg>
               Orçamentos
             </button>

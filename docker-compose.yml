@@ -1,18 +1,16 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres_password
-      POSTGRES_DB: cafe_bpo
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -21,10 +19,28 @@ services:
     build:
       context: ./apps/backend
     environment:
-      - DATABASE_URL=postgresql+psycopg://postgres:postgres_password@db:5432/cafe_bpo
-      - MODE=development
-    ports:
-      - "8000:8000"
+      - DATABASE_URL=${DATABASE_URL}
+      - MODE=${MODE}
+      - JWT_SECRET=${JWT_SECRET}
+      - JWT_ALGORITHM=${JWT_ALGORITHM}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
+      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID}
+      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET}
+      - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI}
+      - GOOGLE_AUTH_URL=${GOOGLE_AUTH_URL}
+      - GOOGLE_TOKEN_URL=${GOOGLE_TOKEN_URL}
+      - GOOGLE_USERINFO_URL=${GOOGLE_USERINFO_URL}
+      - MICROSOFT_AUTH_URL=${MICROSOFT_AUTH_URL}
+      - MICROSOFT_TOKEN_URL=${MICROSOFT_TOKEN_URL}
+      - MICROSOFT_USERINFO_URL=${MICROSOFT_USERINFO_URL}
+      - CORS_ORIGINS=${CORS_ORIGINS}
+      - MICROSOFT_TENANT_ID=${MICROSOFT_TENANT_ID}
+      - MICROSOFT_STORAGE_ACCOUNT_ID=${MICROSOFT_STORAGE_ACCOUNT_ID}
+      - FILE_UPLOAD_MAX_SIZE=${FILE_UPLOAD_MAX_SIZE}
+    # Ports are now managed by Nginx gateway
+    expose:
+      - "8000"
     depends_on:
       db:
         condition: service_healthy
@@ -35,11 +51,43 @@ services:
     build:
       context: ./apps/frontend
       target: development
-    ports:
-      - "3000:3000"
+    # Ports are now managed by Nginx gateway
+    expose:
+      - "3000"
     volumes:
       - ./apps/frontend:/app
       - /app/node_modules
 
+  pgadmin:
+    image: dpage/pgadmin4
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD}
+      PGADMIN_CONFIG_SERVER_MODE: 'False'
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      - db
+
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      - ollama_data:/root/.ollama
+    # Ollama is accessible through Nginx Gateway; host port 11434 removed to avoid conflict
+
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - api
+      - web
+      - pgadmin
+      - ollama
+
 volumes:
   postgres_data:
+  pgadmin_data:
+  ollama_data:
