@@ -131,6 +131,22 @@
   transform: translateY(0) scale(0.98);
 }
 
+.nav-link-text {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: rgba(249,249,247,0.4);
+  text-decoration: none;
+  transition: all 0.2s var(--spring-easing);
+  margin-right: 8px;
+  margin-left: 8px;
+}
+
+.nav-link-text:hover {
+  color: var(--yellow);
+}
+
 /* ── HERO ── */
 #hero {
   min-height: 100vh;
