@@ -14,11 +14,15 @@ import { ProposalDocument } from '../components/pdf/ProposalDocument';
 import { PricingFormData } from '../schemas/pricing';
 import { PricingResult } from './pricingEngine';
 
+import { User } from '../context/AuthContext';
+
 interface GeneratePDFOptions {
   form: PricingFormData;
   pricing: PricingResult;
   logoUrl: string;
   clientName?: string;
+  clientEmail?: string;
+  provider?: User | null;
 }
 
 interface UseGeneratePDFReturn {
@@ -32,18 +36,20 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
   const [error, setError] = useState<string | null>(null);
 
   const generate = useCallback(async (opts: GeneratePDFOptions) => {
-    const { form, pricing, logoUrl, clientName = 'Cliente' } = opts;
-
     setIsGenerating(true);
     setError(null);
 
     try {
+      const { form, pricing, logoUrl, clientName = 'Cliente', clientEmail = '', provider = null } = opts;
+
       // Renderiza o documento React como blob PDF
       const doc = React.createElement(ProposalDocument, {
         form,
         pricing,
         logoUrl,
         clientName,
+        clientEmail,
+        provider,
         generatedAt: new Date().toLocaleDateString('pt-BR', {
           day: '2-digit',
           month: 'long',

@@ -18,7 +18,7 @@ export const ProposalDownloadGate: React.FC<ProposalDownloadGateProps> = ({
   clientName,
 }) => {
   const [modalOpen, setModalOpen] = useState(false);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { generate: generatePDF, isGenerating } = useGeneratePDF();
 
   const handleDownloadClick = async () => {
@@ -28,7 +28,9 @@ export const ProposalDownloadGate: React.FC<ProposalDownloadGateProps> = ({
         form,
         pricing,
         logoUrl: logoAsset,
-        clientName
+        clientName,
+        clientEmail: '',
+        provider: user
       });
     } else {
       // Não logado: abre o gate (modal de registro)

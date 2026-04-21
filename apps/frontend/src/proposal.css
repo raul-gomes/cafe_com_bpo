@@ -591,3 +591,229 @@
   .prop-final-box { padding: 28px 20px; }
   .modal-box { padding: 28px 20px; }
 }
+/* ═══════════════════════════════════════════════════════
+   PROPOSAL V2 (PDF MODEL)
+   ═══════════════════════════════════════════════════════ */
+
+.proposal-container-v2 {
+  max-width: 800px;
+  margin: 0 auto;
+  padding: 40px 20px 80px;
+}
+
+.proposal-content-v2 {
+  background: white;
+  color: #111;
+  padding: 60px;
+  border-radius: 4px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+  font-family: 'Inter', system-ui, sans-serif;
+  line-height: 1.5;
+}
+
+.prop-header-v2 {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 30px;
+}
+
+.prop-logo-v2 {
+  height: 50px;
+  filter: grayscale(1) contrast(1.2);
+}
+
+.prop-header-right {
+  text-align: right;
+}
+
+.prop-header-right h1 {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.prop-header-meta-v2 {
+  font-size: 13px;
+  color: #555;
+}
+
+.prop-meta-row span {
+  font-weight: 600;
+}
+
+.prop-divider-v2 {
+  height: 2px;
+  background: #111;
+  margin-bottom: 30px;
+}
+
+.prop-info-v2 {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 40px;
+}
+
+.prop-info-left h3 {
+  font-size: 14px;
+  font-weight: 700;
+  text-transform: none;
+}
+
+.prop-info-right {
+  text-align: right;
+  font-size: 13px;
+  color: #333;
+}
+
+.prop-info-name {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}
+
+.prop-client-card-v2 {
+  background: #fcfcfc;
+  border: 1px solid #eee;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 40px;
+}
+
+.prop-card-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: #666;
+  letter-spacing: 0.05em;
+  margin-bottom: 16px;
+}
+
+.prop-client-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+.prop-client-field span {
+  display: block;
+  font-size: 10px;
+  color: #888;
+  margin-bottom: 4px;
+}
+
+.prop-client-field p {
+  font-weight: 600;
+  font-size: 14px;
+  border-bottom: 1px solid #eee;
+  padding-bottom: 4px;
+}
+
+.prop-scope-v2 h3 {
+  font-size: 11px;
+  font-weight: 700;
+  color: #111;
+  letter-spacing: 0.05em;
+  margin-bottom: 20px;
+}
+
+.prop-table-v2 {
+  width: 100%;
+  border-collapse: collapse;
+  margin-bottom: 40px;
+}
+
+.prop-table-v2 th {
+  text-align: left;
+  font-size: 10px;
+  color: #888;
+  padding: 12px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.prop-table-v2 td {
+  padding: 16px 0;
+  border-bottom: 1px solid #f5f5f5;
+  font-size: 14px;
+}
+
+.prop-investment-v2 {
+  text-align: right;
+  margin-bottom: 50px;
+}
+
+.prop-investment-label {
+  font-size: 10px;
+  font-weight: 700;
+  color: #aaa;
+  margin-bottom: 8px;
+}
+
+.prop-investment-value {
+  font-size: 42px;
+  font-weight: 700;
+  color: #333;
+}
+
+.prop-investment-value span {
+  font-size: 14px;
+  color: #888;
+  font-weight: 400;
+}
+
+.prop-conditions-v2 {
+  background: #fcfcfc;
+  border-radius: 8px;
+  padding: 24px;
+  margin-bottom: 40px;
+}
+
+.prop-conditions-v2 h4 {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.prop-conditions-v2 ul {
+  list-style: none;
+  padding: 0;
+}
+
+.prop-conditions-v2 li {
+  font-size: 12px;
+  color: #555;
+  margin-bottom: 8px;
+  line-height: 1.6;
+}
+
+.prop-footer-v2 {
+  margin-top: 60px;
+  text-align: center;
+  font-size: 11px;
+  color: #888;
+}
+
+.prop-footer-line {
+  height: 1px;
+  background: #eee;
+  margin-bottom: 20px;
+}
+
+.prop-footer-brand {
+  margin-top: 10px;
+  font-weight: 600;
+  color: #aaa;
+}
+
+@media print {
+  .proposal-page {
+    padding: 0;
+    background: white;
+  }
+  .proposal-content-v2 {
+    box-shadow: none;
+    padding: 0;
+  }
+  .proposal-gate {
+    display: none;
+  }
+}
