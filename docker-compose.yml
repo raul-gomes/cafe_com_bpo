@@ -20,7 +20,7 @@ services:
       context: ./apps/backend
     environment:
       - DATABASE_URL=${DATABASE_URL}
-      - MODE=${MODE}
+      - MODE=${MODE:-production}
       - JWT_SECRET=${JWT_SECRET}
       - JWT_ALGORITHM=${JWT_ALGORITHM}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
@@ -47,19 +47,14 @@ services:
     depends_on:
       db:
         condition: service_healthy
-    volumes:
-      - ./apps/backend:/app
 
   web:
     build:
       context: ./apps/frontend
-      target: development
+      target: runner
     # Ports are now managed by Nginx gateway
     expose:
-      - "3000"
-    volumes:
-      - ./apps/frontend:/app
-      - /app/node_modules
+      - "80"
 
   pgadmin:
     image: dpage/pgadmin4
