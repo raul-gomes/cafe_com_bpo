@@ -29,7 +29,9 @@ jobs:
           pip install ruff  # Linter rápido para CI
           
       - name: Lint with Ruff
-        run: ruff check --fix .
+        run: |
+          ruff check .
+          ruff format --check .
         
       - name: Run Tests with Pytest
         env:
@@ -47,18 +49,16 @@ jobs:
   # --- CI: Frontend (Node.js) ---
   frontend-ci:
     runs-on: ubuntu-latest
-    env:
-      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     defaults:
       run:
         working-directory: apps/frontend
     steps:
       - uses: actions/checkout@v4
       
-      - name: Set up Node.js 24
+      - name: Set up Node.js 22
         uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 22
           cache: "npm"
           cache-dependency-path: apps/frontend/package-lock.json
           
@@ -68,14 +68,14 @@ jobs:
       - name: Lint
         run: npm run lint
         
-      - name: Build check
-        run: npm run build
+      - name: Typecheck
+        run: npm run typecheck
         
       - name: Run Vitest
         run: npm run test
 
   # --- CD: Build and Push (Docker) ---
-  deploy-registry:
+  build-and-push:
     needs: [backend-ci, frontend-ci]
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     runs-on: ubuntu-latest
@@ -117,3 +117,20 @@ jobs:
             ghcr.io/${{ github.repository }}/web:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  # --- CD: Deploy to Hostinger ---
+  deploy-hostinger:
+    needs: build-and-push
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger Hostinger Webhook
+        env:
+          WEBHOOK_URL: ${{ secrets.HOSTINGER_DEPLOY_WEBHOOK }}
+        run: |
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "Error: HOSTINGER_DEPLOY_WEBHOOK secret is not set. Skipping deploy."
+            exit 0
+          fi
+          echo "Triggering deployment..."
+          curl -X GET "$WEBHOOK_URL"

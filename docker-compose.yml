@@ -55,6 +55,11 @@ services:
     # Ports are now managed by Nginx gateway
     expose:
       - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   pgadmin:
     image: dpage/pgadmin4
@@ -65,7 +70,8 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   ollama:
     image: ollama/ollama:latest
@@ -79,10 +85,14 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - api
-      - web
-      - pgadmin
-      - ollama
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+      pgadmin:
+        condition: service_started
+      ollama:
+        condition: service_started
 
 volumes:
   postgres_data:
