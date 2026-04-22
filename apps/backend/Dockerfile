@@ -9,10 +9,11 @@ FROM python:3.12-slim AS runner
 WORKDIR /app
 
 RUN useradd -r -u 1001 appuser
-USER appuser
-
 COPY --from=builder /install /usr/local
 COPY . .
+
+RUN mkdir -p logs storage && chown -R appuser:appuser /app
+USER appuser
 
 ENV PYTHONUNBUFFERED=1
 
