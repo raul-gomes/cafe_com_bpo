@@ -1,0 +1,1854 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculadora de Precificação BPO — Café com BPO</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #000000;
+  --primary-hover: #222222;
+  --bg: #f5f7fa;
+  --card: #ffffff;
+  --border: #e5e7eb;
+  --border-focus: #000000;
+  --text: #111827;
+  --text-2: #374151;
+  --text-3: #6b7280;
+  --text-4: #9ca3af;
+  --green-bg: #f0fdf4;
+  --green-border: #86efac;
+  --green-text: #166534;
+  --amber-bg: #fffbeb;
+  --amber-border: #fcd34d;
+  --amber-text: #92400e;
+  --tutorial-bg: #1e293b;
+  --tutorial-accent: #f59e0b;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'Inter', sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ── TUTORIAL BANNER ── */
+.tutorial-banner {
+  background: var(--tutorial-bg);
+  color: #e2e8f0;
+  padding: 14px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  border-bottom: 2px solid var(--tutorial-accent);
+}
+.tutorial-banner .tb-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 200px;
+}
+.tutorial-badge {
+  background: var(--tutorial-accent);
+  color: #000;
+  font-size: .7rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  white-space: nowrap;
+}
+.tutorial-banner p { font-size: .85rem; }
+.tutorial-banner strong { color: #fff; }
+.tb-btns { display: flex; gap: 8px; flex-shrink: 0; }
+.btn-tutorial-on {
+  background: var(--tutorial-accent);
+  color: #000;
+  border: none;
+  padding: 7px 16px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: .82rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity .2s;
+}
+.btn-tutorial-on:hover { opacity: .88; }
+.btn-tutorial-off {
+  background: transparent;
+  color: #94a3b8;
+  border: 1px solid #475569;
+  padding: 7px 14px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: .82rem;
+  cursor: pointer;
+  transition: color .2s;
+}
+.btn-tutorial-off:hover { color: #e2e8f0; }
+
+/* ── TUTORIAL PANEL (lateral deslizante) ── */
+.tutorial-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.5);
+  z-index: 90;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .25s;
+}
+.tutorial-overlay.open { opacity: 1; pointer-events: all; }
+
+.tutorial-panel {
+  position: fixed;
+  top: 0; right: 0; bottom: 0;
+  width: min(440px, 100vw);
+  background: var(--tutorial-bg);
+  z-index: 100;
+  transform: translateX(100%);
+  transition: transform .3s cubic-bezier(.4,0,.2,1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.tutorial-panel.open { transform: translateX(0); }
+
+.tp-header {
+  padding: 20px 22px 16px;
+  border-bottom: 1px solid #334155;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-shrink: 0;
+}
+.tp-header h2 {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #fff;
+  line-height: 1.3;
+}
+.tp-header p {
+  font-size: .78rem;
+  color: #94a3b8;
+  margin-top: 3px;
+}
+.tp-close {
+  background: none;
+  border: none;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px;
+  flex-shrink: 0;
+  line-height: 0;
+}
+.tp-close:hover { color: #e2e8f0; }
+
+.tp-progress {
+  padding: 12px 22px;
+  border-bottom: 1px solid #334155;
+  flex-shrink: 0;
+}
+.tp-steps-nav {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.tp-step-dot {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  border: 2px solid #334155;
+  background: transparent;
+  color: #64748b;
+  font-size: .72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all .2s;
+  font-family: inherit;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.tp-step-dot.done {
+  background: #166534;
+  border-color: #166534;
+  color: #fff;
+}
+.tp-step-dot.active {
+  background: var(--tutorial-accent);
+  border-color: var(--tutorial-accent);
+  color: #000;
+}
+
+.tp-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+}
+.tp-content::-webkit-scrollbar { width: 4px; }
+.tp-content::-webkit-scrollbar-thumb { background: #334155; border-radius: 2px; }
+
+.tp-step { display: none; }
+.tp-step.active { display: block; }
+
+.tp-step-title {
+  font-size: .7rem;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--tutorial-accent);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tp-step h3 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+.tp-step p {
+  font-size: .85rem;
+  color: #cbd5e1;
+  margin-bottom: 10px;
+  line-height: 1.65;
+}
+.tp-step strong { color: #fff; }
+.tp-step em { color: var(--tutorial-accent); font-style: normal; }
+
+.tp-insight {
+  background: #0f172a;
+  border-left: 3px solid var(--tutorial-accent);
+  border-radius: 0 6px 6px 0;
+  padding: 12px 14px;
+  margin: 14px 0;
+  font-size: .82rem;
+  color: #94a3b8;
+  line-height: 1.6;
+}
+.tp-insight strong { color: var(--tutorial-accent); }
+
+.tp-example {
+  background: #0f172a;
+  border: 1px solid #1e3a5f;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  font-size: .82rem;
+}
+.tp-example .ex-label {
+  font-size: .67rem;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: #3b82f6;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+.tp-example p { color: #93c5fd; margin-bottom: 0; }
+
+.tp-warn {
+  background: #1c1917;
+  border: 1px solid #78350f;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin: 12px 0;
+  font-size: .82rem;
+  color: #fcd34d;
+}
+.tp-warn .w-icon { font-size: 1rem; margin-right: 4px; }
+
+.tp-checklist {
+  list-style: none;
+  margin: 10px 0;
+}
+.tp-checklist li {
+  font-size: .83rem;
+  color: #cbd5e1;
+  padding: 5px 0 5px 24px;
+  position: relative;
+  border-bottom: 1px solid #1e293b;
+  line-height: 1.5;
+}
+.tp-checklist li::before {
+  content: '→';
+  position: absolute;
+  left: 0;
+  color: var(--tutorial-accent);
+  font-weight: 700;
+}
+
+.tp-footer {
+  padding: 16px 22px;
+  border-top: 1px solid #334155;
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  flex-shrink: 0;
+}
+.tp-nav-btn {
+  padding: 9px 18px;
+  border-radius: 6px;
+  font-family: inherit;
+  font-size: .83rem;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity .2s;
+}
+.tp-prev { background: #334155; color: #e2e8f0; }
+.tp-prev:hover { background: #475569; }
+.tp-next { background: var(--tutorial-accent); color: #000; }
+.tp-next:hover { opacity: .9; }
+.tp-counter { font-size: .75rem; color: #64748b; align-self: center; }
+
+/* ── HEADER PRINCIPAL ── */
+.app-header {
+  background: #fff;
+  border-bottom: 1px solid var(--border);
+  padding: 20px 24px;
+  text-align: center;
+}
+.app-header h1 {
+  font-size: clamp(1.4rem, 3.5vw, 2rem);
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.02em;
+}
+.app-header p {
+  font-size: .9rem;
+  color: var(--text-3);
+  margin-top: 4px;
+}
+
+/* ── LAYOUT ── */
+.app-body {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 24px 16px 60px;
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  align-items: start;
+}
+@media(max-width: 800px) { .app-body { grid-template-columns: 1fr; } }
+.left-col { display: flex; flex-direction: column; gap: 20px; }
+
+/* ── CARD ── */
+.card {
+  background: var(--card);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+.card-header {
+  padding: 18px 22px 14px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.step-badge {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  background: var(--text);
+  color: #fff;
+  font-size: .72rem;
+  font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.card-header h2 {
+  font-size: .95rem;
+  font-weight: 700;
+  color: var(--text);
+  flex: 1;
+}
+.card-body { padding: 20px 22px; }
+
+/* ── TOOLTIP ── */
+.tt {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 17px; height: 17px;
+  border-radius: 50%;
+  background: #e5e7eb;
+  color: var(--text-3);
+  font-size: .62rem;
+  font-weight: 700;
+  cursor: help;
+  flex-shrink: 0;
+  margin-left: 4px;
+  vertical-align: middle;
+  transition: background .15s;
+}
+.tt:hover { background: #d1d5db; }
+.tt::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 7px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1f2937;
+  color: #f9fafb;
+  font-size: .75rem;
+  padding: 9px 12px;
+  border-radius: 7px;
+  white-space: pre-line;
+  width: 240px;
+  text-align: left;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity .15s;
+  z-index: 30;
+  font-weight: 400;
+  line-height: 1.5;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+.tt:hover::after { opacity: 1; }
+/* ajuste para tooltips na borda direita */
+.tt.tt-left::after { left: auto; right: 0; transform: none; }
+
+/* ── CAMPOS ── */
+.field { margin-bottom: 0; }
+.field-label {
+  display: flex;
+  align-items: center;
+  font-size: .8rem;
+  font-weight: 600;
+  color: var(--text-2);
+  margin-bottom: 6px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+  gap: 2px;
+}
+.field input, .field select {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border);
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: .88rem;
+  color: var(--text);
+  background: #fff;
+  transition: border-color .15s, box-shadow .15s;
+  appearance: none;
+}
+.field input:focus, .field select:focus {
+  outline: none;
+  border-color: var(--border-focus);
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
+}
+.field input[readonly] {
+  background: #f9fafb;
+  color: var(--text-3);
+  cursor: not-allowed;
+  border-style: dashed;
+}
+.field .hint {
+  font-size: .72rem;
+  color: var(--text-4);
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+@media(max-width:500px) { .config-grid { grid-template-columns: 1fr; } }
+
+.computed-bar {
+  display: flex;
+  gap: 20px;
+  flex-wrap: wrap;
+  background: #f9fafb;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-top: 16px;
+}
+.computed-item { font-size: .82rem; color: var(--text-2); }
+.computed-item span { display: block; font-size: .68rem; text-transform: uppercase; letter-spacing: .05em; color: var(--text-4); margin-bottom: 2px; }
+.computed-item strong { color: var(--text); font-weight: 700; }
+
+/* ── CENÁRIOS ── */
+.scenario-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+@media(max-width:500px) { .scenario-grid { grid-template-columns: 1fr; } }
+
+.scenario-btn {
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 14px 12px;
+  cursor: pointer;
+  background: #fff;
+  text-align: left;
+  transition: all .2s;
+  position: relative;
+}
+.scenario-btn:hover { border-color: #9ca3af; background: #fafafa; }
+.scenario-btn.active {
+  border-color: var(--primary);
+  background: #f9fafb;
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
+}
+.scenario-btn.active::after {
+  content: '✓';
+  position: absolute;
+  top: 10px; right: 12px;
+  font-size: .8rem;
+  color: var(--primary);
+  font-weight: 700;
+}
+.sc-name { font-weight: 700; font-size: .88rem; color: var(--text); margin-bottom: 2px; }
+.sc-pct { font-size: 1.3rem; font-weight: 700; color: var(--text); line-height: 1; margin: 5px 0 4px; }
+.sc-why { font-size: .72rem; color: var(--text-3); line-height: 1.4; }
+
+/* ── PRAZO ── */
+.term-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; }
+@media(max-width:500px) { .term-grid { grid-template-columns: 1fr; } }
+
+.term-btn {
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  padding: 12px;
+  cursor: pointer;
+  background: #fff;
+  text-align: center;
+  transition: all .2s;
+  position: relative;
+}
+.term-btn:hover { border-color: #9ca3af; }
+.term-btn.active {
+  border-color: var(--primary);
+  background: #f9fafb;
+  box-shadow: 0 0 0 3px rgba(0,0,0,.08);
+}
+.term-btn.active::after {
+  content: '✓';
+  position: absolute;
+  top: 8px; right: 10px;
+  font-size: .75rem; color: var(--primary); font-weight: 700;
+}
+.t-name { font-weight: 700; font-size: .88rem; color: var(--text); }
+.t-disc { font-size: .78rem; color: var(--text-3); margin-top: 3px; }
+.term-btn.active .t-disc { color: #166534; font-weight: 500; }
+
+/* ── TABELA SERVIÇOS ── */
+.svc-table { width: 100%; border-collapse: collapse; }
+.svc-table th {
+  font-size: .68rem;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--text-4);
+  font-weight: 700;
+  padding: 8px 10px;
+  background: #f9fafb;
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+.svc-table td {
+  padding: 10px;
+  border-bottom: 1px solid #f3f4f6;
+  vertical-align: middle;
+  font-size: .85rem;
+}
+.svc-table tr:last-child td { border-bottom: none; }
+.svc-table tr.active-row td { background: #fafafa; }
+.svc-table tr.active-row { border-left: 3px solid var(--primary); }
+
+/* toggle */
+.tog { position: relative; width: 38px; height: 22px; display: inline-block; flex-shrink: 0; }
+.tog input { opacity:0; width:0; height:0; }
+.tog-sl {
+  position: absolute; inset: 0;
+  background: #d1d5db; border-radius: 22px;
+  cursor: pointer; transition: .25s;
+}
+.tog-sl::before {
+  content: ''; position: absolute;
+  height: 16px; width: 16px;
+  left: 3px; bottom: 3px;
+  background: #fff; border-radius: 50%;
+  transition: .25s;
+  box-shadow: 0 1px 3px rgba(0,0,0,.2);
+}
+.tog input:checked + .tog-sl { background: var(--primary); }
+.tog input:checked + .tog-sl::before { transform: translateX(16px); }
+
+.badge-time { background: #fef3c7; color: #92400e; font-size: .63rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: .04em; }
+.badge-fixed { background: #d1fae5; color: #065f46; font-size: .63rem; font-weight: 700; padding: 1px 6px; border-radius: 4px; text-transform: uppercase; letter-spacing: .04em; }
+
+.qty-inp, .val-inp {
+  width: 68px; padding: 5px 7px;
+  border: 1.5px solid var(--border);
+  border-radius: 6px; font-size: .8rem;
+  text-align: center; font-family: inherit;
+  color: var(--text); background: #fff;
+  transition: border-color .15s;
+}
+.qty-inp:focus, .val-inp:focus { outline: none; border-color: var(--primary); }
+.qty-inp:disabled, .val-inp:disabled { background: #f3f4f6; color: var(--text-4); cursor: not-allowed; }
+
+.btn-rm {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-4); padding: 4px; border-radius: 4px;
+  transition: all .15s; line-height: 0;
+}
+.btn-rm:hover { color: #dc2626; background: #fee2e2; }
+
+/* add inline */
+.add-row {
+  display: grid;
+  grid-template-columns: 1fr auto 88px auto;
+  gap: 8px;
+  align-items: end;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+@media(max-width:600px) { .add-row { grid-template-columns: 1fr; } }
+
+/* ── BOTÕES ── */
+.btn {
+  padding: 9px 18px; border-radius: 8px;
+  font-family: inherit; font-size: .85rem; font-weight: 600;
+  cursor: pointer; border: none; transition: all .2s;
+  display: inline-flex; align-items: center; gap: 6px;
+  white-space: nowrap;
+}
+.btn-black { background: var(--primary); color: #fff; }
+.btn-black:hover { background: var(--primary-hover); }
+.btn-outline { background: #fff; color: var(--text); border: 1.5px solid var(--border); }
+.btn-outline:hover { border-color: var(--primary); background: #f9fafb; }
+.btn-sm { padding: 6px 12px; font-size: .78rem; }
+
+/* ── RESUMO ── */
+.summary-card {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0,0,0,.07);
+  position: sticky;
+  top: 60px;
+  overflow: hidden;
+}
+.sum-header {
+  background: var(--primary);
+  color: #fff;
+  padding: 16px 20px;
+}
+.sum-header h2 { font-size: .95rem; font-weight: 700; }
+.sum-body { padding: 18px 20px; }
+.sum-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 7px 0;
+  font-size: .84rem;
+  border-bottom: 1px dashed #f0f0f0;
+}
+.sum-row:last-of-type { border-bottom: none; }
+.sum-row .lbl { color: var(--text-2); }
+.sum-row .val { font-weight: 600; color: var(--text); }
+.sum-row.disc .val { color: #166534; }
+.sum-total-row {
+  display: flex;
+  justify-content: space-between;
+  font-weight: 700;
+  font-size: .92rem;
+  padding-top: 12px;
+  margin-top: 4px;
+  border-top: 2px solid var(--border);
+}
+.sum-total-box {
+  background: var(--primary);
+  border-radius: 10px;
+  padding: 18px;
+  text-align: center;
+  margin-top: 14px;
+}
+.sum-total-box .tl { color: rgba(255,255,255,.7); font-size: .75rem; text-transform: uppercase; letter-spacing: .06em; }
+.sum-total-box .tv { font-size: 2rem; font-weight: 700; color: #fff; line-height: 1.1; margin-top: 3px; }
+.sum-total-box .tp { font-size: .72rem; color: rgba(255,255,255,.5); margin-top: 2px; }
+
+.btn-pdf {
+  width: 100%; margin-top: 12px;
+  padding: 13px; background: var(--primary); color: #fff;
+  border: none; border-radius: 8px;
+  font-family: inherit; font-size: .9rem; font-weight: 700;
+  cursor: pointer; transition: background .2s;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+}
+.btn-pdf:hover { background: var(--primary-hover); }
+
+.explain-btn {
+  width: 100%; margin-top: 10px;
+  background: none; border: none;
+  font-family: inherit; font-size: .8rem;
+  color: var(--text-3); cursor: pointer;
+  text-decoration: underline; text-underline-offset: 3px;
+  text-decoration-style: dotted;
+  transition: color .15s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.explain-btn:hover { color: var(--text); }
+
+/* ── CUSTOM SECTION ── */
+.custom-section { padding: 18px 20px; border-top: 1px solid var(--border); }
+.custom-section h3 {
+  font-size: .72rem; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text-4);
+  font-weight: 700; margin-bottom: 12px;
+}
+
+/* ── MODAL EXPLICATIVO ── */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.6);
+  z-index: 80;
+  display: flex; align-items: center; justify-content: center;
+  padding: 16px;
+  opacity: 0; pointer-events: none; transition: opacity .2s;
+  backdrop-filter: blur(2px);
+}
+.modal-overlay.open { opacity: 1; pointer-events: all; }
+.modal {
+  background: #fff;
+  border-radius: 16px;
+  width: min(600px, 100%);
+  max-height: 85vh;
+  overflow-y: auto;
+  box-shadow: 0 20px 60px rgba(0,0,0,.25);
+  transform: translateY(12px);
+  transition: transform .2s;
+}
+.modal-overlay.open .modal { transform: translateY(0); }
+.modal-head {
+  background: var(--primary);
+  padding: 20px 24px;
+  display: flex; justify-content: space-between; align-items: center;
+  position: sticky; top: 0; z-index: 2;
+}
+.modal-head h3 { font-size: .95rem; font-weight: 700; color: #fff; }
+.modal-close { background: none; border: none; color: rgba(255,255,255,.6); cursor: pointer; line-height: 0; }
+.modal-close:hover { color: #fff; }
+.modal-body { padding: 24px; }
+.modal-body section { margin-bottom: 20px; }
+.modal-body h4 {
+  font-size: .9rem; font-weight: 700; color: var(--text);
+  margin-bottom: 6px; display: flex; align-items: center; gap: 8px;
+}
+.step-num {
+  width: 22px; height: 22px; border-radius: 50%;
+  background: #fbbf24; color: #000;
+  font-size: .68rem; font-weight: 700;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+.modal-body p { font-size: .85rem; color: var(--text-2); line-height: 1.65; }
+.modal-note {
+  background: #fffbeb;
+  border-left: 4px solid #fbbf24;
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  margin: 16px 0 0;
+}
+.modal-note p { font-size: .82rem; color: #92400e; }
+
+/* ── CTA ── */
+.cta-block {
+  background: #111827;
+  border-radius: 16px;
+  padding: 36px 24px;
+  text-align: center;
+  margin-top: 12px;
+  border: 1px solid #1f2937;
+}
+.cta-block h2 { font-size: 1.5rem; font-weight: 700; color: #fff; margin-bottom: 10px; }
+.cta-block h2 span { color: #fbbf24; }
+.cta-block p { font-size: .9rem; color: #9ca3af; max-width: 480px; margin: 0 auto 24px; }
+.cta-btns { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+
+/* scrollbar geral */
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-thumb { background: #e5e7eb; border-radius: 3px; }
+
+.footer-note {
+  text-align: center; color: var(--text-4);
+  font-size: .75rem; margin-top: 28px; padding: 0 16px;
+}
+</style>
+</head>
+<body>
+
+<!-- TUTORIAL BANNER -->
+<div class="tutorial-banner">
+  <div class="tb-left">
+    <span class="tutorial-badge">Novo aqui?</span>
+    <p><strong>Guia de Precificação</strong> — aprenda a preencher cada campo corretamente e entenda a lógica por trás dos valores.</p>
+  </div>
+  <div class="tb-btns">
+    <button class="btn-tutorial-on" onclick="openTutorial()">Abrir guia →</button>
+    <button class="btn-tutorial-off" onclick="dismissBanner()">Dispensar</button>
+  </div>
+</div>
+
+<!-- TUTORIAL PANEL -->
+<div class="tutorial-overlay" id="tut-overlay" onclick="closeTutorial()"></div>
+<div class="tutorial-panel" id="tut-panel">
+  <div class="tp-header">
+    <div>
+      <h2>Guia de Precificação BPO</h2>
+      <p>Passo a passo para quem está começando agora</p>
+    </div>
+    <button class="tp-close" onclick="closeTutorial()">
+      <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+    </button>
+  </div>
+  <div class="tp-progress">
+    <div class="tp-steps-nav" id="tp-steps-nav"></div>
+  </div>
+  <div class="tp-content" id="tp-content">
+
+    <!-- PASSO 0: INTRODUÇÃO -->
+    <div class="tp-step active" data-step="0">
+      <div class="tp-step-title">Introdução</div>
+      <h3>Por que você precisa precificar bem?</h3>
+      <p>A maior armadilha de quem começa no BPO Financeiro é <strong>cobrar barato demais por medo de perder o cliente</strong> — e depois descobrir que está trabalhando no prejuízo.</p>
+      <p>Precificação não é achismo. É matemática com estratégia. Esta calculadora vai te mostrar exatamente qual é o <em>mínimo que você não pode cobrar</em> e qual é o preço que te posiciona bem no mercado.</p>
+      <div class="tp-insight">
+        <strong>O erro mais comum:</strong> pegar o valor que o concorrente cobra e usar o mesmo, sem saber se isso cobre os seus custos. Cada operação tem uma realidade diferente.
+      </div>
+      <p>O método aqui é baseado em <strong>volumetria</strong>: você mapeia quanto tempo cada serviço leva, multiplica pelo custo real da sua hora de trabalho, e adiciona margem de lucro e impostos por cima.</p>
+      <div class="tp-insight">
+        <strong>O que você vai aprender neste guia:</strong><br>
+        → Como calcular o custo real da sua operação<br>
+        → O que incluir no custo total mensal<br>
+        → Como definir o tempo de cada serviço<br>
+        → Como escolher sua margem de lucro<br>
+        → Como usar o prazo de pagamento a seu favor
+      </div>
+    </div>
+
+    <!-- PASSO 1: CUSTO TOTAL -->
+    <div class="tp-step" data-step="1">
+      <div class="tp-step-title">Passo 1 — Configurações da operação</div>
+      <h3>Custo total mensal: o que entra nesse número?</h3>
+      <p>Este é o campo mais importante da calculadora. Ele representa <strong>quanto custa sua empresa existir por mês</strong>, independente de faturar ou não.</p>
+      <div class="tp-checklist">
+        <li>Pró-labore (seu salário como sócio)</li>
+        <li>Salários de colaboradores</li>
+        <li>Encargos trabalhistas (FGTS, INSS patronal)</li>
+        <li>Aluguel ou coworking</li>
+        <li>Sistemas e ferramentas (ERP, gestor de tarefas, e-mail corporativo)</li>
+        <li>Contador da sua empresa</li>
+        <li>Internet, telefone, energia</li>
+        <li>Marketing e divulgação</li>
+        <li>Treinamentos e certificações</li>
+      </div>
+      <div class="tp-example">
+        <div class="ex-label">Exemplo real</div>
+        <p>Operação com 1 pessoa: pró-labore R$ 4.000 + sistemas R$ 500 + contador R$ 400 + internet/telefone R$ 200 + marketing R$ 300 = <strong>R$ 5.400/mês</strong></p>
+      </div>
+      <div class="tp-warn">
+        <span class="w-icon">⚠</span> O padrão desta calculadora (R$ 8.000) é uma referência para operação com 2 pessoas. <strong>Ajuste para a realidade da sua empresa</strong> — esta é a base de tudo.
+      </div>
+    </div>
+
+    <!-- PASSO 2: PESSOAS E HORAS -->
+    <div class="tp-step" data-step="2">
+      <div class="tp-step-title">Passo 2 — Pessoas e horas</div>
+      <h3>Pessoas na operação e horas trabalhadas</h3>
+      <p>Com esses dois campos a calculadora descobre <strong>quanto custa cada hora do seu trabalho</strong>. Esse é o número que vai multiplicar o tempo de cada serviço.</p>
+      <p><strong>Pessoas na operação:</strong> coloque apenas quem executa os serviços para os clientes. Se você tem um assistente administrativo que não atende clientes, não entra aqui.</p>
+      <p><strong>Horas por mês:</strong> considere apenas as horas produtivas dedicadas aos clientes, não o total de horas que você está "no trabalho".</p>
+      <div class="tp-example">
+        <div class="ex-label">Como calcular suas horas reais</div>
+        <p>Dias úteis no mês (~22) × horas por dia dedicadas a clientes (ex: 6h) = <strong>132h/mês</strong><br>
+        Se você dedica 8h/dia = 176h/mês<br>
+        Jornada completa = 220h/mês</p>
+      </div>
+      <div class="tp-insight">
+        <strong>Por que isso importa:</strong> se você tem custo de R$ 8.000 com 2 pessoas × 220h cada = 440 horas disponíveis. O custo por hora fica em R$ 18,18. Se você trabalha menos horas, seu custo por hora sobe — e o preço dos serviços precisa subir junto.
+      </div>
+    </div>
+
+    <!-- PASSO 3: IMPOSTOS E COMISSÃO -->
+    <div class="tp-step" data-step="3">
+      <div class="tp-step-title">Passo 3 — Impostos e comissão</div>
+      <h3>Simples Nacional e comissão de vendas</h3>
+      <p><strong>Alíquota do Simples Nacional:</strong> é o imposto que sua empresa paga sobre o faturamento. Para saber a sua alíquota exata, consulte a última guia DAS ou pergunte ao seu contador.</p>
+      <p>O valor default é 6% (faixa inicial do Simples para serviços). Esse percentual é descontado do valor que entra no caixa — por isso precisa estar no preço que você cobra do cliente.</p>
+      <div class="tp-example">
+        <div class="ex-label">Como funciona o cálculo</div>
+        <p>Se você cobra R$ 1.000 e paga 6% de Simples = R$ 60 vai para o governo. Seu caixa líquido é R$ 940. A calculadora já trabalha "de fora para dentro" para garantir que o imposto esteja embutido no preço final.</p>
+      </div>
+      <p><strong>Comissão de vendas:</strong> se você paga comissão para parceiros que indicam clientes (ex: contador, advogado), coloque aqui. Se não paga, deixe zero.</p>
+      <div class="tp-warn">
+        <span class="w-icon">⚠</span> Não sabe sua alíquota? Use 6% como estimativa conservadora e depois ajuste com o seu contador.
+      </div>
+    </div>
+
+    <!-- PASSO 4: SERVIÇOS POR TEMPO -->
+    <div class="tp-step" data-step="4">
+      <div class="tp-step-title">Passo 4 — Serviços</div>
+      <h3>Serviços por tempo: o que são e como usar</h3>
+      <p>Os serviços do tipo <strong>Tempo</strong> são precificados com base em quantos minutos sua equipe leva para executá-los, multiplicado pelo custo do seu minuto de trabalho.</p>
+      <div class="tp-checklist">
+        <li><strong>Emissão de NF automática (1,3 min):</strong> sistema emite automaticamente, operador valida e confirma. Tempo curto porque o processo é automatizado.</li>
+        <li><strong>Emissão de NF avulsa (2,3 min):</strong> preenchimento manual dos dados, verificação e emissão. Um pouco mais lento.</li>
+        <li><strong>Registro de recebimento/pagamento (2,3 min):</strong> lançamento no sistema de gestão. Tempo para abrir, localizar, lançar e confirmar.</li>
+        <li><strong>Agendamento de pagamentos (5 min):</strong> verificar saldo, validar data, agendar no banco, confirmar. Mais etapas = mais tempo.</li>
+      </div>
+      <div class="tp-insight">
+        <strong>Dica prática:</strong> os tempos padrão são referências. Se no seu processo uma NF avulsa leva 5 minutos porque você valida mais etapas, ajuste o campo. Quanto mais preciso o tempo, mais preciso o preço.
+      </div>
+      <p>A <strong>quantidade mensal</strong> é quantas vezes por mês você executa aquele serviço para o cliente que está sendo cotado.</p>
+    </div>
+
+    <!-- PASSO 5: SERVIÇOS FIXOS -->
+    <div class="tp-step" data-step="5">
+      <div class="tp-step-title">Passo 5 — Serviços fixos</div>
+      <h3>Serviços de valor fixo: por que existem?</h3>
+      <p>Alguns serviços não se medem por tempo de execução — eles têm um <strong>valor de mercado ou de responsabilidade</strong> que vai além do tempo gasto.</p>
+      <div class="tp-checklist">
+        <li><strong>Gestão de conta caixa (R$ 4.500):</strong> serviço de alta responsabilidade. Você controla a liquidez da empresa — qualquer erro tem impacto direto. O valor reflete o risco e responsabilidade, não o tempo.</li>
+        <li><strong>Cobrança ativa (R$ 1.500):</strong> envolve relacionamento com clientes inadimplentes, tratativas, negociações. Valor de resultado.</li>
+        <li><strong>Conciliação de cartão (R$ 500):</strong> revisão de todas as transações, contestações, mapeamento de tarifas. Valor mensal fixo independente do volume.</li>
+        <li><strong>Reunião mensal (R$ 250):</strong> sua hora vale. Uma hora de consultoria estratégica tem preço diferente de uma hora operacional.</li>
+      </div>
+      <div class="tp-insight">
+        <strong>Os valores padrão são referências de mercado.</strong> Você pode e deve ajustar conforme o perfil do cliente, complexidade da operação e o posicionamento que deseja ter.
+      </div>
+    </div>
+
+    <!-- PASSO 6: CENÁRIOS -->
+    <div class="tp-step" data-step="6">
+      <div class="tp-step-title">Passo 6 — Cenário de precificação</div>
+      <h3>Conservador, Moderado ou Agressivo?</h3>
+      <p>O cenário define sua <strong>margem de lucro sobre o custo operacional</strong>. Não é o preço final — é quanto a mais você quer ganhar além de cobrir seus custos.</p>
+      <div class="tp-example">
+        <div class="ex-label">Exemplo com custo operacional de R$ 1.000</div>
+        <p>
+          <strong>Conservador (30%):</strong> preço base = R$ 1.300<br>
+          <strong>Moderado (50%):</strong> preço base = R$ 1.500<br>
+          <strong>Agressivo (100%):</strong> preço base = R$ 2.000<br>
+          <em>(antes de impostos e desconto de prazo)</em>
+        </p>
+      </div>
+      <div class="tp-checklist">
+        <li><strong>Conservador:</strong> use para primeiros clientes, entrada em mercado novo, ou quando o cliente tem orçamento muito apertado e você quer o case.</li>
+        <li><strong>Moderado:</strong> o equilíbrio ideal para a maioria das situações. Competitivo sem se desvalorizar.</li>
+        <li><strong>Agressivo:</strong> use quando você já tem histórico comprovado, quando o serviço entrega muito resultado, ou quando está disputando mercados de alto valor.</li>
+      </div>
+      <div class="tp-warn">
+        <span class="w-icon">⚠</span> Nunca use o cenário Conservador como padrão. Ele é para situações específicas. Começar barato cria ancoragem — o cliente vai resistir a reajustes futuros.
+      </div>
+    </div>
+
+    <!-- PASSO 7: PRAZO -->
+    <div class="tp-step" data-step="7">
+      <div class="tp-step-title">Passo 7 — Prazo de pagamento</div>
+      <h3>Use o prazo como ferramenta comercial</h3>
+      <p>O desconto por prazo de pagamento é um <strong>incentivo para o cliente fechar contratos mais longos</strong> — o que é ótimo para a sua previsibilidade de caixa.</p>
+      <div class="tp-checklist">
+        <li><strong>Mensal (sem desconto):</strong> contrato padrão. Flexibilidade total para o cliente. Você recebe todo mês mas não tem previsibilidade de longo prazo.</li>
+        <li><strong>Trimestral (5% desconto):</strong> 3 meses garantidos. Você reduz 5% mas ganha 3 meses de fluxo certo. Vale muito a pena.</li>
+        <li><strong>Anual (10% desconto):</strong> 12 meses garantidos. 10% a menos mas zero trabalho de renovação e retenção. Seu custo de retenção de cliente vai a zero.</li>
+      </div>
+      <div class="tp-insight">
+        <strong>Estratégia:</strong> sempre apresente as 3 opções ao cliente. A maioria vai comparar e perceber que o anual tem um custo-benefício claro. Você transforma uma venda mensal em uma venda anual — e ainda parece generoso pelo desconto.
+      </div>
+      <div class="tp-example">
+        <div class="ex-label">Exemplo prático</div>
+        <p>Serviço de R$ 2.000/mês. Anual com 10% = R$ 1.800 × 12 = R$ 21.600 garantidos vs R$ 2.000 sem garantia de renovação. Qual é melhor para o seu caixa?</p>
+      </div>
+    </div>
+
+    <!-- PASSO 8: PROPOSTA -->
+    <div class="tp-step" data-step="8">
+      <div class="tp-step-title">Passo 8 — Proposta</div>
+      <h3>Como usar o PDF gerado</h3>
+      <p>A proposta gerada é um <strong>documento profissional</strong> que detalha os serviços, a metodologia de precificação e o valor final. Use com consciência.</p>
+      <div class="tp-checklist">
+        <li>Preencha sempre o nome da empresa, e-mail e WhatsApp antes de gerar — eles aparecem no rodapé da proposta</li>
+        <li>Se tiver logo, cole a URL da imagem — eleva muito a percepção de profissionalismo</li>
+        <li>A cor principal da proposta pode seguir a identidade da sua empresa</li>
+        <li>Envie a proposta por PDF, não só o link — garante que o cliente veja exatamente o que você quer</li>
+        <li>Defina uma data de validade de 7 a 15 dias para criar senso de urgência</li>
+      </div>
+      <div class="tp-insight">
+        <strong>Dica de fechamento:</strong> quando enviar a proposta, não mande só o PDF. Mande uma mensagem explicando brevemente o racional — "precifiquei baseado no volume de X operações por mês, com margem que garante qualidade na entrega". Isso mostra profissionalismo e elimina objeções de preço.
+      </div>
+      <div class="tp-example">
+        <div class="ex-label">O próximo nível</div>
+        <p>Esta calculadora usa volumetria (tempo × custo). No Café com BPO você aprende a precificar pela <strong>Teoria das Restrições</strong> — que foca no valor entregue ao cliente, não no tempo gasto. Isso permite preços muito maiores para os mesmos serviços.</p>
+      </div>
+    </div>
+
+  </div><!-- tp-content -->
+
+  <div class="tp-footer">
+    <button class="tp-nav-btn tp-prev" id="tp-prev" onclick="tutNav(-1)">← Anterior</button>
+    <span class="tp-counter" id="tp-counter">1 de 9</span>
+    <button class="tp-nav-btn tp-next" id="tp-next" onclick="tutNav(1)">Próximo →</button>
+  </div>
+</div><!-- tutorial-panel -->
+
+<!-- HEADER -->
+<div class="app-header">
+  <h1>Calculadora de Precificação BPO</h1>
+  <p>Preencha com a realidade da sua operação e descubra o valor justo dos seus serviços.</p>
+</div>
+
+<div class="app-body">
+  <div class="left-col">
+
+    <!-- PASSO 1: OPERAÇÃO -->
+    <div class="card">
+      <div class="card-header">
+        <span class="step-badge">1</span>
+        <h2>Configurações da sua operação</h2>
+        <button class="btn btn-outline btn-sm" onclick="openTutorial(1)" title="Abrir guia deste passo">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Explicar
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="config-grid">
+
+          <div class="field">
+            <div class="field-label">
+              Custo total mensal (R$)
+              <span class="tt" data-tip="Tudo que a empresa paga por mês para existir: pró-labore, salários, sistemas, contador, aluguel, internet, marketing. Não inclua o que você fatura — apenas o que sai do caixa todo mês, independente dos clientes.">?</span>
+            </div>
+            <input type="number" id="fixed-cost" value="8000" min="0" step="100">
+            <div class="hint">Padrão: R$ 8.000 (ref. 2 pessoas). Ajuste para sua realidade.</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">
+              Pessoas na operação
+              <span class="tt" data-tip="Apenas quem executa serviços para clientes diretamente. Um sócio que só cuida do administrativo não entra. Se você é solo, coloque 1.">?</span>
+            </div>
+            <input type="number" id="team-size" value="2" min="1">
+            <div class="hint">Apenas executores de serviços.</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">
+              Horas / mês (por pessoa)
+              <span class="tt" data-tip="Horas reais dedicadas a clientes, não total de horas trabalhadas. Descontar reuniões internas, prospecção, estudos. 220h = jornada completa de 8h/dia. 132h = 6h/dia dedicadas a clientes.">?</span>
+            </div>
+            <input type="number" id="hours-month" value="220" min="1">
+            <div class="hint">220h = jornada integral. 132h = 6h/dia útil.</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">
+              Simples Nacional (%)
+              <span class="tt" data-tip="Alíquota da última apuração da sua empresa no Simples Nacional. Consulte seu contador ou a última guia DAS. É o imposto que incide sobre o que você fatura — e precisa estar embutido no preço que cobra do cliente.">?</span>
+            </div>
+            <input type="number" id="simple-rate" value="6" min="0" max="33" step="0.1">
+            <div class="hint">Consulte sua última guia DAS ou seu contador.</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">
+              Comissão de vendas (%)
+              <span class="tt" data-tip="Se você paga percentual para quem indica clientes (ex: contador parceiro, advogado, indicação). Se não paga comissão de indicação, deixe 0. Esse valor é embutido no preço final para não sair do seu bolso.">?</span>
+            </div>
+            <input type="number" id="commission-rate" value="0" min="0" step="0.1">
+            <div class="hint">Zero se não há parceria de indicação.</div>
+          </div>
+
+          <div class="field">
+            <div class="field-label">
+              Custo/hora — calculado
+              <span class="tt" data-tip="Calculado automaticamente: custo total ÷ (pessoas × horas/mês). Este é o valor que custa cada hora de trabalho da sua equipe. Ele determina quanto você cobra por minuto de serviço executado.">?</span>
+            </div>
+            <input type="number" id="cost-hour" value="18.18" step="0.01" readonly>
+            <div class="hint">Calculado automaticamente. Não editável.</div>
+          </div>
+
+        </div>
+
+        <div class="computed-bar">
+          <div class="computed-item">
+            <span>Custo por minuto</span>
+            <strong id="cost-min-display">R$ 0,30</strong>
+          </div>
+          <div class="computed-item">
+            <span>Total horas/mês (equipe)</span>
+            <strong id="total-hours-display">440h</strong>
+          </div>
+          <div class="computed-item">
+            <span>Custo por hora</span>
+            <strong id="cost-hour-display">R$ 18,18</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASSO 2: CENÁRIOS -->
+    <div class="card">
+      <div class="card-header">
+        <span class="step-badge">2</span>
+        <h2>Cenário de precificação</h2>
+        <button class="btn btn-outline btn-sm" onclick="openTutorial(6)">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Explicar
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="scenario-grid">
+          <button class="scenario-btn" id="sc-conservative" onclick="selectScenario('conservative')">
+            <div class="sc-name">Conservador</div>
+            <div class="sc-pct" id="pct-conservative">30%</div>
+            <div class="sc-why">Para conquistar primeiros clientes ou mercados competitivos. Margem menor, entrada mais fácil. Use pontualmente.</div>
+          </button>
+          <button class="scenario-btn active" id="sc-moderate" onclick="selectScenario('moderate')">
+            <div class="sc-name">Moderado</div>
+            <div class="sc-pct" id="pct-moderate">50%</div>
+            <div class="sc-why">Equilíbrio entre competitividade e sustentabilidade. Recomendado para a maioria das propostas e clientes.</div>
+          </button>
+          <button class="scenario-btn" id="sc-aggressive" onclick="selectScenario('aggressive')">
+            <div class="sc-name">Agressivo</div>
+            <div class="sc-pct" id="pct-aggressive">100%</div>
+            <div class="sc-why">Para operações consolidadas, clientes que valorizam resultado. Dobra o custo operacional como margem.</div>
+          </button>
+        </div>
+        <div class="mt-3 p-3 rounded-lg text-xs text-gray-500" style="background:#f9fafb;border:1px solid #f0f0f0">
+          <strong>Como funciona:</strong> a margem incide sobre o custo operacional. No moderado (50%), custo de R$ 1.000 → preço base R$ 1.500, antes de impostos. O imposto é calculado "por dentro" para garantir que o valor final já cubra o Simples.
+        </div>
+      </div>
+    </div>
+
+    <!-- PASSO 3: SERVIÇOS -->
+    <div class="card">
+      <div class="card-header">
+        <span class="step-badge">3</span>
+        <h2>Serviços incluídos no contrato</h2>
+        <button class="btn btn-outline btn-sm" onclick="openTutorial(4)">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Explicar
+        </button>
+      </div>
+      <div class="card-body" style="padding-bottom:12px">
+        <p class="text-xs text-gray-400 mb-3">
+          <span class="badge-time">Tempo</span> calculado por minuto × quantidade &nbsp;|&nbsp;
+          <span class="badge-fixed">Fixo</span> valor mensal que você define
+        </p>
+        <div style="overflow-x:auto">
+          <table class="svc-table">
+            <thead>
+              <tr>
+                <th style="width:44px">Ativo</th>
+                <th>Serviço</th>
+                <th style="width:76px;text-align:center">
+                  Qtd/mês
+                  <span class="tt tt-left" data-tip="Quantas vezes por mês este serviço é executado para este cliente específico.">?</span>
+                </th>
+                <th style="width:108px;text-align:center">
+                  Valor
+                  <span class="tt tt-left" data-tip="Tempo: calculado automaticamente (minutos × custo/min × quantidade). Fixo: valor mensal editável por você.">?</span>
+                </th>
+                <th style="width:34px"></th>
+              </tr>
+            </thead>
+            <tbody id="services-tbody"></tbody>
+          </table>
+        </div>
+
+        <!-- ADICIONAR SERVIÇO -->
+        <div class="add-row">
+          <div class="field">
+            <div class="field-label">Nome do serviço</div>
+            <input type="text" id="new-svc-name" placeholder="Ex: Fechamento mensal">
+          </div>
+          <div class="field">
+            <div class="field-label">
+              Tipo
+              <span class="tt" data-tip="Tempo: você informa quantos minutos leva e calculamos o valor. Fixo: você define o valor mensal diretamente (ideal para serviços de responsabilidade).">?</span>
+            </div>
+            <select id="new-svc-type" onchange="toggleAddFields()" style="padding:9px 12px;border:1.5px solid #e5e7eb;border-radius:8px;font-family:inherit;font-size:.85rem;background:#fff;color:#111;">
+              <option value="time">Por tempo (min)</option>
+              <option value="fixed">Valor fixo (R$)</option>
+            </select>
+          </div>
+          <div id="new-svc-time-wrap" class="field">
+            <div class="field-label">
+              Tempo (min)
+              <span class="tt" data-tip="Minutos necessários para executar este serviço uma vez. Seja realista — cronometre se precisar.">?</span>
+            </div>
+            <input type="number" id="new-svc-time" placeholder="10" min="0.5" step="0.5">
+          </div>
+          <div id="new-svc-val-wrap" class="field" style="display:none">
+            <div class="field-label">Valor (R$)</div>
+            <input type="number" id="new-svc-val" placeholder="120" min="0" step="0.01">
+          </div>
+          <div style="display:flex;align-items:flex-end">
+            <button onclick="addService()" class="btn btn-black" style="width:100%">
+              <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Adicionar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PASSO 4: PRAZO -->
+    <div class="card">
+      <div class="card-header">
+        <span class="step-badge">4</span>
+        <h2>Prazo de pagamento</h2>
+        <button class="btn btn-outline btn-sm" onclick="openTutorial(7)">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Explicar
+        </button>
+      </div>
+      <div class="card-body">
+        <div class="term-grid">
+          <button class="term-btn active" id="term-monthly" onclick="selectTerm('monthly')">
+            <div class="t-name">Mensal</div>
+            <div class="t-disc">Sem desconto</div>
+          </button>
+          <button class="term-btn" id="term-quarterly" onclick="selectTerm('quarterly')">
+            <div class="t-name">Trimestral</div>
+            <div class="t-disc">5% de desconto</div>
+          </button>
+          <button class="term-btn" id="term-annually" onclick="selectTerm('annually')">
+            <div class="t-name">Anual</div>
+            <div class="t-disc">10% de desconto</div>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- PERSONALIZAÇÃO -->
+    <div class="card">
+      <div class="card-header">
+        <span class="step-badge">5</span>
+        <h2>Personalize sua proposta</h2>
+      </div>
+      <div class="card-body">
+        <div class="config-grid">
+          <div class="field">
+            <div class="field-label">Nome da empresa</div>
+            <input type="text" id="company-name" placeholder="Sua Empresa LTDA">
+          </div>
+          <div class="field">
+            <div class="field-label">Nome do responsável</div>
+            <input type="text" id="contact-name" placeholder="João Silva">
+          </div>
+          <div class="field">
+            <div class="field-label">E-mail de contato</div>
+            <input type="email" id="contact-email" placeholder="contato@empresa.com">
+          </div>
+          <div class="field">
+            <div class="field-label">WhatsApp</div>
+            <input type="text" id="contact-whatsapp" placeholder="(11) 99999-9999">
+          </div>
+          <div class="field" style="grid-column: 1/-1">
+            <div class="field-label">
+              URL do logo (opcional)
+              <span class="tt" data-tip="Cole o link direto de uma imagem hospedada. Deve terminar em .png ou .jpg. Você pode hospedar no Imgur, no seu site, ou no Google Drive (com link público).">?</span>
+            </div>
+            <input type="text" id="logo-url" placeholder="https://suaempresa.com/logo.png">
+          </div>
+          <div class="field">
+            <div class="field-label">
+              Cor da proposta
+              <span class="tt" data-tip="Usada nos títulos e elementos visuais do PDF gerado. Escolha a cor principal da sua marca.">?</span>
+            </div>
+            <input type="color" id="primary-color-picker" value="#000000" style="height:40px;padding:3px;border-radius:8px;border:1.5px solid #e5e7eb;cursor:pointer;width:100%">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-block">
+      <h2>Desenvolvido pelo <span>Café com BPO</span></h2>
+      <p>Quer dominar a precificação, vendas e processos do seu BPO Financeiro? Faça parte da comunidade.</p>
+      <div class="cta-btns">
+        <a href="https://cafecombpo.com" target="_blank" rel="noopener noreferrer" style="background:#f59e0b;color:#000;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:.9rem;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          Acessar a Comunidade
+        </a>
+        <a href="https://www.youtube.com/@cafecombpo" target="_blank" rel="noopener noreferrer" style="background:#dc2626;color:#fff;font-weight:700;padding:12px 28px;border-radius:8px;text-decoration:none;font-size:.9rem;display:flex;align-items:center;gap:8px;transition:opacity .2s" onmouseover="this.style.opacity='.85'" onmouseout="this.style.opacity='1'">
+          <svg width="18" height="18" fill="currentColor" viewBox="0 0 24 24"><path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/></svg>
+          Siga no YouTube
+        </a>
+      </div>
+    </div>
+
+  </div><!-- left-col -->
+
+  <!-- RESUMO -->
+  <div>
+    <div class="summary-card">
+      <div class="sum-header">
+        <h2>Resumo da Precificação</h2>
+      </div>
+      <div class="sum-body">
+        <div class="sum-row">
+          <span class="lbl">Custo operacional
+            <span class="tt" data-tip="Soma do custo de todos os serviços ativos: (minutos × custo/min) + serviços fixos.">?</span>
+          </span>
+          <span class="val" id="summary-cost">R$ 0,00</span>
+        </div>
+        <div class="sum-row">
+          <span class="lbl">Margem de lucro
+            <span class="tt" data-tip="Lucro líquido sobre o custo operacional, conforme o cenário escolhido.">?</span>
+          </span>
+          <span class="val" id="summary-profit">R$ 0,00</span>
+        </div>
+        <div class="sum-row">
+          <span class="lbl">Comissão de vendas
+            <span class="tt" data-tip="Valor da comissão calculado sobre o preço bruto. Só aparece se você configurou percentual de comissão.">?</span>
+          </span>
+          <span class="val" id="summary-commission">R$ 0,00</span>
+        </div>
+        <div class="sum-row">
+          <span class="lbl">Impostos (Simples)
+            <span class="tt" data-tip="Calculado 'por dentro' do preço bruto para garantir que o Simples Nacional não reduz sua margem real.">?</span>
+          </span>
+          <span class="val" id="summary-tax">R$ 0,00</span>
+        </div>
+        <div class="sum-total-row">
+          <span>Subtotal</span>
+          <span id="summary-subtotal">R$ 0,00</span>
+        </div>
+        <div class="sum-row disc" style="margin-top:8px">
+          <span class="lbl">Desconto de prazo
+            <span class="tt" data-tip="Desconto aplicado pelo prazo de pagamento escolhido. 0% mensal, 5% trimestral, 10% anual.">?</span>
+          </span>
+          <span class="val" id="summary-discount">− R$ 0,00</span>
+        </div>
+
+        <div class="sum-total-box">
+          <div class="tl">Valor final do serviço</div>
+          <div class="tv" id="summary-total">R$ 0,00</div>
+          <div class="tp-text" id="summary-period">por mês</div>
+        </div>
+
+        <button class="explain-btn" id="btn-explain-price">
+          <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          Entenda como este preço foi montado
+        </button>
+
+        <button class="btn-pdf" id="btn-generate-proposal">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          Gerar Proposta (PDF)
+        </button>
+      </div>
+    </div>
+  </div>
+
+</div><!-- app-body -->
+
+<p class="footer-note">Esta calculadora é uma ferramenta de estimativa por volumetria. Os valores finais podem variar conforme negociação, perfil do cliente e complexidade da operação.</p>
+
+<!-- MODAL EXPLICATIVO -->
+<div class="modal-overlay" id="explain-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3>Como este preço foi montado?</h3>
+      <button class="modal-close" id="btn-close-explain">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+      </button>
+    </div>
+    <div class="modal-body">
+      <section>
+        <h4><span class="step-num">1</span> Metodologia de Volumetria</h4>
+        <p>Calculamos o tempo total que sua equipe leva para executar os serviços selecionados. Esse tempo é multiplicado pelo seu <strong>custo por minuto</strong> operacional para chegar ao custo base. Serviços de valor fixo são somados diretamente.</p>
+      </section>
+      <section>
+        <h4><span class="step-num">2</span> Markup — Precificação de Fora para Dentro</h4>
+        <p>Sobre o custo operacional, aplicamos a fórmula: <strong>preço = custo × (1 + margem) ÷ (1 − impostos − comissão)</strong>. Isso garante que o valor final cubra todos os gastos e ainda gere o lucro desejado.</p>
+      </section>
+      <section>
+        <h4><span class="step-num">3</span> Desconto de Prazo</h4>
+        <p>Aplicado sobre o subtotal. O desconto incentiva contratos mais longos, que são mais saudáveis para o seu caixa mesmo com margem levemente menor.</p>
+      </section>
+      <div class="modal-note">
+        <p><strong>Nota importante:</strong> esta calculadora usa <strong>volumetria (tempo × custo)</strong>. No Café com BPO ensinamos também a <strong>Teoria das Restrições</strong>, que foca no valor entregue ao cliente — o que permite preços significativamente maiores para os mesmos serviços. Este cálculo é um excelente piso de segurança para garantir que você não opere no prejuízo.</p>
+      </div>
+      <div style="text-align:center;padding-top:16px;border-top:1px solid #f0f0f0;margin-top:8px">
+        <button id="btn-close-explain-bottom" class="btn btn-black" style="padding:12px 32px">Entendi, vamos em frente!</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let currentScenario = 'moderate';
+let currentTerm     = 'monthly';
+
+const SCENARIOS = {
+  conservative: { margin: 0.30 },
+  moderate:     { margin: 0.50 },
+  aggressive:   { margin: 1.00 },
+};
+const TERMS = {
+  monthly:   { discount: 0    },
+  quarterly: { discount: 0.05 },
+  annually:  { discount: 0.10 },
+};
+
+// Serviços — espelha a planilha original
+// Tempos em minutos por unidade, conforme metodologia Café com BPO
+let services = [
+  { id:1,  name:'Emissão de NF automática',           type:'time',  time:1.3,  fixedVal:0,    qty:1, active:false,
+    tip:'Sistema emite automaticamente, operador valida e confirma. Tempo curto porque o processo é automatizado pelo sistema.' },
+  { id:2,  name:'Emissão de NF avulsa',               type:'time',  time:2.3,  fixedVal:0,    qty:1, active:false,
+    tip:'Preenchimento manual dos dados do cliente, verificação e emissão. Mais lento que a automática por requerer atenção manual.' },
+  { id:3,  name:'Emissão de boleto automático',        type:'time',  time:2,    fixedVal:0,    qty:1, active:false,
+    tip:'Sistema gera o boleto, operador valida dados e confirma envio. Processo automatizado com verificação humana.' },
+  { id:4,  name:'Emissão de boleto avulso',            type:'time',  time:3,    fixedVal:0,    qty:1, active:false,
+    tip:'Preenchimento manual dos dados do beneficiário, valor e vencimento. Mais etapas que o automático.' },
+  { id:5,  name:'Registros de recebimentos',           type:'time',  time:2.3,  fixedVal:0,    qty:1, active:false,
+    tip:'Lançamento de cada recebimento no sistema: abrir, localizar, lançar valor, data e origem, confirmar. Tempo por transação.' },
+  { id:6,  name:'Registros de pagamentos',             type:'time',  time:2.3,  fixedVal:0,    qty:1, active:false,
+    tip:'Lançamento de cada pagamento: identificar, lançar no sistema, categorizar e confirmar. Tempo por transação.' },
+  { id:7,  name:'Agendamento de pagamentos',           type:'time',  time:5,    fixedVal:0,    qty:1, active:false,
+    tip:'Verificar saldo disponível, validar fornecedor/beneficiário, agendar no banco/sistema, confirmar e registrar. Mais etapas = mais tempo.' },
+  { id:8,  name:'Gestão de conta bancária',            type:'fixed', time:0,    fixedVal:120,  qty:1, active:false,
+    tip:'Gestão e monitoramento da conta bancária do cliente. Valor fixo mensal por conta gerenciada.' },
+  { id:9,  name:'Gestão da conta caixa',               type:'fixed', time:0,    fixedVal:4500, qty:1, active:false,
+    tip:'Controle total da liquidez da empresa cliente. Alto valor por responsabilidade: qualquer erro impacta a operação do cliente.' },
+  { id:10, name:'Gestão de plataforma de recebimento', type:'fixed', time:0,    fixedVal:350,  qty:1, active:false,
+    tip:'Administração de maquininhas, gateways de pagamento ou plataformas de cobrança. Valor mensal por plataforma.' },
+  { id:11, name:'Conciliação de fatura de cartão',     type:'fixed', time:0,    fixedVal:500,  qty:1, active:false,
+    tip:'Revisão de todas as transações, contestações, mapeamento de tarifas e reconciliação com o financeiro. Valor por fatura mensal.' },
+  { id:12, name:'Reunião mensal de uma hora',          type:'fixed', time:0,    fixedVal:250,  qty:1, active:false,
+    tip:'Reunião estratégica mensal com o cliente. Sua hora vale diferente de hora operacional — é consultoria, não execução.' },
+  { id:13, name:'Envio de relatórios mensais',         type:'fixed', time:0,    fixedVal:100,  qty:1, active:false,
+    tip:'Envio organizado de relatórios financeiros mensais. Valor pelo pacote de entrega, não pelo tempo de elaboração.' },
+  { id:14, name:'Enviar movimentação para contador',   type:'fixed', time:0,    fixedVal:100,  qty:1, active:false,
+    tip:'Organização e envio da movimentação financeira para o contador do cliente. Valor pelo processo de entrega organizada.' },
+  { id:15, name:'Cobrança ativa',                      type:'fixed', time:0,    fixedVal:1500, qty:1, active:false,
+    tip:'Gestão de inadimplência: contatos, tratativas, negociações, acordos. Valor de resultado e responsabilidade, não de tempo.' },
+  { id:16, name:'BTO (Business Transaction Ops.)',     type:'fixed', time:0,    fixedVal:500,  qty:1, active:false,
+    tip:'Operações transacionais amplas do BTO. Valor fixo mensal pelo escopo contratado.' },
+];
+let nextId = 17;
+
+// ── UTILS ──
+const fmt    = v => v.toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const fmtPct = v => (v*100).toFixed(0)+'%';
+const $      = id => document.getElementById(id);
+const numVal = id => parseFloat($(id).value) || 0;
+const intVal = id => parseInt($(id).value)   || 1;
+
+// ── CONFIG ──
+function getConfig() {
+  const fixedCost  = numVal('fixed-cost');
+  const teamSize   = intVal('team-size');
+  const hoursMonth = numVal('hours-month');
+  const simpleRate = numVal('simple-rate')     / 100;
+  const commRate   = numVal('commission-rate') / 100;
+  const totalHours = teamSize * hoursMonth;
+  const costPerHour = totalHours > 0 ? fixedCost / totalHours : 0;
+  const costPerMin  = costPerHour / 60;
+  return { fixedCost, teamSize, hoursMonth, simpleRate, commRate, costPerHour, costPerMin, totalHours };
+}
+
+function calcServiceCost(svc, costPerMin) {
+  if (!svc.active) return 0;
+  return svc.type === 'time'
+    ? svc.time * svc.qty * costPerMin
+    : svc.fixedVal * svc.qty;
+}
+
+// ── CÁLCULO ──
+function calculate() {
+  const cfg = getConfig();
+  $('cost-hour').value           = cfg.costPerHour.toFixed(2);
+  $('cost-hour-display').textContent  = fmt(cfg.costPerHour);
+  $('cost-min-display').textContent   = fmt(cfg.costPerMin);
+  $('total-hours-display').textContent = cfg.totalHours.toFixed(0)+'h';
+
+  const totalOp = services.reduce((a,s) => a + calcServiceCost(s, cfg.costPerMin), 0);
+  const margin   = SCENARIOS[currentScenario].margin;
+  const discount = TERMS[currentTerm].discount;
+
+  // custo × (1 + margem) / (1 − simples − comissão)
+  const denom = 1 - cfg.simpleRate - cfg.commRate;
+  const priceBase = denom > 0
+    ? (totalOp * (1 + margin)) / denom
+    : totalOp * (1 + margin + cfg.simpleRate + cfg.commRate);
+
+  const profitVal   = totalOp * margin;
+  const commVal     = priceBase * cfg.commRate;
+  const taxVal      = priceBase * cfg.simpleRate;
+  const discountVal = priceBase * discount;
+  const finalPrice  = priceBase - discountVal;
+
+  $('summary-cost').textContent       = fmt(totalOp);
+  $('summary-profit').textContent     = fmt(profitVal);
+  $('summary-commission').textContent = fmt(commVal);
+  $('summary-tax').textContent        = fmt(taxVal);
+  $('summary-subtotal').textContent   = fmt(priceBase);
+  $('summary-discount').textContent   = `− ${fmt(discountVal)}`;
+  $('summary-total').textContent      = fmt(finalPrice);
+
+  const periods = { monthly:'por mês', quarterly:'a cada 3 meses', annually:'por ano' };
+  $('summary-period').textContent = periods[currentTerm];
+
+  // atualiza valor calculado dos serviços de tempo
+  services.forEach(svc => {
+    const el = $(`svc-val-${svc.id}`);
+    if (el && svc.type === 'time') {
+      el.textContent = svc.active
+        ? fmt(svc.time * svc.qty * cfg.costPerMin)
+        : '—';
+    }
+  });
+}
+
+// ── RENDER ──
+function renderServices() {
+  const tbody = $('services-tbody');
+  tbody.innerHTML = '';
+  if (!services.length) {
+    tbody.innerHTML = `<tr><td colspan="5" style="text-align:center;padding:24px;color:#9ca3af;font-size:.85rem">Nenhum serviço. Adicione abaixo.</td></tr>`;
+    calculate(); return;
+  }
+  services.forEach(svc => {
+    const tr = document.createElement('tr');
+    tr.className = svc.active ? 'active-row' : '';
+
+    const badge = svc.type === 'time'
+      ? `<span class="badge-time">Tempo</span>`
+      : `<span class="badge-fixed">Fixo</span>`;
+
+    const meta = svc.type === 'time'
+      ? `${svc.time} min/un`
+      : `valor editável`;
+
+    const tip = svc.tip
+      ? `<span class="tt" data-tip="${svc.tip.replace(/"/g,"'")}">?</span>`
+      : '';
+
+    const valueCell = svc.type === 'time'
+      ? `<span id="svc-val-${svc.id}" style="font-size:.8rem;color:#6b7280">—</span>`
+      : `<input type="number" class="val-inp" value="${svc.fixedVal}" min="0" step="0.01"
+           onchange="updateFixedVal(${svc.id}, this.value)"
+           ${!svc.active ? 'disabled' : ''}>`;
+
+    tr.innerHTML = `
+      <td>
+        <label class="tog">
+          <input type="checkbox" ${svc.active ? 'checked' : ''} onchange="toggleService(${svc.id})">
+          <span class="tog-sl"></span>
+        </label>
+      </td>
+      <td>
+        <div style="font-weight:600;font-size:.84rem;color:#111;display:flex;align-items:center;gap:4px">
+          ${svc.name}${tip}
+        </div>
+        <div style="margin-top:2px">${badge} <span style="font-size:.7rem;color:#9ca3af">${meta}</span></div>
+      </td>
+      <td style="text-align:center">
+        <input type="number" class="qty-inp" value="${svc.qty}" min="1"
+          onchange="updateQty(${svc.id}, this.value)"
+          ${!svc.active ? 'disabled' : ''}>
+      </td>
+      <td style="text-align:center">${valueCell}</td>
+      <td>
+        <button class="btn-rm" onclick="removeService(${svc.id})" title="Remover serviço">
+          <svg width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14H6L5 6M10 11v6M14 11v6M9 6V4h6v2"/>
+          </svg>
+        </button>
+      </td>`;
+    tbody.appendChild(tr);
+  });
+  calculate();
+}
+
+// ── AÇÕES ──
+function toggleService(id) {
+  const s = services.find(x => x.id === id);
+  if (s) s.active = !s.active;
+  renderServices();
+}
+function updateQty(id, v) {
+  const s = services.find(x => x.id === id);
+  if (s) { s.qty = parseInt(v) || 1; calculate(); }
+}
+function updateFixedVal(id, v) {
+  const s = services.find(x => x.id === id);
+  if (s) { s.fixedVal = parseFloat(v) || 0; calculate(); }
+}
+function removeService(id) {
+  if (!confirm('Remover este serviço?')) return;
+  services = services.filter(x => x.id !== id);
+  renderServices();
+}
+function toggleAddFields() {
+  const t = $('new-svc-type').value;
+  $('new-svc-time-wrap').style.display = t === 'time'  ? '' : 'none';
+  $('new-svc-val-wrap').style.display  = t === 'fixed' ? '' : 'none';
+}
+function addService() {
+  const name = $('new-svc-name').value.trim();
+  const type = $('new-svc-type').value;
+  if (!name) { alert('Informe o nome do serviço.'); return; }
+  if (type === 'time') {
+    const time = parseFloat($('new-svc-time').value) || 0;
+    if (time <= 0) { alert('Informe o tempo em minutos.'); return; }
+    services.push({ id:nextId++, name, type:'time', time, fixedVal:0, qty:1, active:true, tip:'' });
+  } else {
+    const fv = parseFloat($('new-svc-val').value) || 0;
+    services.push({ id:nextId++, name, type:'fixed', time:0, fixedVal:fv, qty:1, active:true, tip:'' });
+  }
+  $('new-svc-name').value = '';
+  $('new-svc-time').value = '';
+  $('new-svc-val').value  = '';
+  services.sort((a,b) => a.name.localeCompare(b.name,'pt'));
+  renderServices();
+}
+
+function selectScenario(sc) {
+  currentScenario = sc;
+  document.querySelectorAll('.scenario-btn').forEach(b => b.classList.remove('active'));
+  $(`sc-${sc}`).classList.add('active');
+  calculate();
+}
+function selectTerm(t) {
+  currentTerm = t;
+  document.querySelectorAll('.term-btn').forEach(b => b.classList.remove('active'));
+  $(`term-${t}`).classList.add('active');
+  calculate();
+}
+
+// ── TUTORIAL ──
+let tutStep = 0;
+const tutTotal = 9; // passos 0-8
+
+function buildStepNav() {
+  const nav = $('tp-steps-nav');
+  nav.innerHTML = '';
+  for (let i = 0; i < tutTotal; i++) {
+    const btn = document.createElement('button');
+    btn.className = `tp-step-dot${i === tutStep ? ' active' : ''}`;
+    btn.textContent = i + 1;
+    btn.onclick = () => goToStep(i);
+    nav.appendChild(btn);
+  }
+}
+
+function updateTutorial() {
+  document.querySelectorAll('.tp-step').forEach((el,i) => {
+    el.classList.toggle('active', i === tutStep);
+  });
+  buildStepNav();
+  $('tp-counter').textContent = `${tutStep+1} de ${tutTotal}`;
+  $('tp-prev').disabled = tutStep === 0;
+  $('tp-prev').style.opacity = tutStep === 0 ? '.4' : '1';
+  const nextBtn = $('tp-next');
+  if (tutStep === tutTotal - 1) {
+    nextBtn.textContent = 'Concluir ✓';
+    nextBtn.onclick = () => { closeTutorial(); };
+  } else {
+    nextBtn.textContent = 'Próximo →';
+    nextBtn.onclick = () => tutNav(1);
+  }
+  $('tp-content').scrollTop = 0;
+}
+
+function goToStep(i) {
+  tutStep = i;
+  updateTutorial();
+}
+
+function tutNav(dir) {
+  tutStep = Math.max(0, Math.min(tutTotal-1, tutStep+dir));
+  updateTutorial();
+}
+
+function openTutorial(step) {
+  if (step !== undefined) tutStep = step;
+  updateTutorial();
+  $('tut-panel').classList.add('open');
+  $('tut-overlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeTutorial() {
+  $('tut-panel').classList.remove('open');
+  $('tut-overlay').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function dismissBanner() {
+  document.querySelector('.tutorial-banner').style.display = 'none';
+}
+
+// ── PROPOSTA PDF ──
+function generateProposal() {
+  const active = services.filter(s => s.active);
+  if (!active.length) { alert('Ative pelo menos um serviço antes de gerar a proposta.'); return; }
+
+  const cfg      = getConfig();
+  const margin   = SCENARIOS[currentScenario].margin;
+  const discount = TERMS[currentTerm].discount;
+  const totalOp  = active.reduce((a,s) => a + calcServiceCost(s, cfg.costPerMin), 0);
+  const denom    = 1 - cfg.simpleRate - cfg.commRate;
+  const priceBase = denom > 0 ? (totalOp*(1+margin))/denom : totalOp*(1+margin+cfg.simpleRate+cfg.commRate);
+  const final    = priceBase * (1-discount);
+
+  const company = $('company-name').value  || 'Sua Empresa';
+  const name    = $('contact-name').value  || '';
+  const email   = $('contact-email').value || '';
+  const wa      = $('contact-whatsapp').value || '';
+  const logo    = $('logo-url').value       || '';
+  const color   = $('primary-color-picker').value || '#000000';
+
+  const scNames   = { conservative:'Conservador', moderate:'Moderado', aggressive:'Agressivo' };
+  const termNames = { monthly:'Mensal', quarterly:'Trimestral (5% desc.)', annually:'Anual (10% desc.)' };
+
+  const rows = active.map(s => {
+    const cost   = calcServiceCost(s, cfg.costPerMin);
+    const detail = s.type === 'time' ? `${s.time} min × ${s.qty} execuções` : `Valor fixo mensal × ${s.qty}`;
+    return `<tr>
+      <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;font-size:.88rem">${s.name}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;color:#888;font-size:.8rem;text-align:center">${detail}</td>
+      <td style="padding:10px 14px;border-bottom:1px solid #f0f0f0;text-align:right;font-weight:600;font-size:.88rem">${fmt(cost)}</td>
+    </tr>`;
+  }).join('');
+
+  const logoHtml = logo
+    ? `<img src="${logo}" alt="Logo" style="max-height:50px;max-width:160px;object-fit:contain">`
+    : `<div style="font-size:1.1rem;font-weight:700;color:${color}">${company}</div>`;
+
+  const html = `<!DOCTYPE html><html lang="pt-BR"><head>
+<meta charset="UTF-8">
+<title>Proposta — ${company}</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;color:#1a1a1a;background:#fff;font-size:15px}
+@media print{.no-print{display:none!important}@page{margin:18mm 16mm}}
+.page{max-width:820px;margin:0 auto;padding:44px 48px}
+.hdr{display:flex;justify-content:space-between;align-items:flex-start;padding-bottom:22px;border-bottom:2px solid ${color};margin-bottom:28px}
+.hdr-r{text-align:right;color:#666;font-size:.82rem;line-height:1.6}
+.hdr-r strong{display:block;color:#111;font-size:.95rem;font-weight:700;margin-bottom:2px}
+.info-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 24px;font-size:.82rem;color:#555;margin-bottom:24px}
+.info-grid strong{display:block;color:#111;font-weight:600;margin-bottom:1px}
+.sec{font-size:.65rem;text-transform:uppercase;letter-spacing:.1em;font-weight:700;color:${color};margin-bottom:8px}
+table{width:100%;border-collapse:collapse}
+th{text-align:left;padding:9px 14px;background:${color};color:#fff;font-size:.7rem;letter-spacing:.06em;text-transform:uppercase;font-weight:700}
+th:last-child{text-align:right}
+.total-box{background:${color};color:#fff;padding:20px 24px;border-radius:8px;display:flex;justify-content:space-between;align-items:center;margin-top:24px;gap:16px}
+.total-box .lbl{font-size:.75rem;opacity:.72;margin-bottom:3px}
+.total-box .val{font-size:1.9rem;font-weight:700}
+.total-box .meta{text-align:right;font-size:.78rem;opacity:.82;line-height:1.7}
+.ft{margin-top:36px;padding-top:12px;border-top:1px solid #eee;font-size:.72rem;color:#aaa;text-align:center}
+.print-btn{position:fixed;bottom:22px;right:22px;background:${color};color:#fff;border:none;padding:10px 20px;border-radius:7px;font-family:'Inter',sans-serif;font-size:.85rem;font-weight:700;cursor:pointer;box-shadow:0 3px 12px rgba(0,0,0,.18)}
+</style></head><body>
+<div class="page">
+<div class="hdr">
+  <div>${logoHtml}</div>
+  <div class="hdr-r">
+    <strong>Proposta Comercial</strong>
+    Data: ${new Date().toLocaleDateString('pt-BR')}<br>
+    Validade: 15 dias
+  </div>
+</div>
+<div class="info-grid">
+  <div><strong>Empresa prestadora</strong>${company}</div>
+  <div><strong>Responsável</strong>${name||'—'}</div>
+  <div><strong>E-mail</strong>${email||'—'}</div>
+  <div><strong>WhatsApp</strong>${wa||'—'}</div>
+</div>
+<div style="display:flex;gap:18px;flex-wrap:wrap;font-size:.78rem;color:#555;margin-bottom:18px">
+  <span>Cenário: <strong style="color:${color}">${scNames[currentScenario]} (${fmtPct(margin)} margem)</strong></span>
+  <span>Prazo: <strong style="color:${color}">${termNames[currentTerm]}</strong></span>
+</div>
+<div class="sec">Escopo dos serviços</div>
+<table>
+  <thead><tr>
+    <th>Serviço</th>
+    <th style="text-align:center">Detalhamento</th>
+    <th style="text-align:right">Custo operacional</th>
+  </tr></thead>
+  <tbody>${rows}</tbody>
+</table>
+<div class="total-box">
+  <div>
+    <div class="lbl">Investimento mensal</div>
+    <div class="val">${fmt(final)}</div>
+  </div>
+  <div class="meta">
+    Custo operacional: ${fmt(totalOp)}<br>
+    Impostos (${fmtPct(cfg.simpleRate)}): ${fmt(priceBase*cfg.simpleRate)}<br>
+    ${cfg.commRate>0?`Comissão (${fmtPct(cfg.commRate)}): ${fmt(priceBase*cfg.commRate)}<br>`:''}
+    ${discount>0?`Desconto prazo (${fmtPct(discount)}): − ${fmt(priceBase*discount)}`:''}
+  </div>
+</div>
+<div class="ft">
+  Esta proposta é válida por 15 dias. Desenvolvido com Café com BPO.<br>
+  ${company}${email?' | '+email:''}${wa?' | '+wa:''}
+</div>
+</div>
+<button class="print-btn no-print" onclick="window.print()">Imprimir / Salvar PDF</button>
+</body></html>`;
+
+  const w = window.open('','_blank');
+  w.document.write(html);
+  w.document.close();
+}
+
+// ── EVENTOS ──
+['fixed-cost','team-size','hours-month','simple-rate','commission-rate'].forEach(id => {
+  $(id).addEventListener('input', calculate);
+});
+
+['conservative','moderate','aggressive'].forEach(sc => {
+  $(`sc-${sc}`).addEventListener('click', () => selectScenario(sc));
+});
+['monthly','quarterly','annually'].forEach(t => {
+  $(`term-${t}`).addEventListener('click', () => selectTerm(t));
+});
+
+$('btn-generate-proposal').addEventListener('click', generateProposal);
+
+const explainModal = $('explain-modal');
+$('btn-explain-price').addEventListener('click', () => explainModal.classList.add('open'));
+$('btn-close-explain').addEventListener('click', () => explainModal.classList.remove('open'));
+$('btn-close-explain-bottom').addEventListener('click', () => explainModal.classList.remove('open'));
+explainModal.addEventListener('click', e => { if(e.target===explainModal) explainModal.classList.remove('open'); });
+
+// ── INIT ──
+buildStepNav();
+renderServices();
+selectScenario('moderate');
+selectTerm('monthly');
+</script>
+</body>
+</html>
