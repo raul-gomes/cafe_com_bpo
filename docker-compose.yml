@@ -74,11 +74,10 @@ services:
     # Ollama is accessible through Nginx Gateway; host port 11434 removed to avoid conflict
 
   nginx:
-    image: nginx:alpine
+    build:
+      context: ./infra/nginx
     ports:
       - "80:80"
-    volumes:
-      - ./infra/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
     depends_on:
       - api
       - web
