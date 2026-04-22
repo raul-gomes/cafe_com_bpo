@@ -1,4 +1,5 @@
 from sqlalchemy import Column, String, Integer, DateTime, ForeignKey, Boolean, Text, JSON, UUID
+from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 import uuid
 from datetime import datetime, timezone
@@ -12,7 +13,7 @@ class DiscussionPost(Base):
     author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     title = Column(String(180), nullable=False)
     message = Column(Text, nullable=False)
-    tags = Column(JSON(), nullable=False, default=list)
+    tags = Column(ARRAY(String), nullable=False, default=list)
     status = Column(String(30), nullable=False, default="published")
     comments_count = Column(Integer, nullable=False, default=0)
     views_count = Column(Integer, nullable=False, default=0)
