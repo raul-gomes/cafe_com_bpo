@@ -73,7 +73,7 @@ services:
       - ollama_data:/root/.ollama
     # Ollama is accessible through Nginx Gateway; host port 11434 removed to avoid conflict
 
-  nginx:
+  gateway:
     build:
       context: ./infra/nginx
     ports:
