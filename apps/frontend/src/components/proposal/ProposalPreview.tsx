@@ -9,12 +9,6 @@ import { useAuth } from '../../context/AuthContext';
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
 
-const termLabels: Record<number, string> = {
-  0:    'por mês',
-  0.05: 'a cada 3 meses',
-  0.10: 'por ano',
-};
-
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface ProposalPreviewProps {
   form: PricingFormData;
@@ -31,7 +25,6 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
   generatedAt,
 }) => {
   const { user } = useAuth();
-  const activeServices = form.services.filter(s => s.active);
 
   // Informações da "Minha Empresa" (Logado)
   const myCompany = user?.company || 'Minha empresa';
