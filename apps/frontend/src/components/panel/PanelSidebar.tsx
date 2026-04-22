@@ -45,7 +45,18 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
         </div>
 
         <div className="panel-sidebar__profile">
-          <div className="panel-sidebar__avatar">{initials}</div>
+          <div 
+            className="panel-sidebar__avatar"
+            style={user?.avatar_url ? { 
+              backgroundImage: `url(${user.avatar_url})`, 
+              backgroundSize: 'cover', 
+              backgroundPosition: 'center', 
+              color: 'transparent',
+              border: '1px solid var(--ds-border)'
+            } : {}}
+          >
+            {!user?.avatar_url && initials}
+          </div>
           <div className="panel-sidebar__user-info">
             <div className="panel-sidebar__user-name">{user?.name || 'Usuário'}</div>
             <div className="panel-sidebar__user-email">{user?.email || ''}</div>

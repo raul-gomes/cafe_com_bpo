@@ -27,6 +27,12 @@ class Settings(BaseSettings):
     # OneDrive & Upload Settings
     microsoft_tenant_id: str
     microsoft_storage_account_id: str
+    
+    # Cloudinary Settings
+    cloudinary_cloud_name: str
+    cloudinary_api_key: str
+    cloudinary_api_secret: str
+
     file_upload_max_size: int = 5242880
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")

@@ -5,6 +5,7 @@ import { useGeneratePDF } from '../../lib/useGeneratePDF';
 import logoAsset from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { getApiUrl } from '../../api/client';
+import { getClients, ClientData } from '../../api/clients';
 
 interface Proposal {
   id: string;
@@ -17,35 +18,51 @@ interface Proposal {
 export const OrcamentoDetalhadoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [proposal, setProposal] = useState<Proposal | null>(null);
+  const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { generate: generatePDF } = useGeneratePDF();
 
-  const fetchProposal = useCallback(async () => {
+  const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const resp = await apiClient.get<Proposal>(`/api/proposals/${id}`);
-      setProposal(resp.data);
+      const [proposalResp, clientsResp] = await Promise.all([
+        apiClient.get<Proposal>(`/api/proposals/${id}`),
+        getClients()
+      ]);
+      setProposal(proposalResp.data);
+      setClients(clientsResp);
     } catch (err) {
-      console.error('Erro ao carregar orçamento:', err);
+      console.error('Erro ao carregar dados:', err);
     } finally {
       setLoading(false);
     }
   }, [id]);
 
   useEffect(() => {
-    if (id) fetchProposal();
-  }, [id, fetchProposal]);
+    if (id) fetchData();
+  }, [id, fetchData]);
 
   const handlePrint = async () => {
     if (!proposal) return;
-    const finalLogoUrl = user?.avatar_url ? `${getApiUrl()}${user.avatar_url}` : logoAsset;
+    
+    // Fix: Se a avatar_url já for um link absoluto (Cloudinary), não concatenamos com getApiUrl()
+    const avatarUrl = user?.avatar_url;
+    const finalLogoUrl = avatarUrl 
+      ? (avatarUrl.startsWith('http') ? avatarUrl : `${getApiUrl()}${avatarUrl}`) 
+      : logoAsset;
+
+    // Busca o email do cliente correspondente
+    const client = clients.find(c => c.name.trim().toLowerCase() === proposal.client_name.trim().toLowerCase());
+
     await generatePDF({
       form: proposal.input_payload,
       pricing: proposal.result_payload,
       logoUrl: finalLogoUrl,
-      clientName: proposal.client_name
+      clientName: proposal.client_name,
+      clientEmail: client?.email || '', // Passa o email do cliente encontrado
+      provider: user
     });
   };
 

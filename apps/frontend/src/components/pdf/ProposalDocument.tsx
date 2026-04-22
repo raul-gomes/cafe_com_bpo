@@ -1,7 +1,6 @@
 /**
  * ProposalDocument.tsx
  * Novo modelo de Proposta Comercial BPO (Single Page).
- * Inspirado no design limpo e minimalista de docs/modelo_proposta.pdf.
  */
 import React from 'react';
 import {
@@ -40,8 +39,9 @@ const s = StyleSheet.create({
     marginBottom: 10,
   },
   logo: {
-    width: 50,
-    height: 50,
+    width: 60,
+    height: 60,
+    objectFit: 'contain',
   },
   headerMeta: {
     textAlign: 'right',
@@ -248,7 +248,7 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
   const providerCompany = provider?.company || 'Minha empresa';
   const providerName = provider?.name || 'Meu nome';
   const providerEmail = provider?.email || 'meu@email.com';
-  const providerPhone = '111111111111111'; // Placeholder como solicitado se não houver no objeto User
+  const providerPhone = '111111111111111';
 
   return (
     <Document
@@ -258,7 +258,11 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
       <Page size="A4" style={s.page}>
         {/* HEADER */}
         <View style={s.header}>
-          <Image src={logoUrl} style={s.logo} />
+          {logoUrl ? (
+             <Image src={logoUrl} style={s.logo} />
+          ) : (
+             <View style={s.logo} /> // Espaço reservado se não houver logo
+          )}
           <View style={s.headerMeta}>
             <Text style={s.proposalTitle}>Proposta de Serviços</Text>
             <Text style={s.metaValue}>Data: <Text style={s.metaValue}>{dateStr}</Text></Text>

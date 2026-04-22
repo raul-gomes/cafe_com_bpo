@@ -3,9 +3,6 @@
  *
  * Hook para geração e download imediato do PDF da proposta comercial.
  * Usa @react-pdf/renderer no browser — sem backend, sem upload.
- *
- * O backend será acionado separadamente para persistir a proposta no BD
- * (endpoint /api/proposals — fase seguinte).
  */
 import { useState, useCallback } from 'react';
 import { pdf } from '@react-pdf/renderer';
@@ -13,6 +10,7 @@ import React from 'react';
 import { ProposalDocument } from '../components/pdf/ProposalDocument';
 import { PricingFormData } from '../schemas/pricing';
 import { PricingResult } from './pricingEngine';
+import { getApiUrl } from '../api/client';
 
 import { User } from '../context/AuthContext';
 
@@ -40,7 +38,41 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
     setError(null);
 
     try {
-      const { form, pricing, logoUrl, clientName = 'Cliente', clientEmail = '', provider = null } = opts;
+      const { form, pricing, logoUrl: inputUrl, clientName = 'Cliente', clientEmail = '', provider = null } = opts;
+
+      // 1. Normalização da URL
+      // Remove possíveis prefixos duplicados como "/apihttps://..." ou "/api/api/..."
+      let logoUrl = inputUrl;
+      
+      // Se a URL contém "https://" ou "http://" em qualquer lugar, pegamos apenas a parte absoluta
+      if (logoUrl.includes('http://') || logoUrl.includes('https://')) {
+          const match = logoUrl.match(/https?:\/\/[^\s]+/);
+          if (match) {
+              logoUrl = match[0];
+          }
+      } else if (logoUrl.startsWith('/')) {
+          // Se for um caminho relativo, garante que o prefixo da API está correto
+          const apiBase = getApiUrl();
+          if (!logoUrl.startsWith(apiBase)) {
+              logoUrl = `${apiBase}${logoUrl}`;
+          }
+      }
+
+      // 2. Compatibilidade Cloudinary -> PDF
+      // O @react-pdf não aceita WEBP. Se for Cloudinary, forçamos a transformação para PNG.
+      if (logoUrl.includes('cloudinary.com')) {
+        // Força .png no final para garantir que o Cloudinary entregue um formato aceito pelo PDF
+        // Remove extensões existentes e anexa .png
+        logoUrl = logoUrl.replace(/\.(webp|jpg|jpeg|gif|png)$/i, '') + '.png';
+        
+        // Garante que não temos parâmetros conflitantes (como f_auto) que forçariam webp novamente
+        if (!logoUrl.includes('/f_png')) {
+            // Insere a transformação de formato logo após '/upload/' se existir
+            logoUrl = logoUrl.replace('/upload/', '/upload/f_png/');
+        }
+      }
+
+      console.log('[PDF] Gerando documento com logo final:', logoUrl);
 
       // Renderiza o documento React como blob PDF
       const doc = React.createElement(ProposalDocument, {

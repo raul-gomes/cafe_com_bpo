@@ -6,7 +6,7 @@ import { ProposalListCard } from '../components/dashboard/ProposalListCard';
 import { useGeneratePDF } from '../lib/useGeneratePDF';
 import logoAsset from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
-import { getApiUrl } from '../api/client';
+import { getClients, ClientData } from '../api/clients';
 import '../dashboard.css';
 
 interface Proposal {
@@ -21,25 +21,30 @@ const SESSION_KEY = 'cafe_bpo_proposal';
 
 export const DashboardPage: React.FC = () => {
   const [proposals, setProposals] = useState<Proposal[]>([]);
+  const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { generate: generatePDF } = useGeneratePDF();
 
-  const fetchProposals = async () => {
+  const fetchData = async () => {
     try {
       setLoading(true);
-      const resp = await apiClient.get<Proposal[]>('/api/proposals/');
-      setProposals(resp.data);
+      const [proposalsResp, clientsResp] = await Promise.all([
+        apiClient.get<Proposal[]>('/api/proposals/'),
+        getClients()
+      ]);
+      setProposals(proposalsResp.data);
+      setClients(clientsResp);
     } catch (err) {
-      console.error('Erro ao carregar propostas:', err);
+      console.error('Erro ao carregar dados:', err);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProposals();
+    fetchData();
   }, []);
 
   const handleView = (proposal: Proposal) => {
@@ -54,12 +59,19 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleDownload = async (proposal: Proposal) => {
-    const finalLogoUrl = user?.avatar_url ? `${getApiUrl()}${user.avatar_url}` : logoAsset;
+    // A normalização da URL agora é feita dentro do hook useGeneratePDF
+    const finalLogoUrl = user?.avatar_url || logoAsset;
+
+    // Busca o email do cliente correspondente
+    const client = clients.find(c => c.name.trim().toLowerCase() === proposal.client_name.trim().toLowerCase());
+    
     await generatePDF({
       form: proposal.input_payload,
       pricing: proposal.result_payload,
       logoUrl: finalLogoUrl,
-      clientName: proposal.client_name
+      clientName: proposal.client_name,
+      clientEmail: client?.email || '', // Passa o email do cliente encontrado
+      provider: user
     });
   };
 

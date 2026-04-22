@@ -1,11 +1,57 @@
 import httpx
 import time
 import hashlib
+import cloudinary
+import cloudinary.uploader
 from typing import Optional, Dict, Tuple
 from src.core.config import get_settings
 from src.core.logger import log
 
 settings = get_settings()
+
+# Configuração global do Cloudinary
+cloudinary.config(
+    cloud_name=settings.cloudinary_cloud_name,
+    api_key=settings.cloudinary_api_key,
+    api_secret=settings.cloudinary_api_secret,
+    secure=True
+)
+
+class CloudinaryService:
+    @classmethod
+    async def upload_file(cls, content: bytes, user_id: str) -> Dict:
+        """
+        Faz o upload de um arquivo para o Cloudinary com ID único para evitar conflitos.
+        """
+        try:
+            timestamp = int(time.time())
+            upload_result = cloudinary.uploader.upload(
+                content,
+                folder=f"cafe_com_bpo/avatars/{user_id}",
+                public_id=f"avatar_{timestamp}",
+                overwrite=True,
+                resource_type="image"
+            )
+            
+            return {
+                "id": upload_result["public_id"],
+                "url": upload_result["secure_url"]
+            }
+        except Exception as e:
+            log.error(f"❌ Erro no upload para Cloudinary: {str(e)}")
+            raise e
+
+    @classmethod
+    async def delete_file(cls, public_id: str):
+        """
+        Remove um arquivo do Cloudinary.
+        """
+        try:
+            cloudinary.uploader.destroy(public_id)
+            log.info(f"🗑️ Arquivo Cloudinary removido: {public_id}")
+        except Exception as e:
+            log.error(f"❌ Erro ao deletar arquivo no Cloudinary: {str(e)}")
+
 
 class OneDriveService:
     _token_cache: Dict[str, Tuple[str, float]] = {}
@@ -30,10 +76,6 @@ class OneDriveService:
             "scope": "https://graph.microsoft.com/.default",
             "grant_type": "client_credentials",
         }
-        
-        # NOTA: O usuário mencionou usar as mesmas credenciais do OAuth se possível, 
-        # mas para Application Permissions (Opção A), normalmente usamos as mesmas do App Registration.
-        # Se as chaves variam, deveriam estar em variáveis específicas.
         
         async with httpx.AsyncClient() as client:
             try:
@@ -63,7 +105,6 @@ class OneDriveService:
         file_hash = cls.generate_file_hash(content)
         filename = f"avatar_{file_hash}{extension}"
         
-        # Caminho sugerido no design: /CafeComBPO/avatars/{user_id}/avatar_{hash}.png
         storage_account = settings.microsoft_storage_account_id
         path = f"/users/{storage_account}/drive/root:/CafeComBPO/avatars/{user_id}/{filename}:/content"
         url = f"https://graph.microsoft.com/v1.0{path}"
@@ -125,9 +166,7 @@ class OneDriveService:
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.delete(url, headers=headers)
-                # 204 No Content é sucesso
                 if response.status_code != 204:
                     log.warning(f"⚠️ Resposta inesperada ao deletar item {item_id}: {response.status_code}")
             except Exception as e:
                 log.error(f"❌ Erro ao deletar arquivo no OneDrive: {str(e)}")
-                # Não lançamos exceção aqui para não quebrar o fluxo de upload do novo arquivo

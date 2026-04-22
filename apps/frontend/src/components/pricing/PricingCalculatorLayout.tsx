@@ -9,7 +9,6 @@ import { useGeneratePDF } from '../../lib/useGeneratePDF';
 import logoAsset from '../../assets/logo.png';
 import { getClients, createClient, ClientData } from '../../api/clients';
 import { useAuth } from '../../context/AuthContext';
-import { getApiUrl } from '../../api/client';
 
 // ─── Catálogo de Serviços Inicial (Metodologia BPO v4) ─────────────────────────
 const INITIAL_SERVICES = [
@@ -275,7 +274,8 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   const hasActiveService = activeServicesCount > 0;
 
   // Validação do Cliente
-  const isClientValid = clients.some(c => c.name.trim().toLowerCase() === clientName.trim().toLowerCase());
+  const selectedClient = clients.find(c => c.name.trim().toLowerCase() === clientName.trim().toLowerCase());
+  const isClientValid = !!selectedClient;
   const showClientError = clientName.trim().length > 0 && !isClientValid && !showNewClientForm;
 
   const handlePrimaryAction = () => {
@@ -294,12 +294,17 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
 
   const handleDownload = async () => {
     if (!pricing || !hasActiveService || !isClientValid) return;
-    const finalLogoUrl = user?.avatar_url ? `${getApiUrl()}${user.avatar_url}` : logoAsset;
+    
+    // Simplificado: useGeneratePDF agora trata a URL absoluta
+    const finalLogoUrl = user?.avatar_url || logoAsset;
+
     await generatePDF({
       form: getValues(),
       pricing,
       logoUrl: finalLogoUrl,
-      clientName: clientName
+      clientName: clientName,
+      clientEmail: selectedClient?.email || '', // Busca o email do cliente selecionado
+      provider: user
     });
   };
 

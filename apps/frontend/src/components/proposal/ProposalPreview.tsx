@@ -3,12 +3,11 @@ import logoAsset from '../../assets/logo.png';
 import { PricingFormData } from '../../schemas/pricing';
 import { PricingResult } from '../../lib/pricingEngine';
 import { ProposalDownloadGate } from './ProposalDownloadGate';
+import { useAuth } from '../../context/AuthContext';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
-
-const pct = (v: number) => `${(v * 100).toFixed(0)}%`;
 
 const termLabels: Record<number, string> = {
   0:    'por mês',
@@ -33,7 +32,6 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
 }) => {
   const { user } = useAuth();
   const activeServices = form.services.filter(s => s.active);
-  const termLabel = termLabels[form.term_discount] ?? 'por mês';
 
   // Informações da "Minha Empresa" (Logado)
   const myCompany = user?.company || 'Minha empresa';
@@ -47,7 +45,7 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
         {/* HEADER */}
         <header className="prop-header-v2">
           <div className="prop-header-left">
-            <img src={logoAsset} alt="Logo" className="prop-logo-v2" />
+            <img src={user?.avatar_url || logoAsset} alt="Logo" className="prop-logo-v2" />
           </div>
           <div className="prop-header-right">
             <h1>Proposta de Serviços</h1>

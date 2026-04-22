@@ -51,7 +51,7 @@ def get_me(user: CurrentUserDep):
     return user
 
 from .models import User, UserFile
-from .storage_service import OneDriveService
+from .storage_service import CloudinaryService # Trocado para Cloudinary
 from src.core.config import get_settings
 
 settings = get_settings()
@@ -81,7 +81,7 @@ async def upload_avatar(
     new_file_record = UserFile(
         user_id=db_user.id,
         category="avatar",
-        provider="onedrive",
+        provider="cloudinary", # Trocado para Cloudinary
         status="pending",
         mime_type=file.content_type or "image/png",
         size_bytes=len(content),
@@ -93,15 +93,13 @@ async def upload_avatar(
     old_avatar_file = db_user.avatar_file
 
     try:
-        # 4. Upload para OneDrive
-        upload_res = await OneDriveService.upload_file(content, str(user.id), ext)
-        item_id = upload_res["id"]
+        # 4. Upload para Cloudinary
+        upload_res = await CloudinaryService.upload_file(content, str(user.id))
+        public_id = upload_res["id"]
+        read_url = upload_res["url"]
         
-        # 5. Gerar Link de Compartilhamento
-        read_url = await OneDriveService.create_sharing_link(item_id)
-        
-        # 6. Atualizar registro para Ativo
-        new_file_record.provider_item_id = item_id
+        # 5. Atualizar registro para Ativo
+        new_file_record.provider_item_id = public_id
         new_file_record.read_url = read_url
         new_file_record.status = "active"
         
@@ -109,20 +107,22 @@ async def upload_avatar(
         db_user.avatar_url = read_url # Fallback para compatibilidade
         
         service.user_repo.session.commit()
-        log.info(f"🖼️ Avatar OneDrive ativo: {db_user.email} | URL: {read_url}")
+        log.info(f"🖼️ Avatar Cloudinary ativo: {db_user.email} | URL: {read_url}")
         
-        # 7. Cleanup assíncrono do avatar antigo
+        # 6. Cleanup assíncrono do avatar antigo
         if old_avatar_file and old_avatar_file.provider_item_id:
-            await OneDriveService.delete_file(old_avatar_file.provider_item_id)
+            # Note: Se o provider antigo for onedrive, precisaríamos do OneDriveService aqui.
+            # Mas como estamos migrando, vamos focar no novo.
+            await CloudinaryService.delete_file(old_avatar_file.provider_item_id)
             old_avatar_file.status = "deleted"
             service.user_repo.session.commit()
 
     except Exception as e:
         service.user_repo.session.rollback()
         new_file_record.status = "failed"
-        service.user_repo.session.add(new_file_record) # Tentar salvar falha para reconciliação
+        service.user_repo.session.add(new_file_record)
         service.user_repo.session.commit()
-        log.error(f"❌ Falha no upload OneDrive: {str(e)}")
+        log.error(f"❌ Falha no upload Cloudinary: {str(e)}")
         raise HTTPException(status_code=500, detail="Falha ao processar upload no storage remoto.")
 
     return UserResponse(

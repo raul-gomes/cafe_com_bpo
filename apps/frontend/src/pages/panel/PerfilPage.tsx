@@ -22,7 +22,7 @@ export const PerfilPage: React.FC = () => {
   // Logo upload state
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
-    user?.avatar_url ? `${getApiUrl()}${user.avatar_url}` : null
+    user?.avatar_url ? (user.avatar_url.startsWith('http') ? user.avatar_url : `${getApiUrl()}${user.avatar_url}`) : null
   );
 
   // New Client state
@@ -172,7 +172,16 @@ export const PerfilPage: React.FC = () => {
           <div className="perfil-card" style={{ height: 'calc(100% - 66px)' }}>
             <div className="perfil-card__avatar-section">
               {avatarPreview ? (
-                <div className="perfil-card__avatar-large" style={{ backgroundImage: `url(${avatarPreview})`, backgroundSize: 'cover', backgroundPosition: 'center', color: 'transparent' }}>
+                <div 
+                  className="perfil-card__avatar-large" 
+                  style={{ 
+                    backgroundImage: `url(${avatarPreview})`, 
+                    backgroundSize: 'cover', 
+                    backgroundPosition: 'center', 
+                    color: 'transparent',
+                    border: '1px solid var(--ds-border)'
+                  }}
+                >
                   {initials}
                 </div>
               ) : (
