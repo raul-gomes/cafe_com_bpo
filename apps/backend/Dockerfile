@@ -8,12 +8,13 @@ RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 FROM python:3.12-slim AS runner
 WORKDIR /app
 
-RUN useradd -r -u 1001 appuser
-COPY --from=builder /install /usr/local
-COPY . .
+RUN groupadd -g 1001 appgroup && useradd -r -u 1001 -g appgroup appuser
 
-RUN mkdir -p logs storage && chown -R appuser:appuser /app
-USER appuser
+COPY --from=builder /install /usr/local
+COPY --chown=1001:1001 . .
+
+RUN mkdir -p /app/logs /app/storage && chown -R 1001:1001 /app && chmod -R 755 /app
+USER 1001
 
 ENV PYTHONUNBUFFERED=1
 
