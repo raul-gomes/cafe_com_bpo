@@ -28,3 +28,13 @@ class UserRepository:
 
     def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
         return self.session.query(User).filter(User.id == user_id).first()
+
+    def update_user(self, user_id: uuid.UUID, **kwargs) -> Optional[User]:
+        user = self.get_user_by_id(user_id)
+        if not user:
+            return None
+        for key, value in kwargs.items():
+            if hasattr(user, key) and value is not None:
+                setattr(user, key, value)
+        self.session.flush()
+        return user

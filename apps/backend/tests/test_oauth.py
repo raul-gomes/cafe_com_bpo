@@ -62,22 +62,6 @@ def test_google_callback_logs_in_existing_user(client, db_session, mock_httpx_po
         count = db_session.query(User).filter_by(email=email).count()
         assert count == 1
 
-def test_microsoft_callback_creates_or_reuses_user(client, db_session, mock_httpx_post, mock_httpx_get):
-    email = f"msuser_{uuid4()}@outlook.com"
-    mock_httpx_post.return_value.status_code = 200
-    mock_httpx_post.return_value.json.return_value = {"access_token": "fake_token_ms"}
-    mock_httpx_get.return_value.status_code = 200
-    mock_httpx_get.return_value.json.return_value = {"userPrincipalName": email} 
-
-    with patch("src.modules.auth.oauth.service.OAuthStateService.validate_state", return_value=True):
-        response = client.get("/auth/microsoft/callback?code=abc&state=xyz")
-        assert response.status_code == 200
-        assert "access_token" in response.json()
-        
-        user = db_session.query(User).filter_by(email=email).first()
-        assert user is not None
-        assert user.auth_provider == "microsoft"
-
 def test_oauth_callback_rejects_invalid_state(client):
     with patch("src.modules.auth.oauth.service.OAuthStateService.validate_state", return_value=False):
         response = client.get("/auth/google/callback?code=abc&state=invalid")

@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate } from 'react-router-dom';
 import { PricingCalculatorLayout } from '../../components/pricing/PricingCalculatorLayout';
 import { apiClient } from '../../api/client';
 import { calculatePricing } from '../../lib/pricingEngine';
 import { PricingFormData } from '../../schemas/pricing';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
 export const OrcamentoNovoPage: React.FC = () => {
   const { id } = useParams();
@@ -74,9 +75,9 @@ export const OrcamentoNovoPage: React.FC = () => {
       };
 
       if (id) {
-        await apiClient.put(`/api/proposals/${id}`, payload);
+        await apiClient.put(`/proposals/${id}`, payload);
       } else {
-        await apiClient.post('/api/proposals/', payload);
+        await apiClient.post('/proposals/', payload);
       }
 
       showToast('Orçamento salvo com sucesso!', 'success');
@@ -120,12 +121,7 @@ export const OrcamentoNovoPage: React.FC = () => {
         </div>
       )}
 
-      {/* Breadcrumb Navigation */}
-      <div className="panel-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', fontWeight: 600 }}>
-        <Link to="/painel" style={{ color: 'var(--ds-text-muted)', textDecoration: 'none' }}>Painel</Link>
-        <span style={{ color: 'var(--ds-text-subtle)' }}>/</span>
-        <span style={{ color: 'var(--ds-primary)' }}>{id ? 'Editar Orçamento' : 'Nova Precificação'}</span>
-      </div>
+      <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: id ? 'Editar Orçamento' : 'Nova Precificação' }]} />
 
       <div className="panel-content__header" style={{ marginBottom: '28px' }}>
         <div>

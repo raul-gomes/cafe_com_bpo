@@ -3,6 +3,10 @@ import { useNavigate } from 'react-router-dom';
 import { getPosts, createPost, PaginatedPosts } from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { NotificationBell } from '../../components/panel/NotificationBell';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
+
+type FilterType = 'all' | 'my' | 'answered';
+type SortType = 'recent' | 'popular';
 
 export const NetworkPage: React.FC = () => {
   const [data, setData] = useState<PaginatedPosts | null>(null);
@@ -13,6 +17,9 @@ export const NetworkPage: React.FC = () => {
   const [newMessage, setNewMessage] = useState('');
   const [newTags, setNewTags] = useState('');
   const [error, setError] = useState('');
+
+  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [activeSort, setActiveSort] = useState<SortType>('recent');
   
   const navigate = useNavigate();
 
@@ -21,8 +28,9 @@ export const NetworkPage: React.FC = () => {
     try {
       const resp = await getPosts(20);
       setData(resp);
+      setError('');
     } catch (e: any) {
-      setError('Erro ao carregar tópicos da comunidade');
+      setError('Erro ao carregar tópicos da comunidade. Verifique sua conexão e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -55,9 +63,7 @@ export const NetworkPage: React.FC = () => {
 
   return (
     <>
-      <div className="panel-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', fontWeight: 600 }}>
-        <span style={{ color: 'var(--ds-primary)' }}>Comunidade</span>
-      </div>
+      <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Comunidade' }]} />
 
       <div className="panel-content__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
@@ -66,8 +72,8 @@ export const NetworkPage: React.FC = () => {
         </div>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <NotificationBell />
-          <button 
-            className={showForm ? "ds-btn ds-btn-ghost" : "ds-btn ds-btn-primary"} 
+          <button
+            className={showForm ? "ds-btn ds-btn-ghost" : "ds-btn ds-btn-primary"}
             onClick={() => setShowForm(!showForm)}
             style={{ gap: '8px' }}
           >
@@ -76,7 +82,51 @@ export const NetworkPage: React.FC = () => {
         </div>
       </div>
 
-      {error && <div className="alert-error" style={{ marginBottom: '16px' }}>{error}</div>}
+      <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', marginRight: '4px' }}>Filtrar:</span>
+          <button
+            className={activeFilter === 'all' ? "ds-btn ds-btn-primary ds-btn-sm" : "ds-btn ds-btn-ghost ds-btn-sm"}
+            onClick={() => setActiveFilter('all')}
+          >
+            Todos
+          </button>
+          <button
+            className={activeFilter === 'my' ? "ds-btn ds-btn-primary ds-btn-sm" : "ds-btn ds-btn-ghost ds-btn-sm"}
+            onClick={() => setActiveFilter('my')}
+          >
+            Meus Tópicos
+          </button>
+          <button
+            className={activeFilter === 'answered' ? "ds-btn ds-btn-primary ds-btn-sm" : "ds-btn ds-btn-ghost ds-btn-sm"}
+            onClick={() => setActiveFilter('answered')}
+          >
+            Respondidos
+          </button>
+        </div>
+        <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginLeft: 'auto' }}>
+          <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', marginRight: '4px' }}>Ordenar:</span>
+          <button
+            className={activeSort === 'recent' ? "ds-btn ds-btn-primary ds-btn-sm" : "ds-btn ds-btn-ghost ds-btn-sm"}
+            onClick={() => setActiveSort('recent')}
+          >
+            Recentes
+          </button>
+          <button
+            className={activeSort === 'popular' ? "ds-btn ds-btn-primary ds-btn-sm" : "ds-btn ds-btn-ghost ds-btn-sm"}
+            onClick={() => setActiveSort('popular')}
+          >
+            Populares
+          </button>
+        </div>
+      </div>
+
+      {error && (
+        <div className="alert-error" style={{ marginBottom: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span>{error}</span>
+          <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={loadPosts}>Tentar Novamente</button>
+        </div>
+      )}
 
       {showForm && (
         <form onSubmit={handleCreate} className="panel-card" style={{ marginBottom: '32px', border: '1px solid rgba(255,255,255,0.07)', background: 'var(--ds-surface)' }}>

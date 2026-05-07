@@ -13,3 +13,8 @@ class ProposalResponse(BaseModel):
     input_payload: dict
     result_payload: dict
     created_at: datetime
+
+class ProposalUpdate(BaseModel):
+    client_name: str | None = None
+    input_payload: dict | None = None
+    result_payload: dict | None = None

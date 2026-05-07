@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Body
 from typing import Annotated, List
 from sqlalchemy.orm import Session
 import uuid
@@ -9,13 +9,18 @@ from src.modules.auth.service import get_current_user
 from src.modules.auth.schemas import UserResponse
 from .schemas import ProposalCreate, ProposalResponse
 from .repository import PricingScenarioRepository
+from .service import ProposalService
 
 router = APIRouter(prefix="/api/proposals", tags=["proposals"])
 
 def get_repo(session: Annotated[Session, Depends(get_db_session)]) -> PricingScenarioRepository:
     return PricingScenarioRepository(session)
 
+def get_service(session: Annotated[Session, Depends(get_db_session)]) -> ProposalService:
+    return ProposalService(PricingScenarioRepository(session))
+
 RepoDep = Annotated[PricingScenarioRepository, Depends(get_repo)]
+ServiceDep = Annotated[ProposalService, Depends(get_service)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 @router.post("/", response_model=ProposalResponse, status_code=201)
@@ -113,3 +118,52 @@ def delete_proposal(
     repo.session.commit()
     log.info(f"🗑️ Proposta excluída: {proposal_id} por {current_user.email}")
     return None
+
+@router.get("/{proposal_id}/pdf-url")
+def get_pdf_url(
+    proposal_id: str,
+    service: ServiceDep,
+    current_user: CurrentUserDep
+):
+    """Retorna URL para download do PDF (gerado no frontend)."""
+    url = service.get_pdf_download_url(uuid.UUID(proposal_id), current_user.id)
+    return {"url": url}
+
+@router.post("/{proposal_id}/send-email")
+def send_proposal_email(
+    proposal_id: str,
+    service: ServiceDep,
+    current_user: CurrentUserDep,
+    payload: dict = Body(...),
+):
+    """Envia resumo do orçamento por e-mail."""
+    recipient_email = payload.get("email", "")
+    client_name = payload.get("client_name", "")
+    message = payload.get("message", "")
+
+    if not recipient_email:
+        raise HTTPException(status_code=400, detail="E-mail do destinatário é obrigatório")
+
+    try:
+        service.send_email(
+            proposal_id=uuid.UUID(proposal_id),
+            user_id=current_user.id,
+            recipient_email=recipient_email,
+            client_name=client_name,
+            message=message,
+        )
+        log.info(f"📧 Orçamento enviado por e-mail para {recipient_email} por {current_user.email}")
+        return {"message": "E-mail enviado com sucesso."}
+    except RuntimeError as e:
+        log.error(f"❌ Erro ao enviar e-mail: {str(e)}")
+        raise HTTPException(status_code=500, detail=str(e))
+
+@router.post("/{proposal_id}/whatsapp")
+def get_whatsapp_link(
+    proposal_id: str,
+    service: ServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Gera link de compartilhamento via WhatsApp."""
+    result = service.get_whatsapp_message(uuid.UUID(proposal_id), current_user.id)
+    return result

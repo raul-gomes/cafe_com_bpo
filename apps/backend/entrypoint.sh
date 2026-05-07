@@ -9,3 +9,4 @@ alembic upgrade head
 # Iniciar o servidor Uvicorn
 echo "Iniciando a API..."
 exec uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8000
+

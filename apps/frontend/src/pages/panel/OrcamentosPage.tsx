@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
 import { DeleteConfirmModal } from '../../components/panel/DeleteConfirmModal';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { MessageSquare } from 'lucide-react';
 
 interface Proposal {
   id: string;
@@ -14,16 +16,22 @@ interface Proposal {
 export const OrcamentosPage: React.FC = () => {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [proposalToDelete, setProposalToDelete] = useState<Proposal | null>(null);
+  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
+  const [whatsappPhone, setWhatsappPhone] = useState('+55');
+  const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const navigate = useNavigate();
 
   const fetchProposals = async () => {
     try {
       setLoading(true);
-      const resp = await apiClient.get<Proposal[]>('/api/proposals/');
+      setError(null);
+      const resp = await apiClient.get<Proposal[]>('/proposals/');
       setProposals(resp.data);
     } catch (err) {
       console.error('Erro ao carregar propostas:', err);
+      setError('Não foi possível carregar os orçamentos. Verifique sua conexão e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -41,7 +49,7 @@ export const OrcamentosPage: React.FC = () => {
   const handleConfirmDelete = async () => {
     if (!proposalToDelete) return;
     try {
-      await apiClient.delete(`/api/proposals/${proposalToDelete.id}`);
+      await apiClient.delete(`/proposals/${proposalToDelete.id}`);
       setProposals(prev => prev.filter(p => p.id !== proposalToDelete.id));
     } catch {
       alert('Erro ao excluir orçamento.');
@@ -50,8 +58,32 @@ export const OrcamentosPage: React.FC = () => {
     }
   };
 
-  const formatPrice = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+  const handleWhatsAppClick = (e: React.MouseEvent, proposal: Proposal) => {
+    e.stopPropagation();
+    setSelectedProposal(proposal);
+    setWhatsappPhone('+55');
+    setWhatsappModalOpen(true);
+  };
+
+  const handleSendWhatsApp = () => {
+    if (!selectedProposal) return;
+    const cleanPhone = whatsappPhone.replace(/\D/g, '');
+    const value = formatPrice(selectedProposal.result_payload?.final_price || 0);
+    const message = `Olá ${selectedProposal.client_name}, seguem os detalhes do orçamento: Valor: ${value}. Acesse o painel para mais informações.`;
+    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+    setWhatsappModalOpen(false);
+  };
+
+  const formatPrice = (value: number) => {
+    const safe = Number.isNaN(value) || value === null || value === undefined ? 0 : value;
+    return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(safe);
+  };
+
+  const safeNumber = (value: number) => {
+    const n = Number(value);
+    return Number.isNaN(n) ? 0 : n;
+  };
 
   const formatDate = (dateStr: string) =>
     new Date(dateStr).toLocaleDateString('pt-BR', {
@@ -61,7 +93,7 @@ export const OrcamentosPage: React.FC = () => {
     });
 
   const totalValue = proposals.reduce(
-    (sum, p) => sum + (p.result_payload?.final_price || 0),
+    (sum, p) => sum + safeNumber(p.result_payload?.final_price),
     0
   );
 
@@ -90,10 +122,7 @@ export const OrcamentosPage: React.FC = () => {
 
   return (
     <>
-      {/* Breadcrumb Navigation */}
-      <div className="panel-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', fontWeight: 600 }}>
-        <span style={{ color: 'var(--ds-primary)' }}>Painel</span>
-      </div>
+      <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Orçamentos' }]} />
 
       <div className="panel-content__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>
@@ -114,7 +143,19 @@ export const OrcamentosPage: React.FC = () => {
       </div>
 
       {/* Stats */}
-      <div className="panel-stats">
+      {error ? (
+        <div className="panel-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ds-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 16px', opacity: 0.5 }}>
+            <circle cx="12" cy="12" r="10" />
+            <line x1="12" y1="8" x2="12" y2="12" />
+            <line x1="12" y1="16" x2="12.01" y2="16" />
+          </svg>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>Erro ao carregar</h3>
+          <p style={{ color: 'var(--ds-text-muted)', marginBottom: '20px', maxWidth: '400px', margin: '0 auto 20px' }}>{error}</p>
+          <button className="ds-btn ds-btn-primary" onClick={fetchProposals}>Tentar Novamente</button>
+        </div>
+      ) : (
+        <div className="panel-stats">
         <div className="panel-stat">
           <div className="panel-stat__label">Total de Orçamentos</div>
           <div className="panel-stat__value">{loading ? '—' : proposals.length}</div>
@@ -137,8 +178,10 @@ export const OrcamentosPage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
       {/* Grid: List + Info Sidebar */}
+      {!error && (
       <div className="orcamentos-grid">
         {/* Left - List */}
         <div className="orcamentos-list">
@@ -192,11 +235,11 @@ export const OrcamentosPage: React.FC = () => {
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
                   <div className="orcamento-card__price">
-                    {formatPrice(p.result_payload?.final_price || 0)}
+                    {formatPrice(safeNumber(p.result_payload?.final_price))}
                   </div>
                   <div className="orcamento-card__actions">
-                    <button 
-                      className="ds-btn ds-btn-ghost ds-btn-sm" 
+                    <button
+                      className="ds-btn ds-btn-ghost ds-btn-sm"
                       onClick={(e) => { e.stopPropagation(); navigate(`/painel/editar-orcamento/${p.id}`); }}
                       title="Editar"
                     >
@@ -204,6 +247,13 @@ export const OrcamentosPage: React.FC = () => {
                         <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                         <path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
                       </svg>
+                    </button>
+                    <button
+                      className="ds-btn ds-btn-ghost ds-btn-sm"
+                      onClick={(e) => handleWhatsAppClick(e, p)}
+                      title="Enviar via WhatsApp"
+                    >
+                      <MessageSquare size={16} />
                     </button>
                     <button
                       className="orcamento-card__action-btn orcamento-card__action-btn--delete"
@@ -284,13 +334,38 @@ export const OrcamentosPage: React.FC = () => {
           </div>
         </div>
       </div>
+      )}
 
-      <DeleteConfirmModal 
+      <DeleteConfirmModal
         isOpen={!!proposalToDelete}
         itemName={proposalToDelete?.client_name}
         onClose={() => setProposalToDelete(null)}
         onConfirm={handleConfirmDelete}
       />
+
+      {whatsappModalOpen && (
+        <div className="modal-overlay" onClick={() => setWhatsappModalOpen(false)}>
+          <div className="modal-content" onClick={e => e.stopPropagation()}>
+            <h3>Enviar via WhatsApp</h3>
+            <p>Digite o número do WhatsApp para {selectedProposal?.client_name}:</p>
+            <input
+              type="tel"
+              className="ds-input"
+              value={whatsappPhone}
+              onChange={e => setWhatsappPhone(e.target.value)}
+              placeholder="+55 (11) 99999-9999"
+              style={{ width: '100%', margin: '16px 0' }}
+            />
+            <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <button className="ds-btn ds-btn-ghost" onClick={() => setWhatsappModalOpen(false)}>Cancelar</button>
+              <button className="ds-btn ds-btn-primary" onClick={handleSendWhatsApp} disabled={whatsappPhone.replace(/\D/g, '').length < 10}>
+                <MessageSquare size={16} style={{ marginRight: '8px' }} />
+                Enviar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };

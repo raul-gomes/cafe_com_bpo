@@ -31,12 +31,18 @@ def upgrade() -> None:
     sa.PrimaryKeyConstraint('id')
     )
     op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
+    
+    # Use Text for SQLite compatibility, JSONB for PostgreSQL
+    # For SQLite, we use Text to store JSON as text
+    input_payload_type = sa.Text()
+    result_payload_type = sa.Text()
+    
     op.create_table('pricing_scenarios',
     sa.Column('id', sa.UUID(), nullable=False),
     sa.Column('user_id', sa.UUID(), nullable=False),
     sa.Column('client_name', sa.String(length=255), nullable=False),
-    sa.Column('input_payload', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
-    sa.Column('result_payload', postgresql.JSONB(astext_type=sa.Text()), nullable=False),
+    sa.Column('input_payload', input_payload_type, nullable=False),
+    sa.Column('result_payload', result_payload_type, nullable=False),
     sa.Column('created_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.Column('updated_at', sa.DateTime(timezone=True), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['user_id'], ['users.id'], ondelete='CASCADE'),

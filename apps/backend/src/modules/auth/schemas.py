@@ -13,8 +13,22 @@ class UserResponse(BaseModel):
     email: EmailStr
     name: Optional[str] = None
     company: Optional[str] = None
+    company_name: Optional[str] = None
+    company_segment: Optional[str] = None
+    company_description: Optional[str] = None
     avatar_url: str | None = None
 
 class TokenResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr = Field(..., description="E-mail da conta.")
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(..., description="Token de redefinição.")
+    new_password: str = Field(..., min_length=8, description="Nova senha.")

@@ -7,8 +7,21 @@ export const ProtectedRoute: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        minHeight: '100vh',
+        background: 'var(--ds-bg)',
+      }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          border: '3px solid var(--ds-border)',
+          borderTopColor: 'var(--ds-primary)',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+        }} />
       </div>
     );
   }

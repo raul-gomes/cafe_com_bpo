@@ -31,7 +31,7 @@ export const DashboardPage: React.FC = () => {
     try {
       setLoading(true);
       const [proposalsResp, clientsResp] = await Promise.all([
-        apiClient.get<Proposal[]>('/api/proposals/'),
+        apiClient.get<Proposal[]>('/proposals/'),
         getClients()
       ]);
       setProposals(proposalsResp.data);
@@ -78,7 +78,7 @@ export const DashboardPage: React.FC = () => {
   const handleDelete = async (id: string) => {
     if (window.confirm('Tem certeza que deseja excluir esta proposta?')) {
       try {
-        await apiClient.delete(`/api/proposals/${id}`);
+        await apiClient.delete(`/proposals/${id}`);
         setProposals(prev => prev.filter(p => p.id !== id));
       } catch (err) {
         alert('Erro ao excluir proposta.');

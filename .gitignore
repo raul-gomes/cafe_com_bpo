@@ -54,3 +54,6 @@ postgres_data/
 # Logs
 *.log
 apps/backend/logs/
+
+# Implementation Plans
+implementations/

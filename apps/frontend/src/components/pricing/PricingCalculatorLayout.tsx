@@ -9,6 +9,7 @@ import { useGeneratePDF } from '../../lib/useGeneratePDF';
 import logoAsset from '../../assets/logo.png';
 import { getClients, createClient, ClientData } from '../../api/clients';
 import { useAuth } from '../../context/AuthContext';
+import { maskCNPJ, maskPhone } from '../../lib/formatters';
 
 // ─── Catálogo de Serviços Inicial (Metodologia BPO v4) ─────────────────────────
 const INITIAL_SERVICES = [
@@ -30,8 +31,9 @@ const INITIAL_SERVICES = [
   { id:16, name:'BTO (Business Transaction Ops.)',     type:'fixed' as const, minutes_per_execution:0,   fixed_value:500,  monthly_quantity:1, active:false, tip:'Operações transacionais amplas e suporte operacional.' },
 ];
 
+const safeNum = (v: unknown): number => { const n = Number(v); return Number.isFinite(n) ? n : 0; };
 const fmt = (v: number) =>
-  v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
+  safeNum(v).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
 
 interface PricingCalculatorLayoutProps {
   initialData?: PricingFormData;
@@ -401,14 +403,14 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                           <label className="ds-label" style={{ fontSize: '11px' }}>Nome</label>
                           <input type="text" className="ds-input" value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} />
                         </div>
-                        <div>
-                          <label className="ds-label" style={{ fontSize: '11px' }}>CNPJ</label>
-                          <input type="text" className="ds-input" value={newClient.cnpj} onChange={e => setNewClient({...newClient, cnpj: e.target.value})} />
-                        </div>
-                        <div>
-                          <label className="ds-label" style={{ fontSize: '11px' }}>Telefone</label>
-                          <input type="text" className="ds-input" value={newClient.phone} onChange={e => setNewClient({...newClient, phone: e.target.value})} />
-                        </div>
+                         <div>
+                           <label className="ds-label" style={{ fontSize: '11px' }}>CNPJ</label>
+                           <input type="text" className="ds-input" value={newClient.cnpj} onChange={e => setNewClient({...newClient, cnpj: maskCNPJ(e.target.value)})} placeholder="00.000.000/0000-00" />
+                         </div>
+                         <div>
+                           <label className="ds-label" style={{ fontSize: '11px' }}>Telefone</label>
+                           <input type="text" className="ds-input" value={newClient.phone} onChange={e => setNewClient({...newClient, phone: maskPhone(e.target.value)})} placeholder="(00) 00000-0000" />
+                         </div>
                         <div>
                           <label className="ds-label" style={{ fontSize: '11px' }}>E-mail</label>
                           <input type="email" className="ds-input" value={newClient.email} onChange={e => setNewClient({...newClient, email: e.target.value})} />

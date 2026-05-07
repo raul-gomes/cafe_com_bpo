@@ -1,50 +1,53 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
-import { getClients, createClient, deleteClient, ClientData, uploadAvatar } from '../../api/clients';
+import { uploadAvatar } from '../../api/clients';
 import { getApiUrl } from '../../api/client';
 import { Button } from '../../components/ui/Button';
-import { maskCNPJ, maskPhone, onlyNumbers } from '../../lib/formatters';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import type { User } from '../../context/AuthContext';
+
+type TabType = 'personal' | 'company';
+
+const SEGMENT_OPTIONS = [
+  { value: '', label: 'Selecione um segmento' },
+  { value: 'contabilidade', label: 'Contabilidade' },
+  { value: 'consultoria', label: 'Consultoria' },
+  { value: 'bpo_financeiro', label: 'BPO Financeiro' },
+  { value: 'auditoria', label: 'Auditoria' },
+  { value: 'outros', label: 'Outros' },
+];
 
 export const PerfilPage: React.FC = () => {
-  const { user } = useAuth();
+  const { user, setUser } = useAuth();
+  const [activeTab, setActiveTab] = useState<TabType>('personal');
   const [formData, setFormData] = useState({
     name: user?.name || '',
     email: user?.email || '',
     company: user?.company || '',
-    address: '' 
+    company_name: user?.company_name || '',
+    company_segment: user?.company_segment || '',
+    company_description: user?.company_description || '',
   });
   
-  const [clients, setClients] = useState<ClientData[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
-  // Logo upload state
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     user?.avatar_url ? (user.avatar_url.startsWith('http') ? user.avatar_url : `${getApiUrl()}${user.avatar_url}`) : null
   );
 
-  // New Client state
-  const [showNewClientForm, setShowNewClientForm] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', cnpj: '', phone: '', email: '' });
-
-  // Edit Client state
-  const [editingId, setEditingId] = useState<string | null>(null);
-  const [editForm, setEditForm] = useState({ name: '', cnpj: '', phone: '', email: '' });
-
   useEffect(() => {
-    loadClients();
-  }, []);
-
-  const loadClients = async () => {
-    try {
-      const data = await getClients();
-      setClients(data);
-    } catch (err) {
-      console.error('Failed to load clients', err);
-    }
-  };
+    setFormData({
+      name: user?.name || '',
+      email: user?.email || '',
+      company: user?.company || '',
+      company_name: user?.company_name || '',
+      company_segment: user?.company_segment || '',
+      company_description: user?.company_description || '',
+    });
+  }, [user]);
 
   const initials = formData.name
     ? formData.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -73,189 +76,194 @@ export const PerfilPage: React.FC = () => {
         await uploadAvatar(avatarFile);
       }
       
-      // Update basic profile info 
-      // await apiClient.patch('/auth/me', formData);
+      const updated = await apiClient.patch<User>('/auth/me', formData);
       
-      setTimeout(() => {
-        setIsSaving(false);
-        setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
-        
-        // Reload page to refresh AuthContext or trigger user refresh
-        setTimeout(() => window.location.reload(), 1000);
-      }, 500);
+      setUser(updated.data);
+      
+      setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
+      setIsSaving(false);
     } catch (err) {
       setIsSaving(false);
       setMessage({ type: 'error', text: 'Erro ao salvar alterações.' });
     }
   };
 
-  const handleAddClient = async () => {
-    if (!newClient.name) return;
-    try {
-      const payload = {
-        name: newClient.name,
-        cnpj: onlyNumbers(newClient.cnpj),
-        phone: onlyNumbers(newClient.phone),
-        email: newClient.email.trim() || undefined
-      };
-      await createClient(payload);
-      setShowNewClientForm(false);
-      setNewClient({ name: '', cnpj: '', phone: '', email: '' });
-      await loadClients();
-    } catch (e) {
-      console.error(e);
-      alert('Erro ao criar cliente.');
-    }
-  };
-
-  const handleStartEdit = (client: ClientData) => {
-    setEditingId(client.id);
-    setEditForm({
-      name: client.name,
-      cnpj: client.cnpj ? maskCNPJ(client.cnpj) : '',
-      phone: client.phone ? maskPhone(client.phone) : '',
-      email: client.email || ''
-    });
-  };
-
-  const handleCancelEdit = () => {
-    setEditingId(null);
-  };
-
-  const handleUpdateClient = async () => {
-    if (!editingId || !editForm.name) return;
-    try {
-      const payload = {
-        name: editForm.name,
-        cnpj: onlyNumbers(editForm.cnpj),
-        phone: onlyNumbers(editForm.phone),
-        email: editForm.email.trim() || undefined
-      };
-      await apiClient.put(`/clients/${editingId}`, payload);
-      setEditingId(null);
-      await loadClients();
-    } catch (e) {
-      console.error(e);
-      alert('Erro ao atualizar cliente.');
-    }
-  };
-
-  const handleDeleteClient = async (id: string, name: string) => {
-    if (!window.confirm(`Deseja remover a empresa "${name}"? Esta ação não afetará propostas já emitidas.`)) return;
-    
-    try {
-      // Optistic update
-      setClients(prev => prev.filter(c => c.id !== id));
-      await deleteClient(id);
-    } catch (e) {
-      console.error(e);
-      alert('Erro ao excluir cliente.');
-      await loadClients(); // revert
-    }
-  };
-
   return (
     <div className="perfil-page">
-      <div className="panel-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', fontWeight: 600 }}>
-        <span style={{ color: 'var(--ds-text-muted)', cursor: 'pointer' }} onClick={() => window.history.back()}>Painel</span>
-        <span style={{ color: 'var(--ds-text-subtle)' }}>/</span>
-        <span style={{ color: 'var(--ds-primary)' }}>Meu Perfil</span>
-      </div>
+      <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Meu Perfil' }]} />
 
-      <div className="perfil-responsive-grid">
-        {/* LADO ESQUERDO: MEU PERFIL */}
-        <div>
-          <div style={{ marginBottom: '16px' }}>
-            <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ds-white)' }}>Meu perfil</h2>
-            <p style={{ color: 'var(--ds-text-muted)', fontSize: '13px', marginTop: '2px' }}>Gerencie suas informações pessoais e da sua empresa.</p>
-          </div>
-          <div className="perfil-card" style={{ height: 'calc(100% - 66px)' }}>
-            <div className="perfil-card__avatar-section">
-              {avatarPreview ? (
-                <div 
-                  className="perfil-card__avatar-large" 
-                  style={{ 
-                    backgroundImage: `url(${avatarPreview})`, 
-                    backgroundSize: 'cover', 
-                    backgroundPosition: 'center', 
-                    color: 'transparent',
-                    border: '1px solid var(--ds-border)'
-                  }}
-                >
-                  {initials}
-                </div>
-              ) : (
-                <div className="perfil-card__avatar-large">{initials}</div>
-              )}
-              
-              <div className="perfil-card__avatar-info">
-                <h2 style={{ fontSize: '16px' }}>{formData.name || 'Usuário'}</h2>
-                <p>{formData.email}</p>
-              </div>
+      <div className="perfil-card" style={{ maxWidth: '700px' }}>
+        <div style={{ marginBottom: '16px' }}>
+          <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ds-white)' }}>Meu perfil</h2>
+          <p style={{ color: 'var(--ds-text-muted)', fontSize: '13px', marginTop: '2px' }}>Gerencie suas informações pessoais e da empresa.</p>
+        </div>
+
+        <div className="perfil-card__avatar-section" style={{ marginBottom: '24px' }}>
+          {avatarPreview ? (
+            <div 
+              className="perfil-card__avatar-large" 
+              style={{ 
+                backgroundImage: `url(${avatarPreview})`, 
+                backgroundSize: 'cover', 
+                backgroundPosition: 'center', 
+                color: 'transparent',
+                border: '1px solid var(--ds-border)'
+              }}
+            >
+              {initials}
             </div>
+          ) : (
+            <div className="perfil-card__avatar-large">{initials}</div>
+          )}
+          
+          <div className="perfil-card__avatar-info">
+            <h2 style={{ fontSize: '16px' }}>{formData.name || 'Usuário'}</h2>
+            <p>{formData.email}</p>
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', gap: '8px', marginBottom: '24px', borderBottom: '1px solid var(--ds-border)' }}>
+          <button
+            type="button"
+            onClick={() => setActiveTab('personal')}
+            style={{
+              padding: '8px 16px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'personal' ? '2px solid var(--ds-primary)' : '2px solid transparent',
+              color: activeTab === 'personal' ? 'var(--ds-white)' : 'var(--ds-text-muted)',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'personal' ? 600 : 400,
+            }}
+          >
+            Dados Pessoais
+          </button>
+          <button
+            type="button"
+            onClick={() => setActiveTab('company')}
+            style={{
+              padding: '8px 16px',
+              background: 'none',
+              border: 'none',
+              borderBottom: activeTab === 'company' ? '2px solid var(--ds-primary)' : '2px solid transparent',
+              color: activeTab === 'company' ? 'var(--ds-white)' : 'var(--ds-text-muted)',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'company' ? 600 : 400,
+            }}
+          >
+            Dados da Empresa
+          </button>
+        </div>
 
         <form className="perfil-form" onSubmit={handleSubmit}>
-          <div className="ds-input-group">
-            <label className="ds-label">Nome Completo</label>
-            <input
-              type="text"
-              name="name"
-              className="ds-input"
-              value={formData.name}
-              onChange={handleChange}
-              placeholder="Ex: Raul Gomes"
-              required
-            />
-          </div>
+          {activeTab === 'personal' && (
+            <>
+              <div className="ds-input-group">
+                <label className="ds-label">Nome Completo</label>
+                <input
+                  type="text"
+                  name="name"
+                  className="ds-input"
+                  value={formData.name}
+                  onChange={handleChange}
+                  placeholder="Ex: Raul Gomes"
+                  required
+                />
+              </div>
 
-          <div className="ds-input-group">
-            <label className="ds-label">E-mail</label>
-            <input
-              type="email"
-              name="email"
-              className="ds-input"
-              value={formData.email}
-              onChange={handleChange}
-              placeholder="email@exemplo.com"
-              disabled
-            />
-          </div>
+              <div className="ds-input-group">
+                <label className="ds-label">E-mail</label>
+                <input
+                  type="email"
+                  name="email"
+                  className="ds-input"
+                  value={formData.email}
+                  onChange={handleChange}
+                  placeholder="email@exemplo.com"
+                  disabled
+                />
+              </div>
 
-          <div className="ds-input-group perfil-form__full">
-            <label className="ds-label">Empresa</label>
-            <input
-              type="text"
-              name="company"
-              className="ds-input"
-              value={formData.company}
-              onChange={handleChange}
-              placeholder="Nome da sua empresa"
-            />
-          </div>
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">Empresa (Nome Legado)</label>
+                <input
+                  type="text"
+                  name="company"
+                  className="ds-input"
+                  value={formData.company}
+                  onChange={handleChange}
+                  placeholder="Nome da sua empresa"
+                />
+              </div>
 
-          <div className="ds-input-group perfil-form__full" style={{ marginTop: '16px' }}>
-            <label className="ds-label">Upload da Logo (Avatar)</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '4px' }}>
-              <label 
-                htmlFor="avatar-upload"
-                className="ds-btn ds-btn-outline ds-btn-sm" 
-                style={{ cursor: 'pointer', textAlign: 'center' }}
-              >
-                Escolher Arquivo
-              </label>
-              <input
-                id="avatar-upload"
-                type="file"
-                accept="image/png, image/jpeg, image/webp"
-                onChange={handleAvatarChange}
-                style={{ display: 'none' }}
-              />
-              <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {avatarFile ? avatarFile.name : 'Nenhum arquivo selecionado'}
-              </span>
-            </div>
-            <p style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', marginTop: '4px' }}>Esta logo aparecerá na capa das propostas PDF em alta resolução.</p>
-          </div>
+              <div className="ds-input-group perfil-form__full" style={{ marginTop: '16px' }}>
+                <label className="ds-label">Upload da Logo (Avatar)</label>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '4px' }}>
+                  <label 
+                    htmlFor="avatar-upload"
+                    className="ds-btn ds-btn-outline ds-btn-sm" 
+                    style={{ cursor: 'pointer', textAlign: 'center' }}
+                  >
+                    Escolher Arquivo
+                  </label>
+                  <input
+                    id="avatar-upload"
+                    type="file"
+                    accept="image/png, image/jpeg, image/webp"
+                    onChange={handleAvatarChange}
+                    style={{ display: 'none' }}
+                  />
+                  <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {avatarFile ? avatarFile.name : 'Nenhum arquivo selecionado'}
+                  </span>
+                </div>
+                <p style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', marginTop: '4px' }}>Esta logo aparecerá na capa das propostas PDF em alta resolução.</p>
+              </div>
+            </>
+          )}
+
+          {activeTab === 'company' && (
+            <>
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">Nome da Empresa</label>
+                <input
+                  type="text"
+                  name="company_name"
+                  className="ds-input"
+                  value={formData.company_name}
+                  onChange={handleChange}
+                  placeholder="Ex: BPO Soluções Financeiras Ltda"
+                />
+              </div>
+
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">Segmento</label>
+                <select
+                  name="company_segment"
+                  className="ds-input"
+                  value={formData.company_segment}
+                  onChange={handleChange as any}
+                >
+                  {SEGMENT_OPTIONS.map(option => (
+                    <option key={option.value} value={option.value}>{option.label}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">Descrição da Empresa</label>
+                <textarea
+                  name="company_description"
+                  className="ds-input"
+                  value={formData.company_description}
+                  onChange={handleChange as any}
+                  placeholder="Descreva brevemente o que sua empresa faz..."
+                  rows={4}
+                  style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                />
+              </div>
+            </>
+          )}
 
           {message && (
              <div className={`ds-alert ds-alert-${message.type === 'success' ? 'warning' : 'error'} perfil-form__full`} style={{ marginTop: '8px' }}>
@@ -271,153 +279,6 @@ export const PerfilPage: React.FC = () => {
             />
           </div>
         </form>
-          </div>
-        </div>
-
-        {/* LADO DIREITO: MINHAS EMPRESAS */}
-        <div>
-           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-              <div>
-                <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ds-white)', marginBottom: '2px' }}>Minhas empresas</h2>
-                <p style={{ color: 'var(--ds-text-muted)', fontSize: '13px' }}>Empresas corporativas vinculadas a você.</p>
-              </div>
-              <Button 
-                variant={showNewClientForm ? 'outline' : 'primary'}
-                size="sm"
-                onClick={() => setShowNewClientForm(!showNewClientForm)}
-                label={showNewClientForm ? 'Cancelar' : '+ Nova Empresa'}
-              />
-           </div>
-           
-           <div className="perfil-card" style={{ height: 'calc(100% - 66px)', display: 'flex', flexDirection: 'column', gap: '16px', background: 'transparent', border: 'none', padding: 0 }}>
-             {showNewClientForm && (
-               <div style={{ backgroundColor: 'var(--ds-surface)', padding: '16px', borderRadius: '8px', border: '1px solid var(--ds-border)' }}>
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <div className="ds-input-group">
-                      <label className="ds-label">Nome da Empresa</label>
-                      <input type="text" className="ds-input" value={newClient.name} onChange={e => setNewClient({...newClient, name: e.target.value})} placeholder="Nome" />
-                    </div>
-                    <div className="ds-input-group">
-                      <label className="ds-label">CNPJ</label>
-                      <input 
-                        type="text" 
-                        className="ds-input" 
-                        value={newClient.cnpj} 
-                        onChange={e => setNewClient({...newClient, cnpj: maskCNPJ(e.target.value)})} 
-                        placeholder="00.000.000/0000-00" 
-                      />
-                    </div>
-                    <div className="ds-input-group">
-                      <label className="ds-label">Telefone</label>
-                      <input 
-                        type="text" 
-                        className="ds-input" 
-                        value={newClient.phone} 
-                        onChange={e => setNewClient({...newClient, phone: maskPhone(e.target.value)})} 
-                        placeholder="(00) 00000-0000" 
-                      />
-                    </div>
-                    <div className="ds-input-group">
-                      <label className="ds-label">E-mail de Contato</label>
-                      <input 
-                        type="email" 
-                        className="ds-input" 
-                        value={newClient.email} 
-                        onChange={e => setNewClient({...newClient, email: e.target.value})} 
-                        placeholder="email@daempresa.com" 
-                      />
-                    </div>
-                  </div>
-                  <Button 
-                    style={{ marginTop: '16px', width: '100%' }}
-                    onClick={handleAddClient}
-                    disabled={!newClient.name}
-                    label="Salvar Empresa"
-                  />
-               </div>
-             )}
-
-             {clients.length > 0 ? (
-               <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                  {clients.map(c => {
-                    const isEditing = editingId === c.id;
-
-                    if (isEditing) {
-                      return (
-                        <div key={c.id} style={{ backgroundColor: 'var(--ds-surface)', padding: '16px', borderRadius: '8px', border: '1px solid var(--ds-primary)', boxShadow: '0 0 15px rgba(234, 179, 8, 0.1)' }}>
-                           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                              <div className="ds-input-group">
-                                <label className="ds-label">Nome da Empresa</label>
-                                <input type="text" className="ds-input" value={editForm.name} onChange={e => setEditForm({...editForm, name: e.target.value})} />
-                              </div>
-                              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                                <div className="ds-input-group">
-                                  <label className="ds-label">CNPJ</label>
-                                  <input type="text" className="ds-input" value={editForm.cnpj} onChange={e => setEditForm({...editForm, cnpj: maskCNPJ(e.target.value)})} />
-                                </div>
-                                <div className="ds-input-group">
-                                  <label className="ds-label">Telefone</label>
-                                  <input type="text" className="ds-input" value={editForm.phone} onChange={e => setEditForm({...editForm, phone: maskPhone(e.target.value)})} />
-                                </div>
-                              </div>
-                              <div className="ds-input-group">
-                                <label className="ds-label">E-mail de Contato</label>
-                                <input type="email" className="ds-input" value={editForm.email} onChange={e => setEditForm({...editForm, email: e.target.value})} />
-                              </div>
-                           </div>
-                           <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                              <Button variant="outline" size="sm" style={{ flex: 1 }} onClick={handleCancelEdit} label="Cancelar" />
-                              <Button variant="primary" size="sm" style={{ flex: 1 }} onClick={handleUpdateClient} label="Salvar" />
-                           </div>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div 
-                        key={c.id}
-                        className="orcamento-card"
-                        onClick={() => handleStartEdit(c)}
-                        style={{ cursor: 'pointer' }}
-                      >
-                         <div className="orcamento-card__info">
-                           <span className="orcamento-card__client">{c.name}</span>
-                           <div className="orcamento-card__meta" style={{ marginTop: '2px', display: 'flex', gap: '8px' }}>
-                             <span>{c.cnpj ? maskCNPJ(c.cnpj) : 'Sem CNPJ'}</span>
-                             {c.phone && (
-                               <>
-                                 <span className="orcamento-card__meta-dot" />
-                                 <span>{maskPhone(c.phone)}</span>
-                               </>
-                             )}
-                             {c.email && (
-                               <>
-                                 <span className="orcamento-card__meta-dot" />
-                                 <span style={{ textTransform: 'none' }}>{c.email}</span>
-                               </>
-                             )}
-                           </div>
-                         </div>
-                         <div className="orcamento-card__actions" onClick={e => e.stopPropagation()}>
-                           <button 
-                             className="orcamento-card__action-btn orcamento-card__action-btn--delete" 
-                             onClick={() => handleDeleteClient(c.id, c.name)}
-                             title="Excluir Empresa"
-                           >
-                             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"></path><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"></path><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"></path></svg>
-                           </button>
-                         </div>
-                      </div>
-                    );
-                  })}
-               </div>
-             ) : (
-               <div style={{ textAlign: 'center', padding: '32px', color: 'var(--ds-text-subtle)', fontSize: '13px', border: '1px dashed rgba(255,255,255,0.1)', borderRadius: '8px' }}>
-                  Nenhuma empresa cadastrada.
-               </div>
-             )}
-           </div>
-        </div>
       </div>
     </div>
   );

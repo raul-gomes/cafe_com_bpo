@@ -41,8 +41,6 @@ jobs:
           MODE: "test"
           GOOGLE_CLIENT_ID: "dummy"
           GOOGLE_CLIENT_SECRET: "dummy"
-          MICROSOFT_CLIENT_ID: "dummy"
-          MICROSOFT_CLIENT_SECRET: "dummy"
           OAUTH_REDIRECT_URI: "http://localhost:8000/auth"
         run: pytest
 

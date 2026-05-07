@@ -6,6 +6,11 @@ export interface ClientData {
   cnpj?: string;
   phone?: string;
   email?: string;
+  color?: string;
+  description?: string;
+  segment?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export const getClients = async () => {

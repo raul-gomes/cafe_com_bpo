@@ -1,13 +1,27 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { apiClient, authStorage } from '../api/client';
 
 const SESSION_KEY = 'cafe_bpo_proposal';
+
+function isTokenExpired(token: string): boolean {
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]));
+    const expiry = payload.exp * 1000;
+    const now = Date.now();
+    return expiry - now < 60000;
+  } catch {
+    return true;
+  }
+}
 
 export interface User {
   id: string;
   email: string;
   name?: string;
   company?: string;
+  company_name?: string;
+  company_segment?: string;
+  company_description?: string;
   avatar_url?: string;
   created_at?: string;
 }
@@ -23,45 +37,75 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string) => Promise<{ syncedProposalId?: string } | void>;
+  login: (token: string, refreshToken?: string) => Promise<{ syncedProposalId?: string } | void>;
   logout: () => void;
   register: (payload: RegisterPayload) => Promise<{ syncedProposalId?: string } | void>;
+  setUser: (user: User | null) => void;
+  sessionExpired: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  // isLoading remains true until we check if there's a stored token
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [sessionExpired, setSessionExpired] = useState<boolean>(false);
+  const isChecking = useRef(false);
 
-  // Validate the Token via Backend Me Route
-  const checkToken = async () => {
+  const checkToken = useCallback(async () => {
+    if (isChecking.current) return;
+    isChecking.current = true;
+
     const token = authStorage.getToken();
     if (!token) {
       setIsLoading(false);
+      isChecking.current = false;
       return;
     }
-    
-    try {
-      const response = await apiClient.get<User>('/auth/me');
-      setUser(response.data);
-    } catch (error) {
-      console.error('Invalid or expired token', error);
-      authStorage.clearToken();
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
+    const maxRetries = 2;
+    let attempts = 0;
+
+    const tryFetch = async (): Promise<void> => {
+      try {
+        const response = await apiClient.get<User>('/auth/me');
+        setUser(response.data);
+        setSessionExpired(false);
+      } catch (error: any) {
+        const status = error.response?.status;
+        if (status === 401) {
+          setSessionExpired(true);
+          setTimeout(() => setSessionExpired(false), 5000);
+          authStorage.clearToken();
+          setUser(null);
+        } else if (status >= 500 && attempts < maxRetries) {
+          attempts++;
+          await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
+          return tryFetch();
+        } else {
+          authStorage.clearToken();
+          setUser(null);
+        }
+      } finally {
+        setIsLoading(false);
+        isChecking.current = false;
+      }
+    };
+
+    await tryFetch();
+  }, []);
 
   useEffect(() => {
     checkToken();
-  }, []);
+  }, [checkToken]);
 
-  const login = async (token: string) => {
+  const login = async (token: string, refreshToken?: string) => {
     authStorage.setToken(token);
-    await checkToken(); // Re-check the token sets the user
+    if (refreshToken) {
+      authStorage.setRefreshToken(refreshToken);
+    }
+    setSessionExpired(false);
+    await checkToken();
     const proposalId = await syncPendingProposal();
     return { syncedProposalId: proposalId };
   };
@@ -69,11 +113,9 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const logout = () => {
     authStorage.clearToken();
     setUser(null);
+    setSessionExpired(false);
   };
 
-  /**
-   * Verifica se há uma proposta no sessionStorage e a salva no banco.
-   */
   const syncPendingProposal = async (): Promise<string | undefined> => {
     const raw = sessionStorage.getItem(SESSION_KEY);
     if (!raw) return;
@@ -81,13 +123,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     try {
       const saved = JSON.parse(raw);
       if (saved.form && saved.pricing) {
-        const response = await apiClient.post<{ id: string }>('/api/proposals/', {
+        const response = await apiClient.post<{ id: string }>('/proposals/', {
           client_name: saved.clientName || 'Cliente',
           input_payload: saved.form,
           result_payload: saved.pricing,
         });
         
-        // Limpa o sessionStorage após salvar com sucesso
         sessionStorage.removeItem(SESSION_KEY);
         
         return response.data.id;
@@ -99,18 +140,16 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   };
 
   const register = async (payload: RegisterPayload) => {
-    // Cria o usuário no backend e faz login imediato via /auth/login
     await apiClient.post('/auth/register', payload);
     
     const formData = new URLSearchParams();
     formData.append('username', payload.email);
     formData.append('password', payload.password);
 
-    const loginResp = await apiClient.post<{ access_token: string }>('/auth/login', formData, {
+    const loginResp = await apiClient.post<{ access_token: string; refresh_token: string }>('/auth/login', formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
-    // O login já chama o syncPendingProposal internamente
-    return await login(loginResp.data.access_token);
+    return await login(loginResp.data.access_token, loginResp.data.refresh_token);
   };
 
   const value: AuthContextType = {
@@ -120,6 +159,8 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     login,
     logout,
     register,
+    setUser,
+    sessionExpired,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
@@ -133,3 +174,6 @@ export const useAuth = () => {
   }
   return context;
 };
+
+// eslint-disable-next-line react-refresh/only-export-components
+export { isTokenExpired };
