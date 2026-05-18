@@ -293,6 +293,6 @@ class TestNotificationAPI:
         assert first_id in ids
         assert second_id in ids
         # Notifications should be sorted by created_at DESC
-        assert (
-            notifications[0]["created_at"] >= notifications[1]["created_at"]
-        ), "Notifications should be sorted newest first"
+        assert notifications[0]["created_at"] >= notifications[1]["created_at"], (
+            "Notifications should be sorted newest first"
+        )
