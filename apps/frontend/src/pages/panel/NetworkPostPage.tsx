@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getPost, getComments, createComment, deletePost, PostResponse, CommentResponse } from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
 export const NetworkPostPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -71,16 +72,11 @@ export const NetworkPostPage: React.FC = () => {
 
   return (
     <>
-      <div className="panel-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', fontWeight: 600 }}>
-        <button 
-          onClick={() => navigate('/painel/forum')} 
-          style={{ background: 'transparent', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: 0 }}
-        >
-          Comunidade
-        </button>
-        <span style={{ color: 'var(--text-secondary)' }}>/</span>
-        <span style={{ color: 'var(--ds-primary)' }}>Tópico</span>
-      </div>
+      <Breadcrumb items={[
+        { label: 'Painel', to: '/painel' },
+        { label: 'Comunidade', to: '/painel/forum' },
+        { label: post?.title || 'Tópico' }
+      ]} />
 
       <div className="panel-content__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
         <div>

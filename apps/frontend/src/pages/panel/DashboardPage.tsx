@@ -16,6 +16,7 @@ import { useNotifications } from '../../api/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TaskModal } from '../../components/tasks/TaskModal';
+import { SLAAlerts } from '../../components/dashboard/SLAAlerts';
 import { TaskResponse } from '../../schemas/tasks';
 
 export const DashboardPage: React.FC = () => {
@@ -194,6 +195,14 @@ export const DashboardPage: React.FC = () => {
             </div>
           )}
         </div>
+      </section>
+
+      {/* SLA Alerts Section */}
+      <section style={{ marginBottom: '40px' }}>
+        <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <AlertCircle size={16} /> Alertas de SLA
+        </h2>
+        <SLAAlerts />
       </section>
 
       {/* Activity Feed and Stats */}

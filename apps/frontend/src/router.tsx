@@ -5,8 +5,12 @@ import CadastroPage from './pages/CadastroPage'
 import SimulatorPage from './pages/SimulatorPage'
 import UnderConstructionPage from './pages/UnderConstructionPage'
 import ProposalPreviewPage from './pages/ProposalPreviewPage'
+import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
+import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
+import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PanelLayout } from './components/panel/PanelLayout'
+import { ErrorBoundary } from './components/ErrorBoundary'
 import { DashboardPage } from './pages/panel/DashboardPage'
 import { OrcamentosPage } from './pages/panel/OrcamentosPage'
 import { OrcamentoNovoPage } from './pages/panel/OrcamentoNovoPage'
@@ -16,6 +20,10 @@ import { GaleriaArquivosPage } from './pages/panel/GaleriaArquivosPage'
 import { NetworkPage } from './pages/panel/NetworkPage'
 import { NetworkPostPage } from './pages/panel/NetworkPostPage'
 import { TasksPage } from './pages/panel/TasksPage'
+import { EmpresasPage } from './pages/panel/EmpresasPage'
+import { PaymentsPage } from './pages/panel/PaymentsPage'
+import { TemplateListPage } from './pages/panel/TemplateListPage'
+import { TemplateDetailPage } from './pages/panel/TemplateDetailPage'
 
 export function buildRouter() {
   return createBrowserRouter([
@@ -30,6 +38,18 @@ export function buildRouter() {
     {
       path: '/cadastro',
       element: <CadastroPage />,
+    },
+    {
+      path: '/auth/callback',
+      element: <OAuthCallbackPage />,
+    },
+    {
+      path: '/esqueci-minha-senha',
+      element: <ForgotPasswordPage />,
+    },
+    {
+      path: '/redefinir-senha',
+      element: <ResetPasswordPage />,
     },
     {
       path: '/simulador',
@@ -53,7 +73,7 @@ export function buildRouter() {
       children: [
         {
           path: '',
-          element: <PanelLayout />,
+          element: <ErrorBoundary><PanelLayout /></ErrorBoundary>,
           children: [
             {
               path: '',
@@ -94,7 +114,23 @@ export function buildRouter() {
             {
               path: 'tarefas',
               element: <TasksPage />,
-            }
+            },
+            {
+              path: 'empresas',
+              element: <EmpresasPage />,
+            },
+            {
+              path: 'pagamentos',
+              element: <PaymentsPage />,
+            },
+            {
+              path: 'templates-atividades',
+              element: <TemplateListPage />,
+            },
+            {
+              path: 'templates-atividades/:id',
+              element: <TemplateDetailPage />,
+            },
           ]
         }
       ]

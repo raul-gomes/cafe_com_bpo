@@ -1,0 +1,66 @@
+import { useEffect, useRef } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
+
+export const OAuthCallbackPage = () => {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const { login } = useAuth();
+  const hasProcessed = useRef(false);
+
+  useEffect(() => {
+    if (hasProcessed.current) return;
+    hasProcessed.current = true;
+
+    const token = searchParams.get('token');
+    const refreshToken = searchParams.get('refresh_token');
+    const error = searchParams.get('error');
+
+    if (error) {
+      navigate(`/login?error=${error}`);
+      return;
+    }
+
+    if (!token) {
+      navigate('/login');
+      return;
+    }
+
+    login(token, refreshToken || undefined)
+      .then((result: { syncedProposalId?: string } | void) => {
+        if (result && (result as any).syncedProposalId) {
+          navigate(`/painel/orcamento/${(result as any).syncedProposalId}`);
+        } else {
+          navigate('/painel');
+        }
+      })
+      .catch(() => {
+        navigate('/login?error=auth_failed');
+      });
+  }, [searchParams, navigate, login]);
+
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '100vh',
+      background: 'var(--ds-bg)',
+      color: 'var(--ds-text)',
+      fontSize: '16px',
+    }}>
+      <div style={{ textAlign: 'center' }}>
+        <div style={{
+          width: '32px',
+          height: '32px',
+          border: '3px solid var(--ds-border)',
+          borderTopColor: 'var(--ds-primary)',
+          borderRadius: '50%',
+          animation: 'spin 0.8s linear infinite',
+          margin: '0 auto 16px',
+        }} />
+        <p>Autenticando...</p>
+      </div>
+    </div>
+  );
+};

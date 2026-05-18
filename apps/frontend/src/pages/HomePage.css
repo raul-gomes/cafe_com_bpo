@@ -1,5 +1,10 @@
 /* ── CAFÉ COM BPO — HOME V2 ── */
 
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 80px;
+}
+
 :root {
   --yellow: #F5C518;
   --yellow-dim: rgba(245,197,24,0.15);
@@ -38,6 +43,7 @@
   color: var(--white);
   -webkit-font-smoothing: antialiased;
   overflow-x: hidden;
+  scroll-behavior: smooth;
 }
 
 /* ── NAV ── */
@@ -76,6 +82,29 @@
   border-radius: 50%;
   background: var(--yellow);
   box-shadow: 0 0 12px var(--yellow);
+}
+
+.nav-logo-donate {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  margin-left: 16px;
+  padding: 5px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(245,197,24,0.2);
+  background: rgba(245,197,24,0.06);
+  color: var(--yellow);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+  text-decoration: none;
+  transition: all 0.25s var(--spring-easing);
+}
+
+.nav-logo-donate:hover {
+  background: rgba(245,197,24,0.12);
+  border-color: rgba(245,197,24,0.35);
+  transform: translateY(-1px);
 }
 
 .nav-links {
@@ -596,7 +625,7 @@
 
 /* ── CTA FINAL ── */
 #cta-final {
-  background: var(--black);
+  background: var(--black-soft);
   padding: 180px 48px;
   text-align: center;
   position: relative;
@@ -651,6 +680,306 @@
   letter-spacing: 0.02em;
 }
 
+/* ── NOS AJUDE / DOAÇÃO ── */
+.donate-section {
+  background: var(--black);
+  padding: 128px 48px;
+  position: relative;
+  overflow: hidden;
+}
+
+.donate-section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(245,197,24,0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(245,197,24,0.03) 1px, transparent 1px);
+  background-size: 60px 60px;
+  mask-image: radial-gradient(ellipse 50% 50% at 50% 50%, black 20%, transparent 100%);
+  pointer-events: none;
+}
+
+.donate-orb {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+  filter: blur(100px);
+  z-index: 1;
+}
+
+.donate-orb-1 {
+  width: 400px; height: 400px;
+  top: -100px; left: -100px;
+  background: radial-gradient(circle, rgba(245,197,24,0.08) 0%, transparent 70%);
+}
+
+.donate-orb-2 {
+  width: 300px; height: 300px;
+  bottom: -50px; right: -50px;
+  background: radial-gradient(circle, rgba(245,197,24,0.06) 0%, transparent 70%);
+}
+
+.donate-inner {
+  max-width: 800px;
+  margin: 0 auto;
+  text-align: center;
+  position: relative;
+  z-index: 2;
+}
+
+.donate-glass {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+}
+
+.donate-headline {
+  font-size: clamp(28px, 4vw, 52px);
+  font-weight: 300;
+  line-height: 1.15;
+  color: var(--white);
+  margin-bottom: 24px;
+}
+
+.donate-headline em {
+  font-style: normal;
+  color: var(--yellow);
+}
+
+.donate-body {
+  font-size: 16px;
+  font-weight: 300;
+  line-height: 1.8;
+  color: rgba(249,249,247,0.5);
+  max-width: 600px;
+  margin: 0 auto 40px;
+}
+
+.donate-pix-area {
+  margin-bottom: 32px;
+}
+
+.donate-pix-card {
+  background: rgba(245,197,24,0.05);
+  border: 1px solid rgba(245,197,24,0.15);
+  border-radius: var(--radius-md);
+  padding: 32px;
+  display: inline-block;
+  min-width: 320px;
+}
+
+.donate-pix-icon {
+  width: 48px; height: 48px;
+  border-radius: var(--radius-sm);
+  background: rgba(245,197,24,0.1);
+  border: 1px solid rgba(245,197,24,0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+  color: var(--yellow);
+}
+
+.donate-pix-label {
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--yellow);
+  margin-bottom: 16px;
+}
+
+.donate-pix-copy {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--black);
+  border: 1px solid var(--white-border);
+  border-radius: var(--radius-sm);
+  padding: 12px 16px;
+}
+
+.donate-pix-key {
+  font-family: 'Inter', monospace;
+  font-size: 14px;
+  color: var(--white);
+  flex: 1;
+  text-align: left;
+}
+
+.donate-copy-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: var(--yellow);
+  color: var(--black);
+  border: none;
+  border-radius: var(--radius-sm);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s var(--spring-easing);
+  white-space: nowrap;
+}
+
+.donate-copy-btn:hover {
+  background: #e6b20f;
+  transform: scale(1.05);
+}
+
+.donate-divider {
+  font-size: 14px;
+  font-weight: 400;
+  color: rgba(249,249,247,0.3);
+  margin: 32px 0;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.donate-divider::before,
+.donate-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--white-border);
+}
+
+.donate-form-area {
+  text-align: left;
+}
+
+.donate-form-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--white);
+  margin-bottom: 24px;
+  text-align: center;
+}
+
+.donate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.donate-amounts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.donate-amount-btn {
+  padding: 14px;
+  background: transparent;
+  border: 1.5px solid var(--white-border);
+  border-radius: var(--radius-sm);
+  color: var(--white);
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s var(--spring-easing);
+}
+
+.donate-amount-btn:hover {
+  border-color: var(--yellow);
+  background: rgba(245,197,24,0.05);
+  color: var(--yellow);
+}
+
+.donate-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.donate-amount-input,
+.donate-name-input,
+.donate-email-input {
+  background: var(--black);
+  border: 1.5px solid var(--white-border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  color: var(--white);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  transition: border-color 0.2s ease;
+  width: 100%;
+}
+
+.donate-amount-input:focus,
+.donate-name-input:focus,
+.donate-email-input:focus {
+  border-color: var(--yellow);
+}
+
+.donate-amount-input::placeholder,
+.donate-name-input::placeholder,
+.donate-email-input::placeholder {
+  color: rgba(249,249,247,0.3);
+}
+
+.donate-method-select {
+  background: var(--black);
+  border: 1.5px solid var(--white-border);
+  border-radius: var(--radius-sm);
+  padding: 14px 16px;
+  color: var(--white);
+  font-size: 14px;
+  font-family: 'Inter', sans-serif;
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s ease;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='rgba(249,249,247,0.4)' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  padding-right: 40px;
+}
+
+.donate-method-select:focus {
+  border-color: var(--yellow);
+}
+
+.donate-method-select option {
+  background: var(--black);
+  color: var(--white);
+}
+
+.donate-submit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 16px 32px;
+  background: var(--yellow);
+  color: var(--black);
+  border: none;
+  border-radius: var(--radius-md);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all 0.3s var(--spring-easing);
+  margin-top: 8px;
+}
+
+.donate-submit-btn:hover {
+  background: #e6b20f;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(245,197,24,0.25);
+}
+
+.donate-submit-btn:active {
+  transform: translateY(0);
+}
+
 /* ── ANIMATIONS ── */
 @keyframes fadeUp {
   from { opacity: 0; transform: translateY(30px); }
@@ -676,11 +1005,15 @@
 /* ── RESPONSIVE ── */
 @media (max-width: 960px) {
   .v2-nav { padding: 18px 24px; }
+  .nav-logo-donate { display: none; }
   #hero { padding: 0 24px 72px; }
   .hero-float-card { display: none; }
-  #problema, #movimento, #ferramentas, #ghuto, .ghuto-inner { padding: 80px 24px; }
+  #problema, #movimento, #ferramentas, #ghuto, .ghuto-inner, .donate-section { padding: 80px 24px; }
   .problema-grid, .ghuto-grid, #ghuto, .ghuto-inner { grid-template-columns: 1fr; gap: 48px; }
   .ferramentas-grid { grid-template-columns: 1fr; }
   .ghuto-photo-wrap { max-width: 100%; }
-  .cta-glass { padding: 64px 32px; }
+  .cta-glass, .donate-glass { padding: 64px 32px; }
+  .donate-amounts { grid-template-columns: repeat(2, 1fr); }
+  .donate-form-row { grid-template-columns: 1fr; }
+  .donate-pix-card { min-width: auto; width: 100%; }
 }

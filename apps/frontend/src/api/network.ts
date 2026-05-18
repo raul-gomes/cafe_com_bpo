@@ -55,39 +55,39 @@ export interface PaginatedNotifications {
 }
 
 export const getPosts = async (limit = 10, offset = 0): Promise<PaginatedPosts> => {
-  const { data } = await apiClient.get('/api/network/posts', { params: { limit, offset } });
+  const { data } = await apiClient.get('/network/posts', { params: { limit, offset } });
   return data;
 };
 
 export const getPost = async (postId: string): Promise<PostResponse> => {
-  const { data } = await apiClient.get(`/api/network/posts/${postId}`);
+  const { data } = await apiClient.get(`/network/posts/${postId}`);
   return data;
 };
 
 export const createPost = async (payload: { title: string; message: string; tags: string[] }): Promise<PostResponse> => {
-  const { data } = await apiClient.post('/api/network/posts', payload);
+  const { data } = await apiClient.post('/network/posts', payload);
   return data;
 };
 
 export const deletePost = async (postId: string): Promise<void> => {
-  await apiClient.delete(`/api/network/posts/${postId}`);
+  await apiClient.delete(`/network/posts/${postId}`);
 };
 
 export const createComment = async (postId: string, message: string): Promise<CommentResponse> => {
-  const { data } = await apiClient.post(`/api/network/posts/${postId}/comments`, { message });
+  const { data } = await apiClient.post(`/network/posts/${postId}/comments`, { message });
   return data;
 };
 
 export const getComments = async (postId: string): Promise<CommentResponse[]> => {
-  const { data } = await apiClient.get(`/api/network/posts/${postId}/comments`);
+  const { data } = await apiClient.get(`/network/posts/${postId}/comments`);
   return data;
 };
 
 export const getNotifications = async (limit = 20): Promise<PaginatedNotifications> => {
-  const { data } = await apiClient.get('/api/network/notifications', { params: { limit } });
+  const { data } = await apiClient.get('/network/notifications', { params: { limit } });
   return data;
 };
 
 export const markNotificationRead = async (notificationId: string): Promise<void> => {
-  await apiClient.patch(`/api/network/notifications/${notificationId}/read`);
+  await apiClient.patch(`/network/notifications/${notificationId}/read`);
 };

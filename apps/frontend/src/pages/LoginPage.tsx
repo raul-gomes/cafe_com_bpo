@@ -1,12 +1,20 @@
 import { Navbar } from '../components/ui/Navbar';
 import { LoginForm } from '../components/auth/LoginForm';
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+
+const ERROR_MESSAGES: Record<string, string> = {
+  state_invalid: 'Sessão expirada. Tente fazer login novamente.',
+  auth_failed: 'Falha na autenticação. Tente novamente.',
+  session_expired: 'Sua sessão expirou. Faça login novamente.',
+};
 
 export default function LoginPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const errorParam = searchParams.get('error');
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -18,15 +26,17 @@ export default function LoginPage() {
     <div className="login-page" data-testid="login-page">
       <Navbar />
 
-      {/* Glow blobs decorativos */}
       <div className="login-glow-top" />
       <div className="login-glow-bottom" />
 
-      {/* BPO watermark — rodapé da página, canto inferior direito */}
       <span className="login-bpo-watermark">BPO</span>
 
-      {/* Container de conteúdo */}
       <div className="login-content">
+        {errorParam && (
+          <div className="ds-alert ds-alert-error" style={{ marginBottom: '20px' }}>
+            <span>{ERROR_MESSAGES[errorParam] || 'Ocorreu um erro. Tente novamente.'}</span>
+          </div>
+        )}
         {sessionStorage.getItem('cafe_bpo_proposal') && (
           <div className="ds-alert ds-alert-warning" style={{ marginBottom: '20px', textAlign: 'center' }}>
             <strong>Quase lá!</strong> Faça login ou cadastre-se para salvar sua simulação e baixar sua proposta em PDF.

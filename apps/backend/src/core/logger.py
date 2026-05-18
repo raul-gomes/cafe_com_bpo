@@ -5,6 +5,7 @@ from src.core.config import get_settings
 
 settings = get_settings()
 
+
 def setup_logging():
     # Remove logs padrão do uvicorn/fastapi
     logging.getLogger("uvicorn.access").handlers = []
@@ -17,26 +18,28 @@ def setup_logging():
             "sink": sys.stdout,
             "format": "{message}",
             "level": "DEBUG" if settings.mode == "development" else "INFO",
-            "serialize": True, # Ativa saída em JSON estruturado
+            "serialize": True,  # Ativa saída em JSON estruturado
         }
     ]
 
     # Só ativa logs de arquivo se não estivermos em modo de teste
     if settings.mode != "test":
-        handlers.append({
-            "sink": "logs/server.json",
-            "format": "{message}",
-            "level": "INFO",
-            "rotation": "10 MB",
-            "retention": "7 days",
-            "compression": "zip",
-            "serialize": True,
-        })
+        handlers.append(
+            {
+                "sink": "logs/server.json",
+                "format": "{message}",
+                "level": "INFO",
+                "rotation": "10 MB",
+                "retention": "7 days",
+                "compression": "zip",
+                "serialize": True,
+            }
+        )
 
     config = {"handlers": handlers}
 
     logger.configure(**config)
-    
+
     # Interceptor para redirecionar logs de bibliotecas padrão
     class InterceptHandler(logging.Handler):
         def emit(self, record):
@@ -50,10 +53,13 @@ def setup_logging():
                 frame = frame.f_back
                 depth += 1
 
-            logger.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
+            logger.opt(depth=depth, exception=record.exc_info).log(
+                level, record.getMessage()
+            )
 
     logging.basicConfig(handlers=[InterceptHandler()], level=0, force=True)
-    
+
     logger.info("Sistema de Logging estruturado (JSON) inicializado.")
+
 
 log = logger

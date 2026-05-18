@@ -22,7 +22,7 @@ export const useCalculatePricing = () => {
     mutationFn: async (data: PricingFormData): Promise<PricingResponse> => {
       // Ajuste de payload temporário no Client para casar com backend atual Phase 2, 
       // e os demais cálculos que não existem no v2 (desconto prazo e comissão) fazemos no client provisóriamente
-      const response = await apiClient.post('/api/pricing/calculate', {
+      const response = await apiClient.post('/pricing/calculate', {
         operation: {
           total_cost: data.operation.total_cost,
           people_count: data.operation.people_count,

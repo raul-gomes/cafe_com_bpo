@@ -25,22 +25,21 @@ services:
       - JWT_ALGORITHM=${JWT_ALGORITHM}
       - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
       - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET}
-      - MICROSOFT_CLIENT_ID=${MICROSOFT_CLIENT_ID}
-      - MICROSOFT_CLIENT_SECRET=${MICROSOFT_CLIENT_SECRET}
       - OAUTH_REDIRECT_URI=${OAUTH_REDIRECT_URI}
       - GOOGLE_AUTH_URL=${GOOGLE_AUTH_URL}
       - GOOGLE_TOKEN_URL=${GOOGLE_TOKEN_URL}
       - GOOGLE_USERINFO_URL=${GOOGLE_USERINFO_URL}
-      - MICROSOFT_AUTH_URL=${MICROSOFT_AUTH_URL}
-      - MICROSOFT_TOKEN_URL=${MICROSOFT_TOKEN_URL}
-      - MICROSOFT_USERINFO_URL=${MICROSOFT_USERINFO_URL}
       - CORS_ORIGINS=${CORS_ORIGINS}
-      - MICROSOFT_TENANT_ID=${MICROSOFT_TENANT_ID}
-      - MICROSOFT_STORAGE_ACCOUNT_ID=${MICROSOFT_STORAGE_ACCOUNT_ID}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}
       - CLOUDINARY_API_SECRET=${CLOUDINARY_API_SECRET}
       - FILE_UPLOAD_MAX_SIZE=${FILE_UPLOAD_MAX_SIZE}
+      - SMTP_HOST=${SMTP_HOST:-smtp.gmail.com}
+      - SMTP_PORT=${SMTP_PORT:-587}
+      - SMTP_USER=${SMTP_USER}
+      - SMTP_PASSWORD=${SMTP_PASSWORD}
+      - SMTP_FROM_EMAIL=${SMTP_FROM_EMAIL}
+      - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
     # Ports are now managed by Nginx gateway
     expose:
       - "8000"
@@ -55,6 +54,11 @@ services:
     # Ports are now managed by Nginx gateway
     expose:
       - "80"
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   pgadmin:
     image: dpage/pgadmin4
@@ -65,13 +69,27 @@ services:
     volumes:
       - pgadmin_data:/var/lib/pgadmin
     depends_on:
-      - db
+      db:
+        condition: service_healthy
 
   ollama:
     image: ollama/ollama:latest
     volumes:
       - ollama_data:/root/.ollama
     # Ollama is accessible through Nginx Gateway; host port 11434 removed to avoid conflict
+    environment:
+      - OLLAMA_HOST=0.0.0.0:11434
+    deploy:
+      resources:
+        limits:
+          memory: 8G
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    entrypoint: ["sh", "-c", "ollama serve & sleep 5 && ollama pull qwen2.5:7b && wait"]
 
   gateway:
     build:
@@ -79,10 +97,14 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - api
-      - web
-      - pgadmin
-      - ollama
+      api:
+        condition: service_healthy
+      web:
+        condition: service_healthy
+      pgadmin:
+        condition: service_started
+      ollama:
+        condition: service_started
 
 volumes:
   postgres_data:

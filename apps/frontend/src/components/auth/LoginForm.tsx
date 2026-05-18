@@ -115,6 +115,16 @@ export const LoginForm: React.FC = () => {
           {errors.password && <p className="ds-error-text">{errors.password.message}</p>}
         </div>
 
+        <div style={{ textAlign: 'right', marginTop: '-8px' }}>
+          <a href="/esqueci-minha-senha" style={{
+            color: 'var(--ds-text-subtle)',
+            textDecoration: 'none',
+            fontSize: '13px',
+          }}>
+            Esqueceu a senha?
+          </a>
+        </div>
+
         <button
           type="submit"
           disabled={isSubmitting}
@@ -139,7 +149,7 @@ export const LoginForm: React.FC = () => {
       </div>
 
       {/* OAuth */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px', maxWidth: '200px', margin: '0 auto' }}>
         <button
           type="button"
           onClick={() => handleOAuthLogin('google')}
@@ -148,20 +158,6 @@ export const LoginForm: React.FC = () => {
         >
           <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" style={{ width: '16px', height: '16px' }} />
           Google
-        </button>
-        <button
-          type="button"
-          onClick={() => handleOAuthLogin('microsoft')}
-          className="ds-btn ds-btn-ghost"
-          style={{ padding: '10px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}
-        >
-          <svg width="16" height="16" viewBox="0 0 21 21">
-            <rect x="1" y="1" width="9" height="9" fill="#f25022"/>
-            <rect x="11" y="1" width="9" height="9" fill="#7fba00"/>
-            <rect x="1" y="11" width="9" height="9" fill="#00a4ef"/>
-            <rect x="11" y="11" width="9" height="9" fill="#ffb900"/>
-          </svg>
-          Microsoft
         </button>
       </div>
     </div>

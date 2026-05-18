@@ -10,6 +10,15 @@ from src.modules.auth.models import User  # noqa: F401
 from src.modules.proposals.models import PricingScenario  # noqa: F401
 from src.modules.clients.models import Client  # noqa: F401
 from src.modules.network.models import DiscussionPost, DiscussionComment, Notification  # noqa: F401
+from src.modules.tasks.models import (  # noqa: F401
+    Task,
+    TaskPhase,
+    ActivityTemplate,
+    TemplateActivity,
+    ClientTemplateAssignment,
+    ClientSLA,
+    TaskAttachment,
+)
 from src.core.config import get_settings
 
 # this is the Alembic Config object, which provides
@@ -74,9 +83,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

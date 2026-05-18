@@ -1,6 +1,5 @@
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { X, Trash2, Palette } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
@@ -15,6 +14,8 @@ const taskSchema = z.object({
   status: z.enum(['todo', 'doing', 'done']),
   priority: z.enum(['low', 'medium', 'high']),
   deadline: z.string().optional(),
+  phase_id: z.string().uuid().optional().or(z.literal('')),
+  time_estimate_hours: z.number().optional().or(z.literal(0)),
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -28,11 +29,12 @@ interface TaskModalProps {
 const CONTRAST_PALETTE = ["#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", "#06b6d4", "#10b981", "#6366f1", "#f97316"];
 
 export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) => {
-  const { useCreateTask, useUpdateTask, useDeleteTask, useUpdateClient } = useTasks();
+  const { useCreateTask, useUpdateTask, useDeleteTask, useUpdateClient, usePhases } = useTasks();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const updateClient = useUpdateClient();
+  const { data: phases } = usePhases();
 
   const { data: clients } = useQuery({
     queryKey: ['clients'],
@@ -42,18 +44,10 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
     }
   });
 
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<TaskFormData>({
-    resolver: zodResolver(taskSchema),
-    defaultValues: {
-      status: 'todo',
-      priority: 'medium',
-    }
-  });
-
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<TaskFormData>();
   const selectedClientId = watch('client_id');
   const selectedClient = clients?.find((c: any) => c.id === selectedClientId);
 
-  // Reset form when task changes or modal opens
   useEffect(() => {
     if (isOpen) {
       if (task) {
@@ -64,6 +58,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
           status: task.status as any,
           priority: task.priority as any,
           deadline: task.deadline ? task.deadline.split('T')[0] : '',
+          phase_id: task.phase_id || '',
+          time_estimate_hours: task.time_estimate_hours || 0,
         });
       } else {
         reset({
@@ -73,6 +69,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
           status: 'todo',
           priority: 'medium',
           deadline: '',
+          phase_id: '',
+          time_estimate_hours: 0,
         });
       }
     }
@@ -80,10 +78,20 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
 
   const onSubmit = async (data: TaskFormData) => {
     try {
+      const submitData = {
+        title: data.title,
+        description: data.description,
+        client_id: data.client_id,
+        status: data.status,
+        priority: data.priority,
+        deadline: data.deadline || undefined,
+        phase_id: data.phase_id || undefined,
+        time_estimate_hours: data.time_estimate_hours || undefined,
+      };
       if (task) {
-        await updateTask.mutateAsync({ id: task.id, ...data });
+        await updateTask.mutateAsync({ id: task.id, ...submitData });
       } else {
-        await createTask.mutateAsync(data);
+        await createTask.mutateAsync(submitData);
       }
       onClose();
     } catch (err) {
@@ -106,13 +114,15 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
 
   if (!isOpen) return null;
 
+  const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
+
   return (
     <div className="ds-modal-overlay" style={{ 
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', 
         display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
         backdropFilter: 'blur(4px)'
     }}>
-      <div className="ds-modal ds-card" style={{ width: '100%', maxWidth: '500px', padding: '32px', position: 'relative' }}>
+      <div className="ds-modal ds-card" style={{ width: '100%', maxWidth: '540px', padding: '32px', position: 'relative', maxHeight: '90vh', overflow: 'auto' }}>
         <button onClick={onClose} style={{ position: 'absolute', top: '24px', right: '24px', background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
           <X size={24} />
         </button>
@@ -126,7 +136,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
 
         <form onSubmit={handleSubmit(onSubmit as any)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="ds-form-group">
-            <label className="ds-label">Título da Tarefa</label>
+            <label className="ds-label">
+              <span>Título da Tarefa</span>
+            </label>
             <input 
               {...register('title')} 
               className="ds-input" 
@@ -182,7 +194,19 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
             />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+          {sortedPhases.length > 0 && (
+            <div className="ds-form-group">
+              <label className="ds-label">Fase</label>
+              <select {...register('phase_id')} className="ds-input">
+                <option value="">Sem fase</option>
+                {sortedPhases.map(phase => (
+                  <option key={phase.id} value={phase.id}>{phase.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
             <div className="ds-form-group">
                 <label className="ds-label">Data Limite</label>
                 <input 
@@ -199,6 +223,18 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
                 <option value="medium">Média</option>
                 <option value="high">Alta</option>
               </select>
+            </div>
+
+            <div className="ds-form-group">
+              <label className="ds-label">Horas Est.</label>
+              <input 
+                {...register('time_estimate_hours', { valueAsNumber: true })}
+                type="number"
+                min="0"
+                step="1"
+                className="ds-input" 
+                placeholder="0"
+              />
             </div>
           </div>
 

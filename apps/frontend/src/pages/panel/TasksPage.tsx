@@ -1,22 +1,30 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, CheckCircle2, Clock, AlertCircle, Eye, X } from 'lucide-react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, AlertTriangle } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
-import { TaskResponse } from '../../schemas/tasks';
+import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
 import { TaskModal } from '../../components/tasks/TaskModal';
+import { PhaseManager } from '../../components/tasks/PhaseManager';
+import { Breadcrumb } from '../../components/ui/Breadcrumb';
+
+type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_hours?: number; priority: string; process_type?: string; status: string };
+type ConflictTaskItem = { id: string; title: string; time_estimate_hours?: number; deadline?: string };
 
 export const TasksPage: React.FC = () => {
-    const [view, setView] = useState<'kanban' | 'calendar'>('kanban');
+    const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
-    const { useTasksList, useUpdateTaskStatus } = useTasks();
+    const [showPhaseManager, setShowPhaseManager] = useState(false);
+    const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts } = useTasks();
     const { data: tasks, isLoading } = useTasksList();
+    const { data: phases } = usePhases();
     const updateTaskStatus = useUpdateTaskStatus();
+    const { data: timelineData, isLoading: timelineLoading } = useTimeline();
+    const { data: conflictsData } = useConflicts();
     
     const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
-    const [isModalOpen, setModalOpen] = useState(false);
+    const [isTaskModalOpen, setTaskModalOpen] = useState(false);
 
     const { data: clients } = useQuery({
         queryKey: ['clients'],
@@ -31,17 +39,25 @@ export const TasksPage: React.FC = () => {
         const { draggableId, destination } = result;
         if (destination.droppableId === result.source.droppableId) return;
         
-        updateTaskStatus.mutate({ id: draggableId, status: destination.droppableId });
+        // Use phase_id for phase-based Kanban
+        updateTaskStatus.mutate({ id: draggableId, phase_id: destination.droppableId });
     };
 
-    const handleOpenNew = () => {
+    const getTaskStatus = (task: TaskResponse): string => {
+        if (task.phase_id && phases) {
+            return task.phase_id;
+        }
+        return task.status;
+    };
+
+    const handleOpenNewTask = () => {
         setSelectedTask(null);
-        setModalOpen(true);
+        setTaskModalOpen(true);
     };
 
-    const handleEdit = (task: TaskResponse) => {
+    const handleEditTask = (task: TaskResponse) => {
         setSelectedTask(task);
-        setModalOpen(true);
+        setTaskModalOpen(true);
     };
 
     if (isLoading) {
@@ -57,12 +73,7 @@ export const TasksPage: React.FC = () => {
 
     return (
         <div className="tasks-page" style={{ animation: 'panelFadeIn 0.4s ease-out', position: 'relative' }}>
-            {/* Breadcrumb Navigation */}
-            <div className="panel-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', fontWeight: 600 }}>
-                <Link to="/painel" style={{ color: 'var(--ds-text-muted)', textDecoration: 'none' }}>Painel</Link>
-                <span style={{ color: 'var(--ds-text-subtle)' }}>/</span>
-                <span style={{ color: 'var(--ds-primary)' }}>Gestão de Tarefas</span>
-            </div>
+            <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Gestão de Tarefas' }]} />
 
             <div className="panel-content__header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
@@ -70,6 +81,15 @@ export const TasksPage: React.FC = () => {
                     <p>Controle operacional e prazos por empresa.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                    {view === 'kanban' && (
+                        <button 
+                            className="ds-btn ds-btn-ghost" 
+                            onClick={() => setShowPhaseManager(true)}
+                            style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px' }}
+                        >
+                            <Settings size={16} /> Fases
+                        </button>
+                    )}
                     {view === 'kanban' && (
                         <button 
                             className="ds-btn ds-btn-ghost" 
@@ -86,11 +106,14 @@ export const TasksPage: React.FC = () => {
                         <button onClick={() => setView('kanban')} className={`vt-btn ${view === 'kanban' ? 'active' : ''}`}>
                             <LayoutGrid size={16} /> Kanban
                         </button>
+                        <button onClick={() => setView('timeline')} className={`vt-btn ${view === 'timeline' ? 'active' : ''}`}>
+                            <Clock size={16} /> Timeline
+                        </button>
                         <button onClick={() => setView('calendar')} className={`vt-btn ${view === 'calendar' ? 'active' : ''}`}>
                             <CalendarIcon size={16} /> Calendário
                         </button>
                     </div>
-                    <button className="ds-btn ds-btn-primary" onClick={handleOpenNew}>
+                    <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
                         <Plus size={18} /> Nova Tarefa
                     </button>
                 </div>
@@ -99,16 +122,39 @@ export const TasksPage: React.FC = () => {
             <div className="tasks-content" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', position: 'relative' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     {view === 'kanban' ? (
-                        <DragDropContext onDragEnd={handleDragEnd}>
-                            <TaskKanban tasks={tasksList} clients={clients || []} onEdit={handleEdit} />
-                        </DragDropContext>
+                        tasksList.length === 0 ? (
+                            <div className="panel-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ds-text-muted)', marginBottom: '16px', opacity: 0.3 }}>
+                                    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                                </svg>
+                                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--ds-text)' }}>Nenhuma tarefa criada</h3>
+                                <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px', marginBottom: '20px' }}>Comece organizando suas tarefas operacionais por empresa e fase.</p>
+                                <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
+                                    <Plus size={18} /> Criar Primeira Tarefa
+                                </button>
+                            </div>
+                        ) : (
+                            <DragDropContext onDragEnd={handleDragEnd}>
+                                <TaskKanban tasks={tasksList} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} />
+                            </DragDropContext>
+                        )
+                    ) : view === 'timeline' ? (
+                        <div className="panel-card" style={{ padding: '24px' }}>
+                            <TaskTimeline 
+                                timeline={timelineData?.timeline || []} 
+                                conflicts={conflictsData?.conflicts || []}
+                                clients={clients || []} 
+                                isLoading={timelineLoading}
+                                onEdit={handleEditTask} 
+                            />
+                        </div>
                     ) : (
                         <div className="panel-card" style={{ padding: '24px' }}>
-                            <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEdit} isMacro={false} />
+                            <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={false} />
                         </div>
                     )}
                 </div>
-
+                
                 {view === 'kanban' && showMacroCalendar && (
                     <div className="macro-calendar-overlay ds-card" style={{ 
                         width: '320px', padding: '20px', position: 'sticky', top: '20px', height: 'fit-content',
@@ -118,17 +164,22 @@ export const TasksPage: React.FC = () => {
                             <h3 style={{ fontSize: '14px', fontWeight: 700 }}>Visão Mensal</h3>
                             <button onClick={() => setShowMacroCalendar(false)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
                                 <X size={14} />
-                            </button>
+                                </button>
+                            </div>
+                            <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={true} />
                         </div>
-                        <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEdit} isMacro={true} />
-                    </div>
-                )}
-            </div>
+                    )}
+                </div>
 
             <TaskModal 
-                isOpen={isModalOpen} 
-                onClose={() => setModalOpen(false)} 
+                isOpen={isTaskModalOpen} 
+                onClose={() => setTaskModalOpen(false)} 
                 task={selectedTask}
+            />
+
+            <PhaseManager 
+                isOpen={showPhaseManager} 
+                onClose={() => setShowPhaseManager(false)} 
             />
 
             <style dangerouslySetInnerHTML={{ __html: `
@@ -170,17 +221,22 @@ export const TasksPage: React.FC = () => {
     );
 };
 
-const TaskKanban: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t: TaskResponse) => void }> = ({ tasks, clients, onEdit }) => {
-    const columns = [
-        { id: 'todo', title: 'A Fazer', icon: <AlertCircle size={14} color="var(--ds-error)" /> },
-        { id: 'doing', title: 'Em Andamento', icon: <Clock size={14} color="var(--ds-warning)" /> },
-        { id: 'done', title: 'Concluído', icon: <CheckCircle2 size={14} color="var(--ds-success)" /> }
+const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string }> = ({ tasks, phases, clients, onEdit, getTaskStatus }) => {
+    const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
+    const columns = sortedPhases.length > 0 ? sortedPhases.map(p => ({
+        id: p.id,
+        title: p.name,
+        color: p.color,
+    })) : [
+        { id: 'todo', title: 'A Fazer', color: '#6b7280' },
+        { id: 'doing', title: 'Em Andamento', color: '#3b82f6' },
+        { id: 'done', title: 'Concluído', color: '#22c55e' },
     ];
 
     const getClient = (id: string) => clients.find(c => c.id === id);
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '24px', alignItems: 'start' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns.length}, 1fr)`, gap: '24px', alignItems: 'start' }}>
             {columns.map(col => (
                 <Droppable key={col.id} droppableId={col.id}>
                     {(provided, snapshot) => (
@@ -191,15 +247,16 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t: 
                         >
                             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
                                 <h3 style={{ fontSize: '11px', fontWeight: 800, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    {col.icon} {col.title}
+                                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.color }} />
+                                    {col.title}
                                 </h3>
                                 <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-muted)', background: 'var(--ds-surface-2)', padding: '2px 8px', borderRadius: '12px' }}>
-                                    {tasks.filter(t => t.status === col.id).length}
+                                    {tasks.filter(t => getTaskStatus(t) === col.id).length}
                                 </span>
                             </div>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                                {tasks.filter(t => t.status === col.id).map((task, index) => {
+                                {tasks.filter(t => getTaskStatus(t) === col.id).map((task, index) => {
                                     const client = getClient(task.client_id);
                                     return (
                                         <Draggable key={task.id} draggableId={task.id} index={index}>
@@ -213,7 +270,7 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t: 
                                                     style={{ 
                                                         ...provided.draggableProps.style,
                                                         padding: '16px', 
-                                                        borderLeft: `4px solid ${client?.color || 'var(--ds-primary)'}`,
+                                                        borderLeft: `4px solid ${client?.color || col.color}`,
                                                         cursor: 'pointer',
                                                         backgroundColor: snapshot.isDragging ? 'var(--ds-surface-3)' : 'var(--ds-surface-2)',
                                                         zIndex: snapshot.isDragging ? 999 : 1,
@@ -223,7 +280,7 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t: 
                                                     }}
                                                 >
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <div style={{ fontSize: '10px', fontWeight: 900, color: client?.color || 'var(--ds-primary)', marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                                        <div style={{ fontSize: '10px', fontWeight: 900, color: client?.color || col.color, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                                                             {client?.name || 'Cliente'}
                                                         </div>
                                                         <div style={{ 
@@ -339,6 +396,89 @@ const TaskCalendar: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t
                         </div>
                     );
                 })}
+            </div>
+        </div>
+    );
+};
+
+const TaskTimeline: React.FC<{ 
+    timeline: { date: string; tasks: TimelineTaskItem[]; total_hours: number }[]; 
+    conflicts: { date: string; tasks: ConflictTaskItem[]; total_hours: number }[];
+    clients: any[]; 
+    isLoading: boolean;
+    onEdit: (t: TaskResponse) => void 
+}> = ({ timeline, conflicts, clients, isLoading, onEdit }) => {
+    const getClient = (id: string) => clients.find(c => c.id === id);
+    const conflictDates = new Set(conflicts.map(c => c.date));
+
+    if (isLoading) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--ds-text-muted)' }}>Carregando timeline...</div>;
+    if (timeline.length === 0) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--ds-text-muted)' }}>Nenhuma tarefa com prazo encontrada.</div>;
+
+    const maxHours = Math.max(...timeline.map(d => d.total_hours), 8);
+
+    return (
+        <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+                <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Timeline de Tarefas</h2>
+                {conflicts.length > 0 && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--ds-warning)', background: 'rgba(245,158,11,0.1)', padding: '6px 12px', borderRadius: '8px' }}>
+                        <AlertTriangle size={14} /> {conflicts.length} conflito(s) de sobrecarga detectado(s)
+                    </div>
+                )}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {timeline.map(day => (
+                    <div key={day.date} style={{ 
+                        padding: '16px', 
+                        background: conflictDates.has(day.date) ? 'rgba(245,158,11,0.05)' : 'var(--ds-surface-2)',
+                        border: `1px solid ${conflictDates.has(day.date) ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                        borderRadius: 'var(--radius-lg)',
+                        opacity: new Date(day.date + 'T00:00:00') < new Date(new Date().toISOString().split('T')[0]) ? 0.6 : 1
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ds-text)' }}>
+                                {new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
+                            </span>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
+                                    <div style={{ 
+                                        width: `${Math.min((day.total_hours / maxHours) * 100, 100)}%`, 
+                                        height: '100%', 
+                                        background: day.total_hours > 8 ? 'var(--ds-error)' : 'var(--ds-primary)',
+                                        borderRadius: '3px'
+                                    }} />
+                                </div>
+                                <span style={{ fontSize: '11px', fontWeight: 700, color: day.total_hours > 8 ? 'var(--ds-error)' : 'var(--ds-text-muted)' }}>
+                                    {day.total_hours.toFixed(1)}h
+                                </span>
+                            </div>
+                        </div>
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
+                            {day.tasks.map(task => {
+                                const client = getClient(task.client_id);
+                                return (
+                                    <div 
+                                        key={task.id}
+                                        onClick={() => onEdit(task as TaskResponse)}
+                                        style={{ 
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            padding: '6px 10px', borderRadius: '6px',
+                                            background: (client?.color || 'var(--ds-primary)') + '22',
+                                            borderLeft: `3px solid ${client?.color || 'var(--ds-primary)'}`,
+                                            cursor: 'pointer', fontSize: '12px', color: 'var(--ds-text)',
+                                            transition: 'background 0.2s'
+                                        }}
+                                    >
+                                        <span style={{ fontWeight: 600 }}>{task.title}</span>
+                                        {task.time_estimate_hours && (
+                                            <span style={{ fontSize: '10px', color: 'var(--ds-text-muted)', fontWeight: 700 }}>{task.time_estimate_hours}h</span>
+                                        )}
+                                    </div>
+                                );
+                            })}
+                        </div>
+                    </div>
+                ))}
             </div>
         </div>
     );
