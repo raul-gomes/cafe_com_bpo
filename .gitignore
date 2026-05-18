@@ -57,3 +57,20 @@ apps/backend/logs/
 
 # Implementation Plans
 implementations/
+
+# Local Databases
+*.db
+apps/backend/dev.db
+
+# Uploaded Files
+apps/backend/storage/
+storage/
+
+# Development Environment
+.superpowers/
+
+# Random Assets
+docs/image copy.png
+
+# Temp Files
+/tmp/
