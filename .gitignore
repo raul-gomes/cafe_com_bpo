@@ -58,6 +58,10 @@ apps/backend/logs/
 # Implementation Plans
 implementations/
 
+# Agent Skills & Specs
+agent_skills/
+spec/
+
 # Local Databases
 *.db
 apps/backend/dev.db

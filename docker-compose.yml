@@ -93,7 +93,7 @@ services:
 
   gateway:
     build:
-      context: ./infra/nginx
+      context: ./infra
     ports:
       - "80:80"
     depends_on:
