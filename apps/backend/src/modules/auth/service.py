@@ -12,6 +12,7 @@ from .repository import UserRepository
 from .schemas import UserCreate, UserResponse
 from .models import PasswordResetToken
 
+
 class AuthService:
     def __init__(self, session: Session):
         self.user_repo = UserRepository(session)
@@ -31,7 +32,9 @@ class AuthService:
                 email=user.email,
                 name=user.name,
                 company=user.company,
-                avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url
+                avatar_url=user.avatar_file.read_url
+                if user.avatar_file
+                else user.avatar_url,
             )
         except IntegrityError:
             self.user_repo.session.rollback()
@@ -39,20 +42,20 @@ class AuthService:
         except Exception as e:
             self.user_repo.session.rollback()
             raise e
-        
+
     def authenticate_user(self, email: str, password: str) -> Optional[dict]:
         user = self.user_repo.get_user_by_email(email)
         if not user:
             return None
-        
+
         if not PasswordService.verify_password(password, user.password_hash):
             return None
-            
+
         return {
             "access_token": TokenService.create_access_token(user_id=str(user.id)),
             "refresh_token": TokenService.create_refresh_token(user_id=str(user.id)),
         }
-    
+
     def get_user_profile(self, user_id: uuid.UUID) -> Optional[UserResponse]:
         user = self.user_repo.get_user_by_id(user_id)
         if not user:
@@ -65,10 +68,14 @@ class AuthService:
             company_name=user.company_name,
             company_segment=user.company_segment,
             company_description=user.company_description,
-            avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url
+            avatar_url=user.avatar_file.read_url
+            if user.avatar_file
+            else user.avatar_url,
         )
-    
-    def update_user_profile(self, user_id: uuid.UUID, **kwargs) -> Optional[UserResponse]:
+
+    def update_user_profile(
+        self, user_id: uuid.UUID, **kwargs
+    ) -> Optional[UserResponse]:
         user = self.user_repo.update_user(user_id, **kwargs)
         if not user:
             return None
@@ -81,19 +88,19 @@ class AuthService:
             company_name=user.company_name,
             company_segment=user.company_segment,
             company_description=user.company_description,
-            avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url
+            avatar_url=user.avatar_file.read_url
+            if user.avatar_file
+            else user.avatar_url,
         )
 
     def authenticate_oauth_user(self, email: str, provider: str) -> dict:
         user = self.user_repo.get_user_by_email(email)
         if not user:
             user = self.user_repo.create_user(
-                email=email,
-                password_hash="oauth_login",
-                auth_provider=provider
+                email=email, password_hash="oauth_login", auth_provider=provider
             )
             self.user_repo.session.commit()
-            
+
         return {
             "access_token": TokenService.create_access_token(user_id=str(user.id)),
             "refresh_token": TokenService.create_refresh_token(user_id=str(user.id)),
@@ -104,11 +111,11 @@ class AuthService:
         user_id = payload.get("sub")
         if not user_id:
             raise ValueError("Token inválido")
-        
+
         user = self.user_repo.get_user_by_id(uuid.UUID(user_id))
         if not user:
             raise ValueError("Usuário não encontrado")
-        
+
         return {
             "access_token": TokenService.create_access_token(user_id=str(user.id)),
             "refresh_token": TokenService.create_refresh_token(user_id=str(user.id)),
@@ -137,9 +144,11 @@ class AuthService:
         return token
 
     def reset_password(self, token: str, new_password: str) -> bool:
-        reset_token = self.user_repo.session.query(PasswordResetToken).filter_by(
-            token=token, used=False
-        ).first()
+        reset_token = (
+            self.user_repo.session.query(PasswordResetToken)
+            .filter_by(token=token, used=False)
+            .first()
+        )
 
         if not reset_token:
             return False
@@ -148,7 +157,7 @@ class AuthService:
         expires_at = reset_token.expires_at
         if expires_at.tzinfo is None:
             expires_at = expires_at.replace(tzinfo=timezone.utc)
-        
+
         if expires_at < datetime.now(timezone.utc):
             return False
 
@@ -163,9 +172,10 @@ class AuthService:
 
         return True
 
+
 def get_current_user(
-    token: Annotated[str, Depends(oauth2_scheme)], 
-    session: Annotated[Session, Depends(get_db_session)]
+    token: Annotated[str, Depends(oauth2_scheme)],
+    session: Annotated[Session, Depends(get_db_session)],
 ) -> UserResponse:
     try:
         payload = TokenService.decode_access_token(token)
@@ -174,12 +184,12 @@ def get_current_user(
             raise ValueError()
     except ValueError:
         raise HTTPException(status_code=401, detail="Token inválido")
-    
+
     repo = UserRepository(session)
     user = repo.get_user_by_id(uuid.UUID(user_id))
     if user is None:
         raise HTTPException(status_code=401, detail="Usuário não encontrado")
-    
+
     return UserResponse(
         id=user.id,
         email=user.email,
@@ -188,5 +198,5 @@ def get_current_user(
         company_name=user.company_name,
         company_segment=user.company_segment,
         company_description=user.company_description,
-        avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url
+        avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url,
     )

@@ -3,13 +3,9 @@ TaskPhase Tests — TDD Approach
 Tests for customizable Kanban columns/phases per user.
 """
 
-import pytest
 from uuid import uuid4
-from fastapi import HTTPException
 
 from src.modules.tasks.models import TaskPhase, Task
-from src.modules.tasks.repository import TaskRepository
-from src.modules.tasks.schemas import TaskPhaseCreate, TaskPhaseUpdate
 
 
 class TestTaskPhaseModel:
@@ -17,25 +13,31 @@ class TestTaskPhaseModel:
 
     def test_phase_has_required_fields(self):
         """TaskPhase model should have all expected fields."""
-        assert hasattr(TaskPhase, 'id')
-        assert hasattr(TaskPhase, 'user_id')
-        assert hasattr(TaskPhase, 'name')
-        assert hasattr(TaskPhase, 'color')
-        assert hasattr(TaskPhase, 'order')
-        assert hasattr(TaskPhase, 'is_default')
+        assert hasattr(TaskPhase, "id")
+        assert hasattr(TaskPhase, "user_id")
+        assert hasattr(TaskPhase, "name")
+        assert hasattr(TaskPhase, "color")
+        assert hasattr(TaskPhase, "order")
+        assert hasattr(TaskPhase, "is_default")
 
     def test_task_has_phase_id_field(self):
         """Task model should have phase_id FK."""
-        assert hasattr(Task, 'phase_id')
+        assert hasattr(Task, "phase_id")
 
 
 class TestTaskPhaseRepository:
     """Tests for TaskPhase CRUD operations."""
 
     def _get_auth_header(self, client, email):
-        payload = {"email": email, "password": "StrongPassword123!", "name": "Test User"}
+        payload = {
+            "email": email,
+            "password": "StrongPassword123!",
+            "name": "Test User",
+        }
         client.post("/auth/register", json=payload)
-        resp = client.post("/auth/login", data={"username": email, "password": "StrongPassword123!"})
+        resp = client.post(
+            "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+        )
         token = resp.json()["access_token"]
         return {"Authorization": f"Bearer {token}"}
 
@@ -72,11 +74,11 @@ class TestTaskPhaseRepository:
         email = f"phase_user3_{uuid4()}@cafe.com"
         auth = self._get_auth_header(client, email)
 
-        resp = client.post("/tasks/phases/", json={
-            "name": "Em Revisão",
-            "color": "#f59e0b",
-            "order": 3
-        }, headers=auth)
+        resp = client.post(
+            "/tasks/phases/",
+            json={"name": "Em Revisão", "color": "#f59e0b", "order": 3},
+            headers=auth,
+        )
 
         assert resp.status_code == 201
         data = resp.json()
@@ -93,10 +95,11 @@ class TestTaskPhaseRepository:
         resp = client.get("/tasks/phases/", headers=auth)
         phase_id = resp.json()[0]["id"]
 
-        resp = client.put(f"/tasks/phases/{phase_id}", json={
-            "name": "Novo Nome",
-            "color": "#ef4444"
-        }, headers=auth)
+        resp = client.put(
+            f"/tasks/phases/{phase_id}",
+            json={"name": "Novo Nome", "color": "#ef4444"},
+            headers=auth,
+        )
 
         assert resp.status_code == 200
         assert resp.json()["name"] == "Novo Nome"
@@ -114,9 +117,13 @@ class TestTaskPhaseRepository:
         original_ids = [p["id"] for p in phases]
 
         # Reverse the order: first phase gets highest order, last gets 0
-        new_order = [{"id": p["id"], "order": len(phases) - 1 - i} for i, p in enumerate(phases)]
+        new_order = [
+            {"id": p["id"], "order": len(phases) - 1 - i} for i, p in enumerate(phases)
+        ]
 
-        resp = client.post("/tasks/phases/reorder", json={"phases": new_order}, headers=auth)
+        resp = client.post(
+            "/tasks/phases/reorder", json={"phases": new_order}, headers=auth
+        )
         assert resp.status_code == 200
 
         resp = client.get("/tasks/phases/", headers=auth)
@@ -135,11 +142,11 @@ class TestTaskPhaseRepository:
         auth = self._get_auth_header(client, email)
 
         # Create a custom phase
-        resp = client.post("/tasks/phases/", json={
-            "name": "Temp Phase",
-            "color": "#000000",
-            "order": 10
-        }, headers=auth)
+        resp = client.post(
+            "/tasks/phases/",
+            json={"name": "Temp Phase", "color": "#000000", "order": 10},
+            headers=auth,
+        )
         temp_phase_id = resp.json()["id"]
 
         # Delete the phase

@@ -4,20 +4,25 @@ from typing import List, Optional
 from .models import Company
 from .schemas import CompanyCreate, CompanyUpdate
 
+
 class CompanyRepository:
     def __init__(self, session: Session):
         self.session = session
 
     def get_by_id(self, company_id: UUID, user_id: UUID) -> Optional[Company]:
-        return self.session.query(Company).filter(
-            Company.id == company_id,
-            Company.user_id == user_id
-        ).first()
+        return (
+            self.session.query(Company)
+            .filter(Company.id == company_id, Company.user_id == user_id)
+            .first()
+        )
 
     def get_by_user(self, user_id: UUID) -> List[Company]:
-        return self.session.query(Company).filter(
-            Company.user_id == user_id
-        ).order_by(Company.name).all()
+        return (
+            self.session.query(Company)
+            .filter(Company.user_id == user_id)
+            .order_by(Company.name)
+            .all()
+        )
 
     def create(self, company_in: CompanyCreate, user_id: UUID) -> Company:
         company_data = company_in.model_dump()

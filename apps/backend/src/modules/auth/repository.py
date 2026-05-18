@@ -3,21 +3,29 @@ from sqlalchemy.orm import Session
 from .models import User
 import uuid
 
+
 class UserRepository:
     """
     Repositório para gerenciar operações da entidade User.
     """
+
     def __init__(self, session: Session):
         self.session = session
 
-    def create_user(self, email: str, password_hash: str, auth_provider: str = "local",
-                    name: Optional[str] = None, company: Optional[str] = None) -> User:
+    def create_user(
+        self,
+        email: str,
+        password_hash: str,
+        auth_provider: str = "local",
+        name: Optional[str] = None,
+        company: Optional[str] = None,
+    ) -> User:
         user = User(
-            email=email, 
-            password_hash=password_hash, 
+            email=email,
+            password_hash=password_hash,
             auth_provider=auth_provider,
-            name=name, 
-            company=company
+            name=name,
+            company=company,
         )
         self.session.add(user)
         self.session.flush()

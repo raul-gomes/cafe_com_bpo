@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+
 class Settings(BaseSettings):
     mode: str = "development"
     database_url: str
@@ -13,12 +14,12 @@ class Settings(BaseSettings):
     google_client_id: str
     google_client_secret: str
     oauth_redirect_uri: str
-    
+
     # OAuth Provider URLs
     google_auth_url: str
     google_token_url: str
     google_userinfo_url: str
-    
+
     # Cloudinary Settings
     cloudinary_cloud_name: str
     cloudinary_api_key: str
@@ -40,7 +41,10 @@ class Settings(BaseSettings):
     # Asaas Payments
     asaas_api_key: str = ""
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
+
 
 @lru_cache()
 def get_settings() -> Settings:

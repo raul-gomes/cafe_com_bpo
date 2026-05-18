@@ -1,17 +1,20 @@
-from pydantic import BaseModel, ConfigDict, Field, validator
+from pydantic import BaseModel, ConfigDict, Field
 from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
+
 
 class UserPublic(BaseModel):
     id: UUID
     name: Optional[str] = None
     email: str
 
+
 class PostCreate(BaseModel):
     title: str = Field(..., max_length=180)
     message: str
     tags: List[str] = Field(default_factory=list)
+
 
 class PostResponse(BaseModel):
     id: UUID
@@ -29,12 +32,15 @@ class PostResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class PaginatedPosts(BaseModel):
     items: List[PostResponse]
     total: int
 
+
 class CommentCreate(BaseModel):
     message: str
+
 
 class CommentResponse(BaseModel):
     id: UUID
@@ -48,6 +54,7 @@ class CommentResponse(BaseModel):
 
     model_config = ConfigDict(from_attributes=True)
 
+
 class NotificationResponse(BaseModel):
     id: UUID
     user_id: UUID
@@ -60,6 +67,7 @@ class NotificationResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
 
 class PaginatedNotifications(BaseModel):
     items: List[NotificationResponse]

@@ -9,15 +9,19 @@ from sqlalchemy.orm import relationship
 from src.core.database import Base
 import uuid
 
+
 class AppNotification(Base):
     """
     In-app notification for users.
     Decoupled from delivery channel (future: email, WhatsApp via dispatcher).
     """
+
     __tablename__ = "app_notifications"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
     title = Column(String(255), nullable=False)
     message = Column(String(1000), nullable=False)
     type = Column(String(50), nullable=False)
@@ -27,7 +31,9 @@ class AppNotification(Base):
     related_entity_type = Column(String(50), nullable=True)
     related_entity_id = Column(UUID(as_uuid=True), nullable=True)
 
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
     read_at = Column(DateTime(timezone=True), nullable=True)
 
     user = relationship("User", back_populates="notifications")

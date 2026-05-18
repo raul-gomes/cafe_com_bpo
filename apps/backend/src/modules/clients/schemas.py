@@ -3,6 +3,7 @@ from typing import Optional
 from uuid import UUID
 from datetime import datetime
 
+
 class ClientBase(BaseModel):
     name: str
     cnpj: Optional[str] = None
@@ -12,11 +13,14 @@ class ClientBase(BaseModel):
     description: Optional[str] = None
     segment: Optional[str] = None
 
+
 class ClientCreate(ClientBase):
     pass
 
+
 class ClientUpdate(ClientBase):
     name: Optional[str] = None
+
 
 class ClientResponse(ClientBase):
     id: UUID

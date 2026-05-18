@@ -9,7 +9,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from src.modules.notifications.repository import NotificationRepository
-from src.modules.notifications.schemas import NotificationCreate, NotificationUpdate, NotificationResponse
+from src.modules.notifications.schemas import NotificationCreate, NotificationResponse
 from src.core.logger import log
 
 
@@ -18,12 +18,19 @@ class NotificationDispatcher:
     Abstract dispatcher interface for sending notifications.
     Currently in-app only. Future: add EmailDispatcher, WhatsAppDispatcher.
     """
+
     def __init__(self, repository: NotificationRepository):
         self.repository = repository
 
-    def dispatch(self, user_id: UUID, title: str, message: str, notif_type: str,
-                 related_entity_type: Optional[str] = None,
-                 related_entity_id: Optional[UUID] = None) -> NotificationResponse:
+    def dispatch(
+        self,
+        user_id: UUID,
+        title: str,
+        message: str,
+        notif_type: str,
+        related_entity_type: Optional[str] = None,
+        related_entity_id: Optional[UUID] = None,
+    ) -> NotificationResponse:
         """Create and persist an in-app notification."""
         notif_data = NotificationCreate(
             title=title,
@@ -36,7 +43,9 @@ class NotificationDispatcher:
         log.info(f"🔔 Notificação criada: {title} para usuário {user_id}")
         return notif
 
-    def dispatch_task_assigned(self, user_id: UUID, task_title: str, task_id: UUID) -> NotificationResponse:
+    def dispatch_task_assigned(
+        self, user_id: UUID, task_title: str, task_id: UUID
+    ) -> NotificationResponse:
         return self.dispatch(
             user_id,
             "Nova tarefa atribuída",
@@ -46,7 +55,9 @@ class NotificationDispatcher:
             task_id,
         )
 
-    def dispatch_task_deadline(self, user_id: UUID, task_title: str, task_id: UUID) -> NotificationResponse:
+    def dispatch_task_deadline(
+        self, user_id: UUID, task_title: str, task_id: UUID
+    ) -> NotificationResponse:
         return self.dispatch(
             user_id,
             "Prazo da tarefa se aproxima",
@@ -56,7 +67,9 @@ class NotificationDispatcher:
             task_id,
         )
 
-    def dispatch_task_overdue(self, user_id: UUID, task_title: str, task_id: UUID) -> NotificationResponse:
+    def dispatch_task_overdue(
+        self, user_id: UUID, task_title: str, task_id: UUID
+    ) -> NotificationResponse:
         return self.dispatch(
             user_id,
             "Tarefa atrasada",
@@ -83,7 +96,9 @@ class NotificationService:
         """Get all notifications for a user."""
         return self.repository.get_by_user(user_id, type_filter, unread_only)
 
-    def create_notification(self, notif_data: NotificationCreate, user_id: UUID) -> NotificationResponse:
+    def create_notification(
+        self, notif_data: NotificationCreate, user_id: UUID
+    ) -> NotificationResponse:
         """Create a new notification."""
         return self.repository.create(notif_data, user_id)
 

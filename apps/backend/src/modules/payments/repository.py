@@ -1,10 +1,8 @@
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime, timezone
 from sqlalchemy.orm import Session
 
 from src.modules.payments.models import Payment
-from src.modules.payments.schemas import CreatePaymentInput
 
 
 class UserCustomer:
@@ -41,9 +39,12 @@ class PaymentRepository:
 
     def get_customer_by_user(self, user_id: UUID) -> Optional[UserCustomer]:
         from sqlalchemy import text
+
         result = self.session.execute(
-            text("SELECT id, asaas_customer_id FROM payments WHERE user_id = :uid AND asaas_customer_id IS NOT NULL LIMIT 1"),
-            {"uid": str(user_id)}
+            text(
+                "SELECT id, asaas_customer_id FROM payments WHERE user_id = :uid AND asaas_customer_id IS NOT NULL LIMIT 1"
+            ),
+            {"uid": str(user_id)},
         ).first()
         if result:
             return UserCustomer(user_id=user_id, asaas_customer_id=result[1])
@@ -51,9 +52,12 @@ class PaymentRepository:
 
     def save_customer_id(self, user_id: UUID, asaas_customer_id: str) -> None:
         from sqlalchemy import text
+
         self.session.execute(
-            text("UPDATE users SET metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{asaas_customer_id}', :cid) WHERE id = :uid"),
-            {"uid": str(user_id), "cid": f'"{asaas_customer_id}"'}
+            text(
+                "UPDATE users SET metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{asaas_customer_id}', :cid) WHERE id = :uid"
+            ),
+            {"uid": str(user_id), "cid": f'"{asaas_customer_id}"'},
         )
         self.session.commit()
 
@@ -85,7 +89,9 @@ class PaymentRepository:
         self.session.refresh(payment)
         return payment
 
-    def update_status(self, payment_id: UUID, status: str, webhook_data: Optional[dict] = None) -> Payment:
+    def update_status(
+        self, payment_id: UUID, status: str, webhook_data: Optional[dict] = None
+    ) -> Payment:
         payment = self.session.query(Payment).filter(Payment.id == payment_id).first()
         if payment:
             payment.status = status

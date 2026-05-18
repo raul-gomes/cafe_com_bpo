@@ -3,7 +3,7 @@ import time
 import hashlib
 import cloudinary
 import cloudinary.uploader
-from typing import Optional, Dict, Tuple
+from typing import Dict, Tuple
 from src.core.config import get_settings
 from src.core.logger import log
 
@@ -14,8 +14,9 @@ cloudinary.config(
     cloud_name=settings.cloudinary_cloud_name,
     api_key=settings.cloudinary_api_key,
     api_secret=settings.cloudinary_api_secret,
-    secure=True
+    secure=True,
 )
+
 
 class CloudinaryService:
     @classmethod
@@ -30,12 +31,12 @@ class CloudinaryService:
                 folder=f"cafe_com_bpo/avatars/{user_id}",
                 public_id=f"avatar_{timestamp}",
                 overwrite=True,
-                resource_type="image"
+                resource_type="image",
             )
-            
+
             return {
                 "id": upload_result["public_id"],
-                "url": upload_result["secure_url"]
+                "url": upload_result["secure_url"],
             }
         except Exception as e:
             log.error(f"❌ Erro no upload para Cloudinary: {str(e)}")
@@ -65,7 +66,7 @@ class OneDriveService:
         # Verificar cache
         if "token" in cls._token_cache:
             token, expiry = cls._token_cache["token"]
-            if now < expiry - 60: # 1 minuto de margem
+            if now < expiry - 60:  # 1 minuto de margem
                 return token
 
         log.info(" Solicitando novo token de acesso Microsoft Graph API...")
@@ -76,13 +77,13 @@ class OneDriveService:
             "scope": "https://graph.microsoft.com/.default",
             "grant_type": "client_credentials",
         }
-        
+
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.post(url, data=data)
                 response.raise_for_status()
                 res_json = response.json()
-                
+
                 token = res_json["access_token"]
                 expires_in = res_json["expires_in"]
                 cls._token_cache["token"] = (token, now + expires_in)
@@ -104,14 +105,14 @@ class OneDriveService:
         token = await cls._get_access_token()
         file_hash = cls.generate_file_hash(content)
         filename = f"avatar_{file_hash}{extension}"
-        
+
         storage_account = settings.microsoft_storage_account_id
         path = f"/users/{storage_account}/drive/root:/CafeComBPO/avatars/{user_id}/{filename}:/content"
         url = f"https://graph.microsoft.com/v1.0{path}"
-        
+
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/octet-stream"
+            "Content-Type": "application/octet-stream",
         }
 
         async with httpx.AsyncClient() as client:
@@ -131,15 +132,12 @@ class OneDriveService:
         token = await cls._get_access_token()
         storage_account = settings.microsoft_storage_account_id
         url = f"https://graph.microsoft.com/v1.0/users/{storage_account}/drive/items/{item_id}/createLink"
-        
+
         headers = {
             "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json"
+            "Content-Type": "application/json",
         }
-        data = {
-            "type": "view",
-            "scope": "anonymous"
-        }
+        data = {"type": "view", "scope": "anonymous"}
 
         async with httpx.AsyncClient() as client:
             try:
@@ -158,15 +156,15 @@ class OneDriveService:
         token = await cls._get_access_token()
         storage_account = settings.microsoft_storage_account_id
         url = f"https://graph.microsoft.com/v1.0/users/{storage_account}/drive/items/{item_id}"
-        
-        headers = {
-            "Authorization": f"Bearer {token}"
-        }
+
+        headers = {"Authorization": f"Bearer {token}"}
 
         async with httpx.AsyncClient() as client:
             try:
                 response = await client.delete(url, headers=headers)
                 if response.status_code != 204:
-                    log.warning(f"⚠️ Resposta inesperada ao deletar item {item_id}: {response.status_code}")
+                    log.warning(
+                        f"⚠️ Resposta inesperada ao deletar item {item_id}: {response.status_code}"
+                    )
             except Exception as e:
                 log.error(f"❌ Erro ao deletar arquivo no OneDrive: {str(e)}")

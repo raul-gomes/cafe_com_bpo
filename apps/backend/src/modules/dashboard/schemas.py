@@ -3,6 +3,7 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime
 
+
 class UrgentTaskResponse(BaseModel):
     id: UUID
     title: str
@@ -10,8 +11,9 @@ class UrgentTaskResponse(BaseModel):
     deadline: Optional[datetime] = None
     priority: str
     status: str
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class ActivityResponse(BaseModel):
     id: UUID
@@ -22,8 +24,9 @@ class ActivityResponse(BaseModel):
     comment_id: Optional[UUID] = None
     triggered_by_name: str
     message_snippet: Optional[str] = None
-    
+
     model_config = ConfigDict(from_attributes=True)
+
 
 class DashboardSummary(BaseModel):
     user_name: str
