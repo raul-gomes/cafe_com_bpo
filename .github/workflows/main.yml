@@ -45,7 +45,13 @@ jobs:
           MODE: "test"
           GOOGLE_CLIENT_ID: "dummy"
           GOOGLE_CLIENT_SECRET: "dummy"
+          GOOGLE_AUTH_URL: "https://accounts.google.com/o/oauth2/v2/auth"
+          GOOGLE_TOKEN_URL: "https://oauth2.googleapis.com/token"
+          GOOGLE_USERINFO_URL: "https://www.googleapis.com/oauth2/v3/userinfo"
           OAUTH_REDIRECT_URI: "http://localhost:8000/auth"
+          CLOUDINARY_CLOUD_NAME: "test"
+          CLOUDINARY_API_KEY: "test"
+          CLOUDINARY_API_SECRET: "test"
         run: pytest
 
   # ────────────────────────────────────────────
