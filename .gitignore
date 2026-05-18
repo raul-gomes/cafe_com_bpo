@@ -62,6 +62,9 @@ implementations/
 agent_skills/
 spec/
 
+# Scripts utilitários locais
+scripts/
+
 # Local Databases
 *.db
 apps/backend/dev.db
