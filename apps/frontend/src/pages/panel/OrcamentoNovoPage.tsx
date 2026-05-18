@@ -18,7 +18,7 @@ export const OrcamentoNovoPage: React.FC = () => {
     if (id) {
       const fetchProposal = async () => {
         try {
-          const resp = await apiClient.get(`/api/proposals/${id}`);
+          const resp = await apiClient.get(`/proposals/${id}`);
           setInitialData(resp.data.input_payload);
           setClientName(resp.data.client_name);
         } catch (err) {

@@ -6,39 +6,45 @@ from src.core.database import get_db_session
 from src.modules.auth.service import get_current_user
 from src.modules.auth.models import User
 from .schemas import (
-    PostCreate, PostResponse, PaginatedPosts,
-    CommentCreate, CommentResponse,
-    PaginatedNotifications
+    PostCreate,
+    PostResponse,
+    PaginatedPosts,
+    CommentCreate,
+    CommentResponse,
+    PaginatedNotifications,
 )
 from .repository import NetworkRepository
 
-router = APIRouter(prefix="/api/network", tags=["Network"])
+router = APIRouter(prefix="/network", tags=["Network"])
+
 
 @router.post("/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 def create_post(
     post_data: PostCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     return repo.create_post(current_user.id, post_data)
+
 
 @router.get("/posts", response_model=PaginatedPosts)
 def get_posts(
     limit: int = 10,
     offset: int = 0,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     items, total = repo.get_posts(limit, offset)
     return {"items": items, "total": total}
 
+
 @router.get("/posts/{post_id}", response_model=PostResponse)
 def get_post(
     post_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     post = repo.get_post_by_id(post_id)
@@ -46,11 +52,12 @@ def get_post(
         raise HTTPException(status_code=404, detail="Post not found")
     return post
 
+
 @router.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_post(
     post_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     try:
@@ -58,12 +65,17 @@ def delete_post(
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-@router.post("/posts/{post_id}/comments", response_model=CommentResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/posts/{post_id}/comments",
+    response_model=CommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
 def create_comment(
     post_id: UUID,
     comment_data: CommentCreate,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     try:
@@ -71,39 +83,45 @@ def create_comment(
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 
+
 @router.get("/posts/{post_id}/comments", response_model=list[CommentResponse])
 def get_post_comments(
     post_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     return repo.get_comments(post_id)
+
 
 @router.get("/notifications", response_model=PaginatedNotifications)
 def get_notifications(
     limit: int = 20,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     items, total = repo.get_notifications(current_user.id, limit)
     return {"items": items, "total": total}
 
-@router.patch("/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT)
+
+@router.patch(
+    "/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT
+)
 def mark_notification_read(
     notification_id: UUID,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     repo.mark_notification_read(current_user.id, notification_id)
     return None
 
+
 @router.patch("/notifications/read", status_code=status.HTTP_204_NO_CONTENT)
 def mark_notifications_read(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session)
+    db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
     repo.mark_notifications_read(current_user.id)

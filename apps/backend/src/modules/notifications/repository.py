@@ -3,6 +3,7 @@ Notifications Module - Repository
 
 Data access layer for notifications.
 """
+# ruff: noqa: E712 - SQLAlchemy requires == False for boolean column comparisons
 
 from sqlalchemy.orm import Session
 from uuid import UUID
@@ -10,7 +11,7 @@ from typing import List, Optional
 from datetime import datetime, timezone
 
 from .models import AppNotification
-from .schemas import NotificationCreate, NotificationUpdate
+from .schemas import NotificationCreate
 
 
 class NotificationRepository:
@@ -19,10 +20,11 @@ class NotificationRepository:
 
     def get_by_id(self, notif_id: UUID, user_id: UUID) -> Optional[AppNotification]:
         """Get a specific notification for a user."""
-        return self.session.query(AppNotification).filter(
-            AppNotification.id == notif_id,
-            AppNotification.user_id == user_id
-        ).first()
+        return (
+            self.session.query(AppNotification)
+            .filter(AppNotification.id == notif_id, AppNotification.user_id == user_id)
+            .first()
+        )
 
     def get_by_user(
         self,
@@ -38,7 +40,9 @@ class NotificationRepository:
             query = query.filter(AppNotification.type == type_filter)
         if unread_only:
             query = query.filter(AppNotification.is_read == False)
-        return query.order_by(AppNotification.created_at.desc(), AppNotification.id.desc()).all()
+        return query.order_by(
+            AppNotification.created_at.desc(), AppNotification.id.desc()
+        ).all()
 
     def create(self, notif_in: NotificationCreate, user_id: UUID) -> AppNotification:
         """Create a new notification."""
@@ -61,7 +65,9 @@ class NotificationRepository:
         """Mark all notifications for a user as read. Returns count."""
         unread = (
             self.session.query(AppNotification)
-            .filter(AppNotification.user_id == user_id, AppNotification.is_read == False)
+            .filter(
+                AppNotification.user_id == user_id, AppNotification.is_read == False
+            )
             .all()
         )
         now = datetime.now(timezone.utc)
@@ -80,6 +86,8 @@ class NotificationRepository:
         """Count unread notifications for a user."""
         return (
             self.session.query(AppNotification)
-            .filter(AppNotification.user_id == user_id, AppNotification.is_read == False)
+            .filter(
+                AppNotification.user_id == user_id, AppNotification.is_read == False
+            )
             .count()
         )

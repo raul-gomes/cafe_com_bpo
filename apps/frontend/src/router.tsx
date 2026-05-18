@@ -21,10 +21,9 @@ import { NetworkPage } from './pages/panel/NetworkPage'
 import { NetworkPostPage } from './pages/panel/NetworkPostPage'
 import { TasksPage } from './pages/panel/TasksPage'
 import { EmpresasPage } from './pages/panel/EmpresasPage'
-import { RoiCalculatorPage } from './pages/panel/RoiCalculatorPage'
-import { RoiHistoricoPage } from './pages/panel/RoiHistoricoPage'
-import { AIToolsPage } from './pages/panel/AIToolsPage'
 import { PaymentsPage } from './pages/panel/PaymentsPage'
+import { TemplateListPage } from './pages/panel/TemplateListPage'
+import { TemplateDetailPage } from './pages/panel/TemplateDetailPage'
 
 export function buildRouter() {
   return createBrowserRouter([
@@ -121,21 +120,17 @@ export function buildRouter() {
               element: <EmpresasPage />,
             },
             {
-              path: 'roi-calculadora',
-              element: <RoiCalculatorPage />,
-            },
-            {
-              path: 'roi-historico',
-              element: <RoiHistoricoPage />,
-            },
-            {
-              path: 'ferramentas-ia',
-              element: <AIToolsPage />,
-            },
-            {
               path: 'pagamentos',
               element: <PaymentsPage />,
-            }
+            },
+            {
+              path: 'templates-atividades',
+              element: <TemplateListPage />,
+            },
+            {
+              path: 'templates-atividades/:id',
+              element: <TemplateDetailPage />,
+            },
           ]
         }
       ]

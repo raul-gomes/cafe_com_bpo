@@ -7,7 +7,7 @@ export const useNotifications = () => {
   const useMarkAsRead = () => {
     return useMutation({
       mutationFn: async (id: string) => {
-        await apiClient.patch(`/api/network/notifications/${id}/read`);
+        await apiClient.patch(`/network/notifications/${id}/read`);
       },
       onSuccess: () => {
         // Invalidate both notifications and dashboard summary

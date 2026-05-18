@@ -16,24 +16,22 @@ from src.modules.clients.router import router as clients_router
 from src.modules.network.router import router as network_router
 from src.modules.tasks.router import router as tasks_router
 from src.modules.dashboard.router import router as dashboard_router
-from src.modules.roi.router import router as roi_router
-from src.modules.ai.router import router as ai_router
 from src.modules.payments.router import router as payments_router
 from src.modules.notifications.router import router as notifications_router
 from src.modules.companies.router import router as companies_router
-from src.modules.companies.router import router as companies_router
+
 
 def create_app() -> FastAPI:
     setup_logging()
-    
+
     app = FastAPI(
         title="Café com BPO API",
         description="API de Precificação e Gestão de Propostas BPO (Arquitetura Modular)",
-        version="1.1.0"
+        version="1.1.0",
     )
-    
+
     settings = get_settings()
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins.split(","),
@@ -45,6 +43,7 @@ def create_app() -> FastAPI:
     @app.get("/health")
     def health_check():
         from sqlalchemy import text
+
         db_status = "connected"
         error_msg = None
         try:
@@ -73,11 +72,8 @@ def create_app() -> FastAPI:
     app.include_router(network_router)
     app.include_router(tasks_router)
     app.include_router(dashboard_router)
-    app.include_router(roi_router)
-    app.include_router(ai_router)
     app.include_router(payments_router)
     app.include_router(notifications_router)
-    app.include_router(companies_router)
     app.include_router(companies_router)
 
     os.makedirs("storage/avatars", exist_ok=True)
@@ -88,7 +84,7 @@ def create_app() -> FastAPI:
         start_time = time.time()
         response = await call_next(request)
         process_time = (time.time() - start_time) * 1000
-        
+
         log.info(
             f"HTTP {request.method} {request.url.path} - "
             f"Status: {response.status_code} - "

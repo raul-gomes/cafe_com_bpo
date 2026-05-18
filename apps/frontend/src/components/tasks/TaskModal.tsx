@@ -1,8 +1,7 @@
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
-import { X, Trash2, Palette, Sparkles } from 'lucide-react';
+import { X, Trash2, Palette } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
@@ -30,13 +29,12 @@ interface TaskModalProps {
 const CONTRAST_PALETTE = ["#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", "#06b6d4", "#10b981", "#6366f1", "#f97316"];
 
 export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) => {
-  const { useCreateTask, useUpdateTask, useDeleteTask, useUpdateClient, usePhases, useAnalyzeTask } = useTasks();
+  const { useCreateTask, useUpdateTask, useDeleteTask, useUpdateClient, usePhases } = useTasks();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
   const updateClient = useUpdateClient();
   const { data: phases } = usePhases();
-  const analyzeTask = useAnalyzeTask();
 
   const { data: clients } = useQuery({
     queryKey: ['clients'],
@@ -46,18 +44,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
     }
   });
 
-  const { register, handleSubmit, formState: { errors }, reset, watch, setValue } = useForm<TaskFormData>({
-    resolver: zodResolver(taskSchema),
-    defaultValues: {
-      status: 'todo',
-      priority: 'medium',
-    }
-  });
-
+  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<TaskFormData>();
   const selectedClientId = watch('client_id');
   const selectedClient = clients?.find((c: any) => c.id === selectedClientId);
-  const currentTitle = watch('title');
-  const currentDescription = watch('description');
 
   useEffect(() => {
     if (isOpen) {
@@ -123,29 +112,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
     }
   };
 
-  const handleAIAnalyze = async () => {
-    if (!currentTitle) return;
-    try {
-      const result = await analyzeTask.mutateAsync({
-        title: currentTitle,
-        description: currentDescription,
-      });
-      if (result.suggested_priority) {
-        setValue('priority', result.suggested_priority as any);
-      }
-      if (result.suggested_process_type) {
-        // Could set process_type if we had the field
-      }
-      if (result.estimated_deadline_days && result.estimated_deadline_days > 0) {
-        const futureDate = new Date();
-        futureDate.setDate(futureDate.getDate() + result.estimated_deadline_days);
-        setValue('deadline', futureDate.toISOString().split('T')[0]);
-      }
-    } catch (err) {
-      console.error('Erro ao analisar com IA:', err);
-    }
-  };
-
   if (!isOpen) return null;
 
   const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
@@ -170,22 +136,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
 
         <form onSubmit={handleSubmit(onSubmit as any)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <div className="ds-form-group">
-            <label className="ds-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <label className="ds-label">
               <span>Título da Tarefa</span>
-              {!task && currentTitle && (
-                <button
-                  type="button"
-                  onClick={handleAIAnalyze}
-                  disabled={analyzeTask.isPending}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '4px',
-                    background: 'none', border: 'none', cursor: 'pointer',
-                    color: 'var(--ds-primary)', fontSize: '12px', fontWeight: 600,
-                  }}
-                >
-                  <Sparkles size={14} /> {analyzeTask.isPending ? 'Analisando...' : 'Sugestão IA'}
-                </button>
-              )}
             </label>
             <input 
               {...register('title')} 

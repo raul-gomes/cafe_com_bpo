@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getClients, createClient, updateClient, deleteClient, ClientData } from '../../api/clients';
 import { MaskedCNPJ, MaskedPhone } from '../../components/ui/MaskedInput';
 import { maskCNPJ, maskPhone } from '../../lib/formatters';
+import { useTasks } from '../../api/hooks/useTasks';
+import { X, Link, Unlink, FileText } from 'lucide-react';
 
 const BPO_SEGMENTS = [
   'BPO Financeiro',
@@ -25,6 +27,12 @@ export const EmpresasPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
+  const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment } = useTasks();
+  const [linkClientId, setLinkClientId] = useState<string | null>(null);
+  const { data: templates } = useTemplatesList();
+  const { data: currentAssignments, refetch: refetchAssignments } = useClientAssignments(linkClientId || '');
+  const assignTemplate = useAssignTemplate();
+  const removeAssignment = useRemoveAssignment();
 
   useEffect(() => {
     loadClients();
@@ -217,7 +225,10 @@ export const EmpresasPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div className="orcamento-card__actions" onClick={e => e.stopPropagation()}>
+              <div className="orcamento-card__actions" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setLinkClientId(c.id)} title="Vincular Templates" style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}>
+                  <Link size={14} /> Templates
+                </button>
                 <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => handleStartEdit(c)} title="Editar">
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
@@ -233,6 +244,100 @@ export const EmpresasPage: React.FC = () => {
               </div>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* Modal: Vincular Templates */}
+      {linkClientId && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          background: 'rgba(0,0,0,0.6)', zIndex: 1000,
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }} onClick={() => setLinkClientId(null)}>
+          <div className="ds-card" style={{
+            width: '500px', maxHeight: '80vh', overflow: 'auto',
+            background: 'var(--ds-surface)', border: '1px solid var(--ds-border)',
+          }} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--ds-border)' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <Link size={20} color="var(--ds-primary)" />
+                <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Vincular Templates</h2>
+              </div>
+              <button onClick={() => setLinkClientId(null)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={{ padding: '24px' }}>
+              <p style={{ fontSize: '13px', color: 'var(--ds-text-muted)', marginBottom: '16px' }}>
+                Selecione os templates que esta empresa contratou. 
+                As tarefas serão geradas automaticamente com base nas atividades de cada template.
+              </p>
+
+              {!templates || templates.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '20px', color: 'var(--ds-text-muted)', fontSize: '13px' }}>
+                  Nenhum template disponível. Crie templates primeiro em <strong>Templates de Atividades</strong>.
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {templates.map(tmpl => {
+                    const isLinked = currentAssignments?.some(a => a.template_id === tmpl.id);
+                    return (
+                      <div key={tmpl.id} style={{
+                        display: 'flex', alignItems: 'center', gap: '12px',
+                        padding: '14px 16px', borderRadius: 'var(--radius-md)',
+                        background: isLinked ? 'rgba(34,197,94,0.05)' : 'var(--ds-surface-1)',
+                        border: `1px solid ${isLinked ? 'rgba(34,197,94,0.2)' : 'var(--ds-border)'}`,
+                      }}>
+                        <FileText size={20} style={{ color: isLinked ? '#22c55e' : 'var(--ds-text-muted)' }} />
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontWeight: 600, fontSize: '14px' }}>{tmpl.name}</div>
+                          <div style={{ fontSize: '12px', color: 'var(--ds-text-muted)' }}>
+                            {tmpl.activity_count} atividades • {tmpl.recurrence === 'monthly' ? 'Mensal' : tmpl.recurrence === 'quarterly' ? 'Trimestral' : 'Anual'}
+                          </div>
+                        </div>
+                        {isLinked ? (
+                          <button
+                            onClick={async () => {
+                              const assignment = currentAssignments?.find(a => a.template_id === tmpl.id);
+                              if (assignment) {
+                                await removeAssignment.mutateAsync(assignment.id);
+                                refetchAssignments();
+                              }
+                            }}
+                            className="ds-btn ds-btn-ghost ds-btn-sm"
+                            style={{ color: 'var(--ds-error)', display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}
+                          >
+                            <Unlink size={14} /> Desvincular
+                          </button>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              await assignTemplate.mutateAsync({
+                                client_id: linkClientId,
+                                template_id: tmpl.id,
+                              });
+                              refetchAssignments();
+                            }}
+                            className="ds-btn ds-btn-primary ds-btn-sm"
+                            style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}
+                            disabled={assignTemplate.isPending}
+                          >
+                            <Link size={14} /> Vincular
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              <div style={{ marginTop: '16px', padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.05)', fontSize: '12px', color: 'var(--ds-text-muted)' }}>
+                💡 Ao vincular um template, as tarefas são geradas automaticamente para o período atual.
+                Você pode gerenciar os templates em <strong>Templates de Atividades</strong> no menu lateral.
+              </div>
+            </div>
+          </div>
         </div>
       )}
     </div>

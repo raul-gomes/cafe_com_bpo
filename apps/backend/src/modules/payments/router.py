@@ -7,11 +7,15 @@ from src.core.database import get_db_session
 from src.core.logger import log
 from src.modules.auth.service import get_current_user
 from src.modules.auth.schemas import UserResponse
-from src.modules.payments.schemas import CreateCustomerInput, CreatePaymentInput, PaymentResponse
+from src.modules.payments.schemas import (
+    CreateCustomerInput,
+    CreatePaymentInput,
+    PaymentResponse,
+)
 from src.modules.payments.repository import PaymentRepository
 from src.modules.payments.service import PaymentService
 
-router = APIRouter(prefix="/api/payments", tags=["payments"])
+router = APIRouter(prefix="/payments", tags=["payments"])
 
 
 def get_service(session: Annotated[Session, Depends(get_db_session)]) -> PaymentService:
@@ -48,13 +52,13 @@ async def create_payment(
     try:
         payment_data = CreatePaymentInput(**payload["payment"])
         customer_info = CreateCustomerInput(**payload["customer"])
-        
+
         payment = await service.create_payment(
             user_id=current_user.id,
             payment_data=payment_data,
             customer_info=customer_info,
         )
-        
+
         return payment
     except Exception as e:
         log.error(f"Erro ao criar pagamento: {str(e)}")
@@ -92,9 +96,9 @@ async def asaas_webhook(
     try:
         body = await request.json()
         log.info(f"📦 Webhook Asaas recebido: {body}")
-        
+
         payment = service.process_webhook(body)
-        
+
         return {"status": "ok", "payment_id": str(payment.id) if payment else None}
     except Exception as e:
         log.error(f"Erro ao processar webhook Asaas: {str(e)}")

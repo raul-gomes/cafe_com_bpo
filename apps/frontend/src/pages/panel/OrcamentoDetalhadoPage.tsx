@@ -32,7 +32,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
     try {
       setLoading(true);
       const [proposalResp, clientsResp] = await Promise.all([
-        apiClient.get<Proposal>(`/api/proposals/${id}`),
+        apiClient.get<Proposal>(`/proposals/${id}`),
         getClients()
       ]);
       setProposal(proposalResp.data);
@@ -78,7 +78,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
     if (!email) return;
 
     try {
-      await apiClient.post(`/api/proposals/${id}/send-email`, {
+      await apiClient.post(`/proposals/${id}/send-email`, {
         email,
         client_name: proposal.client_name,
         message: `Olá, segue o orçamento detalhado da nossa proposta de serviços BPO.`,

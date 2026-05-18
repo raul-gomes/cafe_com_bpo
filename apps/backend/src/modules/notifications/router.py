@@ -14,32 +14,41 @@ from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
-from .schemas import NotificationCreate, NotificationUpdate, NotificationResponse, UnreadCountResponse
+from .schemas import NotificationCreate, NotificationResponse, UnreadCountResponse
 from .repository import NotificationRepository
 from .service import NotificationService
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
-def get_repo(session: Annotated[Session, Depends(get_db_session)]) -> NotificationRepository:
+
+def get_repo(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> NotificationRepository:
     return NotificationRepository(session)
 
-def get_service(session: Annotated[Session, Depends(get_db_session)]) -> NotificationService:
+
+def get_service(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> NotificationService:
     return NotificationService(NotificationRepository(session))
+
 
 RepoDep = Annotated[NotificationRepository, Depends(get_repo)]
 ServiceDep = Annotated[NotificationService, Depends(get_service)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
-@router.post("/", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/", response_model=NotificationResponse, status_code=status.HTTP_201_CREATED
+)
 def create_notification(
-    notif_in: NotificationCreate,
-    service: ServiceDep,
-    current_user: CurrentUserDep
+    notif_in: NotificationCreate, service: ServiceDep, current_user: CurrentUserDep
 ):
     """Cria uma nova notificação para o usuário atual."""
     new_notif = service.create_notification(notif_in, current_user.id)
-    log.info(f"🔔 Notificação criada: {notif_in.title} por usuário {current_user.email}")
+    log.info(
+        f"🔔 Notificação criada: {notif_in.title} por usuário {current_user.email}"
+    )
     return new_notif
 
 
@@ -55,20 +64,13 @@ def get_notifications(
 
 
 @router.get("/unread-count", response_model=UnreadCountResponse)
-def get_unread_count(
-    service: ServiceDep,
-    current_user: CurrentUserDep
-):
+def get_unread_count(service: ServiceDep, current_user: CurrentUserDep):
     """Retorna contagem de notificações não lidas."""
     return {"count": service.get_unread_count(current_user.id)}
 
 
 @router.put("/{notif_id}/read", response_model=NotificationResponse)
-def mark_as_read(
-    notif_id: UUID,
-    service: ServiceDep,
-    current_user: CurrentUserDep
-):
+def mark_as_read(notif_id: UUID, service: ServiceDep, current_user: CurrentUserDep):
     """Marca uma notificação como lida."""
     try:
         return service.mark_as_read(notif_id, current_user.id)
@@ -77,10 +79,7 @@ def mark_as_read(
 
 
 @router.post("/mark-all-read")
-def mark_all_as_read(
-    service: ServiceDep,
-    current_user: CurrentUserDep
-):
+def mark_all_as_read(service: ServiceDep, current_user: CurrentUserDep):
     """Marca todas as notificações como lidas."""
     count = service.mark_all_as_read(current_user.id)
     return {"marked": count}
@@ -88,9 +87,7 @@ def mark_all_as_read(
 
 @router.delete("/{notif_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_notification(
-    notif_id: UUID,
-    service: ServiceDep,
-    current_user: CurrentUserDep
+    notif_id: UUID, service: ServiceDep, current_user: CurrentUserDep
 ):
     """Remove uma notificação."""
     try:

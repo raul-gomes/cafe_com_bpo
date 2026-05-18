@@ -1,12 +1,11 @@
 import React, { useState } from 'react';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Repeat, Settings, Clock, AlertTriangle, Sparkles } from 'lucide-react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, AlertTriangle } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
-import { TaskResponse, RoutineResponse, TaskPhaseResponse } from '../../schemas/tasks';
+import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
 import { TaskModal } from '../../components/tasks/TaskModal';
-import { RoutineModal } from '../../components/tasks/RoutineModal';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
@@ -15,25 +14,17 @@ type ConflictTaskItem = { id: string; title: string; time_estimate_hours?: numbe
 
 export const TasksPage: React.FC = () => {
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
-    const [tab, setTab] = useState<'tasks' | 'routines'>('tasks');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [showPhaseManager, setShowPhaseManager] = useState(false);
-    const [showSuggestions, setShowSuggestions] = useState(false);
-    const { useTasksList, useUpdateTaskStatus, useRoutinesList, useDeleteRoutine, useGenerateRoutineTasks, usePhases, useTimeline, useConflicts, useTaskSuggestions } = useTasks();
+    const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts } = useTasks();
     const { data: tasks, isLoading } = useTasksList();
-    const { data: routines, isLoading: routinesLoading } = useRoutinesList();
     const { data: phases } = usePhases();
     const updateTaskStatus = useUpdateTaskStatus();
-    const deleteRoutine = useDeleteRoutine();
-    const generateTasks = useGenerateRoutineTasks();
     const { data: timelineData, isLoading: timelineLoading } = useTimeline();
     const { data: conflictsData } = useConflicts();
-    const { data: suggestionsData, isLoading: suggestionsLoading } = useTaskSuggestions();
     
     const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
-    const [selectedRoutine, setSelectedRoutine] = useState<RoutineResponse | null>(null);
-    const [isRoutineModalOpen, setRoutineModalOpen] = useState(false);
 
     const { data: clients } = useQuery({
         queryKey: ['clients'],
@@ -48,7 +39,8 @@ export const TasksPage: React.FC = () => {
         const { draggableId, destination } = result;
         if (destination.droppableId === result.source.droppableId) return;
         
-        updateTaskStatus.mutate({ id: draggableId, status: destination.droppableId });
+        // Use phase_id for phase-based Kanban
+        updateTaskStatus.mutate({ id: draggableId, phase_id: destination.droppableId });
     };
 
     const getTaskStatus = (task: TaskResponse): string => {
@@ -68,29 +60,7 @@ export const TasksPage: React.FC = () => {
         setTaskModalOpen(true);
     };
 
-    const handleOpenNewRoutine = () => {
-        setSelectedRoutine(null);
-        setRoutineModalOpen(true);
-    };
-
-    const handleEditRoutine = (routine: RoutineResponse) => {
-        setSelectedRoutine(routine);
-        setRoutineModalOpen(true);
-    };
-
-    const handleDeleteRoutine = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        if (window.confirm('Tem certeza que deseja excluir esta rotina?')) {
-            await deleteRoutine.mutateAsync(id);
-        }
-    };
-
-    const handleGenerateRoutine = async (id: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        await generateTasks.mutateAsync(id);
-    };
-
-    if (isLoading || (tab === 'routines' && routinesLoading)) {
+    if (isLoading) {
         return (
             <div className="tasks-page">
                 <div className="panel-skeleton" style={{ height: '32px', width: '200px', marginBottom: '40px' }} />
@@ -100,14 +70,6 @@ export const TasksPage: React.FC = () => {
     }
 
     const tasksList = tasks || [];
-    const routinesList = routines || [];
-
-    const RECURRENCE_LABELS: Record<string, string> = {
-        daily: 'Diária',
-        weekly: 'Semanal',
-        monthly: 'Mensal',
-        yearly: 'Anual',
-    };
 
     return (
         <div className="tasks-page" style={{ animation: 'panelFadeIn 0.4s ease-out', position: 'relative' }}>
@@ -119,7 +81,7 @@ export const TasksPage: React.FC = () => {
                     <p>Controle operacional e prazos por empresa.</p>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
-                    {tab === 'tasks' && view === 'kanban' && (
+                    {view === 'kanban' && (
                         <button 
                             className="ds-btn ds-btn-ghost" 
                             onClick={() => setShowPhaseManager(true)}
@@ -128,226 +90,91 @@ export const TasksPage: React.FC = () => {
                             <Settings size={16} /> Fases
                         </button>
                     )}
+                    {view === 'kanban' && (
+                        <button 
+                            className="ds-btn ds-btn-ghost" 
+                            onClick={() => setShowMacroCalendar(!showMacroCalendar)}
+                            style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: showMacroCalendar ? 'var(--ds-primary)' : 'var(--ds-text-muted)' }}
+                        >
+                            <Eye size={16} /> {showMacroCalendar ? 'Ocultar Calendário' : 'Visão Macro'}
+                        </button>
+                    )}
                     <div className="view-toggle" style={{ 
                         display: 'flex', background: 'var(--ds-surface-2)', padding: '4px', 
                         borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)'
                     }}>
-                        <button onClick={() => setTab('tasks')} className={`vt-btn ${tab === 'tasks' ? 'active' : ''}`}>
-                            <LayoutGrid size={16} /> Tarefas
+                        <button onClick={() => setView('kanban')} className={`vt-btn ${view === 'kanban' ? 'active' : ''}`}>
+                            <LayoutGrid size={16} /> Kanban
                         </button>
-                        <button onClick={() => setTab('routines')} className={`vt-btn ${tab === 'routines' ? 'active' : ''}`}>
-                            <Repeat size={16} /> Rotinas
+                        <button onClick={() => setView('timeline')} className={`vt-btn ${view === 'timeline' ? 'active' : ''}`}>
+                            <Clock size={16} /> Timeline
+                        </button>
+                        <button onClick={() => setView('calendar')} className={`vt-btn ${view === 'calendar' ? 'active' : ''}`}>
+                            <CalendarIcon size={16} /> Calendário
                         </button>
                     </div>
-                    {tab === 'tasks' && (
-                        <>
-                            {view === 'kanban' && (
-                                <button 
-                                    className="ds-btn ds-btn-ghost" 
-                                    onClick={() => setShowMacroCalendar(!showMacroCalendar)}
-                                    style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: showMacroCalendar ? 'var(--ds-primary)' : 'var(--ds-text-muted)' }}
-                                >
-                                    <Eye size={16} /> {showMacroCalendar ? 'Ocultar Calendário' : 'Visão Macro'}
-                                </button>
-                            )}
-                            <div className="view-toggle" style={{ 
-                                display: 'flex', background: 'var(--ds-surface-2)', padding: '4px', 
-                                borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)'
-                            }}>
-                                <button onClick={() => setView('kanban')} className={`vt-btn ${view === 'kanban' ? 'active' : ''}`}>
-                                    <LayoutGrid size={16} /> Kanban
-                                </button>
-                                <button onClick={() => setView('timeline')} className={`vt-btn ${view === 'timeline' ? 'active' : ''}`}>
-                                    <Clock size={16} /> Timeline
-                                </button>
-                                <button onClick={() => setView('calendar')} className={`vt-btn ${view === 'calendar' ? 'active' : ''}`}>
-                                    <CalendarIcon size={16} /> Calendário
-                                </button>
-                            </div>
-                            <button className="ds-btn ds-btn-ghost" onClick={() => setShowSuggestions(!showSuggestions)} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: showSuggestions ? 'var(--ds-primary)' : 'var(--ds-text-muted)' }}>
-                                <Sparkles size={16} /> IA
-                            </button>
-                            <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
-                                <Plus size={18} /> Nova Tarefa
-                            </button>
-                        </>
-                    )}
-                    {tab === 'routines' && (
-                        <button className="ds-btn ds-btn-primary" onClick={handleOpenNewRoutine}>
-                            <Plus size={18} /> Nova Rotina
-                        </button>
-                    )}
+                    <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
+                        <Plus size={18} /> Nova Tarefa
+                    </button>
                 </div>
             </div>
 
-            {tab === 'tasks' && (
-                <div className="tasks-content" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', position: 'relative' }}>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                        {view === 'kanban' ? (
-                            tasksList.length === 0 ? (
-                                <div className="panel-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
-                                    <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ds-text-muted)', marginBottom: '16px', opacity: 0.3 }}>
-                                        <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
-                                    </svg>
-                                    <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--ds-text)' }}>Nenhuma tarefa criada</h3>
-                                    <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px', marginBottom: '20px' }}>Comece organizando suas tarefas operacionais por empresa e fase.</p>
-                                    <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
-                                        <Plus size={18} /> Criar Primeira Tarefa
-                                    </button>
-                                </div>
-                            ) : (
-                                <DragDropContext onDragEnd={handleDragEnd}>
-                                    <TaskKanban tasks={tasksList} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} />
-                                </DragDropContext>
-                            )
-                        ) : view === 'timeline' ? (
-                            <div className="panel-card" style={{ padding: '24px' }}>
-                                <TaskTimeline 
-                                    timeline={timelineData?.timeline || []} 
-                                    conflicts={conflictsData?.conflicts || []}
-                                    clients={clients || []} 
-                                    isLoading={timelineLoading}
-                                    onEdit={handleEditTask} 
-                                />
-                            </div>
-                        ) : (
-                            <div className="panel-card" style={{ padding: '24px' }}>
-                                <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={false} />
-                            </div>
-                        )}
-                    </div>
-                    
-                    {showSuggestions && (
-                        <div className="ai-suggestions-panel ds-card" style={{ 
-                            width: '320px', padding: '20px', position: 'sticky', top: '20px', height: 'fit-content',
-                            animation: 'slideInRight 0.3s ease-out', border: '1px solid var(--ds-primary-low)'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                <h3 style={{ fontSize: '14px', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                    <Sparkles size={14} /> Sugestões IA
-                                </h3>
-                                <button onClick={() => setShowSuggestions(false)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
-                                    <X size={14} />
+            <div className="tasks-content" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', position: 'relative' }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                    {view === 'kanban' ? (
+                        tasksList.length === 0 ? (
+                            <div className="panel-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ds-text-muted)', marginBottom: '16px', opacity: 0.3 }}>
+                                    <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
+                                </svg>
+                                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--ds-text)' }}>Nenhuma tarefa criada</h3>
+                                <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px', marginBottom: '20px' }}>Comece organizando suas tarefas operacionais por empresa e fase.</p>
+                                <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
+                                    <Plus size={18} /> Criar Primeira Tarefa
                                 </button>
                             </div>
-                            {suggestionsLoading ? (
-                                <div style={{ color: 'var(--ds-text-muted)', fontSize: '12px' }}>Analisando tarefas...</div>
-                            ) : suggestionsData?.suggestions && suggestionsData.suggestions.length > 0 ? (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                                    {suggestionsData.suggestions.map((s, idx) => (
-                                        <div key={idx} style={{ padding: '12px', background: 'var(--ds-surface-2)', borderRadius: '8px', fontSize: '12px' }}>
-                                            <div style={{ fontWeight: 700, marginBottom: '4px' }}>{s.title}</div>
-                                            <div style={{ color: 'var(--ds-text-muted)', marginBottom: '6px' }}>{s.description}</div>
-                                            <div style={{ display: 'flex', gap: '6px' }}>
-                                                <span style={{ padding: '2px 6px', borderRadius: '4px', background: 'rgba(59,130,246,0.1)', color: 'var(--ds-primary)', fontSize: '10px', fontWeight: 700 }}>{s.process_type}</span>
-                                                <span style={{ padding: '2px 6px', borderRadius: '4px', background: s.priority === 'high' ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)', color: s.priority === 'high' ? 'var(--ds-error)' : 'var(--ds-success)', fontSize: '10px', fontWeight: 700 }}>{s.priority}</span>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
-                            ) : (
-                                <div style={{ color: 'var(--ds-text-muted)', fontSize: '12px', textAlign: 'center', padding: '12px' }}>Nenhuma sugestão no momento.</div>
-                            )}
+                        ) : (
+                            <DragDropContext onDragEnd={handleDragEnd}>
+                                <TaskKanban tasks={tasksList} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} />
+                            </DragDropContext>
+                        )
+                    ) : view === 'timeline' ? (
+                        <div className="panel-card" style={{ padding: '24px' }}>
+                            <TaskTimeline 
+                                timeline={timelineData?.timeline || []} 
+                                conflicts={conflictsData?.conflicts || []}
+                                clients={clients || []} 
+                                isLoading={timelineLoading}
+                                onEdit={handleEditTask} 
+                            />
+                        </div>
+                    ) : (
+                        <div className="panel-card" style={{ padding: '24px' }}>
+                            <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={false} />
                         </div>
                     )}
-
-                    {view === 'kanban' && showMacroCalendar && (
-                        <div className="macro-calendar-overlay ds-card" style={{ 
-                            width: '320px', padding: '20px', position: 'sticky', top: '20px', height: 'fit-content',
-                            animation: 'slideInRight 0.3s ease-out', border: '1px solid var(--ds-primary-low)'
-                        }}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                                <h3 style={{ fontSize: '14px', fontWeight: 700 }}>Visão Mensal</h3>
-                                <button onClick={() => setShowMacroCalendar(false)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
-                                    <X size={14} />
+                </div>
+                
+                {view === 'kanban' && showMacroCalendar && (
+                    <div className="macro-calendar-overlay ds-card" style={{ 
+                        width: '320px', padding: '20px', position: 'sticky', top: '20px', height: 'fit-content',
+                        animation: 'slideInRight 0.3s ease-out', border: '1px solid var(--ds-primary-low)'
+                    }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                            <h3 style={{ fontSize: '14px', fontWeight: 700 }}>Visão Mensal</h3>
+                            <button onClick={() => setShowMacroCalendar(false)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
+                                <X size={14} />
                                 </button>
                             </div>
                             <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={true} />
                         </div>
                     )}
                 </div>
-            )}
-
-            {tab === 'routines' && (
-                <div className="routines-list" style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    {routinesList.length === 0 ? (
-                        <div className="panel-empty">
-                            <svg className="panel-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                                <path d="M21 12a9 9 0 11-6.219-8.56" />
-                            </svg>
-                            <h3>Nenhuma rotina encontrada</h3>
-                            <p>Crie rotinas recorrentes para automatizar a geração de tarefas.</p>
-                            <button className="ds-btn ds-btn-primary" onClick={handleOpenNewRoutine}>
-                                Nova Rotina
-                            </button>
-                        </div>
-                    ) : (
-                        routinesList.map(routine => {
-                            const client = clients?.find((c: any) => c.id === routine.client_id);
-                            return (
-                                <div key={routine.id} className="routine-card" style={{
-                                    display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '16px',
-                                    padding: '18px 20px', background: 'var(--ds-surface)', border: '1px solid rgba(255,255,255,0.06)',
-                                    borderRadius: 'var(--radius-lg)', cursor: 'pointer', transition: 'all 0.2s'
-                                }} onClick={() => handleEditRoutine(routine)}>
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                            <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--ds-text)' }}>{routine.title}</span>
-                                            <span style={{
-                                                fontSize: '10px', fontWeight: 700, padding: '2px 8px', borderRadius: '12px',
-                                                background: routine.is_active ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)',
-                                                color: routine.is_active ? 'var(--ds-success)' : 'var(--ds-error)',
-                                            }}>
-                                                {routine.is_active ? 'Ativa' : 'Inativa'}
-                                            </span>
-                                        </div>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', fontSize: '12px', color: 'var(--ds-text-muted)' }}>
-                                            <span>{RECURRENCE_LABELS[routine.recurrence] || routine.recurrence}</span>
-                                            {client && <span>• {client.name}</span>}
-                                            {routine.process_type && <span>• {routine.process_type}</span>}
-                                        </div>
-                                    </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                        <button
-                                            className="ds-btn ds-btn-ghost ds-btn-sm"
-                                            onClick={e => handleGenerateRoutine(routine.id, e)}
-                                            title="Gerar tarefa agora"
-                                            disabled={generateTasks.isPending}
-                                        >
-                                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <path d="M21 12a9 9 0 11-6.219-8.56" />
-                                                <polyline points="21 3 21 9 15 9" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            className="orcamento-card__action-btn orcamento-card__action-btn--delete"
-                                            title="Excluir"
-                                            onClick={e => handleDeleteRoutine(routine.id, e)}
-                                            aria-label="Excluir rotina"
-                                        >
-                                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                                                <polyline points="3 6 5 6 21 6" />
-                                                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                </div>
-                            );
-                        })
-                    )}
-                </div>
-            )}
 
             <TaskModal 
                 isOpen={isTaskModalOpen} 
                 onClose={() => setTaskModalOpen(false)} 
                 task={selectedTask}
-            />
-
-            <RoutineModal 
-                isOpen={isRoutineModalOpen} 
-                onClose={() => setRoutineModalOpen(false)} 
-                routine={selectedRoutine}
             />
 
             <PhaseManager 
