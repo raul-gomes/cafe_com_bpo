@@ -169,3 +169,133 @@ def test_delete_gallery_file_rejects_other_user(client):
         headers={"Authorization": f"Bearer {token2}"},
     )
     assert delete_resp.status_code == 404
+
+
+# ── Common Gallery Tests ──────────────────────────────────────────────────────
+
+
+def _create_admin_user(client, db_session):
+    """Helper: cria um usuário admin diretamente no banco e retorna token."""
+    from src.modules.auth.models import User
+    from src.core.security import PasswordService
+
+    email = f"admin_{uuid4()}@cafe.com"
+    pw_hash = PasswordService.hash_password("Admin@123456")
+    user = User(
+        email=email,
+        password_hash=pw_hash,
+        name="Admin Test",
+        role="admin",
+    )
+    db_session.add(user)
+    db_session.commit()
+    db_session.refresh(user)
+
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "Admin@123456"}
+    )
+    return resp.json()["access_token"]
+
+
+def test_common_gallery_list_public(client):
+    """Test that common gallery list is public (no auth required)."""
+    resp = client.get("/gallery/common")
+    assert resp.status_code == 200
+    assert isinstance(resp.json(), list)
+
+
+def test_common_gallery_upload_admin(client, db_session):
+    """Test that admin can upload to common gallery."""
+    token = _create_admin_user(client, db_session)
+    file_content = b"common file content"
+    files = {"file": ("common.pdf", file_content, "application/pdf")}
+    resp = client.post(
+        "/gallery/common/upload?title=Common%20Doc",
+        headers={"Authorization": f"Bearer {token}"},
+        files=files,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["file_name"] == "common.pdf"
+    assert data["title"] == "Common Doc"
+    assert data["file_size"] == len(file_content)
+    assert "id" in data
+
+
+def test_common_gallery_upload_rejects_regular_user(client):
+    """Test that regular user cannot upload to common gallery."""
+    email = f"regular_{uuid4()}@cafe.com"
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    token = resp.json()["access_token"]
+
+    files = {"file": ("hack.pdf", b"x", "application/pdf")}
+    resp = client.post(
+        "/gallery/common/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files=files,
+    )
+    assert resp.status_code == 403
+
+
+def test_common_gallery_upload_requires_auth(client):
+    """Test that common upload requires authentication."""
+    files = {"file": ("test.pdf", b"x", "application/pdf")}
+    resp = client.post("/gallery/common/upload", files=files)
+    assert resp.status_code == 401
+
+
+def test_common_gallery_delete_admin(client, db_session):
+    """Test that admin can delete a common file."""
+    token = _create_admin_user(client, db_session)
+    files = {"file": ("delete.pdf", b"to delete", "application/pdf")}
+    upload = client.post(
+        "/gallery/common/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files=files,
+    )
+    file_id = upload.json()["id"]
+
+    resp = client.delete(
+        f"/gallery/common/{file_id}",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert resp.status_code == 204
+
+    # Confirm it's gone
+    list_resp = client.get("/gallery/common")
+    ids = [f["id"] for f in list_resp.json()]
+    assert file_id not in ids
+
+
+def test_common_gallery_delete_rejects_regular_user(client, db_session):
+    """Test that regular user cannot delete a common file."""
+    # First admin creates a file
+    admin_token = _create_admin_user(client, db_session)
+    files = {"file": ("protected.pdf", b"x", "application/pdf")}
+    upload = client.post(
+        "/gallery/common/upload",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        files=files,
+    )
+    file_id = upload.json()["id"]
+
+    # Regular user tries to delete
+    email = f"regular2_{uuid4()}@cafe.com"
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    user_token = resp.json()["access_token"]
+
+    resp = client.delete(
+        f"/gallery/common/{file_id}",
+        headers={"Authorization": f"Bearer {user_token}"},
+    )
+    assert resp.status_code == 403

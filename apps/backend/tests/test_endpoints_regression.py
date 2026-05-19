@@ -682,6 +682,20 @@ class TestGallery:
         resp = client.get("/gallery/", headers=auth)
         assert resp.status_code == 200
 
+    def test_common_gallery_list_public(self, client):
+        """Common gallery list is public (no auth)."""
+        resp = client.get("/gallery/common")
+        assert resp.status_code == 200
+
+    def test_common_gallery_upload_rejects_regular_user(self, client):
+        """Regular user cannot upload to common gallery."""
+        email = f"galcommon_{_unique()}@cafe.com"
+        auth = _register_and_login(client, email)["headers"]
+        resp = client.post("/gallery/common/upload", headers=auth, files={
+            "file": ("test.pdf", b"x", "application/pdf"),
+        })
+        assert resp.status_code == 403
+
 
 # ─── 11. PRICING (público) ────────────────────────────────────────────────────
 
