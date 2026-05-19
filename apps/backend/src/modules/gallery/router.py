@@ -9,18 +9,24 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db_session
 from src.core.config import get_settings
 from src.core.logger import log
-from src.modules.auth.service import get_current_user
+from src.modules.auth.service import get_current_user, require_admin
 from src.modules.auth.schemas import UserResponse
-from src.modules.gallery.schemas import GalleryItemCreate, GalleryItemResponse
+from src.modules.gallery.schemas import (
+    GalleryItemCreate,
+    GalleryItemResponse,
+    CommonGalleryItemResponse,
+)
 from src.modules.gallery.service import GalleryService
-from src.modules.gallery.repository import GalleryRepository
+from src.modules.gallery.repository import GalleryRepository, CommonGalleryRepository
 
 router = APIRouter(prefix="/gallery", tags=["gallery"])
 
 settings = get_settings()
 
 STORAGE_DIR = "storage/gallery"
+COMMON_STORAGE_DIR = "storage/gallery/common"
 os.makedirs(STORAGE_DIR, exist_ok=True)
+os.makedirs(COMMON_STORAGE_DIR, exist_ok=True)
 
 ALLOWED_EXTENSIONS = {
     ".pdf",
@@ -157,3 +163,111 @@ def delete_gallery_file(
 
     repo.delete(item)
     log.info(f"🗑️ Arquivo excluído da galeria: {item.file_name} por {user.email}")
+
+
+# ── Common Gallery (admin) ────────────────────────────────────────────────────
+
+
+def get_common_repo(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> CommonGalleryRepository:
+    return CommonGalleryRepository(session)
+
+
+@router.get("/common", response_model=List[CommonGalleryItemResponse])
+def list_common_files(
+    repo: Annotated[CommonGalleryRepository, Depends(get_common_repo)],
+):
+    """Lista arquivos comunitários. Não requer autenticação."""
+    return repo.list_all()
+
+
+@router.post(
+    "/common/upload",
+    response_model=CommonGalleryItemResponse,
+    status_code=201,
+)
+async def upload_common_file(
+    admin: Annotated[UserResponse, Depends(require_admin)],
+    repo: Annotated[CommonGalleryRepository, Depends(get_common_repo)],
+    file: UploadFile = File(...),
+    title: str = Query(default=""),
+    description: str = Query(default=""),
+):
+    """Upload de arquivo comunitário (restrito a administradores)."""
+    if not file.filename:
+        raise HTTPException(status_code=400, detail="Nome de arquivo inválido")
+
+    ext = os.path.splitext(file.filename)[1].lower()
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Formato não permitido. Aceitos: {', '.join(ALLOWED_EXTENSIONS)}",
+        )
+
+    content = await file.read()
+    if len(content) > MAX_FILE_SIZE:
+        raise HTTPException(
+            status_code=413, detail="Arquivo muito grande. Limite de 10MB."
+        )
+
+    safe_filename = f"{uuid.uuid4().hex}{ext}"
+    filepath = os.path.join(COMMON_STORAGE_DIR, safe_filename)
+
+    with open(filepath, "wb") as f:
+        f.write(content)
+
+    item = repo.create(
+        data={
+            "file_name": file.filename,
+            "file_type": file.content_type or "application/octet-stream",
+            "file_size": len(content),
+            "file_path": f"/gallery/common/download/{safe_filename}",
+            "title": title or None,
+            "description": description or None,
+        },
+        created_by=admin.id,
+    )
+
+    log.info(f"📁 Arquivo comunitário enviado: {file.filename} por admin {admin.email}")
+    return item
+
+
+@router.delete("/common/{item_id}", status_code=204)
+def delete_common_file(
+    item_id: uuid.UUID,
+    admin: Annotated[UserResponse, Depends(require_admin)],
+    repo: Annotated[CommonGalleryRepository, Depends(get_common_repo)],
+):
+    """Exclui um arquivo comunitário (restrito a administradores)."""
+    item = repo.get_by_id(item_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Arquivo não encontrado")
+
+    local_path = os.path.join(COMMON_STORAGE_DIR, os.path.basename(item.file_path))
+    if os.path.exists(local_path):
+        os.remove(local_path)
+
+    repo.delete(item)
+    log.info(
+        f"🗑️ Arquivo comunitário excluído: {item.file_name} por admin {admin.email}"
+    )
+
+
+@router.get("/common/download/{filename}")
+def download_common_file(filename: str):
+    """Serve arquivo comunitário para download."""
+    safe = os.path.basename(filename)
+    filepath = os.path.join(COMMON_STORAGE_DIR, safe)
+
+    if not os.path.exists(filepath):
+        raise HTTPException(
+            status_code=404, detail="Arquivo comunitário não encontrado."
+        )
+
+    return FileResponse(
+        path=filepath,
+        filename=safe,
+        media_type="application/octet-stream",
+        content_disposition_type="attachment",
+    )

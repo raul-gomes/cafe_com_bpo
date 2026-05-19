@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Annotated
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from fastapi import HTTPException, Depends
+from fastapi import HTTPException, Depends, status
 
 from src.core.database import get_db_session
 from src.core.security import PasswordService, TokenService, oauth2_scheme
@@ -199,4 +199,17 @@ def get_current_user(
         company_segment=user.company_segment,
         company_description=user.company_description,
         avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url,
+        role=user.role,
     )
+
+
+async def require_admin(
+    current_user: UserResponse = Depends(get_current_user),
+) -> UserResponse:
+    """Dependency que verifica se o usuário logado é administrador."""
+    if current_user.role != "admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Acesso restrito a administradores",
+        )
+    return current_user

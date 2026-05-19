@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { useAuth } from '../../context/AuthContext';
 
 interface GalleryFile {
   id: string;
@@ -14,8 +15,15 @@ interface GalleryFile {
   updated_at: string;
 }
 
+const BASE_URL = (apiClient.defaults.baseURL || '/api').replace(/\/+$/, '');
+
 export const GaleriaArquivosPage: React.FC = () => {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+
+  const [tab, setTab] = useState<'my' | 'common'>('my');
   const [files, setFiles] = useState<GalleryFile[]>([]);
+  const [commonFiles, setCommonFiles] = useState<GalleryFile[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -30,8 +38,9 @@ export const GaleriaArquivosPage: React.FC = () => {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    fetchFiles();
-  }, []);
+    if (tab === 'my') fetchFiles();
+    else fetchCommonFiles();
+  }, [tab]);
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -47,6 +56,20 @@ export const GaleriaArquivosPage: React.FC = () => {
     } catch (err) {
       console.error('Erro ao carregar arquivos:', err);
       setError('Não foi possível carregar os arquivos. Verifique sua conexão e tente novamente.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchCommonFiles = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+      const resp = await apiClient.get<GalleryFile[]>('/gallery/common');
+      setCommonFiles(resp.data);
+    } catch (err) {
+      console.error('Erro ao carregar arquivos comunitários:', err);
+      setError('Não foi possível carregar os arquivos comunitários.');
     } finally {
       setLoading(false);
     }
@@ -132,7 +155,8 @@ export const GaleriaArquivosPage: React.FC = () => {
       if (uploadTitle) formData.append('title', uploadTitle);
       if (uploadDescription) formData.append('description', uploadDescription);
 
-      await apiClient.post('/gallery/upload', formData, {
+      const url = tab === 'common' ? '/gallery/common/upload' : '/gallery/upload';
+      await apiClient.post(url, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent: any) => {
           const percent = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
@@ -142,7 +166,8 @@ export const GaleriaArquivosPage: React.FC = () => {
 
       showToast('Arquivo enviado com sucesso!', 'success');
       resetUploadForm();
-      await fetchFiles();
+      if (tab === 'my') await fetchFiles();
+      else await fetchCommonFiles();
     } catch (err: any) {
       console.error('Erro ao enviar arquivo:', err);
       showToast(err.response?.data?.detail || 'Erro ao enviar arquivo.', 'error');
@@ -155,9 +180,11 @@ export const GaleriaArquivosPage: React.FC = () => {
   const handleDelete = async (file: GalleryFile) => {
     if (!window.confirm(`Deseja excluir "${file.file_name}"?`)) return;
     try {
-      await apiClient.delete(`/gallery/${file.id}`);
+      const url = tab === 'common' ? `/gallery/common/${file.id}` : `/gallery/${file.id}`;
+      await apiClient.delete(url);
       showToast('Arquivo excluído.', 'success');
-      setFiles(prev => prev.filter(f => f.id !== file.id));
+      if (tab === 'my') setFiles(prev => prev.filter(f => f.id !== file.id));
+      else setCommonFiles(prev => prev.filter(f => f.id !== file.id));
     } catch (err: any) {
       console.error('Erro ao excluir:', err);
       showToast(err.response?.data?.detail || 'Erro ao excluir arquivo.', 'error');
@@ -173,11 +200,12 @@ export const GaleriaArquivosPage: React.FC = () => {
   };
 
   const handleDownload = (file: GalleryFile) => {
-    const downloadUrl = `${apiClient.defaults.baseURL}${file.file_path}`;
+    const downloadUrl = `${BASE_URL}${file.file_path}`;
     window.open(downloadUrl, '_blank');
   };
 
-  const filteredFiles = files.filter(f => 
+  const currentFiles = tab === 'my' ? files : commonFiles;
+  const filteredFiles = currentFiles.filter(f => 
     f.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     (f.title && f.title.toLowerCase().includes(searchTerm.toLowerCase()))
   );
@@ -227,15 +255,43 @@ export const GaleriaArquivosPage: React.FC = () => {
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </div>
-          <button className="ds-btn ds-btn-primary" onClick={() => setShowUploadForm(true)} style={{ gap: '8px' }}>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-              <polyline points="17 8 12 3 7 8" />
-              <line x1="12" y1="3" x2="12" y2="15" />
-            </svg>
-            Enviar Arquivo
-          </button>
+          {(tab === 'my' || isAdmin) && (
+            <button className="ds-btn ds-btn-primary" onClick={() => setShowUploadForm(true)} style={{ gap: '8px' }}>
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              Enviar Arquivo
+            </button>
+          )}
         </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'var(--ds-surface-2)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content' }}>
+        <button
+          onClick={() => setTab('my')}
+          style={{
+            padding: '8px 20px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
+            fontSize: '13px', fontWeight: 700, transition: 'all 0.2s',
+            background: tab === 'my' ? 'var(--ds-surface)' : 'transparent',
+            color: tab === 'my' ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
+          }}
+        >
+          Meus Arquivos
+        </button>
+        <button
+          onClick={() => setTab('common')}
+          style={{
+            padding: '8px 20px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
+            fontSize: '13px', fontWeight: 700, transition: 'all 0.2s',
+            background: tab === 'common' ? 'var(--ds-surface)' : 'transparent',
+            color: tab === 'common' ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
+          }}
+        >
+          Comunitários
+        </button>
       </div>
 
       {showUploadForm && (
@@ -416,17 +472,19 @@ export const GaleriaArquivosPage: React.FC = () => {
                             <line x1="12" y1="15" x2="12" y2="3" />
                           </svg>
                         </button>
-                        <button 
-                          className="ds-btn ds-btn-ghost ds-btn-sm" 
-                          onClick={() => handleDelete(file)}
-                          title="Excluir"
-                          style={{ padding: '8px' }}
-                        >
-                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                            <polyline points="3 6 5 6 21 6" />
-                            <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                          </svg>
-                        </button>
+                        {(tab === 'my' || isAdmin) && (
+                          <button 
+                            className="ds-btn ds-btn-ghost ds-btn-sm" 
+                            onClick={() => handleDelete(file)}
+                            title="Excluir"
+                            style={{ padding: '8px' }}
+                          >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <polyline points="3 6 5 6 21 6" />
+                              <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>

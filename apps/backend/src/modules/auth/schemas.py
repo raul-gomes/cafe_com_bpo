@@ -23,6 +23,7 @@ class UserResponse(BaseModel):
     company_segment: Optional[str] = None
     company_description: Optional[str] = None
     avatar_url: str | None = None
+    role: str = "user"
 
 
 class TokenResponse(BaseModel):

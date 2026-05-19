@@ -9,6 +9,7 @@ from src.core.database import Base
 from src.modules.auth.models import User  # noqa: F401
 from src.modules.proposals.models import PricingScenario  # noqa: F401
 from src.modules.clients.models import Client  # noqa: F401
+from src.modules.gallery.models import CommonGalleryItem  # noqa: F401
 from src.modules.network.models import DiscussionPost, DiscussionComment, Notification  # noqa: F401
 from src.modules.tasks.models import (  # noqa: F401
     Task,

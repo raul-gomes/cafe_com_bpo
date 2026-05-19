@@ -67,6 +67,7 @@ class User(Base):
     avatar_file_id = Column(
         UUID(as_uuid=True), ForeignKey("user_files.id"), nullable=True
     )
+    role = Column(String(20), server_default="user", nullable=False)
     auth_provider = Column(String(50), default="local", nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

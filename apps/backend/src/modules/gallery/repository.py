@@ -9,7 +9,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from src.modules.gallery.models import GalleryItem
+from src.modules.gallery.models import GalleryItem, CommonGalleryItem
 
 
 class GalleryRepository:
@@ -67,5 +67,41 @@ class GalleryRepository:
 
     def delete(self, item: GalleryItem) -> None:
         """Delete a gallery item."""
+        self.session.delete(item)
+        self.session.commit()
+
+
+class CommonGalleryRepository:
+    """Repository for common gallery items."""
+
+    def __init__(self, session: Session):
+        self.session = session
+
+    def list_all(self) -> List[CommonGalleryItem]:
+        """List all common gallery items, newest first."""
+        return (
+            self.session.query(CommonGalleryItem)
+            .order_by(CommonGalleryItem.created_at.desc())
+            .all()
+        )
+
+    def create(self, data: dict, created_by: UUID) -> CommonGalleryItem:
+        """Create a new common gallery item."""
+        item = CommonGalleryItem(**data, created_by=created_by)
+        self.session.add(item)
+        self.session.commit()
+        self.session.refresh(item)
+        return item
+
+    def get_by_id(self, item_id: UUID) -> Optional[CommonGalleryItem]:
+        """Get a common gallery item by ID."""
+        return (
+            self.session.query(CommonGalleryItem)
+            .filter(CommonGalleryItem.id == item_id)
+            .first()
+        )
+
+    def delete(self, item: CommonGalleryItem) -> None:
+        """Delete a common gallery item."""
         self.session.delete(item)
         self.session.commit()

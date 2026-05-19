@@ -23,6 +23,7 @@ export interface User {
   company_segment?: string;
   company_description?: string;
   avatar_url?: string;
+  role?: string;
   created_at?: string;
 }
 

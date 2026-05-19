@@ -43,3 +43,19 @@ class GalleryItemResponse(GalleryItemBase):
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class CommonGalleryItemResponse(BaseModel):
+    """Schema for common gallery item response."""
+
+    id: UUID
+    file_name: str
+    file_type: str
+    file_size: int
+    title: Optional[str] = None
+    description: Optional[str] = None
+    created_by: Optional[UUID] = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
