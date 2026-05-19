@@ -71,6 +71,7 @@ class AuthService:
             avatar_url=user.avatar_file.read_url
             if user.avatar_file
             else user.avatar_url,
+            role=user.role,
         )
 
     def update_user_profile(
@@ -91,6 +92,7 @@ class AuthService:
             avatar_url=user.avatar_file.read_url
             if user.avatar_file
             else user.avatar_url,
+            role=user.role,
         )
 
     def authenticate_oauth_user(self, email: str, provider: str) -> dict:
