@@ -543,6 +543,9 @@ const TaskTimeline: React.FC<{
                                             transition: 'background 0.2s'
                                         }}
                                     >
+                                        <span style={{ fontSize: '10px', fontWeight: 700, color: client?.color || 'var(--ds-text-muted)', marginRight: '4px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                                            {client?.name || 'Cliente'}
+                                        </span>
                                         <span style={{ fontWeight: 600 }}>{task.title}</span>
                                         {task.time_estimate_hours && (
                                             <span style={{ fontSize: '10px', color: 'var(--ds-text-muted)', fontWeight: 700 }}>{task.time_estimate_hours}h</span>
