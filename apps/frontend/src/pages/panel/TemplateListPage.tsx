@@ -182,9 +182,9 @@ export const TemplateListPage: React.FC = () => {
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 700 }}>
                     {RECURRENCE_LABELS[tmpl.recurrence] || tmpl.recurrence}
                   </span>
-                  {tmpl.is_overdue && tmpl.days_overdue > 0 && (
+                  {tmpl.is_overdue && (tmpl.days_overdue ?? 0) > 0 && (
                     <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
-                      <AlertTriangle size={12} /> Atrasado {tmpl.days_overdue}d
+                      <AlertTriangle size={12} /> Atrasado {tmpl.days_overdue ?? 0}d
                     </span>
                   )}
                 </div>

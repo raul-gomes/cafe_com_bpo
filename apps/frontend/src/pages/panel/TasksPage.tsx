@@ -200,6 +200,23 @@ export const TasksPage: React.FC = () => {
                 .task-card:hover {
                     box-shadow: 0 8px 24px rgba(0,0,0,0.3);
                 }
+                .task-card--overdue {
+                    box-shadow: 0 0 0 2px var(--ds-error), 0 4px 16px rgba(239, 68, 68, 0.15);
+                }
+                .task-card--overdue:hover {
+                    box-shadow: 0 0 0 2px var(--ds-error), 0 8px 24px rgba(239, 68, 68, 0.25);
+                }
+                .overdue-badge {
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 4px;
+                    font-size: 10px;
+                    font-weight: 700;
+                    color: var(--ds-error);
+                    background: rgba(239, 68, 68, 0.12);
+                    padding: 2px 8px;
+                    border-radius: 12px;
+                }
                 .kanban-column {
                     background: rgba(255,255,255,0.012);
                     border: 1px solid rgba(255,255,255,0.03);
@@ -233,6 +250,27 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
         { id: 'done', title: 'Concluído', color: '#22c55e' },
     ];
 
+    const doneColumnId = sortedPhases.length > 0
+        ? sortedPhases.reduce((prev, curr) => prev.order > curr.order ? prev : curr).id
+        : 'done';
+
+    const isTaskOverdue = (task: TaskResponse): boolean => {
+        if (!task.deadline) return false;
+        if (getTaskStatus(task) === doneColumnId) return false;
+        const deadline = new Date(task.deadline);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return deadline < today;
+    };
+
+    const getOverdueDays = (task: TaskResponse): number => {
+        if (!task.deadline) return 0;
+        const deadline = new Date(task.deadline);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        return Math.floor((today.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
+    };
+
     const getClient = (id: string) => clients.find(c => c.id === id);
 
     return (
@@ -265,7 +303,7 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                                     ref={provided.innerRef}
                                                     {...provided.draggableProps}
                                                     {...provided.dragHandleProps}
-                                                    className="task-card ds-card" 
+                                                    className={`task-card ds-card ${isTaskOverdue(task) ? 'task-card--overdue' : ''}`}
                                                     onClick={() => onEdit(task)}
                                                     style={{ 
                                                         ...provided.draggableProps.style,
@@ -290,7 +328,14 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                                     </div>
                                                     <div style={{ fontWeight: 600, fontSize: '14px', lineHeight: 1.4, color: 'var(--ds-text)', marginBottom: '12px' }}>{task.title}</div>
                                                     
-                                                    <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center' }}>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                                        <div>
+                                                            {isTaskOverdue(task) && (
+                                                                <span className="overdue-badge">
+                                                                    <AlertTriangle size={10} /> Atrasado {getOverdueDays(task)}d
+                                                                </span>
+                                                            )}
+                                                        </div>
                                                         {task.deadline && (
                                                             <div style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', display: 'flex', alignItems: 'center', gap: '4px' }}>
                                                                 <CalendarIcon size={12} /> {new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}

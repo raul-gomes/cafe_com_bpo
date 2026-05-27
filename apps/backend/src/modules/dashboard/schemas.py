@@ -11,6 +11,8 @@ class UrgentTaskResponse(BaseModel):
     deadline: Optional[datetime] = None
     priority: str
     status: str
+    days_remaining: Optional[int] = None
+    is_overdue: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 

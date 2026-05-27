@@ -41,6 +41,24 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
         .all()
     )
 
+    def _compute_days_remaining(deadline: datetime | None) -> int | None:
+        if deadline is None:
+            return None
+        now = datetime.now(timezone.utc)
+        # Normalize: assume UTC if deadline has no tzinfo (e.g. SQLite)
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+        diff = (deadline - now).days
+        return diff
+
+    def _is_overdue(deadline: datetime | None) -> bool:
+        if deadline is None:
+            return False
+        now = datetime.now(timezone.utc)
+        if deadline.tzinfo is None:
+            deadline = deadline.replace(tzinfo=timezone.utc)
+        return deadline < now
+
     urgent_tasks = [
         UrgentTaskResponse(
             id=t.Task.id,
@@ -49,6 +67,8 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             deadline=t.Task.deadline,
             priority=t.Task.priority,
             status=t.Task.status,
+            days_remaining=_compute_days_remaining(t.Task.deadline),
+            is_overdue=_is_overdue(t.Task.deadline),
         )
         for t in tasks_query
     ]

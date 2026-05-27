@@ -13,9 +13,15 @@ export interface ActivityResponse {
     message_snippet?: string;
 }
 
+export interface UrgentTaskItem extends TaskResponse {
+    client_name?: string;
+    days_remaining?: number | null;
+    is_overdue?: boolean;
+}
+
 export interface DashboardSummary {
     user_name: string;
-    urgent_tasks: (TaskResponse & { client_name?: string })[];
+    urgent_tasks: UrgentTaskItem[];
     activities: ActivityResponse[];
     stats: {
         pending_tasks_count?: number;

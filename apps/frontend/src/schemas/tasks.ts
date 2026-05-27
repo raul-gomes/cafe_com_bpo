@@ -106,7 +106,11 @@ export interface ActivityTemplateListItem {
   description?: string;
   process_type?: string;
   recurrence: string;
+  due_date?: string;
+  recurrence_end_date?: string;
   is_active: boolean;
+  is_overdue?: boolean;
+  days_overdue?: number;
   activity_count: number;
   created_at: string;
   updated_at: string;
@@ -131,6 +135,8 @@ export interface ActivityTemplateResponse {
   description?: string;
   process_type?: string;
   recurrence: string;
+  due_date?: string;
+  recurrence_end_date?: string;
   is_active: boolean;
   created_at: string;
   updated_at: string;
@@ -142,6 +148,8 @@ export interface ActivityTemplateCreate {
   description?: string;
   process_type?: string;
   recurrence?: string;
+  due_date?: string;
+  recurrence_end_date?: string;
   is_active?: boolean;
 }
 
@@ -150,6 +158,8 @@ export interface ActivityTemplateUpdate {
   description?: string;
   process_type?: string;
   recurrence?: string;
+  due_date?: string;
+  recurrence_end_date?: string;
   is_active?: boolean;
 }
 

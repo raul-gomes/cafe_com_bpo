@@ -139,10 +139,27 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 </div>
                 
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                  <div style={{ fontSize: '11px', color: 'var(--ds-warning)', display: 'flex', gap: '4px', alignItems: 'center', fontWeight: 600 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
+                  <div style={{ 
+                    fontSize: '11px', 
+                    color: task.is_overdue ? 'var(--ds-error)' : task.days_remaining !== undefined && task.days_remaining !== null && task.days_remaining <= 1 ? 'var(--ds-warning)' : 'var(--ds-text-subtle)', 
+                    display: 'flex', 
+                    gap: '4px', 
+                    alignItems: 'center', 
+                    fontWeight: task.is_overdue ? 700 : 600 
+                  }}>
                     <Clock size={12} /> 
-                    {task.deadline ? formatDistanceToNow(new Date(task.deadline), { addSuffix: true, locale: ptBR }) : 'Sem prazo'}
+                    {task.is_overdue 
+                      ? `Atrasado ${Math.abs(task.days_remaining || 1)}d`
+                      : task.days_remaining !== undefined && task.days_remaining !== null
+                        ? task.days_remaining === 0
+                          ? 'Vence hoje'
+                          : task.days_remaining === 1
+                            ? 'Vence amanhã'
+                            : `Vence em ${task.days_remaining}d`
+                        : task.deadline 
+                          ? formatDistanceToNow(new Date(task.deadline), { addSuffix: true, locale: ptBR })
+                          : 'Sem prazo'}
                   </div>
                   
                   <div style={{ position: 'relative' }}>
