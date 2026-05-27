@@ -10,6 +10,7 @@ export interface TaskResponse {
   deadline?: string;
   phase_id?: string;
   time_estimate_hours?: number;
+  notes?: string;
   cancelled_at?: string;
   deleted_at?: string;
   created_at: string;
@@ -26,6 +27,7 @@ export interface TaskCreate {
   deadline?: string;
   phase_id?: string;
   time_estimate_hours?: number;
+  notes?: string;
 }
 
 export interface TaskUpdate {
@@ -38,6 +40,7 @@ export interface TaskUpdate {
   deadline?: string;
   phase_id?: string;
   time_estimate_hours?: number;
+  notes?: string;
 }
 
 export interface TaskPhaseResponse {

@@ -10,6 +10,7 @@ import { TaskResponse } from '../../schemas/tasks';
 const taskSchema = z.object({
   title: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
   description: z.string().optional(),
+  notes: z.string().optional(),
   client_id: z.string().uuid('Selecione uma empresa'),
   status: z.enum(['todo', 'doing', 'done']),
   priority: z.enum(['low', 'medium', 'high']),
@@ -54,6 +55,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
         reset({
           title: task.title,
           description: task.description || '',
+          notes: task.notes || '',
           client_id: task.client_id,
           status: task.status as any,
           priority: task.priority as any,
@@ -65,6 +67,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
         reset({
           title: '',
           description: '',
+          notes: '',
           client_id: '',
           status: 'todo',
           priority: 'medium',
@@ -81,6 +84,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
       const submitData = {
         title: data.title,
         description: data.description,
+        notes: data.notes || undefined,
         client_id: data.client_id,
         status: data.status,
         priority: data.priority,
@@ -191,6 +195,17 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
               rows={2} 
               style={{ resize: 'none' }}
               placeholder="Detalhes sobre o que deve ser feito..."
+            />
+          </div>
+
+          <div className="ds-form-group">
+            <label className="ds-label">Notas (Opcional)</label>
+            <textarea 
+              {...register('notes')} 
+              className="ds-input" 
+              rows={2} 
+              style={{ resize: 'none' }}
+              placeholder="Observações internas, lembretes, etc."
             />
           </div>
 
