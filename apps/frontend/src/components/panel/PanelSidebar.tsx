@@ -37,7 +37,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
           setActiveCompanyId(data[0].id);
         }
       } catch (err) {
-        console.error('Erro ao carregar empresas:', err);
+        console.error('Erro ao carregar clientes:', err);
       } finally {
         setLoadingClients(false);
       }
@@ -81,7 +81,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
             <path d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" />
           </svg>
           <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-text)' }}>
-            {loadingClients ? 'Carregando...' : `${activeCompany?.name || 'Todas as Empresas'}`}
+            {loadingClients ? 'Carregando...' : `${activeCompany?.name || 'Todos os Clientes'}`}
           </span>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--ds-text-muted)', marginLeft: 'auto' }}>
             <polyline points="9 18 15 12 9 6" />
@@ -136,7 +136,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
               <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" />
               </svg>
-              Minhas Empresas
+              Meus Clientes
             </button>
 
             <button

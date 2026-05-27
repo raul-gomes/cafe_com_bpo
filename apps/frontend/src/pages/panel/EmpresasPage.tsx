@@ -45,8 +45,8 @@ export const EmpresasPage: React.FC = () => {
       const data = await getClients();
       setClients(data);
     } catch (err) {
-      console.error('Erro ao carregar empresas:', err);
-      setError('Não foi possível carregar as empresas. Verifique sua conexão e tente novamente.');
+      console.error('Erro ao carregar clientes:', err);
+      setError('Não foi possível carregar os clientes. Verifique sua conexão e tente novamente.');
     } finally {
       setLoading(false);
     }
@@ -95,12 +95,12 @@ export const EmpresasPage: React.FC = () => {
       await loadClients();
     } catch (e) {
       console.error(e);
-      alert('Erro ao salvar empresa.');
+      alert('Erro ao salvar cliente.');
     }
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Deseja excluir a empresa "${name}"?`)) return;
+    if (!window.confirm(`Deseja excluir o cliente "${name}"?`)) return;
     try {
       setClients(prev => prev.filter(c => c.id !== id));
       await deleteClient(id);
@@ -116,29 +116,29 @@ export const EmpresasPage: React.FC = () => {
       <div className="panel-breadcrumb" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', fontSize: '12px', fontWeight: 600 }}>
         <span style={{ color: 'var(--ds-text-muted)', cursor: 'pointer', textDecoration: 'none' }} onClick={() => window.location.href = '/painel'}>Painel</span>
         <span style={{ color: 'var(--ds-text-subtle)' }}>/</span>
-        <span style={{ color: 'var(--ds-primary)' }}>Minhas Empresas</span>
+        <span style={{ color: 'var(--ds-primary)' }}>Meus Clientes</span>
       </div>
 
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <div>
-          <h1>Minhas Empresas</h1>
-          <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px' }}>Gerencie as empresas e clientes da sua carteira.</p>
+          <h1>Meus Clientes</h1>
+          <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px' }}>Gerencie os clientes da sua carteira.</p>
         </div>
         <button className="ds-btn ds-btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
           </svg>
-          Nova Empresa
+          Novo Cliente
         </button>
       </div>
 
       {showForm && (
         <div style={{ backgroundColor: 'var(--ds-surface)', padding: '24px', borderRadius: '12px', border: '1px solid var(--ds-border)', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{editingId ? 'Editar Empresa' : 'Nova Empresa'}</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{editingId ? 'Editar Cliente' : 'Novo Cliente'}</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             <div className="ds-input-group">
-              <label className="ds-label">Nome da Empresa *</label>
+              <label className="ds-label">Nome do Cliente *</label>
               <input type="text" className="ds-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Razão social ou nome fantasia" />
             </div>
             <div className="ds-input-group">
@@ -165,13 +165,13 @@ export const EmpresasPage: React.FC = () => {
               <input type="color" className="ds-input" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={{ height: '42px', padding: '4px', cursor: 'pointer' }} />
             </div>
             <div className="ds-input-group" style={{ gridColumn: '1 / -1' }}>
-              <label className="ds-label">Descrição da Empresa</label>
+              <label className="ds-label">Descrição do Cliente</label>
               <textarea className="ds-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Descreva a empresa, seus serviços principais, etc." rows={3} style={{ resize: 'vertical', minHeight: '80px' }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', marginTop: '16px', justifyContent: 'flex-end' }}>
             <button className="ds-btn ds-btn-ghost" onClick={resetForm}>Cancelar</button>
-            <button className="ds-btn ds-btn-primary" onClick={handleSubmit} disabled={!formData.name}>{editingId ? 'Salvar Alterações' : 'Criar Empresa'}</button>
+            <button className="ds-btn ds-btn-primary" onClick={handleSubmit} disabled={!formData.name}>{editingId ? 'Salvar Alterações' : 'Criar Cliente'}</button>
           </div>
         </div>
       )}
@@ -198,8 +198,8 @@ export const EmpresasPage: React.FC = () => {
           <svg className="panel-empty__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
             <path d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" />
           </svg>
-          <h3>Nenhuma empresa cadastrada</h3>
-          <p>Comece adicionando uma empresa à sua carteira.</p>
+          <h3>Nenhum cliente cadastrado</h3>
+          <p>Comece adicionando um cliente à sua carteira.</p>
           <button className="ds-btn ds-btn-primary" onClick={() => setShowForm(true)}>Nova Empresa</button>
         </div>
       ) : (
