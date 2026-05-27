@@ -13,8 +13,11 @@ const PROCESS_TYPE_LABELS: Record<string, string> = {
 };
 
 const RECURRENCE_LABELS: Record<string, string> = {
+  once: 'Uma só vez',
+  daily: 'Diário',
+  weekly: 'Semanal',
+  biweekly: 'Quinzenal',
   monthly: 'Mensal',
-  quarterly: 'Trimestral',
   yearly: 'Anual',
 };
 
@@ -92,7 +95,7 @@ export const TemplateDetailPage: React.FC = () => {
     return (
       <div className="tasks-page">
         <div className="panel-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
-          <h3>Template não encontrado</h3>
+          <h3>Rotina não encontrada</h3>
           <button className="ds-btn ds-btn-ghost" onClick={() => navigate('/painel/templates-atividades')} style={{ marginTop: '12px' }}>
             ← Voltar
           </button>
@@ -107,7 +110,7 @@ export const TemplateDetailPage: React.FC = () => {
     <div className="tasks-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
       <Breadcrumb items={[
         { label: 'Painel', to: '/painel' },
-        { label: 'Templates', to: '/painel/templates-atividades' },
+        { label: 'Rotinas', to: '/painel/templates-atividades' },
         { label: template.name },
       ]} />
 
@@ -158,7 +161,7 @@ export const TemplateDetailPage: React.FC = () => {
       {/* Activities */}
       <div className="ds-card" style={{ padding: '24px' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Atividades do Template</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Atividades da Rotina</h3>
           <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={() => setShowAdd(true)}>
             <Plus size={16} /> Adicionar Atividade
           </button>
@@ -192,7 +195,7 @@ export const TemplateDetailPage: React.FC = () => {
 
         {sortedActivities.length === 0 ? (
           <div style={{ textAlign: 'center', padding: '40px', color: 'var(--ds-text-muted)' }}>
-            Nenhuma atividade neste template. Adicione atividades para que sejam geradas automaticamente ao vincular a um cliente.
+            Nenhuma atividade nesta rotina. Adicione atividades para que sejam geradas automaticamente ao vincular a um cliente.
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -271,9 +274,9 @@ export const TemplateDetailPage: React.FC = () => {
 
       {/* Usage info */}
       <div className="ds-card" style={{ padding: '20px', marginTop: '24px', background: 'rgba(59,130,246,0.03)' }}>
-        <h4 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>Como usar este template</h4>
+        <h4 style={{ fontSize: '14px', fontWeight: 700, marginBottom: '8px' }}>Como usar esta rotina</h4>
         <p style={{ fontSize: '13px', color: 'var(--ds-text-muted)', lineHeight: 1.6 }}>
-          Ao vincular este template a um cliente (na página de <strong>Empresas</strong> ou diretamente na <strong>Timeline do Cliente</strong>),
+          Ao vincular esta rotina a um cliente (na página de <strong>Empresas</strong> ou diretamente na <strong>Timeline do Cliente</strong>),
           o sistema irá gerar automaticamente todas as {sortedActivities.length} atividade(s) como tarefas individuais, cada uma com seu prazo calculado.
         </p>
       </div>

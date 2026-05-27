@@ -273,8 +273,8 @@ export const EmpresasPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="orcamento-card__actions" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                      <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setLinkClientId(c.id)} title="Vincular Templates" style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}>
-                        <Link size={14} /> Templates
+                      <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setLinkClientId(c.id)} title="Vincular Rotinas" style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}>
+                        <Link size={14} /> Rotinas
                       </button>
                       <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => handleStartEdit(c)} title="Editar">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -311,7 +311,7 @@ export const EmpresasPage: React.FC = () => {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 24px', borderBottom: '1px solid var(--ds-border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <Link size={20} color="var(--ds-primary)" />
-                <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Vincular Templates</h2>
+                <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Vincular Rotinas</h2>
               </div>
               <button onClick={() => setLinkClientId(null)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
                 <X size={20} />
@@ -320,13 +320,13 @@ export const EmpresasPage: React.FC = () => {
 
             <div style={{ padding: '24px' }}>
               <p style={{ fontSize: '13px', color: 'var(--ds-text-muted)', marginBottom: '16px' }}>
-                Selecione os templates que este cliente contratou. 
-                As tarefas serão geradas automaticamente com base nas atividades de cada template.
+                Selecione as rotinas que este cliente contratou. 
+                As tarefas serão geradas automaticamente com base nas atividades de cada rotina.
               </p>
 
               {!templates || templates.length === 0 ? (
                 <div style={{ textAlign: 'center', padding: '20px', color: 'var(--ds-text-muted)', fontSize: '13px' }}>
-                  Nenhum template disponível. Crie templates primeiro em <strong>Templates de Atividades</strong>.
+                  Nenhuma rotina disponível. Crie rotinas primeiro em <strong>Rotinas</strong>.
                 </div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
@@ -343,7 +343,7 @@ export const EmpresasPage: React.FC = () => {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: '14px' }}>{tmpl.name}</div>
                           <div style={{ fontSize: '12px', color: 'var(--ds-text-muted)' }}>
-                            {tmpl.activity_count} atividades • {tmpl.recurrence === 'monthly' ? 'Mensal' : tmpl.recurrence === 'quarterly' ? 'Trimestral' : 'Anual'}
+                            {tmpl.activity_count} atividades • {tmpl.recurrence === 'once' ? 'Uma só vez' : tmpl.recurrence === 'daily' ? 'Diário' : tmpl.recurrence === 'weekly' ? 'Semanal' : tmpl.recurrence === 'biweekly' ? 'Quinzenal' : tmpl.recurrence === 'monthly' ? 'Mensal' : tmpl.recurrence === 'yearly' ? 'Anual' : tmpl.recurrence}
                           </div>
                         </div>
                         {isLinked ? (
@@ -383,8 +383,8 @@ export const EmpresasPage: React.FC = () => {
               )}
 
               <div style={{ marginTop: '16px', padding: '12px', borderRadius: 'var(--radius-sm)', background: 'rgba(59,130,246,0.05)', fontSize: '12px', color: 'var(--ds-text-muted)' }}>
-                💡 Ao vincular um template, as tarefas são geradas automaticamente para o período atual.
-                Você pode gerenciar os templates em <strong>Templates de Atividades</strong> no menu lateral.
+                💡 Ao vincular uma rotina, as tarefas são geradas automaticamente para o período atual.
+                Você pode gerenciar as rotinas em <strong>Rotinas</strong> no menu lateral.
               </div>
             </div>
           </div>

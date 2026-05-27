@@ -13,8 +13,11 @@ const PROCESS_TYPE_LABELS: Record<string, string> = {
 };
 
 const RECURRENCE_LABELS: Record<string, string> = {
+  once: 'Uma só vez',
+  daily: 'Diário',
+  weekly: 'Semanal',
+  biweekly: 'Quinzenal',
   monthly: 'Mensal',
-  quarterly: 'Trimestral',
   yearly: 'Anual',
 };
 
@@ -60,22 +63,22 @@ export const TemplateListPage: React.FC = () => {
 
   return (
     <div className="tasks-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
-      <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Templates de Atividades' }]} />
+      <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Rotinas' }]} />
 
       <div className="panel-content__header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
         <div>
-          <h1>Templates de Atividades</h1>
-          <p>Pacotes de serviços recorrentes que podem ser vinculados a clientes.</p>
+          <h1>Rotinas</h1>
+          <p>Rotinas de atividades recorrentes que podem ser vinculadas a clientes.</p>
         </div>
         <button className="ds-btn ds-btn-primary" onClick={() => setShowCreate(true)}>
-          <Plus size={18} /> Novo Template
+          <Plus size={18} /> Nova Rotina
         </button>
       </div>
 
       {showCreate && (
         <div className="ds-card" style={{ padding: '20px', marginBottom: '24px', border: '1px solid var(--ds-primary-low)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-            <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Novo Template</h3>
+            <h3 style={{ fontSize: '16px', fontWeight: 700 }}>Nova Rotina</h3>
             <button onClick={() => setShowCreate(false)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
               <X size={18} />
             </button>
@@ -122,7 +125,7 @@ export const TemplateListPage: React.FC = () => {
               disabled={!newName.trim() || createTemplate.isPending}
               style={{ marginBottom: 0 }}
             >
-              Criar Template
+              Criar Rotina
             </button>
           </div>
         </div>
@@ -131,12 +134,12 @@ export const TemplateListPage: React.FC = () => {
       {!templates || templates.length === 0 ? (
         <div className="panel-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
           <Settings size={48} style={{ color: 'var(--ds-text-muted)', opacity: 0.3, marginBottom: '16px' }} />
-          <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Nenhum template criado</h3>
+          <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px' }}>Nenhuma rotina criada</h3>
           <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px', marginBottom: '20px' }}>
-            Crie templates de atividades recorrentes para agilizar o onboarding de novos clientes.
+            Crie rotinas de atividades recorrentes para agilizar o onboarding de novos clientes.
           </p>
           <button className="ds-btn ds-btn-primary" onClick={() => setShowCreate(true)}>
-            <Plus size={18} /> Criar Primeiro Template
+            <Plus size={18} /> Criar Primeira Rotina
           </button>
         </div>
       ) : (
