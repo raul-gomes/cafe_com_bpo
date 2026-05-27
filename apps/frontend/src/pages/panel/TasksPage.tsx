@@ -78,7 +78,19 @@ export const TasksPage: React.FC = () => {
             <div className="panel-content__header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
                 <div>
                     <h1>Gestão de Tarefas</h1>
-                    <p>Controle operacional e prazos por empresa.</p>
+                    <p style={{ marginBottom: '8px' }}>Controle operacional e prazos por empresa.</p>
+                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--ds-text-muted)' }}>
+                        <span style={{ fontWeight: 700, color: 'var(--ds-text)' }}>
+                            {tasksList.filter(t => t.status !== 'done').length}
+                        </span> tarefas abertas
+                        <span style={{ opacity: 0.3 }}>|</span>
+                        <span style={{ fontWeight: 700, color: 'var(--ds-primary)' }}>
+                            {tasksList.filter(t => {
+                                if (t.status === 'done') return false;
+                                return !t.deadline || new Date(t.deadline) < new Date();
+                            }).length}
+                        </span> em atraso
+                    </div>
                 </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
                     {view === 'kanban' && (
