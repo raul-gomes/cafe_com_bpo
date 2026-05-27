@@ -63,6 +63,20 @@ export const TasksPage: React.FC = () => {
         setTaskModalOpen(true);
     };
 
+    const handleSyncCalendar = async () => {
+        const activeTaskIds = tasksList
+            .filter(t => t.status !== 'done' && t.status !== 'cancelled' && !t.cancelled_at)
+            .map(t => t.id);
+        if (activeTaskIds.length === 0) return;
+        try {
+            await apiClient.post('/calendar/sync', { task_ids: activeTaskIds });
+            alert('Tarefas sincronizadas com o Google Agenda!');
+        } catch (err: any) {
+            const detail = err?.response?.data?.detail || 'Erro ao sincronizar';
+            alert(detail);
+        }
+    };
+
     const handleEditTask = (task: TaskResponse) => {
         setSelectedTask(task);
         setTaskModalOpen(true);
@@ -150,6 +164,14 @@ export const TasksPage: React.FC = () => {
                             <Eye size={16} /> {showMacroCalendar ? 'Ocultar Calendário' : 'Visão Macro'}
                         </button>
                     )}
+                    <button 
+                        className="ds-btn ds-btn-ghost" 
+                        onClick={handleSyncCalendar}
+                        style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}
+                        title="Sincronizar tarefas ativas com Google Agenda"
+                    >
+                        <CalendarIcon size={16} /> Sincronizar
+                    </button>
                     <div className="view-toggle" style={{ 
                         display: 'flex', background: 'var(--ds-surface-2)', padding: '4px', 
                         borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)'
