@@ -566,6 +566,11 @@ const TaskCalendar: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t
                                                 flexShrink: 0
                                             }} />
                                         )}
+                                        {!isMacro && task.status === 'doing' && (
+                                            <span style={{ fontSize: '7px', fontWeight: 800, background: '#3b82f6', color: '#fff', padding: '1px 3px', borderRadius: '2px', lineHeight: '1' }}>
+                                                EM AND
+                                            </span>
+                                        )}
                                         {!isMacro && task.title}
                                     </div>
                                 );
@@ -650,6 +655,11 @@ const TaskTimeline: React.FC<{
                                             {client?.name || 'Cliente'}
                                         </span>
                                         <span style={{ fontWeight: 600 }}>{task.title}</span>
+                                        {task.status === 'doing' && (
+                                            <span style={{ fontSize: '9px', fontWeight: 700, background: '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', lineHeight: '1' }}>
+                                                Em andamento
+                                            </span>
+                                        )}
                                         {task.time_estimate_hours && (
                                             <span style={{ fontSize: '10px', color: 'var(--ds-text-muted)', fontWeight: 700 }}>{task.time_estimate_hours}h</span>
                                         )}
