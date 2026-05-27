@@ -159,6 +159,8 @@ class ActivityTemplateBase(BaseModel):
     description: Optional[str] = None
     process_type: Optional[str] = None
     recurrence: str = "monthly"
+    due_date: Optional[datetime] = None
+    recurrence_end_date: Optional[datetime] = None
     is_active: bool = True
 
 
@@ -171,6 +173,8 @@ class ActivityTemplateUpdate(BaseModel):
     description: Optional[str] = None
     process_type: Optional[str] = None
     recurrence: Optional[str] = None
+    due_date: Optional[datetime] = None
+    recurrence_end_date: Optional[datetime] = None
     is_active: Optional[bool] = None
 
 
@@ -192,6 +196,8 @@ class ActivityTemplateListItem(BaseModel):
     description: Optional[str] = None
     process_type: Optional[str] = None
     recurrence: str
+    due_date: Optional[datetime] = None
+    recurrence_end_date: Optional[datetime] = None
     is_active: bool
     activity_count: int = 0
     created_at: datetime

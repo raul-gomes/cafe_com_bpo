@@ -1,5 +1,5 @@
 from uuid import uuid4
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 
 def get_auth_header(client, email):
@@ -16,6 +16,114 @@ def create_client(client, auth_header, name="Empresa Teste", color="#FF5733"):
     payload = {"name": name, "cnpj": "12.345.678/0001-99", "color": color}
     resp = client.post("/clients/", json=payload, headers=auth_header)
     return resp.json()
+
+
+# ── FASE 4: ActivityTemplate recurrence expansion ──
+
+
+def test_create_template_once(client):
+    """Tarefa 4.1: Criar template com recorrência 'once' e due_date."""
+    email = f"tmpl_once_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    due = datetime.now(timezone.utc) + timedelta(days=10)
+    payload = {
+        "name": "Entrega Única",
+        "description": "Template pontual",
+        "process_type": "fiscal",
+        "recurrence": "once",
+        "due_date": due.isoformat(),
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["recurrence"] == "once"
+    assert data["name"] == "Entrega Única"
+
+
+def test_create_template_daily(client):
+    """Tarefa 4.1: Criar template com recorrência 'daily'."""
+    email = f"tmpl_daily_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    payload = {
+        "name": "Diário",
+        "recurrence": "daily",
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+    assert resp.json()["recurrence"] == "daily"
+
+
+def test_create_template_weekly(client):
+    """Tarefa 4.1: Criar template com recorrência 'weekly'."""
+    email = f"tmpl_weekly_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    payload = {
+        "name": "Semanal",
+        "recurrence": "weekly",
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+    assert resp.json()["recurrence"] == "weekly"
+
+
+def test_create_template_biweekly(client):
+    """Tarefa 4.1: Criar template com recorrência 'biweekly'."""
+    email = f"tmpl_biweekly_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    payload = {
+        "name": "Quinzenal",
+        "recurrence": "biweekly",
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+    assert resp.json()["recurrence"] == "biweekly"
+
+
+def test_create_template_yearly(client):
+    """Tarefa 4.1: Criar template com recorrência 'yearly'."""
+    email = f"tmpl_yearly_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    payload = {
+        "name": "Anual",
+        "recurrence": "yearly",
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+    assert resp.json()["recurrence"] == "yearly"
+
+
+def test_create_template_with_recurrence_end_date(client):
+    """Tarefa 4.1: Criar template com recurrence_end_date (opcional)."""
+    email = f"tmpl_end_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    end = datetime.now(timezone.utc) + timedelta(days=365)
+    payload = {
+        "name": "Com Expiração",
+        "recurrence": "monthly",
+        "recurrence_end_date": end.isoformat(),
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["recurrence"] == "monthly"
+    resp = client.get("/tasks/templates/", headers=auth)
+    assert resp.status_code == 200
+    templates = resp.json()
+    found = [t for t in templates if t["id"] == data["id"]]
+    assert len(found) == 1
+
+
+def test_create_template_monthly_is_default(client):
+    """Tarefa 4.1: 'monthly' continua sendo o default."""
+    email = f"tmpl_default_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    payload = {"name": "Mensal Default"}
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+    assert resp.json()["recurrence"] == "monthly"
+
+
+# ── Existing tests below ──
 
 
 def test_tasks_flow_red_phase(client):

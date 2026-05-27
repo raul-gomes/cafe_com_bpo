@@ -11,7 +11,7 @@ import sqlalchemy as sa
 import uuid
 
 
-revision = "a1b2c3d4e5f6"
+revision = "a1b2c3d4e5f6_password_reset"
 down_revision = "add_payments_table"
 branch_labels = None
 depends_on = None

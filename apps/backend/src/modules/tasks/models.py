@@ -128,6 +128,8 @@ class ActivityTemplate(Base):
     recurrence = Column(
         String(50), nullable=False, default="monthly"
     )  # monthly, quarterly, yearly
+    due_date = Column(DateTime(timezone=True), nullable=True)
+    recurrence_end_date = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, server_default="true", nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
