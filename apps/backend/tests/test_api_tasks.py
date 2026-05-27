@@ -317,3 +317,56 @@ def test_task_isolation(client):
     resp_b = client.get("/tasks/", headers=auth_b)
     assert resp_b.status_code == 200
     assert len(resp_b.json()) == 0  # B não deve ver a tarefa de A
+
+
+# ── Tarefa 5.2: Phase + Task integration ──
+
+
+def test_task_moves_to_custom_phase(client):
+    """Tarefa 5.2: Criar fase, criar tarefa com essa fase, verificar."""
+    email = f"phase_task_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth, "Empresa Fase")
+
+    # 1. Criar uma fase personalizada
+    resp = client.post(
+        "/tasks/phases/",
+        json={"name": "Em Revisão", "color": "#f59e0b", "order": 3},
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    phase_id = resp.json()["id"]
+
+    # 2. Criar tarefa com a nova fase
+    task_resp = client.post(
+        "/tasks/",
+        json={
+            "title": "Tarefa na Fase",
+            "client_id": cli["id"],
+            "phase_id": phase_id,
+            "priority": "high",
+        },
+        headers=auth,
+    )
+    assert task_resp.status_code == 201
+    task = task_resp.json()
+    assert task["phase_id"] == phase_id
+
+    # 3. Verificar que a tarefa aparece na lista com a fase correta
+    list_resp = client.get("/tasks/", headers=auth)
+    assert list_resp.status_code == 200
+    tasks = list_resp.json()
+    found = [t for t in tasks if t["id"] == task["id"]]
+    assert len(found) == 1
+    assert found[0]["phase_id"] == phase_id
+
+    # 4. Mover a tarefa para outra fase via PUT
+    phases_resp = client.get("/tasks/phases/", headers=auth)
+    outro_phase = [p for p in phases_resp.json() if p["id"] != phase_id][0]
+    update_resp = client.put(
+        f"/tasks/{task['id']}",
+        json={"phase_id": outro_phase["id"]},
+        headers=auth,
+    )
+    assert update_resp.status_code == 200
+    assert update_resp.json()["phase_id"] == outro_phase["id"]
