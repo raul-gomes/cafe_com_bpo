@@ -1794,3 +1794,300 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* ─── Modal Nos Ajude ─── */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  z-index: 2000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-nos-ajude {
+  position: relative;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-lg);
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  padding: 32px;
+  animation: modalFadeIn 0.2s ease-out;
+}
+
+@keyframes modalFadeIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.modal-nos-ajude__close {
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  padding: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s ease;
+  z-index: 1;
+}
+
+.modal-nos-ajude__close:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--ds-text);
+}
+
+.modal-nos-ajude__content {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-nos-ajude .donate-headline {
+  font-size: 22px;
+  font-weight: 700;
+  color: var(--ds-white);
+  line-height: 1.3;
+  text-align: center;
+}
+
+.modal-nos-ajude .donate-headline em {
+  color: var(--ds-primary);
+  font-style: normal;
+}
+
+.modal-nos-ajude .donate-body {
+  font-size: 13px;
+  color: var(--ds-text-muted);
+  text-align: center;
+  line-height: 1.6;
+}
+
+.modal-nos-ajude .donate-pix-area {
+  display: flex;
+  justify-content: center;
+}
+
+.modal-nos-ajude .donate-pix-card {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  padding: 16px 24px;
+  min-width: 320px;
+}
+
+.modal-nos-ajude .donate-pix-icon {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 200, 83, 0.1);
+  border-radius: var(--radius-sm);
+  color: #00c853;
+  flex-shrink: 0;
+}
+
+.modal-nos-ajude .donate-pix-label {
+  font-size: 18px;
+  font-weight: 700;
+  color: #00c853;
+}
+
+.modal-nos-ajude .donate-pix-copy {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.modal-nos-ajude .donate-pix-key {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  background: rgba(255, 255, 255, 0.06);
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  font-family: 'SF Mono', 'Fira Code', monospace;
+}
+
+.modal-nos-ajude .donate-copy-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0, 200, 83, 0.1);
+  border: 1px solid rgba(0, 200, 83, 0.2);
+  border-radius: var(--radius-sm);
+  color: #00c853;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 12px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.modal-nos-ajude .donate-copy-btn:hover {
+  background: rgba(0, 200, 83, 0.2);
+}
+
+.modal-nos-ajude .donate-divider {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  font-size: 12px;
+  color: var(--ds-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+.modal-nos-ajude .donate-divider::before,
+.modal-nos-ajude .donate-divider::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.modal-nos-ajude .donate-form-area {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.modal-nos-ajude .donate-form-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ds-text);
+  text-align: center;
+}
+
+.modal-nos-ajude .donate-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-nos-ajude .donate-amounts {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+}
+
+.modal-nos-ajude .donate-amount-btn {
+  padding: 10px 8px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  color: var(--ds-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  text-align: center;
+}
+
+.modal-nos-ajude .donate-amount-btn:hover {
+  background: rgba(251, 191, 36, 0.1);
+  border-color: rgba(251, 191, 36, 0.3);
+  color: var(--ds-primary);
+}
+
+.modal-nos-ajude .donate-form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.modal-nos-ajude .donate-amount-input,
+.modal-nos-ajude .donate-name-input,
+.modal-nos-ajude .donate-email-input {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  color: var(--ds-text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.modal-nos-ajude .donate-amount-input:focus,
+.modal-nos-ajude .donate-name-input:focus,
+.modal-nos-ajude .donate-email-input:focus {
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.15);
+}
+
+.modal-nos-ajude .donate-method-select {
+  width: 100%;
+  padding: 10px 14px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-sm);
+  color: var(--ds-text);
+  font-size: 13px;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  box-sizing: border-box;
+}
+
+.modal-nos-ajude .donate-method-select:focus {
+  border-color: var(--ds-primary);
+  box-shadow: 0 0 0 2px rgba(251, 191, 36, 0.15);
+}
+
+.modal-nos-ajude .donate-submit-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px 24px;
+  background: var(--ds-primary);
+  border: none;
+  border-radius: var(--radius-md);
+  color: var(--ds-primary-text);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.modal-nos-ajude .donate-submit-btn:hover {
+  background: #f59e0b;
+  transform: translateY(-1px);
+}
+
+.modal-nos-ajude .donate-submit-btn svg {
+  width: 18px;
+  height: 18px;
+}
