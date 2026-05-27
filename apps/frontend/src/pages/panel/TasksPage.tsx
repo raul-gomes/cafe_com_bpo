@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, AlertTriangle } from 'lucide-react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, AlertTriangle, XCircle } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
@@ -17,10 +17,14 @@ export const TasksPage: React.FC = () => {
     const [sectionFilter, setSectionFilter] = useState<'all' | 'today' | 'doing' | 'overdue'>('all');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [showPhaseManager, setShowPhaseManager] = useState(false);
-    const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts } = useTasks();
+    const [dateFrom, setDateFrom] = useState('');
+    const [dateTo, setDateTo] = useState('');
+    const [phaseFilter, setPhaseFilter] = useState('all');
+    const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask } = useTasks();
     const { data: tasks, isLoading } = useTasksList();
     const { data: phases } = usePhases();
     const updateTaskStatus = useUpdateTaskStatus();
+    const cancelTask = useCancelTask();
     const { data: timelineData, isLoading: timelineLoading } = useTimeline();
     const { data: conflictsData } = useConflicts();
     
@@ -45,6 +49,9 @@ export const TasksPage: React.FC = () => {
     };
 
     const getTaskStatus = (task: TaskResponse): string => {
+        if (task.status === 'cancelled' || task.cancelled_at) {
+            return 'cancelled';
+        }
         if (task.phase_id && phases) {
             return task.phase_id;
         }
@@ -76,19 +83,30 @@ export const TasksPage: React.FC = () => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
-    const filteredTasks = sectionFilter === 'all' ? tasksList : tasksList.filter(t => {
-        if (t.status === 'done') return false;
-        if (sectionFilter === 'today') {
-            return t.deadline?.startsWith(todayStr) ?? false;
+    const filteredTasks = tasksList.filter(t => {
+        // Hide cancelled tasks by default
+        if (t.status === 'cancelled' || t.cancelled_at) return false;
+        // Section filter
+        if (sectionFilter !== 'all') {
+            if (t.status === 'done') return false;
+            if (sectionFilter === 'today') {
+                if (!t.deadline?.startsWith(todayStr)) return false;
+            }
+            if (sectionFilter === 'doing') {
+                const phaseName = phases?.find(p => p.id === t.phase_id)?.name;
+                if (phaseName !== 'Em Andamento' && t.status !== 'doing') return false;
+            }
+            if (sectionFilter === 'overdue') {
+                if (!t.deadline) return false;
+                if (new Date(t.deadline) >= todayStart) return false;
+            }
         }
-        if (sectionFilter === 'doing') {
-            const phaseName = phases?.find(p => p.id === t.phase_id)?.name;
-            return phaseName === 'Em Andamento' || t.status === 'doing';
-        }
-        if (sectionFilter === 'overdue') {
-            if (!t.deadline) return false;
-            return new Date(t.deadline) < todayStart;
-        }
+        // Date range filter
+        const deadlineDate = t.deadline?.split('T')[0];
+        if (dateFrom && deadlineDate && deadlineDate < dateFrom) return false;
+        if (dateTo && deadlineDate && deadlineDate > dateTo) return false;
+        // Phase filter
+        if (phaseFilter !== 'all' && t.phase_id !== phaseFilter) return false;
         return true;
     });
 
@@ -102,12 +120,12 @@ export const TasksPage: React.FC = () => {
                     <p style={{ marginBottom: '8px' }}>Controle operacional e prazos por empresa.</p>
                     <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--ds-text-muted)' }}>
                         <span style={{ fontWeight: 700, color: 'var(--ds-text)' }}>
-                            {tasksList.filter(t => t.status !== 'done').length}
+                            {tasksList.filter(t => t.status !== 'done' && t.status !== 'cancelled' && !t.cancelled_at).length}
                         </span> tarefas abertas
                         <span style={{ opacity: 0.3 }}>|</span>
                         <span style={{ fontWeight: 700, color: 'var(--ds-primary)' }}>
                             {tasksList.filter(t => {
-                                if (t.status === 'done') return false;
+                                if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
                                 return !t.deadline || new Date(t.deadline) < new Date();
                             }).length}
                         </span> em atraso
@@ -154,7 +172,7 @@ export const TasksPage: React.FC = () => {
 
             {/* Section filter tabs */}
             {view === 'kanban' && (
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: 'var(--ds-surface-2)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content' }}>
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '12px', background: 'var(--ds-surface-2)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content' }}>
                     {([
                         { key: 'all', label: 'Todas', icon: null },
                         { key: 'today', label: 'Hoje', icon: null },
@@ -178,17 +196,18 @@ export const TasksPage: React.FC = () => {
                                     borderRadius: '10px',
                                 }}>
                                     {s.key === 'today' && tasksList.filter(t => {
-                                        if (t.status === 'done') return false;
+                                        if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
                                         if (!t.deadline) return false;
                                         const today = new Date().toISOString().split('T')[0];
                                         return t.deadline.startsWith(today);
                                     }).length}
                                     {s.key === 'doing' && tasksList.filter(t => {
+                                        if (t.status === 'cancelled' || t.cancelled_at) return false;
                                         const phaseName = phases?.find(p => p.id === t.phase_id)?.name;
                                         return phaseName === 'Em Andamento' || t.status === 'doing';
                                     }).length}
                                     {s.key === 'overdue' && tasksList.filter(t => {
-                                        if (t.status === 'done') return false;
+                                        if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
                                         if (!t.deadline) return false;
                                         const today = new Date();
                                         today.setHours(0, 0, 0, 0);
@@ -198,6 +217,70 @@ export const TasksPage: React.FC = () => {
                             )}
                         </button>
                     ))}
+                </div>
+            )}
+            
+            {/* Date range and phase filter controls */}
+            {view === 'kanban' && (
+                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ds-text-muted)' }}>De</label>
+                        <input
+                            type="date"
+                            value={dateFrom}
+                            onChange={e => setDateFrom(e.target.value)}
+                            style={{
+                                background: 'var(--ds-surface-2)', border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: 'var(--radius-sm)', padding: '4px 8px',
+                                color: 'var(--ds-text)', fontSize: '12px',
+                                fontFamily: 'inherit',
+                            }}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ds-text-muted)' }}>Até</label>
+                        <input
+                            type="date"
+                            value={dateTo}
+                            onChange={e => setDateTo(e.target.value)}
+                            style={{
+                                background: 'var(--ds-surface-2)', border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: 'var(--radius-sm)', padding: '4px 8px',
+                                color: 'var(--ds-text)', fontSize: '12px',
+                                fontFamily: 'inherit',
+                            }}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ds-text-muted)' }}>Fase</label>
+                        <select
+                            value={phaseFilter}
+                            onChange={e => setPhaseFilter(e.target.value)}
+                            style={{
+                                background: 'var(--ds-surface-2)', border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: 'var(--radius-sm)', padding: '4px 8px',
+                                color: 'var(--ds-text)', fontSize: '12px',
+                                fontFamily: 'inherit',
+                            }}
+                        >
+                            <option value="all">Todas</option>
+                            {(phases || []).map(p => (
+                                <option key={p.id} value={p.id}>{p.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                    {(dateFrom || dateTo || phaseFilter !== 'all') && (
+                        <button
+                            onClick={() => { setDateFrom(''); setDateTo(''); setPhaseFilter('all'); }}
+                            style={{
+                                fontSize: '11px', color: 'var(--ds-primary)', background: 'none',
+                                border: 'none', cursor: 'pointer', fontWeight: 700,
+                                fontFamily: 'inherit',
+                            }}
+                        >
+                            Limpar filtros
+                        </button>
+                    )}
                 </div>
             )}
 
@@ -221,7 +304,7 @@ export const TasksPage: React.FC = () => {
                             </div>
                         ) : (
                             <DragDropContext onDragEnd={handleDragEnd}>
-                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} onFinalize={(id) => updateTaskStatus.mutate({ id, status: 'done' })} />
+                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} onFinalize={(id) => updateTaskStatus.mutate({ id, status: 'done' })} onCancel={(id) => cancelTask.mutate(id)} />
                             </DragDropContext>
                         )
                     ) : view === 'timeline' ? (
@@ -324,7 +407,7 @@ export const TasksPage: React.FC = () => {
     );
 };
 
-const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string, onFinalize?: (id: string) => void }> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize }) => {
+const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string, onFinalize?: (id: string) => void, onCancel?: (id: string) => void }> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize, onCancel }) => {
     const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
     const columns = sortedPhases.length > 0 ? sortedPhases.map(p => ({
         id: p.id,
@@ -437,22 +520,45 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                                     </div>
                                                     <div style={{ fontWeight: 600, fontSize: '14px', lineHeight: 1.4, color: 'var(--ds-text)', marginBottom: '12px' }}>{task.title}</div>
                                                     
-                                                    {onFinalize && getTaskStatus(task) !== doneColumnId && (
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); onFinalize(task.id); }}
-                                                            style={{
-                                                                background: 'rgba(34,197,94,0.1)', border: 'none',
-                                                                color: '#22c55e', fontSize: '11px', fontWeight: 700,
-                                                                padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                                                                cursor: 'pointer', marginBottom: '10px', display: 'inline-flex',
-                                                                alignItems: 'center', gap: '6px', width: 'fit-content',
-                                                            }}
-                                                            className="finalize-btn"
-                                                            title="Mover para Concluído"
-                                                        >
-                                                            ✓ Finalizar
-                                                        </button>
-                                                    )}
+                                                    <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
+                                                        {onFinalize && getTaskStatus(task) !== doneColumnId && (
+                                                            <button
+                                                                onClick={(e) => { e.stopPropagation(); onFinalize(task.id); }}
+                                                                style={{
+                                                                    background: 'rgba(34,197,94,0.1)', border: 'none',
+                                                                    color: '#22c55e', fontSize: '11px', fontWeight: 700,
+                                                                    padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                                                                    cursor: 'pointer', display: 'inline-flex',
+                                                                    alignItems: 'center', gap: '6px', width: 'fit-content',
+                                                                }}
+                                                                className="finalize-btn"
+                                                                title="Mover para Concluído"
+                                                            >
+                                                                ✓ Finalizar
+                                                            </button>
+                                                        )}
+                                                        {onCancel && getTaskStatus(task) !== doneColumnId && task.status !== 'cancelled' && !task.cancelled_at && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    if (window.confirm(`Tem certeza que deseja cancelar "${task.title}"?`)) {
+                                                                        onCancel(task.id);
+                                                                    }
+                                                                }}
+                                                                style={{
+                                                                    background: 'rgba(239,68,68,0.1)', border: 'none',
+                                                                    color: '#ef4444', fontSize: '11px', fontWeight: 700,
+                                                                    padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                                                                    cursor: 'pointer', display: 'inline-flex',
+                                                                    alignItems: 'center', gap: '6px', width: 'fit-content',
+                                                                }}
+                                                                className="cancel-btn"
+                                                                title="Cancelar tarefa"
+                                                            >
+                                                                <XCircle size={12} /> Cancelar
+                                                            </button>
+                                                        )}
+                                                    </div>
                                                     
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div>
