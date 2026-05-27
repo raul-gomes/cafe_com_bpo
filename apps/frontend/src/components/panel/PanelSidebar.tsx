@@ -191,15 +191,20 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
               Fórum da Comunidade
             </button>
           </nav>
+
+          <div className="panel-sidebar__donate-section">
+            <button className="panel-sidebar__donate-btn" onClick={() => window.location.href = '/#nos-ajude'}>
+              <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+              </svg>
+              Nos Ajude
+            </button>
+          </div>
         </div>
 
+        <div className="panel-sidebar__divider" />
+
         <div className="panel-sidebar__footer">
-          <button className="panel-sidebar__donate-btn" onClick={() => window.location.href = '/#nos-ajude'}>
-            <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-            </svg>
-            Nos Ajude
-          </button>
           <button className="panel-sidebar__logout-btn" onClick={logout}>
             <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
               <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />

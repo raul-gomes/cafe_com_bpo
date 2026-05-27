@@ -106,7 +106,16 @@
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s ease;
-  margin-bottom: 8px;
+}
+
+.panel-sidebar__donate-section {
+  padding: 4px 0 0;
+}
+
+.panel-sidebar__divider {
+  height: 1px;
+  background: rgba(255, 255, 255, 0.08);
+  margin: 0 16px;
 }
 
 .panel-sidebar__donate-btn svg {
