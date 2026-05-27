@@ -200,6 +200,7 @@ class ActivityTemplateListItem(BaseModel):
     recurrence_end_date: Optional[datetime] = None
     is_active: bool
     is_overdue: bool = False
+    days_overdue: int = 0
     activity_count: int = 0
     created_at: datetime
     updated_at: datetime

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Settings, X, ChevronRight, ToggleLeft, ToggleRight, FileText } from 'lucide-react';
+import { Plus, Settings, X, ChevronRight, ToggleLeft, ToggleRight, FileText, AlertTriangle } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -33,15 +33,21 @@ export const TemplateListPage: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('fiscal');
   const [newRecurrence, setNewRecurrence] = useState('monthly');
+  const [newDueDate, setNewDueDate] = useState('');
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
-    await createTemplate.mutateAsync({
+    const payload: Record<string, unknown> = {
       name: newName.trim(),
       process_type: newType,
       recurrence: newRecurrence,
-    });
+    };
+    if (newRecurrence === 'once' && newDueDate) {
+      payload.due_date = new Date(newDueDate).toISOString();
+    }
+    await createTemplate.mutateAsync(payload as any);
     setNewName('');
+    setNewDueDate('');
     setShowCreate(false);
   };
 
@@ -111,7 +117,7 @@ export const TemplateListPage: React.FC = () => {
               <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '6px' }}>Periodicidade</label>
               <select
                 value={newRecurrence}
-                onChange={(e) => setNewRecurrence(e.target.value)}
+                onChange={(e) => { setNewRecurrence(e.target.value); if (e.target.value !== 'once') setNewDueDate(''); }}
                 style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }}
               >
                 {Object.entries(RECURRENCE_LABELS).map(([k, v]) => (
@@ -119,6 +125,17 @@ export const TemplateListPage: React.FC = () => {
                 ))}
               </select>
             </div>
+            {newRecurrence === 'once' && (
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '6px' }}>Data de Vencimento</label>
+                <input
+                  type="date"
+                  value={newDueDate}
+                  onChange={(e) => setNewDueDate(e.target.value)}
+                  style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }}
+                />
+              </div>
+            )}
             <button
               className="ds-btn ds-btn-primary"
               onClick={handleCreate}
@@ -165,6 +182,11 @@ export const TemplateListPage: React.FC = () => {
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 700 }}>
                     {RECURRENCE_LABELS[tmpl.recurrence] || tmpl.recurrence}
                   </span>
+                  {tmpl.is_overdue && tmpl.days_overdue > 0 && (
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(239,68,68,0.1)', color: '#ef4444', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <AlertTriangle size={12} /> Atrasado {tmpl.days_overdue}d
+                    </span>
+                  )}
                 </div>
                 <div style={{ fontSize: '13px', color: 'var(--ds-text-muted)' }}>
                   {tmpl.activity_count} atividade(s) • {tmpl.description || 'Sem descrição'}

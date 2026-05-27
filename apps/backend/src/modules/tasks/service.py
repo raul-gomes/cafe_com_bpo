@@ -322,6 +322,21 @@ class TaskService:
             return True
         return False
 
+    def _compute_days_overdue(self, tmpl) -> int:
+        """Calculate how many days a template is overdue."""
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        due = tmpl.due_date
+        if due and due.tzinfo is not None:
+            due = due.replace(tzinfo=None)
+        end = tmpl.recurrence_end_date
+        if end and end.tzinfo is not None:
+            end = end.replace(tzinfo=None)
+        if due and due < now:
+            return (now - due).days
+        if end and end < now:
+            return (now - end).days
+        return 0
+
     def get_templates(self, user_id: UUID) -> List[ActivityTemplateListItem]:
         """List all templates for a user with activity count and overdue status."""
         templates = self.repository.get_templates_by_user(user_id)
@@ -339,6 +354,7 @@ class TaskService:
                     recurrence_end_date=tmpl.recurrence_end_date,
                     is_active=tmpl.is_active,
                     is_overdue=self._is_template_overdue(tmpl),
+                    days_overdue=self._compute_days_overdue(tmpl),
                     activity_count=len(activities),
                     created_at=tmpl.created_at,
                     updated_at=tmpl.updated_at,
@@ -349,25 +365,12 @@ class TaskService:
     def get_overdue_templates(self, user_id: UUID) -> List[OverdueTemplateResponse]:
         """Return only overdue templates for dashboard alerts."""
         templates = self.repository.get_templates_by_user(user_id)
-        now = datetime.now(timezone.utc).replace(tzinfo=None)
         result = []
         for tmpl in templates:
             if not self._is_template_overdue(tmpl):
                 continue
             activities = self.repository.get_activities_by_template(tmpl.id)
-            # Calculate days overdue (with tz-safe comparison)
-            due = tmpl.due_date
-            if due and due.tzinfo is not None:
-                due = due.replace(tzinfo=None)
-            end = tmpl.recurrence_end_date
-            if end and end.tzinfo is not None:
-                end = end.replace(tzinfo=None)
-            if due and due < now:
-                days_overdue = (now - due).days
-            elif end and end < now:
-                days_overdue = (now - end).days
-            else:
-                days_overdue = 0
+            days_overdue = self._compute_days_overdue(tmpl)
             result.append(
                 OverdueTemplateResponse(
                     id=tmpl.id,
