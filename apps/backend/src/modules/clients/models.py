@@ -22,6 +22,7 @@ class Client(Base):
     color = Column(String(10), nullable=True)
     description = Column(Text, nullable=True)
     segment = Column(String(100), nullable=True)
+    address = Column(Text, nullable=True)
 
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -12,6 +12,7 @@ class ClientBase(BaseModel):
     color: Optional[str] = None
     description: Optional[str] = None
     segment: Optional[str] = None
+    address: Optional[str] = None
 
 
 class ClientCreate(ClientBase):

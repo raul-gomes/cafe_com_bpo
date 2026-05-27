@@ -72,6 +72,46 @@ def test_get_clients_success_and_isolation(client):
     assert "Outro Cliente do B" in names
 
 
+def test_create_client_with_address(client):
+    email = f"client_addr_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    payload = {
+        "name": "Empresa com Endereço",
+        "cnpj": "98.765.432/0001-10",
+        "address": "Rua Example, 123, Centro, São Paulo - SP, 01001-000",
+    }
+
+    resp = client.post("/clients/", json=payload, headers=auth)
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["address"] == "Rua Example, 123, Centro, São Paulo - SP, 01001-000"
+
+    # GET should also return address
+    resp_get = client.get("/clients/", headers=auth)
+    assert resp_get.status_code == 200
+    clients = resp_get.json()
+    assert any(c["address"] == payload["address"] for c in clients)
+
+
+def test_update_client_address(client):
+    email = f"client_upd_addr_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    # Create client without address
+    resp = client.post("/clients/", json={"name": "Empresa Teste"}, headers=auth)
+    client_id = resp.json()["id"]
+
+    # Update with address
+    resp_upd = client.put(
+        f"/clients/{client_id}",
+        json={"address": "Av. Paulista, 1000, Bela Vista, São Paulo - SP"},
+        headers=auth,
+    )
+    assert resp_upd.status_code == 200
+    assert resp_upd.json()["address"] == "Av. Paulista, 1000, Bela Vista, São Paulo - SP"
+
+
 def test_clients_endpoints_require_authentication(client):
     payload = {"name": "Hacked Client"}
 
