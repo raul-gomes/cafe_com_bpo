@@ -468,6 +468,12 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                                             </div>
                                                         )}
                                                     </div>
+                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '10px', color: 'var(--ds-text-muted)', opacity: 0.7 }}>
+                                                        <span>Criada em {new Date(task.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                        {(getTaskStatus(task) === doneColumnId) && (
+                                                            <span>Finalizada em {new Date(task.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             )}
                                         </Draggable>
