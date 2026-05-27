@@ -283,6 +283,29 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
         return Math.floor((today.getTime() - deadline.getTime()) / (1000 * 60 * 60 * 24));
     };
 
+    const sortTasksByUrgency = (tasksToSort: TaskResponse[]): TaskResponse[] => {
+        const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
+        return [...tasksToSort].sort((a, b) => {
+            // 1. Overdue tasks first
+            const aOver = isTaskOverdue(a);
+            const bOver = isTaskOverdue(b);
+            if (aOver !== bOver) return aOver ? -1 : 1;
+
+            // 2. High priority next
+            const aPrio = priorityOrder[a.priority] ?? 1;
+            const bPrio = priorityOrder[b.priority] ?? 1;
+            if (aPrio !== bPrio) return aPrio - bPrio;
+
+            // 3. Sort by deadline (ascending)
+            if (a.deadline && b.deadline) {
+                return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+            }
+            if (a.deadline) return -1;
+            if (b.deadline) return 1;
+            return 0;
+        });
+    };
+
     const getClient = (id: string) => clients.find(c => c.id === id);
 
     return (
@@ -306,7 +329,7 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                             </div>
                             
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                                {tasks.filter(t => getTaskStatus(t) === col.id).map((task, index) => {
+                                {sortTasksByUrgency(tasks.filter(t => getTaskStatus(t) === col.id)).map((task, index) => {
                                     const client = getClient(task.client_id);
                                     return (
                                         <Draggable key={task.id} draggableId={task.id} index={index}>
