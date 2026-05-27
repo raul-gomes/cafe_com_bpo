@@ -146,9 +146,9 @@ export const TasksPage: React.FC = () => {
                                 </button>
                             </div>
                         ) : (
-                            <DragDropContext onDragEnd={handleDragEnd}>
-                                <TaskKanban tasks={tasksList} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} />
-                            </DragDropContext>
+                                                            <DragDropContext onDragEnd={handleDragEnd}>
+                                                                <TaskKanban tasks={tasksList} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} onFinalize={(id) => updateTaskStatus.mutate({ id, status: 'done' })} />
+                                                            </DragDropContext>
                         )
                     ) : view === 'timeline' ? (
                         <div className="panel-card" style={{ padding: '24px' }}>
@@ -250,7 +250,7 @@ export const TasksPage: React.FC = () => {
     );
 };
 
-const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string }> = ({ tasks, phases, clients, onEdit, getTaskStatus }) => {
+const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string, onFinalize?: (id: string) => void }> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize }) => {
     const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
     const columns = sortedPhases.length > 0 ? sortedPhases.map(p => ({
         id: p.id,
@@ -339,6 +339,23 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                                         }} />
                                                     </div>
                                                     <div style={{ fontWeight: 600, fontSize: '14px', lineHeight: 1.4, color: 'var(--ds-text)', marginBottom: '12px' }}>{task.title}</div>
+                                                    
+                                                    {onFinalize && getTaskStatus(task) !== doneColumnId && (
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); onFinalize(task.id); }}
+                                                            style={{
+                                                                background: 'rgba(34,197,94,0.1)', border: 'none',
+                                                                color: '#22c55e', fontSize: '11px', fontWeight: 700,
+                                                                padding: '4px 12px', borderRadius: 'var(--radius-sm)',
+                                                                cursor: 'pointer', marginBottom: '10px', display: 'inline-flex',
+                                                                alignItems: 'center', gap: '6px', width: 'fit-content',
+                                                            }}
+                                                            className="finalize-btn"
+                                                            title="Mover para Concluído"
+                                                        >
+                                                            ✓ Finalizar
+                                                        </button>
+                                                    )}
                                                     
                                                     <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                                         <div>
