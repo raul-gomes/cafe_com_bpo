@@ -67,6 +67,17 @@ class User(Base):
     avatar_file_id = Column(
         UUID(as_uuid=True), ForeignKey("user_files.id"), nullable=True
     )
+    # Profile fields
+    whatsapp = Column(String(50), nullable=True)
+    company_razao_social = Column(String(255), nullable=True)
+    company_nome_fantasia = Column(String(255), nullable=True)
+    company_cnpj = Column(String(50), nullable=True)
+    company_address = Column(Text, nullable=True)
+    company_professional_email = Column(String(255), nullable=True)
+    company_commercial_phone = Column(String(50), nullable=True)
+    company_logo_url = Column(String(500), nullable=True)
+    company_color_code = Column(String(10), nullable=True)
+
     role = Column(String(20), server_default="user", nullable=False)
     auth_provider = Column(String(50), default="local", nullable=False)
     created_at = Column(

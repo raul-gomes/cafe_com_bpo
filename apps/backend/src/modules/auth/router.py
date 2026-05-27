@@ -12,6 +12,7 @@ from src.core.email import EmailService
 from .schemas import (
     UserCreate,
     UserResponse,
+    ProfileUpdate,
     TokenResponse,
     RefreshTokenRequest,
     ForgotPasswordRequest,
@@ -86,15 +87,10 @@ def get_me(user: CurrentUserDep, service: AuthServiceDep):
 
 
 @router.patch("/me", response_model=UserResponse)
-def update_me(updates: dict, user: CurrentUserDep, service: AuthServiceDep):
-    allowed_fields = {
-        "name",
-        "company",
-        "company_name",
-        "company_segment",
-        "company_description",
-    }
-    filtered = {k: v for k, v in updates.items() if k in allowed_fields}
+def update_me(updates: ProfileUpdate, user: CurrentUserDep, service: AuthServiceDep):
+    filtered = updates.model_dump(exclude_unset=True)
+    # Never allow email change via this endpoint
+    filtered.pop("email", None)
     if not filtered:
         raise HTTPException(
             status_code=400, detail="Nenhum campo válido para atualizar"
@@ -212,6 +208,15 @@ async def upload_avatar(
         company_segment=db_user.company_segment,
         company_description=db_user.company_description,
         avatar_url=read_url,
+        whatsapp=db_user.whatsapp,
+        company_razao_social=db_user.company_razao_social,
+        company_nome_fantasia=db_user.company_nome_fantasia,
+        company_cnpj=db_user.company_cnpj,
+        company_address=db_user.company_address,
+        company_professional_email=db_user.company_professional_email,
+        company_commercial_phone=db_user.company_commercial_phone,
+        company_logo_url=db_user.company_logo_url,
+        company_color_code=db_user.company_color_code,
     )
 
 

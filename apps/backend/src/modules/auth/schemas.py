@@ -24,6 +24,32 @@ class UserResponse(BaseModel):
     company_description: Optional[str] = None
     avatar_url: str | None = None
     role: str = "user"
+    whatsapp: Optional[str] = None
+    company_razao_social: Optional[str] = None
+    company_nome_fantasia: Optional[str] = None
+    company_cnpj: Optional[str] = None
+    company_address: Optional[str] = None
+    company_professional_email: Optional[str] = None
+    company_commercial_phone: Optional[str] = None
+    company_logo_url: Optional[str] = None
+    company_color_code: Optional[str] = None
+
+
+class ProfileUpdate(BaseModel):
+    name: Optional[str] = None
+    company: Optional[str] = None
+    company_name: Optional[str] = None
+    company_segment: Optional[str] = None
+    company_description: Optional[str] = None
+    whatsapp: Optional[str] = None
+    company_razao_social: Optional[str] = None
+    company_nome_fantasia: Optional[str] = None
+    company_cnpj: Optional[str] = None
+    company_address: Optional[str] = None
+    company_professional_email: Optional[str] = None
+    company_commercial_phone: Optional[str] = None
+    company_logo_url: Optional[str] = None
+    company_color_code: Optional[str] = None
 
 
 class TokenResponse(BaseModel):

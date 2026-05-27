@@ -35,6 +35,15 @@ class AuthService:
                 avatar_url=user.avatar_file.read_url
                 if user.avatar_file
                 else user.avatar_url,
+                whatsapp=user.whatsapp,
+                company_razao_social=user.company_razao_social,
+                company_nome_fantasia=user.company_nome_fantasia,
+                company_cnpj=user.company_cnpj,
+                company_address=user.company_address,
+                company_professional_email=user.company_professional_email,
+                company_commercial_phone=user.company_commercial_phone,
+                company_logo_url=user.company_logo_url,
+                company_color_code=user.company_color_code,
             )
         except IntegrityError:
             self.user_repo.session.rollback()
@@ -72,6 +81,15 @@ class AuthService:
             if user.avatar_file
             else user.avatar_url,
             role=user.role,
+            whatsapp=user.whatsapp,
+            company_razao_social=user.company_razao_social,
+            company_nome_fantasia=user.company_nome_fantasia,
+            company_cnpj=user.company_cnpj,
+            company_address=user.company_address,
+            company_professional_email=user.company_professional_email,
+            company_commercial_phone=user.company_commercial_phone,
+            company_logo_url=user.company_logo_url,
+            company_color_code=user.company_color_code,
         )
 
     def update_user_profile(
@@ -93,6 +111,15 @@ class AuthService:
             if user.avatar_file
             else user.avatar_url,
             role=user.role,
+            whatsapp=user.whatsapp,
+            company_razao_social=user.company_razao_social,
+            company_nome_fantasia=user.company_nome_fantasia,
+            company_cnpj=user.company_cnpj,
+            company_address=user.company_address,
+            company_professional_email=user.company_professional_email,
+            company_commercial_phone=user.company_commercial_phone,
+            company_logo_url=user.company_logo_url,
+            company_color_code=user.company_color_code,
         )
 
     def authenticate_oauth_user(self, email: str, provider: str) -> dict:
@@ -202,6 +229,15 @@ def get_current_user(
         company_description=user.company_description,
         avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url,
         role=user.role,
+        whatsapp=user.whatsapp,
+        company_razao_social=user.company_razao_social,
+        company_nome_fantasia=user.company_nome_fantasia,
+        company_cnpj=user.company_cnpj,
+        company_address=user.company_address,
+        company_professional_email=user.company_professional_email,
+        company_commercial_phone=user.company_commercial_phone,
+        company_logo_url=user.company_logo_url,
+        company_color_code=user.company_color_code,
     )
 
 
