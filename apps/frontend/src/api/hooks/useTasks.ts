@@ -105,6 +105,18 @@ export const useTasks = () => {
     });
   };
 
+  const useCancelTask = () => {
+    return useMutation({
+      mutationFn: async (id: string) => {
+        const { data } = await apiClient.put(`/tasks/${id}/cancel`);
+        return data;
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      },
+    });
+  };
+
   const usePhases = () => {
     return useQuery<TaskPhaseResponse[]>({
       queryKey: ['task-phases'],
@@ -484,6 +496,7 @@ export const useTasks = () => {
     useUpdateTaskStatus,
     useUpdateClient,
     useDeleteTask,
+    useCancelTask,
     usePhases,
     useCreatePhase,
     useUpdatePhase,

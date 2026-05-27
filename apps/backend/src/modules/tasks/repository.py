@@ -72,6 +72,15 @@ class TaskRepository:
         task.deleted_at = datetime.now(timezone.utc)
         self.session.commit()
 
+    def cancel(self, task: Task) -> Task:
+        """Mark a task as cancelled by setting cancelled_at timestamp."""
+        if task.cancelled_at is None:
+            task.cancelled_at = datetime.now(timezone.utc)
+            task.status = "cancelled"
+            self.session.commit()
+            self.session.refresh(task)
+        return task
+
     def get_phases_by_user(self, user_id: UUID) -> List[TaskPhase]:
         """Get all phases for a user, ordered by order field."""
         return (

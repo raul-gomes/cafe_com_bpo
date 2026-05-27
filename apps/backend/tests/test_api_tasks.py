@@ -370,3 +370,70 @@ def test_task_moves_to_custom_phase(client):
     )
     assert update_resp.status_code == 200
     assert update_resp.json()["phase_id"] == outro_phase["id"]
+
+
+# ── Tarefa 7.1: Cancel task ──
+
+
+def test_cancel_task(client):
+    """Tarefa 7.1: Cancelar uma tarefa preenche cancelled_at e marca status como cancelled."""
+    email = f"cancel_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    # 1. Criar tarefa
+    resp = client.post(
+        "/tasks/",
+        json={
+            "title": "Tarefa para cancelar",
+            "client_id": cli["id"],
+            "priority": "high",
+        },
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    task = resp.json()
+    task_id = task["id"]
+    assert task["cancelled_at"] is None
+
+    # 2. Cancelar a tarefa
+    cancel_resp = client.put(f"/tasks/{task_id}/cancel", headers=auth)
+    assert cancel_resp.status_code == 200
+    cancelled = cancel_resp.json()
+    assert cancelled["cancelled_at"] is not None
+    assert cancelled["status"] == "cancelled"
+
+    # 3. Cancelar novamente deve funcionar (idempotente)
+    cancel_resp2 = client.put(f"/tasks/{task_id}/cancel", headers=auth)
+    assert cancel_resp2.status_code == 200
+    assert cancel_resp2.json()["cancelled_at"] == cancelled["cancelled_at"]
+
+    # 4. Cancelar tarefa inexistente retorna 404
+    fake_id = str(uuid4())
+    not_found = client.put(f"/tasks/{fake_id}/cancel", headers=auth)
+    assert not_found.status_code == 404
+
+
+def test_cancel_task_other_user(client):
+    """Tarefa 7.1: Outro usuário não pode cancelar tarefa alheia."""
+    email1 = f"cancel_owner_{uuid4()}@cafe.com"
+    email2 = f"cancel_intruder_{uuid4()}@cafe.com"
+    auth1 = get_auth_header(client, email1)
+    auth2 = get_auth_header(client, email2)
+    cli1 = create_client(client, auth1)
+
+    resp = client.post(
+        "/tasks/",
+        json={
+            "title": "Tarefa do outro",
+            "client_id": cli1["id"],
+            "priority": "medium",
+        },
+        headers=auth1,
+    )
+    assert resp.status_code == 201
+    task_id = resp.json()["id"]
+
+    # Tentar cancelar com outro usuário
+    cancel_resp = client.put(f"/tasks/{task_id}/cancel", headers=auth2)
+    assert cancel_resp.status_code == 404

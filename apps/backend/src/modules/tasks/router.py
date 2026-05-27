@@ -97,6 +97,18 @@ def delete_task(task_id: UUID, repo: RepoDep, current_user: CurrentUserDep):
     return None
 
 
+@router.put("/{task_id}/cancel", response_model=TaskResponse)
+def cancel_task(task_id: UUID, repo: RepoDep, current_user: CurrentUserDep):
+    """Cancela uma tarefa (não remove, apenas marca como cancelada)"""
+    task = repo.get_by_id(task_id, current_user.id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+
+    cancelled_task = repo.cancel(task)
+    log.info(f"📋 Tarefa cancelada: {task.title} por usuário {current_user.email}")
+    return cancelled_task
+
+
 # Phase endpoints
 
 

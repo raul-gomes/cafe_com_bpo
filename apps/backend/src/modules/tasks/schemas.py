@@ -14,6 +14,7 @@ class TaskBase(BaseModel):
     deadline: Optional[datetime] = None
     time_estimate_hours: Optional[int] = None
     phase_id: Optional[UUID] = None
+    cancelled_at: Optional[datetime] = None
 
 
 class TaskCreate(TaskBase):
@@ -30,6 +31,7 @@ class TaskUpdate(BaseModel):
     deadline: Optional[datetime] = None
     time_estimate_hours: Optional[int] = None
     phase_id: Optional[UUID] = None
+    cancelled_at: Optional[datetime] = None
 
 
 class TaskResponse(TaskBase):
@@ -38,6 +40,8 @@ class TaskResponse(TaskBase):
     phase_id: Optional[UUID] = None
     created_at: datetime
     updated_at: datetime
+    cancelled_at: Optional[datetime] = None
+    deleted_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)
 

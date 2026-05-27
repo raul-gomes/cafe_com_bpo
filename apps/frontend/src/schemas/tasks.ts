@@ -10,6 +10,8 @@ export interface TaskResponse {
   deadline?: string;
   phase_id?: string;
   time_estimate_hours?: number;
+  cancelled_at?: string;
+  deleted_at?: string;
   created_at: string;
   updated_at: string;
 }

@@ -93,6 +93,7 @@ class Task(Base):
         nullable=False,
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    cancelled_at = Column(DateTime(timezone=True), nullable=True)
 
     # Relationships
     phase = relationship("TaskPhase", back_populates="tasks")
