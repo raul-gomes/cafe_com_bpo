@@ -3,6 +3,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { getClients, ClientData } from '../../api/clients';
 import logoSide from '../../assets/logo-side.png';
+import { ModalNosAjude } from './ModalNosAjude';
 
 interface PanelSidebarProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
   const [activeCompanyId, setActiveCompanyId] = useState<string | null>(() => {
     return localStorage.getItem('activeCompanyId');
   });
+  const [showDonateModal, setShowDonateModal] = useState(false);
 
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -193,7 +195,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
           </nav>
 
           <div className="panel-sidebar__donate-section">
-            <button className="panel-sidebar__donate-btn" onClick={() => window.location.href = '/#nos-ajude'}>
+            <button className="panel-sidebar__donate-btn" onClick={() => setShowDonateModal(true)}>
               <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
               </svg>
@@ -216,6 +218,8 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
           <div className="panel-sidebar__footer-copy">Café com BPO 2026</div>
         </div>
       </aside>
+
+      <ModalNosAjude isOpen={showDonateModal} onClose={() => setShowDonateModal(false)} />
     </>
   );
 };

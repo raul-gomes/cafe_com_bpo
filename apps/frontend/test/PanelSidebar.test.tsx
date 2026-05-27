@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { PanelSidebar } from '../src/components/panel/PanelSidebar'
@@ -79,6 +79,21 @@ describe('PanelSidebar', () => {
     // We verify by checking it doesn't have an onClick that sets location.href
     // Instead it should just be a button that toggles some state
     expect(donateBtn.tagName).toBe('BUTTON')
+  })
+
+  it('opens ModalNosAjude when clicking Nos Ajude button', () => {
+    renderSidebar()
+
+    // Modal should not be visible initially
+    expect(screen.queryByText(/Ajude o Café com BPO/)).not.toBeInTheDocument()
+
+    // Click the Nos Ajude button
+    const donateBtn = screen.getByText('Nos Ajude')
+    fireEvent.click(donateBtn)
+
+    // Modal should now be visible
+    expect(screen.getByText(/Ajude o Café com BPO/)).toBeInTheDocument()
+    expect(screen.getByText(/cafe@cafecombpo.com.br/)).toBeInTheDocument()
   })
 
   it('renders only Sair da conta below the divider in footer', () => {
