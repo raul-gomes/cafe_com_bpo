@@ -83,6 +83,9 @@ class Task(Base):
     # Scheduling
     time_estimate_hours = Column(Integer, nullable=True)
 
+    # Notes
+    notes = Column(Text, nullable=True)
+
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

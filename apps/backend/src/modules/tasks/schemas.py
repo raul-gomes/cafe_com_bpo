@@ -13,6 +13,7 @@ class TaskBase(BaseModel):
     process_type: Optional[str] = None
     deadline: Optional[datetime] = None
     time_estimate_hours: Optional[int] = None
+    notes: Optional[str] = None
     phase_id: Optional[UUID] = None
     cancelled_at: Optional[datetime] = None
 
@@ -30,6 +31,7 @@ class TaskUpdate(BaseModel):
     process_type: Optional[str] = None
     deadline: Optional[datetime] = None
     time_estimate_hours: Optional[int] = None
+    notes: Optional[str] = None
     phase_id: Optional[UUID] = None
     cancelled_at: Optional[datetime] = None
 

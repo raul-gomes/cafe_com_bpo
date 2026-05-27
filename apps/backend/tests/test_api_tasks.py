@@ -437,3 +437,63 @@ def test_cancel_task_other_user(client):
     # Tentar cancelar com outro usuário
     cancel_resp = client.put(f"/tasks/{task_id}/cancel", headers=auth2)
     assert cancel_resp.status_code == 404
+
+
+# ── Tarefa 8.1: Notes field ──
+
+
+def test_task_notes_create_and_update(client):
+    """Tarefa 8.1: Criar task com notes e atualizar notes via PUT."""
+    email = f"notes_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    # 1. Criar task com notes
+    resp = client.post(
+        "/tasks/",
+        json={
+            "title": "Tarefa com notas",
+            "client_id": cli["id"],
+            "notes": "Observação inicial importante",
+        },
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    task = resp.json()
+    assert task["notes"] == "Observação inicial importante"
+
+    # 2. Atualizar notes via PUT
+    update_resp = client.put(
+        f"/tasks/{task['id']}",
+        json={"notes": "Nota atualizada após revisão"},
+        headers=auth,
+    )
+    assert update_resp.status_code == 200
+    assert update_resp.json()["notes"] == "Nota atualizada após revisão"
+
+    # 3. Limpar notes (enviar null)
+    clear_resp = client.put(
+        f"/tasks/{task['id']}",
+        json={"notes": None},
+        headers=auth,
+    )
+    assert clear_resp.status_code == 200
+    assert clear_resp.json()["notes"] is None
+
+
+def test_task_notes_default_none(client):
+    """Tarefa 8.1: Task criada sem notes tem notes=None."""
+    email = f"notes_empty_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    resp = client.post(
+        "/tasks/",
+        json={
+            "title": "Tarefa sem notas",
+            "client_id": cli["id"],
+        },
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["notes"] is None
