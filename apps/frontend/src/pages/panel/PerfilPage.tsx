@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { apiClient } from '../../api/client';
-import { uploadAvatar } from '../../api/clients';
+import { uploadAvatar, updateProfile } from '../../api/clients';
 import { getApiUrl } from '../../api/client';
 import { Button } from '../../components/ui/Button';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -28,6 +27,15 @@ export const PerfilPage: React.FC = () => {
     company_name: user?.company_name || '',
     company_segment: user?.company_segment || '',
     company_description: user?.company_description || '',
+    // FASE 3 profile fields
+    whatsapp: user?.whatsapp || '',
+    company_razao_social: user?.company_razao_social || '',
+    company_nome_fantasia: user?.company_nome_fantasia || '',
+    company_cnpj: user?.company_cnpj || '',
+    company_address: user?.company_address || '',
+    company_professional_email: user?.company_professional_email || '',
+    company_commercial_phone: user?.company_commercial_phone || '',
+    company_color_code: user?.company_color_code || '',
   });
   
   const [isSaving, setIsSaving] = useState(false);
@@ -46,6 +54,14 @@ export const PerfilPage: React.FC = () => {
       company_name: user?.company_name || '',
       company_segment: user?.company_segment || '',
       company_description: user?.company_description || '',
+      whatsapp: user?.whatsapp || '',
+      company_razao_social: user?.company_razao_social || '',
+      company_nome_fantasia: user?.company_nome_fantasia || '',
+      company_cnpj: user?.company_cnpj || '',
+      company_address: user?.company_address || '',
+      company_professional_email: user?.company_professional_email || '',
+      company_commercial_phone: user?.company_commercial_phone || '',
+      company_color_code: user?.company_color_code || '',
     });
   }, [user]);
 
@@ -76,9 +92,9 @@ export const PerfilPage: React.FC = () => {
         await uploadAvatar(avatarFile);
       }
       
-      const updated = await apiClient.patch<User>('/auth/me', formData);
+      const updated = await updateProfile(formData);
       
-      setUser(updated.data);
+      setUser(updated as unknown as User);
       
       setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
       setIsSaving(false);
@@ -184,6 +200,18 @@ export const PerfilPage: React.FC = () => {
                 />
               </div>
 
+              <div className="ds-input-group">
+                <label className="ds-label">WhatsApp</label>
+                <input
+                  type="tel"
+                  name="whatsapp"
+                  className="ds-input"
+                  value={formData.whatsapp}
+                  onChange={handleChange}
+                  placeholder="Ex: 11988887777"
+                />
+              </div>
+
               <div className="ds-input-group perfil-form__full">
                 <label className="ds-label">Empresa (Nome Legado)</label>
                 <input
@@ -225,7 +253,91 @@ export const PerfilPage: React.FC = () => {
           {activeTab === 'company' && (
             <>
               <div className="ds-input-group perfil-form__full">
-                <label className="ds-label">Nome da Empresa</label>
+                <label className="ds-label">Razão Social</label>
+                <input
+                  type="text"
+                  name="company_razao_social"
+                  className="ds-input"
+                  value={formData.company_razao_social}
+                  onChange={handleChange}
+                  placeholder="Ex: BPO Soluções Financeiras Ltda"
+                />
+              </div>
+
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">Nome Fantasia</label>
+                <input
+                  type="text"
+                  name="company_nome_fantasia"
+                  className="ds-input"
+                  value={formData.company_nome_fantasia}
+                  onChange={handleChange}
+                  placeholder="Ex: BPO Soluções"
+                />
+              </div>
+
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">CNPJ</label>
+                <input
+                  type="text"
+                  name="company_cnpj"
+                  className="ds-input"
+                  value={formData.company_cnpj}
+                  onChange={handleChange}
+                  placeholder="Ex: 12.345.678/0001-99"
+                />
+              </div>
+
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">Endereço</label>
+                <input
+                  type="text"
+                  name="company_address"
+                  className="ds-input"
+                  value={formData.company_address}
+                  onChange={handleChange}
+                  placeholder="Ex: Rua Exemplo, 123"
+                />
+              </div>
+
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">E-mail Profissional</label>
+                <input
+                  type="email"
+                  name="company_professional_email"
+                  className="ds-input"
+                  value={formData.company_professional_email}
+                  onChange={handleChange}
+                  placeholder="Ex: contato@empresa.com"
+                />
+              </div>
+
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">Telefone Comercial</label>
+                <input
+                  type="tel"
+                  name="company_commercial_phone"
+                  className="ds-input"
+                  value={formData.company_commercial_phone}
+                  onChange={handleChange}
+                  placeholder="Ex: 1133334444"
+                />
+              </div>
+
+              <div className="ds-input-group perfil-form__full">
+                <label className="ds-label">Código de Cores (Hex)</label>
+                <input
+                  type="text"
+                  name="company_color_code"
+                  className="ds-input"
+                  value={formData.company_color_code}
+                  onChange={handleChange}
+                  placeholder="Ex: #3b82f6"
+                />
+              </div>
+
+              <div className="ds-input-group perfil-form__full" style={{ marginTop: '16px', borderTop: '1px solid var(--ds-border)', paddingTop: '16px' }}>
+                <label className="ds-label">Nome da Empresa (Legado)</label>
                 <input
                   type="text"
                   name="company_name"

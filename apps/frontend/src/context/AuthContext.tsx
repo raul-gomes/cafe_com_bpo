@@ -25,6 +25,16 @@ export interface User {
   avatar_url?: string;
   role?: string;
   created_at?: string;
+  // Profile fields (FASE 3)
+  whatsapp?: string;
+  company_razao_social?: string;
+  company_nome_fantasia?: string;
+  company_cnpj?: string;
+  company_address?: string;
+  company_professional_email?: string;
+  company_commercial_phone?: string;
+  company_logo_url?: string;
+  company_color_code?: string;
 }
 
 interface RegisterPayload {

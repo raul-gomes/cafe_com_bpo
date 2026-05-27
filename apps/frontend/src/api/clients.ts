@@ -41,3 +41,8 @@ export const uploadAvatar = async (file: File) => {
   });
   return response.data;
 };
+
+export const updateProfile = async (data: Record<string, unknown>) => {
+  const response = await apiClient.patch('/auth/me', data);
+  return response.data;
+};
