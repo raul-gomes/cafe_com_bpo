@@ -199,11 +199,27 @@ class ActivityTemplateListItem(BaseModel):
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: bool
+    is_overdue: bool = False
     activity_count: int = 0
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class OverdueTemplateResponse(BaseModel):
+    """Overdue template info for dashboard alerts."""
+
+    id: UUID
+    name: str
+    description: Optional[str] = None
+    process_type: Optional[str] = None
+    recurrence: str
+    due_date: Optional[datetime] = None
+    recurrence_end_date: Optional[datetime] = None
+    is_active: bool
+    days_overdue: int
+    activity_count: int = 0
 
 
 # ──────────────────────────────────────────────

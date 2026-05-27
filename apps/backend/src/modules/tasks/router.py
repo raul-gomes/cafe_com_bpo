@@ -24,6 +24,7 @@ from .schemas import (
     ActivityTemplateUpdate,
     ActivityTemplateResponse,
     ActivityTemplateListItem,
+    OverdueTemplateResponse,
     TemplateActivityCreate,
     TemplateActivityUpdate,
     TemplateActivityResponse,
@@ -201,6 +202,15 @@ def create_template(
 ):
     """Cria um novo template de atividades."""
     return service.create_template(template_in, current_user.id)
+
+
+@router.get(
+    "/templates/overdue/",
+    response_model=List[OverdueTemplateResponse],
+)
+def list_overdue_templates(service: ServiceDep, current_user: CurrentUserDep):
+    """Lista templates com due_date ou recurrence_end_date vencidos."""
+    return service.get_overdue_templates(current_user.id)
 
 
 @router.get("/templates/{template_id}", response_model=ActivityTemplateResponse)

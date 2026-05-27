@@ -27,6 +27,7 @@ from src.modules.tasks.schemas import (
     ActivityTemplateUpdate,
     ActivityTemplateResponse,
     ActivityTemplateListItem,
+    OverdueTemplateResponse,
     TemplateActivityCreate,
     TemplateActivityUpdate,
     TemplateActivityResponse,
@@ -304,8 +305,25 @@ class TaskService:
     # Activity Template Service Methods
     # ================================================================
 
+    def _is_template_overdue(self, tmpl) -> bool:
+        """Check if a template is overdue based on due_date or recurrence_end_date."""
+        if not tmpl.is_active:
+            return False
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        due = tmpl.due_date
+        if due and due.tzinfo is not None:
+            due = due.replace(tzinfo=None)
+        end = tmpl.recurrence_end_date
+        if end and end.tzinfo is not None:
+            end = end.replace(tzinfo=None)
+        if due and due < now:
+            return True
+        if end and end < now:
+            return True
+        return False
+
     def get_templates(self, user_id: UUID) -> List[ActivityTemplateListItem]:
-        """List all templates for a user with activity count."""
+        """List all templates for a user with activity count and overdue status."""
         templates = self.repository.get_templates_by_user(user_id)
         result = []
         for tmpl in templates:
@@ -317,10 +335,51 @@ class TaskService:
                     description=tmpl.description,
                     process_type=tmpl.process_type,
                     recurrence=tmpl.recurrence,
+                    due_date=tmpl.due_date,
+                    recurrence_end_date=tmpl.recurrence_end_date,
                     is_active=tmpl.is_active,
+                    is_overdue=self._is_template_overdue(tmpl),
                     activity_count=len(activities),
                     created_at=tmpl.created_at,
                     updated_at=tmpl.updated_at,
+                )
+            )
+        return result
+
+    def get_overdue_templates(self, user_id: UUID) -> List[OverdueTemplateResponse]:
+        """Return only overdue templates for dashboard alerts."""
+        templates = self.repository.get_templates_by_user(user_id)
+        now = datetime.now(timezone.utc).replace(tzinfo=None)
+        result = []
+        for tmpl in templates:
+            if not self._is_template_overdue(tmpl):
+                continue
+            activities = self.repository.get_activities_by_template(tmpl.id)
+            # Calculate days overdue (with tz-safe comparison)
+            due = tmpl.due_date
+            if due and due.tzinfo is not None:
+                due = due.replace(tzinfo=None)
+            end = tmpl.recurrence_end_date
+            if end and end.tzinfo is not None:
+                end = end.replace(tzinfo=None)
+            if due and due < now:
+                days_overdue = (now - due).days
+            elif end and end < now:
+                days_overdue = (now - end).days
+            else:
+                days_overdue = 0
+            result.append(
+                OverdueTemplateResponse(
+                    id=tmpl.id,
+                    name=tmpl.name,
+                    description=tmpl.description,
+                    process_type=tmpl.process_type,
+                    recurrence=tmpl.recurrence,
+                    due_date=tmpl.due_date,
+                    recurrence_end_date=tmpl.recurrence_end_date,
+                    is_active=tmpl.is_active,
+                    days_overdue=days_overdue,
+                    activity_count=len(activities),
                 )
             )
         return result
@@ -340,6 +399,8 @@ class TaskService:
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
+            due_date=tmpl.due_date,
+            recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
             created_at=tmpl.created_at,
             updated_at=tmpl.updated_at,
@@ -358,6 +419,8 @@ class TaskService:
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
+            due_date=tmpl.due_date,
+            recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
             created_at=tmpl.created_at,
             updated_at=tmpl.updated_at,
@@ -379,6 +442,8 @@ class TaskService:
             description=updated.description,
             process_type=updated.process_type,
             recurrence=updated.recurrence,
+            due_date=updated.due_date,
+            recurrence_end_date=updated.recurrence_end_date,
             is_active=updated.is_active,
             created_at=updated.created_at,
             updated_at=updated.updated_at,

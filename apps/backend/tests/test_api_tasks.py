@@ -123,6 +123,112 @@ def test_create_template_monthly_is_default(client):
     assert resp.json()["recurrence"] == "monthly"
 
 
+# ── FASE 4.2: Overdue template logic ──
+
+
+def test_template_overdue_when_due_date_past(client):
+    """Tarefa 4.2: Template com due_date no passado é overdue."""
+    email = f"tmpl_overdue_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    past = datetime.now(timezone.utc) - timedelta(days=5)
+    payload = {
+        "name": "Atrasado",
+        "recurrence": "once",
+        "due_date": past.isoformat(),
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+
+    # Verify via list endpoint (is_overdue flag)
+    list_resp = client.get("/tasks/templates/", headers=auth)
+    assert list_resp.status_code == 200
+    templates = list_resp.json()
+    tmpl = next(t for t in templates if t["name"] == "Atrasado")
+    assert tmpl["is_overdue"] is True
+
+
+def test_template_not_overdue_when_due_date_future(client):
+    """Tarefa 4.2: Template com due_date no futuro não é overdue."""
+    email = f"tmpl_future_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    future = datetime.now(timezone.utc) + timedelta(days=30)
+    payload = {
+        "name": "Futuro",
+        "recurrence": "once",
+        "due_date": future.isoformat(),
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+
+    list_resp = client.get("/tasks/templates/", headers=auth)
+    templates = list_resp.json()
+    tmpl = next(t for t in templates if t["name"] == "Futuro")
+    assert tmpl["is_overdue"] is False
+
+
+def test_template_overdue_when_recurrence_end_date_past(client):
+    """Tarefa 4.2: Template com recurrence_end_date no passado é overdue."""
+    email = f"tmpl_end_past_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    past = datetime.now(timezone.utc) - timedelta(days=10)
+    payload = {
+        "name": "Expirado",
+        "recurrence": "monthly",
+        "recurrence_end_date": past.isoformat(),
+    }
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+
+    list_resp = client.get("/tasks/templates/", headers=auth)
+    templates = list_resp.json()
+    tmpl = next(t for t in templates if t["name"] == "Expirado")
+    assert tmpl["is_overdue"] is True
+
+
+def test_template_not_overdue_without_dates(client):
+    """Tarefa 4.2: Template sem due_date nem recurrence_end_date não é overdue."""
+    email = f"tmpl_no_dates_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    payload = {"name": "Sem Datas", "recurrence": "monthly"}
+    resp = client.post("/tasks/templates/", json=payload, headers=auth)
+    assert resp.status_code == 201
+
+    list_resp = client.get("/tasks/templates/", headers=auth)
+    templates = list_resp.json()
+    tmpl = next(t for t in templates if t["name"] == "Sem Datas")
+    assert tmpl["is_overdue"] is False
+
+
+def test_overdue_templates_endpoint(client):
+    """Tarefa 4.2: GET /tasks/templates/overdue/ retorna só os vencidos."""
+    email = f"tmpl_overdue_list_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    past = datetime.now(timezone.utc) - timedelta(days=3)
+    future = datetime.now(timezone.utc) + timedelta(days=30)
+
+    # Create overdue template
+    client.post(
+        "/tasks/templates/",
+        json={"name": "Vencido", "recurrence": "once", "due_date": past.isoformat()},
+        headers=auth,
+    )
+    # Create non-overdue template
+    client.post(
+        "/tasks/templates/",
+        json={"name": "Futuro", "recurrence": "once", "due_date": future.isoformat()},
+        headers=auth,
+    )
+
+    resp = client.get("/tasks/templates/overdue/", headers=auth)
+    assert resp.status_code == 200
+    data = resp.json()
+    names = [t["name"] for t in data]
+    assert "Vencido" in names
+    assert "Futuro" not in names
+    for tmpl in data:
+        assert tmpl["days_overdue"] > 0
+
+
 # ── Existing tests below ──
 
 
