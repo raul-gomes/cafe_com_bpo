@@ -25,7 +25,7 @@ export const EmpresasPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
-  const [editingId, setEditingId] = useState<string | null>(null);
+  const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
   const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment } = useTasks();
   const [linkClientId, setLinkClientId] = useState<string | null>(null);
@@ -55,11 +55,11 @@ export const EmpresasPage: React.FC = () => {
   const resetForm = () => {
     setFormData({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
     setShowForm(false);
-    setEditingId(null);
+    setExpandedCardId(null);
   };
 
   const handleStartEdit = (client: ClientData) => {
-    setEditingId(client.id);
+    setExpandedCardId(client.id);
     setFormData({
       name: client.name,
       cnpj: client.cnpj || '',
@@ -69,7 +69,7 @@ export const EmpresasPage: React.FC = () => {
       segment: client.segment || '',
       color: client.color || '#4287f5',
     });
-    setShowForm(true);
+    setShowForm(false);
   };
 
   const handleSubmit = async () => {
@@ -86,8 +86,8 @@ export const EmpresasPage: React.FC = () => {
     };
 
     try {
-      if (editingId) {
-        await updateClient(editingId, payload);
+      if (expandedCardId) {
+        await updateClient(expandedCardId, payload);
       } else {
         await createClient(payload);
       }
@@ -106,7 +106,7 @@ export const EmpresasPage: React.FC = () => {
       await deleteClient(id);
     } catch (e) {
       console.error(e);
-      alert('Erro ao excluir empresa.');
+      alert('Erro ao excluir cliente.');
       await loadClients();
     }
   };
@@ -124,7 +124,7 @@ export const EmpresasPage: React.FC = () => {
           <h1>Meus Clientes</h1>
           <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px' }}>Gerencie os clientes da sua carteira.</p>
         </div>
-        <button className="ds-btn ds-btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>
+        <button className="ds-btn ds-btn-primary" onClick={() => { resetForm(); setExpandedCardId(null); setShowForm(true); }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" />
             <line x1="5" y1="12" x2="19" y2="12" />
@@ -133,9 +133,9 @@ export const EmpresasPage: React.FC = () => {
         </button>
       </div>
 
-      {showForm && (
+      {showForm && !expandedCardId && (
         <div style={{ backgroundColor: 'var(--ds-surface)', padding: '24px', borderRadius: '12px', border: '1px solid var(--ds-border)', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>{editingId ? 'Editar Cliente' : 'Novo Cliente'}</h3>
+          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Novo Cliente</h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
             <div className="ds-input-group">
               <label className="ds-label">Nome do Cliente *</label>
@@ -166,12 +166,12 @@ export const EmpresasPage: React.FC = () => {
             </div>
             <div className="ds-input-group" style={{ gridColumn: '1 / -1' }}>
               <label className="ds-label">Descrição do Cliente</label>
-              <textarea className="ds-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Descreva a empresa, seus serviços principais, etc." rows={3} style={{ resize: 'vertical', minHeight: '80px' }} />
+              <textarea className="ds-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Descreva o cliente, seus serviços principais, etc." rows={3} style={{ resize: 'vertical', minHeight: '80px' }} />
             </div>
           </div>
           <div style={{ display: 'flex', gap: '8px', marginTop: '16px', justifyContent: 'flex-end' }}>
             <button className="ds-btn ds-btn-ghost" onClick={resetForm}>Cancelar</button>
-            <button className="ds-btn ds-btn-primary" onClick={handleSubmit} disabled={!formData.name}>{editingId ? 'Salvar Alterações' : 'Criar Cliente'}</button>
+            <button className="ds-btn ds-btn-primary" onClick={handleSubmit} disabled={!formData.name}>Criar Cliente</button>
           </div>
         </div>
       )}
@@ -200,50 +200,100 @@ export const EmpresasPage: React.FC = () => {
           </svg>
           <h3>Nenhum cliente cadastrado</h3>
           <p>Comece adicionando um cliente à sua carteira.</p>
-          <button className="ds-btn ds-btn-primary" onClick={() => setShowForm(true)}>Nova Empresa</button>
+          <button className="ds-btn ds-btn-primary" onClick={() => { resetForm(); setShowForm(true); }}>Novo Cliente</button>
         </div>
       ) : (
         <div style={{ display: 'grid', gap: '12px' }}>
-          {clients.map(c => (
-            <div key={c.id} className="orcamento-card" style={{ cursor: 'pointer' }} onClick={() => handleStartEdit(c)}>
-              <div className="orcamento-card__info" style={{ flex: 1 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                  <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: c.color || '#4287f5', flexShrink: 0 }} />
-                  <div>
-                    <span className="orcamento-card__client">{c.name}</span>
-                    <div className="orcamento-card__meta" style={{ marginTop: '4px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-                      {c.segment && <span style={{ backgroundColor: 'var(--ds-primary)', color: 'var(--ds-primary-text)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{c.segment}</span>}
-                      {c.cnpj && <span>{maskCNPJ(c.cnpj)}</span>}
-                      {c.phone && <><span className="orcamento-card__meta-dot" /><span>{maskPhone(c.phone)}</span></>}
-                      {c.email && <><span className="orcamento-card__meta-dot" /><span style={{ textTransform: 'none' }}>{c.email}</span></>}
+          {clients.map(c => {
+            const isExpanded = expandedCardId === c.id;
+            return (
+              <div key={c.id} className="orcamento-card" style={{ cursor: isExpanded ? 'default' : 'pointer' }} onClick={isExpanded ? undefined : () => handleStartEdit(c)}>
+                {isExpanded ? (
+                  /* --- Inline edit form inside the card --- */
+                  <div onClick={e => e.stopPropagation()} style={{ padding: '16px' }}>
+                    <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Editar Cliente</h3>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: '16px' }}>
+                      <div className="ds-input-group">
+                        <label className="ds-label">Nome do Cliente *</label>
+                        <input type="text" className="ds-input" value={formData.name} onChange={e => setFormData({...formData, name: e.target.value})} placeholder="Razão social ou nome fantasia" />
+                      </div>
+                      <div className="ds-input-group">
+                        <label className="ds-label">CNPJ</label>
+                        <MaskedCNPJ value={formData.cnpj} onChange={(raw) => setFormData({...formData, cnpj: raw})} className="ds-input" />
+                      </div>
+                      <div className="ds-input-group">
+                        <label className="ds-label">Telefone</label>
+                        <MaskedPhone value={formData.phone} onChange={(raw) => setFormData({...formData, phone: raw})} className="ds-input" />
+                      </div>
+                      <div className="ds-input-group">
+                        <label className="ds-label">E-mail de Contato</label>
+                        <input type="email" className="ds-input" value={formData.email} onChange={e => setFormData({...formData, email: e.target.value})} placeholder="contato@empresa.com" />
+                      </div>
+                      <div className="ds-input-group">
+                        <label className="ds-label">Segmento</label>
+                        <select className="ds-input" value={formData.segment} onChange={e => setFormData({...formData, segment: e.target.value})}>
+                          <option value="">Selecione...</option>
+                          {BPO_SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
+                        </select>
+                      </div>
+                      <div className="ds-input-group">
+                        <label className="ds-label">Cor</label>
+                        <input type="color" className="ds-input" value={formData.color} onChange={e => setFormData({...formData, color: e.target.value})} style={{ height: '42px', padding: '4px', cursor: 'pointer' }} />
+                      </div>
+                      <div className="ds-input-group" style={{ gridColumn: '1 / -1' }}>
+                        <label className="ds-label">Descrição do Cliente</label>
+                        <textarea className="ds-input" value={formData.description} onChange={e => setFormData({...formData, description: e.target.value})} placeholder="Descreva o cliente, seus serviços principais, etc." rows={3} style={{ resize: 'vertical', minHeight: '80px' }} />
+                      </div>
                     </div>
-                    {c.description && (
-                      <p style={{ fontSize: '12px', color: 'var(--ds-text-muted)', marginTop: '4px', maxWidth: '500px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {c.description}
-                      </p>
-                    )}
+                    <div style={{ display: 'flex', gap: '8px', marginTop: '16px', justifyContent: 'flex-end' }}>
+                      <button className="ds-btn ds-btn-ghost" onClick={resetForm}>Cancelar</button>
+                      <button className="ds-btn ds-btn-primary" onClick={handleSubmit} disabled={!formData.name}>Salvar Alterações</button>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  /* --- Card info view --- */
+                  <>
+                    <div className="orcamento-card__info" style={{ flex: 1 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div style={{ width: '12px', height: '12px', borderRadius: '50%', backgroundColor: c.color || '#4287f5', flexShrink: 0 }} />
+                        <div>
+                          <span className="orcamento-card__client">{c.name}</span>
+                          <div className="orcamento-card__meta" style={{ marginTop: '4px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                            {c.segment && <span style={{ backgroundColor: 'var(--ds-primary)', color: 'var(--ds-primary-text)', padding: '2px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>{c.segment}</span>}
+                            {c.cnpj && <span>{maskCNPJ(c.cnpj)}</span>}
+                            {c.phone && <><span className="orcamento-card__meta-dot" /><span>{maskPhone(c.phone)}</span></>}
+                            {c.email && <><span className="orcamento-card__meta-dot" /><span style={{ textTransform: 'none' }}>{c.email}</span></>}
+                          </div>
+                          {c.description && (
+                            <p style={{ fontSize: '12px', color: 'var(--ds-text-muted)', marginTop: '4px', maxWidth: '500px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {c.description}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    <div className="orcamento-card__actions" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                      <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setLinkClientId(c.id)} title="Vincular Templates" style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}>
+                        <Link size={14} /> Templates
+                      </button>
+                      <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => handleStartEdit(c)} title="Editar">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                          <path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
+                        </svg>
+                      </button>
+                      <button className="orcamento-card__action-btn orcamento-card__action-btn--delete" onClick={() => handleDelete(c.id, c.name)} title="Excluir">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                          <polyline points="3 6 5 6 21 6" />
+                          <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                        </svg>
+                      </button>
+                    </div>
+                  </>
+                )}
               </div>
-              <div className="orcamento-card__actions" onClick={e => e.stopPropagation()} style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setLinkClientId(c.id)} title="Vincular Templates" style={{ display: 'flex', gap: '6px', alignItems: 'center', fontSize: '12px' }}>
-                  <Link size={14} /> Templates
-                </button>
-                <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => handleStartEdit(c)} title="Editar">
-                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                    <path d="M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z" />
-                  </svg>
-                </button>
-                <button className="orcamento-card__action-btn orcamento-card__action-btn--delete" onClick={() => handleDelete(c.id, c.name)} title="Excluir">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <polyline points="3 6 5 6 21 6" />
-                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
-                  </svg>
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -270,7 +320,7 @@ export const EmpresasPage: React.FC = () => {
 
             <div style={{ padding: '24px' }}>
               <p style={{ fontSize: '13px', color: 'var(--ds-text-muted)', marginBottom: '16px' }}>
-                Selecione os templates que esta empresa contratou. 
+                Selecione os templates que este cliente contratou. 
                 As tarefas serão geradas automaticamente com base nas atividades de cada template.
               </p>
 
