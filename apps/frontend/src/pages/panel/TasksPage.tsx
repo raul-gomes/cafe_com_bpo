@@ -14,6 +14,7 @@ type ConflictTaskItem = { id: string; title: string; time_estimate_hours?: numbe
 
 export const TasksPage: React.FC = () => {
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
+    const [sectionFilter, setSectionFilter] = useState<'all' | 'today' | 'doing' | 'overdue'>('all');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [showPhaseManager, setShowPhaseManager] = useState(false);
     const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts } = useTasks();
@@ -70,6 +71,26 @@ export const TasksPage: React.FC = () => {
     }
 
     const tasksList = tasks || [];
+
+    const todayStr = new Date().toISOString().split('T')[0];
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+
+    const filteredTasks = sectionFilter === 'all' ? tasksList : tasksList.filter(t => {
+        if (t.status === 'done') return false;
+        if (sectionFilter === 'today') {
+            return t.deadline?.startsWith(todayStr) ?? false;
+        }
+        if (sectionFilter === 'doing') {
+            const phaseName = phases?.find(p => p.id === t.phase_id)?.name;
+            return phaseName === 'Em Andamento' || t.status === 'doing';
+        }
+        if (sectionFilter === 'overdue') {
+            if (!t.deadline) return false;
+            return new Date(t.deadline) < todayStart;
+        }
+        return true;
+    });
 
     return (
         <div className="tasks-page" style={{ animation: 'panelFadeIn 0.4s ease-out', position: 'relative' }}>
@@ -131,24 +152,77 @@ export const TasksPage: React.FC = () => {
                 </div>
             </div>
 
+            {/* Section filter tabs */}
+            {view === 'kanban' && (
+                <div style={{ display: 'flex', gap: '4px', marginBottom: '20px', background: 'var(--ds-surface-2)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content' }}>
+                    {([
+                        { key: 'all', label: 'Todas', icon: null },
+                        { key: 'today', label: 'Hoje', icon: null },
+                        { key: 'doing', label: 'Em andamento', icon: null },
+                        { key: 'overdue', label: 'Atrasadas', icon: null },
+                    ] as const).map(s => (
+                        <button
+                            key={s.key}
+                            onClick={() => setSectionFilter(s.key)}
+                            className={`vt-btn ${sectionFilter === s.key ? 'active' : ''}`}
+                            style={{
+                                fontSize: '12px',
+                                position: 'relative',
+                            }}
+                        >
+                            {s.label}
+                            {s.key !== 'all' && (
+                                <span style={{
+                                    marginLeft: '6px', fontSize: '10px', fontWeight: 700,
+                                    background: 'rgba(255,255,255,0.08)', padding: '0 6px',
+                                    borderRadius: '10px',
+                                }}>
+                                    {s.key === 'today' && tasksList.filter(t => {
+                                        if (t.status === 'done') return false;
+                                        if (!t.deadline) return false;
+                                        const today = new Date().toISOString().split('T')[0];
+                                        return t.deadline.startsWith(today);
+                                    }).length}
+                                    {s.key === 'doing' && tasksList.filter(t => {
+                                        const phaseName = phases?.find(p => p.id === t.phase_id)?.name;
+                                        return phaseName === 'Em Andamento' || t.status === 'doing';
+                                    }).length}
+                                    {s.key === 'overdue' && tasksList.filter(t => {
+                                        if (t.status === 'done') return false;
+                                        if (!t.deadline) return false;
+                                        const today = new Date();
+                                        today.setHours(0, 0, 0, 0);
+                                        return new Date(t.deadline) < today;
+                                    }).length}
+                                </span>
+                            )}
+                        </button>
+                    ))}
+                </div>
+            )}
+
             <div className="tasks-content" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', position: 'relative' }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
                     {view === 'kanban' ? (
-                        tasksList.length === 0 ? (
+                        filteredTasks.length === 0 ? (
                             <div className="panel-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
                                 <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ds-text-muted)', marginBottom: '16px', opacity: 0.3 }}>
                                     <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
                                 </svg>
-                                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--ds-text)' }}>Nenhuma tarefa criada</h3>
-                                <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px', marginBottom: '20px' }}>Comece organizando suas tarefas operacionais por empresa e fase.</p>
+                                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--ds-text)' }}>
+                                    {sectionFilter !== 'all' ? 'Nenhuma tarefa encontrada' : 'Nenhuma tarefa criada'}
+                                </h3>
+                                <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px', marginBottom: '20px' }}>
+                                    {sectionFilter !== 'all' ? 'Tente alterar o filtro ou criar uma nova tarefa.' : 'Comece organizando suas tarefas operacionais por empresa e fase.'}
+                                </p>
                                 <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
                                     <Plus size={18} /> Criar Primeira Tarefa
                                 </button>
                             </div>
                         ) : (
-                                                            <DragDropContext onDragEnd={handleDragEnd}>
-                                                                <TaskKanban tasks={tasksList} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} onFinalize={(id) => updateTaskStatus.mutate({ id, status: 'done' })} />
-                                                            </DragDropContext>
+                            <DragDropContext onDragEnd={handleDragEnd}>
+                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} onFinalize={(id) => updateTaskStatus.mutate({ id, status: 'done' })} />
+                            </DragDropContext>
                         )
                     ) : view === 'timeline' ? (
                         <div className="panel-card" style={{ padding: '24px' }}>
