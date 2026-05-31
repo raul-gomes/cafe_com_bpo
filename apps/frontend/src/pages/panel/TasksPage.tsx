@@ -23,6 +23,10 @@ export const TasksPage: React.FC = () => {
     const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask } = useTasks();
     const { data: tasks, isLoading } = useTasksList();
     const { data: phases } = usePhases();
+    const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
+    const doneColumnId = sortedPhases.length > 0
+        ? sortedPhases[sortedPhases.length - 1].id
+        : 'done';
     const updateTaskStatus = useUpdateTaskStatus();
     const cancelTask = useCancelTask();
     const { data: timelineData, isLoading: timelineLoading } = useTimeline();
@@ -326,7 +330,13 @@ export const TasksPage: React.FC = () => {
                             </div>
                         ) : (
                             <DragDropContext onDragEnd={handleDragEnd}>
-                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} onFinalize={(id) => updateTaskStatus.mutate({ id, status: 'done' })} onCancel={(id) => cancelTask.mutate(id)} />
+                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} onFinalize={(id) => {
+                                    if (phases && phases.length > 0) {
+                                        updateTaskStatus.mutate({ id, phase_id: doneColumnId, status: 'done' });
+                                    } else {
+                                        updateTaskStatus.mutate({ id, status: 'done' });
+                                    }
+                                }} onCancel={(id) => cancelTask.mutate(id)} />
                             </DragDropContext>
                         )
                     ) : view === 'timeline' ? (
