@@ -24,8 +24,9 @@ const RECURRENCE_LABELS: Record<string, string> = {
 export const TemplateDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { useTemplate, useUpdateTemplate, useCreateActivity, useUpdateActivity, useDeleteActivity, useReorderActivities } = useTasks();
+  const { useTemplate, useUpdateTemplate, useCreateActivity, useUpdateActivity, useDeleteActivity, useReorderActivities, useRoutineTypes } = useTasks();
   const { data: template, isLoading } = useTemplate(id!);
+  const { data: routineTypes } = useRoutineTypes();
   const updateTemplate = useUpdateTemplate();
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
@@ -37,10 +38,12 @@ export const TemplateDetailPage: React.FC = () => {
   const [showAdd, setShowAdd] = useState(false);
   const [newActName, setNewActName] = useState('');
   const [newActDay, setNewActDay] = useState(20);
+  const [newActDueDays, setNewActDueDays] = useState<number | ''>('');
   const [newActHours, setNewActHours] = useState<number | ''>('');
   const [editingAct, setEditingAct] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDay, setEditDay] = useState(20);
+  const [editDueDays, setEditDueDays] = useState<number | ''>('');
   const [editHours, setEditHours] = useState<number | ''>('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
 
@@ -56,10 +59,12 @@ export const TemplateDetailPage: React.FC = () => {
       template_id: id!,
       name: newActName.trim(),
       due_day: newActDay,
+      due_days: newActDueDays === '' ? undefined : Number(newActDueDays),
       estimated_hours: newActHours === '' ? undefined : Number(newActHours),
       order: template?.activities?.length || 0,
     });
     setNewActName('');
+    setNewActDueDays('');
     setShowAdd(false);
   };
 
@@ -67,6 +72,7 @@ export const TemplateDetailPage: React.FC = () => {
     setEditingAct(act.id);
     setEditName(act.name);
     setEditDay(act.due_day);
+    setEditDueDays(act.due_days ?? '');
     setEditHours(act.estimated_hours ?? '');
   };
 
@@ -77,6 +83,7 @@ export const TemplateDetailPage: React.FC = () => {
       id: editingAct,
       name: editName.trim(),
       due_day: editDay,
+      due_days: editDueDays === '' ? undefined : Number(editDueDays),
       estimated_hours: editHours === '' ? undefined : Number(editHours),
     });
     setEditingAct(null);
@@ -155,6 +162,26 @@ export const TemplateDetailPage: React.FC = () => {
               <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)' }}>{template.description}</span>
             )}
           </div>
+          {/* Routine type selector */}
+          <div style={{ marginTop: '12px' }}>
+            <select
+              value={template.routine_type_id || ''}
+              onChange={async (e) => {
+                await updateTemplate.mutateAsync({
+                  id: id!,
+                  routine_type_id: e.target.value || undefined,
+                });
+              }}
+              style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px' }}
+            >
+              <option value="">Sem tipo</option>
+              {routineTypes?.map((rt) => (
+                <option key={rt.id} value={rt.id}>
+                  {rt.name}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
       </div>
 
@@ -178,6 +205,11 @@ export const TemplateDetailPage: React.FC = () => {
               <div>
                 <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '4px' }}>Vence dia</label>
                 <input type="number" min={1} max={31} value={newActDay} onChange={(e) => setNewActDay(Number(e.target.value))}
+                  style={{ width: '80px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }} />
+              </div>
+              <div>
+                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '4px' }}>Dias corridos</label>
+                <input type="number" min={1} value={newActDueDays} onChange={(e) => setNewActDueDays(e.target.value === '' ? '' : Number(e.target.value))} placeholder="opcional"
                   style={{ width: '80px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }} />
               </div>
               <div>
@@ -233,8 +265,13 @@ export const TemplateDetailPage: React.FC = () => {
                     <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
                       style={{ flex: 1, minWidth: '150px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px' }} />
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}>
-                      Vence dia
+                       Vence dia
                       <input type="number" min={1} max={31} value={editDay} onChange={(e) => setEditDay(Number(e.target.value))}
+                        style={{ width: '60px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px', textAlign: 'center' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}>
+                       Dias corridos
+                      <input type="number" min={1} value={editDueDays} onChange={(e) => setEditDueDays(e.target.value === '' ? '' : Number(e.target.value))} placeholder="opc"
                         style={{ width: '60px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px', textAlign: 'center' }} />
                     </div>
                     <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}>
@@ -250,7 +287,7 @@ export const TemplateDetailPage: React.FC = () => {
                   <>
                     <span style={{ flex: 1, fontWeight: 600, fontSize: '14px' }}>{act.name}</span>
                     <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      📅 Dia {act.due_day}
+                      📅 Dia {act.due_day}{act.due_days != null ? ` (${act.due_days}d corridos)` : ''}
                     </span>
                     {act.estimated_hours && (
                       <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>

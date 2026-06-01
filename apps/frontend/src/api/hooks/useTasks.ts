@@ -8,6 +8,7 @@ import {
   ActivityTemplateCreate, ActivityTemplateUpdate,
   TemplateActivityCreate, TemplateActivityUpdate,
   ClientTemplateAssignmentCreate, ClientTemplateAssignmentResponse,
+  RoutineTypeResponse, RoutineTypeCreate, RoutineTypeUpdate,
   ClientSLAResponse, ClientSLACreate, ClientSLAUpdate,
   TaskAttachmentResponse,
   ClientTimelineResponse,
@@ -527,5 +528,51 @@ export const useTasks = () => {
     useDeleteAttachment,
     useSendTaskEmail,
     useSLAAlerts,
+
+    // ── RoutineType ──
+    useRoutineTypes: () => {
+      return useQuery<RoutineTypeResponse[]>({
+        queryKey: ['routineTypes'],
+        queryFn: async () => {
+          const { data } = await apiClient.get('/tasks/routine-types/');
+          return data;
+        },
+      });
+    },
+
+    useCreateRoutineType: () => {
+      return useMutation({
+        mutationFn: async (input: RoutineTypeCreate) => {
+          const { data } = await apiClient.post('/tasks/routine-types/', input);
+          return data as RoutineTypeResponse;
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['routineTypes'] });
+        },
+      });
+    },
+
+    useUpdateRoutineType: () => {
+      return useMutation({
+        mutationFn: async ({ id, ...input }: RoutineTypeUpdate & { id: string }) => {
+          const { data } = await apiClient.put(`/tasks/routine-types/${id}`, input);
+          return data as RoutineTypeResponse;
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['routineTypes'] });
+        },
+      });
+    },
+
+    useDeleteRoutineType: () => {
+      return useMutation({
+        mutationFn: async (id: string) => {
+          await apiClient.delete(`/tasks/routine-types/${id}`);
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['routineTypes'] });
+        },
+      });
+    },
   };
 };

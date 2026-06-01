@@ -23,17 +23,23 @@ const RECURRENCE_LABELS: Record<string, string> = {
 
 export const TemplateListPage: React.FC = () => {
   const navigate = useNavigate();
-  const { useTemplatesList, useCreateTemplate, useUpdateTemplate, useDeleteTemplate } = useTasks();
+  const { useTemplatesList, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useRoutineTypes, useCreateRoutineType, useUpdateRoutineType, useDeleteRoutineType } = useTasks();
   const { data: templates, isLoading } = useTemplatesList();
+  const { data: routineTypes, isLoading: typesLoading } = useRoutineTypes();
   const createTemplate = useCreateTemplate();
   const updateTemplate = useUpdateTemplate();
   const deleteTemplate = useDeleteTemplate();
+  const createRoutineType = useCreateRoutineType();
+  const updateRoutineType = useUpdateRoutineType();
+  const deleteRoutineType = useDeleteRoutineType();
 
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('fiscal');
   const [newRecurrence, setNewRecurrence] = useState('monthly');
   const [newDueDate, setNewDueDate] = useState('');
+  const [showTypeManager, setShowTypeManager] = useState(false);
+  const [typeEdit, setTypeEdit] = useState<{ id?: string; name: string; color: string }>({ name: '', color: '#3b82f6' });
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -76,9 +82,14 @@ export const TemplateListPage: React.FC = () => {
           <h1>Rotinas</h1>
           <p>Rotinas de atividades recorrentes que podem ser vinculadas a clientes.</p>
         </div>
-        <button className="ds-btn ds-btn-primary" onClick={() => setShowCreate(true)}>
-          <Plus size={18} /> Nova Rotina
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button className="ds-btn ds-btn-secondary" onClick={() => setShowTypeManager(true)}>
+            <Settings size={18} /> Tipos
+          </button>
+          <button className="ds-btn ds-btn-primary" onClick={() => setShowCreate(true)}>
+            <Plus size={18} /> Nova Rotina
+          </button>
+        </div>
       </div>
 
       {showCreate && (
@@ -214,6 +225,127 @@ export const TemplateListPage: React.FC = () => {
               <ChevronRight size={18} style={{ color: 'var(--ds-text-muted)' }} />
             </div>
           ))}
+        </div>
+      )}
+      {/* ── Type Manager Modal ── */}
+      {showTypeManager && (
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 1000,
+            background: 'rgba(0,0,0,0.5)', display: 'flex',
+            alignItems: 'center', justifyContent: 'center', padding: '20px',
+          }}
+          onClick={() => setShowTypeManager(false)}
+        >
+          <div
+            className="ds-card"
+            style={{ maxWidth: '500px', width: '100%', padding: '24px' }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' }}>
+              <h3 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Gerenciar Tipos de Rotina</h3>
+              <button onClick={() => setShowTypeManager(false)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
+                <X size={20} />
+              </button>
+            </div>
+
+            {/* Add / Edit form */}
+            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+              <input
+                type="text"
+                value={typeEdit.name}
+                onChange={(e) => setTypeEdit((prev) => ({ ...prev, name: e.target.value }))}
+                placeholder="Nome do tipo"
+                style={{ flex: 1, padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }}
+              />
+              <input
+                type="color"
+                value={typeEdit.color}
+                onChange={(e) => setTypeEdit((prev) => ({ ...prev, color: e.target.value }))}
+                style={{ width: '40px', height: '40px', padding: '2px', border: '1px solid var(--ds-border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer' }}
+              />
+              {typeEdit.id ? (
+                <>
+                  <button
+                    className="ds-btn ds-btn-primary"
+                    onClick={async () => {
+                      if (!typeEdit.name.trim() || !typeEdit.id) return;
+                      await updateRoutineType.mutateAsync({ id: typeEdit.id, name: typeEdit.name.trim(), color: typeEdit.color });
+                      setTypeEdit({ name: '', color: '#3b82f6' });
+                    }}
+                    disabled={!typeEdit.name.trim() || updateRoutineType.isPending}
+                  >
+                    Salvar
+                  </button>
+                  <button
+                    className="ds-btn"
+                    onClick={() => setTypeEdit({ name: '', color: '#3b82f6' })}
+                    style={{ border: '1px solid var(--ds-border)' }}
+                  >
+                    Cancelar
+                  </button>
+                </>
+              ) : (
+                <button
+                  className="ds-btn ds-btn-primary"
+                  onClick={async () => {
+                    if (!typeEdit.name.trim()) return;
+                    await createRoutineType.mutateAsync({ name: typeEdit.name.trim(), color: typeEdit.color });
+                    setTypeEdit({ name: '', color: '#3b82f6' });
+                  }}
+                  disabled={!typeEdit.name.trim() || createRoutineType.isPending}
+                >
+                  Adicionar
+                </button>
+              )}
+            </div>
+
+            {/* Existing types list */}
+            {typesLoading ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--ds-text-muted)' }}>Carregando...</div>
+            ) : !routineTypes || routineTypes.length === 0 ? (
+              <div style={{ padding: '20px', textAlign: 'center', color: 'var(--ds-text-muted)' }}>Nenhum tipo cadastrado.</div>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', maxHeight: '300px', overflowY: 'auto' }}>
+                {routineTypes.map((rt) => (
+                  <div
+                    key={rt.id}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: '12px',
+                      padding: '10px 12px', borderRadius: 'var(--radius-sm)',
+                      background: 'var(--ds-surface-2)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: '12px', height: '12px', borderRadius: '50%',
+                        background: rt.color || '#3b82f6', flexShrink: 0,
+                      }}
+                    />
+                    <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{rt.name}</span>
+                    <button
+                      onClick={() => setTypeEdit({ id: rt.id, name: rt.name, color: rt.color || '#3b82f6' })}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-primary)', padding: '4px', fontSize: '13px' }}
+                      title="Editar"
+                    >
+                      Editar
+                    </button>
+                    <button
+                      onClick={async () => {
+                        if (window.confirm(`Excluir tipo "${rt.name}"?`)) {
+                          await deleteRoutineType.mutateAsync(rt.id);
+                        }
+                      }}
+                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-error)', padding: '4px' }}
+                      title="Excluir"
+                    >
+                      <X size={14} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>
