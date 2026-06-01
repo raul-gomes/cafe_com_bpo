@@ -38,7 +38,7 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
         {/* HEADER */}
         <header className="prop-header-v2">
           <div className="prop-header-left">
-            <img src={user?.avatar_url || logoAsset} alt="Logo" className="prop-logo-v2" />
+            <img src={user?.company_logo_url || user?.avatar_url || logoAsset} alt="Logo" className="prop-logo-v2" />
           </div>
           <div className="prop-header-right">
             <h1>Proposta de Serviços</h1>

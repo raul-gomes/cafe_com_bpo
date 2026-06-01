@@ -202,3 +202,66 @@ def test_update_profile_does_not_allow_email_change(client):
     # resulting in empty update -> 400
     assert resp.status_code == 400
     assert "Nenhum campo" in resp.text
+
+
+# ── Company Logo Upload (Item 8) ──
+
+
+def test_upload_company_logo_success(client, monkeypatch):
+    """Faz upload da logo da empresa com mock do Cloudinary."""
+    email = f"logo_{uuid4()}@cafe.com"
+    payload = {"email": email, "password": "StrongPassword123!"}
+    client.post("/auth/register", json=payload)
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    token = resp.json()["access_token"]
+
+    # Mock Cloudinary upload
+    async def mock_upload(content: bytes, user_id: str, folder: str = "avatars") -> dict:
+        return {
+            "id": f"cafe_com_bpo/{folder}/{user_id}/logo_123456789",
+            "url": f"https://res.cloudinary.com/test/logo_{folder}.png",
+        }
+
+    monkeypatch.setattr(
+        "src.modules.auth.storage_service.CloudinaryService.upload_file", mock_upload
+    )
+
+    file_payload = {"file": ("logo.png", b"fake_logo_content", "image/png")}
+    response = client.post(
+        "/auth/me/company-logo",
+        headers={"Authorization": f"Bearer {token}"},
+        files=file_payload,
+    )
+
+    assert response.status_code == 200
+    data = response.json()
+    assert "company_logo_url" in data
+    assert data["company_logo_url"] == "https://res.cloudinary.com/test/logo_logos.png"
+
+
+def test_upload_company_logo_requires_auth(client):
+    """Sem token → 401."""
+    file_payload = {"file": ("logo.png", b"fake_logo_content", "image/png")}
+    response = client.post("/auth/me/company-logo", files=file_payload)
+    assert response.status_code == 401
+
+
+def test_upload_company_logo_invalid_extension(client):
+    """Extensão inválida → 400."""
+    email = f"logo_inv_{uuid4()}@cafe.com"
+    client.post("/auth/register", json={"email": email, "password": "StrongPassword123!"})
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    token = resp.json()["access_token"]
+
+    file_payload = {"file": ("logo.txt", b"not_an_image", "text/plain")}
+    response = client.post(
+        "/auth/me/company-logo",
+        headers={"Authorization": f"Bearer {token}"},
+        files=file_payload,
+    )
+    assert response.status_code == 400
+    assert "Formato de imagem inválido" in response.text

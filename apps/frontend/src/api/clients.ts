@@ -42,6 +42,15 @@ export const uploadAvatar = async (file: File) => {
   return response.data;
 };
 
+export const uploadCompanyLogo = async (file: File) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post('/auth/me/company-logo', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+  return response.data;
+};
+
 export const updateProfile = async (data: Record<string, unknown>) => {
   const response = await apiClient.patch('/auth/me', data);
   return response.data;

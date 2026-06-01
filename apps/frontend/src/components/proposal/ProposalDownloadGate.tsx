@@ -27,7 +27,7 @@ export const ProposalDownloadGate: React.FC<ProposalDownloadGateProps> = ({
       await generatePDF({
         form,
         pricing,
-        logoUrl: user?.avatar_url || logoAsset,
+        logoUrl: user?.company_logo_url || user?.avatar_url || logoAsset,
         clientName,
         clientEmail: '',
         provider: user

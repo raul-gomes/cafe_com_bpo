@@ -20,16 +20,25 @@ cloudinary.config(
 
 class CloudinaryService:
     @classmethod
-    async def upload_file(cls, content: bytes, user_id: str) -> Dict:
+    async def upload_file(cls, content: bytes, user_id: str, folder: str = "avatars") -> Dict:
         """
         Faz o upload de um arquivo para o Cloudinary com ID único para evitar conflitos.
+
+        Args:
+            content: Conteúdo do arquivo em bytes.
+            user_id: ID do usuário para organizar pastas.
+            folder: Subpasta dentro de cafe_com_bpo/ (ex: "avatars", "logos").
+
+        Returns:
+            Dict com "id" (public_id) e "url" (secure_url).
         """
         try:
             timestamp = int(time.time())
+            public_id = f"{folder}_{timestamp}"
             upload_result = cloudinary.uploader.upload(
                 content,
-                folder=f"cafe_com_bpo/avatars/{user_id}",
-                public_id=f"avatar_{timestamp}",
+                folder=f"cafe_com_bpo/{folder}/{user_id}",
+                public_id=public_id,
                 overwrite=True,
                 resource_type="image",
             )

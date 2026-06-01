@@ -60,7 +60,7 @@ export const DashboardPage: React.FC = () => {
 
   const handleDownload = async (proposal: Proposal) => {
     // A normalização da URL agora é feita dentro do hook useGeneratePDF
-    const finalLogoUrl = user?.avatar_url || logoAsset;
+    const finalLogoUrl = user?.company_logo_url || user?.avatar_url || logoAsset;
 
     // Busca o email do cliente correspondente
     const client = clients.find(c => c.name.trim().toLowerCase() === proposal.client_name.trim().toLowerCase());

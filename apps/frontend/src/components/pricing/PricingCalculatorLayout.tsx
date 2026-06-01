@@ -298,7 +298,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
     if (!pricing || !hasActiveService || !isClientValid) return;
     
     // Simplificado: useGeneratePDF agora trata a URL absoluta
-    const finalLogoUrl = user?.avatar_url || logoAsset;
+    const finalLogoUrl = user?.company_logo_url || user?.avatar_url || logoAsset;
 
     await generatePDF({
       form: getValues(),

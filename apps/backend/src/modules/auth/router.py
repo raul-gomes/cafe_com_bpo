@@ -217,6 +217,70 @@ async def upload_avatar(
         company_commercial_phone=db_user.company_commercial_phone,
         company_logo_url=db_user.company_logo_url,
         company_color_code=db_user.company_color_code,
+        company_color_secondary=db_user.company_color_secondary,
+    )
+
+
+@router.post("/me/company-logo", response_model=UserResponse)
+async def upload_company_logo(
+    user: CurrentUserDep, service: AuthServiceDep, file: UploadFile = File(...)
+):
+    """Faz upload da logo da empresa (PNG/JPG/WEBP, max 5MB)."""
+    valid_extensions = {".png", ".jpg", ".jpeg", ".webp"}
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if ext not in valid_extensions:
+        raise HTTPException(
+            status_code=400, detail="Formato de imagem inválido. Use PNG, JPG ou WEBP."
+        )
+
+    content = await file.read()
+    if len(content) > settings.file_upload_max_size:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Arquivo muito grande. Limite de {settings.file_upload_max_size // (1024 * 1024)}MB.",
+        )
+
+    db_user = service.user_repo.get_user_by_id(user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="Usuário não encontrado")
+
+    # Guardar URL antiga para limpeza depois
+    old_logo_url = db_user.company_logo_url
+
+    try:
+        upload_res = await CloudinaryService.upload_file(content, str(user.id), folder="logos")
+        read_url = upload_res["url"]
+
+        db_user.company_logo_url = read_url
+        service.user_repo.session.commit()
+        log.info(f"🏢 Logo da empresa atualizado: {db_user.email} | URL: {read_url}")
+
+    except Exception as e:
+        service.user_repo.session.rollback()
+        log.error(f"❌ Falha no upload da logo: {str(e)}")
+        raise HTTPException(
+            status_code=500, detail="Falha ao processar upload no storage remoto."
+        )
+
+    return UserResponse(
+        id=db_user.id,
+        email=db_user.email,
+        name=db_user.name,
+        company=db_user.company,
+        company_name=db_user.company_name,
+        company_segment=db_user.company_segment,
+        company_description=db_user.company_description,
+        avatar_url=db_user.avatar_url,
+        whatsapp=db_user.whatsapp,
+        company_razao_social=db_user.company_razao_social,
+        company_nome_fantasia=db_user.company_nome_fantasia,
+        company_cnpj=db_user.company_cnpj,
+        company_address=db_user.company_address,
+        company_professional_email=db_user.company_professional_email,
+        company_commercial_phone=db_user.company_commercial_phone,
+        company_logo_url=read_url,
+        company_color_code=db_user.company_color_code,
+        company_color_secondary=db_user.company_color_secondary,
     )
 
 

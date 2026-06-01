@@ -51,10 +51,10 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   const handlePrint = async () => {
     if (!proposal) return;
     
-    // Fix: Se a avatar_url já for um link absoluto (Cloudinary), não concatenamos com getApiUrl()
-    const avatarUrl = user?.avatar_url;
-    const finalLogoUrl = avatarUrl 
-      ? (avatarUrl.startsWith('http') ? avatarUrl : `${getApiUrl()}${avatarUrl}`) 
+    // Usa company_logo_url (fallback para avatar_url por compatibilidade)
+    const logoUrl = user?.company_logo_url || user?.avatar_url;
+    const finalLogoUrl = logoUrl
+      ? (logoUrl.startsWith('http') ? logoUrl : `${getApiUrl()}${logoUrl}`)
       : logoAsset;
 
     // Busca o email do cliente correspondente
