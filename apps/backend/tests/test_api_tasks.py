@@ -497,3 +497,326 @@ def test_task_notes_default_none(client):
     )
     assert resp.status_code == 201
     assert resp.json()["notes"] is None
+
+
+# ── Sprint 3 Section 1: next_business_day + due_days ──
+
+
+def test_next_business_day_weekday():
+    """Sábado avança para segunda-feira."""
+    from src.core.utils import next_business_day
+    from datetime import date
+
+    saturday = datetime(2026, 6, 6, 10, 0, 0)  # Sábado
+    assert saturday.weekday() == 5
+    result = next_business_day(saturday)
+    assert result.weekday() == 0  # Segunda
+    assert result.day == 8
+    assert result.hour == 10  # Preserva hora
+
+
+def test_next_business_day_sunday():
+    """Domingo avança para segunda-feira."""
+    from src.core.utils import next_business_day
+
+    sunday = datetime(2026, 6, 7, 8, 30, 0)  # Domingo
+    assert sunday.weekday() == 6
+    result = next_business_day(sunday)
+    assert result.weekday() == 0  # Segunda
+    assert result.day == 8
+    assert result.hour == 8  # Preserva hora
+
+
+def test_next_business_day_friday():
+    """Sexta-feira permanece inalterada."""
+    from src.core.utils import next_business_day
+
+    friday = datetime(2026, 6, 5, 14, 0, 0)  # Sexta
+    assert friday.weekday() == 4
+    result = next_business_day(friday)
+    assert result == friday  # Sem alteração
+
+
+def test_next_business_day_monday():
+    """Segunda-feira permanece inalterada."""
+    from src.core.utils import next_business_day
+
+    monday = datetime(2026, 6, 1, 9, 0, 0)  # Segunda
+    assert monday.weekday() == 0
+    result = next_business_day(monday)
+    assert result == monday  # Sem alteração
+
+
+def test_create_template_with_due_days(client):
+    """
+    Sprint 3 Section 1: Criar template activity com due_days.
+    due_days é opcional e alternativo ao due_day.
+    """
+    email = f"due_days_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    # Criar template primeiro
+    tmpl_resp = client.post(
+        "/tasks/templates/",
+        json={"name": "Template Due Days", "process_type": "fiscal", "recurrence": "monthly"},
+        headers=auth,
+    )
+    assert tmpl_resp.status_code == 201
+    tmpl_id = tmpl_resp.json()["id"]
+
+    # Criar activity com due_days (sem due_day — mas due_day é obrigatório no schema)
+    act_resp = client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={
+            "name": "Atividade com due_days",
+            "due_day": 15,
+            "due_days": 5,
+        },
+        headers=auth,
+    )
+    assert act_resp.status_code == 201
+    assert act_resp.json()["due_days"] == 5
+    assert act_resp.json()["due_day"] == 15
+
+
+def test_create_template_activity_without_due_days(client):
+    """
+    Sprint 3 Section 1: Criar template activity sem due_days — usa due_day normalmente.
+    """
+    email = f"no_due_days_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    tmpl_resp = client.post(
+        "/tasks/templates/",
+        json={"name": "Template Sem Due Days", "process_type": "contabil", "recurrence": "monthly"},
+        headers=auth,
+    )
+    assert tmpl_resp.status_code == 201
+    tmpl_id = tmpl_resp.json()["id"]
+
+    act_resp = client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={"name": "Atividade padrão", "due_day": 10},
+        headers=auth,
+    )
+    assert act_resp.status_code == 201
+    assert act_resp.json()["due_days"] is None
+    assert act_resp.json()["due_day"] == 10
+
+
+# ── Sprint 3 Section 2: RoutineType CRUD ──
+
+
+def test_create_routine_type(client):
+    """Criar um RoutineType com nome e cor."""
+    email = f"rt_create_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = client.post(
+        "/tasks/routine-types/",
+        json={"name": "Fiscal Mensal", "color": "#3b82f6"},
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["name"] == "Fiscal Mensal"
+    assert data["color"] == "#3b82f6"
+    assert "id" in data
+    assert "user_id" in data
+
+
+def test_create_routine_type_minimal(client):
+    """Criar RoutineType apenas com name (sem color opcional)."""
+    email = f"rt_minimal_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = client.post(
+        "/tasks/routine-types/",
+        json={"name": "Simples"},
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["name"] == "Simples"
+
+
+def test_list_routine_types(client):
+    """Listar RoutineTypes retorna apenas os do usuário logado."""
+    email = f"rt_list_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    # Criar 2 tipos
+    client.post("/tasks/routine-types/", json={"name": "Tipo A", "color": "#ef4444"}, headers=auth)
+    client.post("/tasks/routine-types/", json={"name": "Tipo B", "color": "#10b981"}, headers=auth)
+
+    resp = client.get("/tasks/routine-types/", headers=auth)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert len(data) == 2
+    names = [t["name"] for t in data]
+    assert "Tipo A" in names
+    assert "Tipo B" in names
+
+
+def test_update_routine_type(client):
+    """Atualizar nome e cor de um RoutineType."""
+    email = f"rt_update_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    create_resp = client.post("/tasks/routine-types/", json={"name": "Original", "color": "#000000"}, headers=auth)
+    rt_id = create_resp.json()["id"]
+
+    update_resp = client.put(
+        f"/tasks/routine-types/{rt_id}",
+        json={"name": "Atualizado", "color": "#ffffff"},
+        headers=auth,
+    )
+    assert update_resp.status_code == 200
+    assert update_resp.json()["name"] == "Atualizado"
+    assert update_resp.json()["color"] == "#ffffff"
+
+
+def test_delete_routine_type(client):
+    """Deletar RoutineType."""
+    email = f"rt_delete_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    create_resp = client.post("/tasks/routine-types/", json={"name": "Vai ser deletado"}, headers=auth)
+    rt_id = create_resp.json()["id"]
+
+    delete_resp = client.delete(f"/tasks/routine-types/{rt_id}", headers=auth)
+    assert delete_resp.status_code == 204
+
+    # Verificar que não aparece mais na lista
+    list_resp = client.get("/tasks/routine-types/", headers=auth)
+    ids = [t["id"] for t in list_resp.json()]
+    assert rt_id not in ids
+
+
+def test_routine_type_isolation(client):
+    """Usuário A não vê os RoutineTypes do usuário B."""
+    email_a = f"rt_iso_a_{uuid4()}@cafe.com"
+    email_b = f"rt_iso_b_{uuid4()}@cafe.com"
+    auth_a = get_auth_header(client, email_a)
+    auth_b = get_auth_header(client, email_b)
+
+    client.post("/tasks/routine-types/", json={"name": "Tipo do A"}, headers=auth_a)
+
+    resp_b = client.get("/tasks/routine-types/", headers=auth_b)
+    assert resp_b.status_code == 200
+    assert len(resp_b.json()) == 0
+
+
+def test_routine_type_404_on_other_user(client):
+    """Usuário B não pode atualizar/deletar RoutineType do usuário A."""
+    email_a = f"rt_404_a_{uuid4()}@cafe.com"
+    email_b = f"rt_404_b_{uuid4()}@cafe.com"
+    auth_a = get_auth_header(client, email_a)
+    auth_b = get_auth_header(client, email_b)
+
+    create_resp = client.post("/tasks/routine-types/", json={"name": "Tipo do A"}, headers=auth_a)
+    rt_id = create_resp.json()["id"]
+
+    # Tentar atualizar com B
+    update_resp = client.put(f"/tasks/routine-types/{rt_id}", json={"name": "Hack"}, headers=auth_b)
+    assert update_resp.status_code == 404
+
+    # Tentar deletar com B
+    delete_resp = client.delete(f"/tasks/routine-types/{rt_id}", headers=auth_b)
+    assert delete_resp.status_code == 404
+
+
+# ── Sprint 3 Section 3: template_id + assignment_id FK on Task ──
+
+
+def test_task_has_template_fk_after_assignment(client):
+    """Após vincular template a cliente, tasks geradas têm template_id e assignment_id."""
+    email = f"fk_task_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    # 1. Criar template com uma activity
+    tmpl_resp = client.post(
+        "/tasks/templates/",
+        json={"name": "Template FK", "process_type": "fiscal", "recurrence": "monthly"},
+        headers=auth,
+    )
+    assert tmpl_resp.status_code == 201
+    tmpl_id = tmpl_resp.json()["id"]
+
+    act_resp = client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={"name": "Atividade FK", "due_day": 15},
+        headers=auth,
+    )
+    assert act_resp.status_code == 201
+
+    # 2. Vincular template ao cliente
+    assign_resp = client.post(
+        "/tasks/client-templates/",
+        json={"client_id": cli["id"], "template_id": tmpl_id},
+        headers=auth,
+    )
+    assert assign_resp.status_code == 201
+    assignment_id = assign_resp.json()["assignment_id"]
+
+    # 3. Verificar que as tasks geradas têm os FKs
+    tasks_resp = client.get(f"/tasks/?client_id={cli['id']}", headers=auth)
+    assert tasks_resp.status_code == 200
+    tasks = tasks_resp.json()
+
+    # Deve haver ao menos uma task com template_id e assignment_id
+    fk_tasks = [t for t in tasks if t.get("template_id") == tmpl_id]
+    assert len(fk_tasks) >= 1, "Nenhuma task com template_id preenchido"
+    assert fk_tasks[0]["assignment_id"] == assignment_id
+
+
+def test_task_response_includes_template_name(client):
+    """TaskResponse inclui template_name quando task veio de template."""
+    email = f"fk_name_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    # 1. Criar template
+    tmpl_resp = client.post(
+        "/tasks/templates/",
+        json={"name": "Template Nome Teste", "process_type": "dp", "recurrence": "monthly"},
+        headers=auth,
+    )
+    tmpl_id = tmpl_resp.json()["id"]
+    client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={"name": "Atividade Nome", "due_day": 10},
+        headers=auth,
+    )
+
+    # 2. Vincular — espera 201, mas não usamos o retorno
+    assign_resp = client.post(
+        "/tasks/client-templates/",
+        json={"client_id": cli["id"], "template_id": tmpl_id},
+        headers=auth,
+    )
+    assert assign_resp.status_code == 201
+
+    # 3. Verificar template_name na task
+    tasks_resp = client.get(f"/tasks/?client_id={cli['id']}", headers=auth)
+    tasks = tasks_resp.json()
+    tmpl_tasks = [t for t in tasks if t.get("template_id") == tmpl_id]
+    assert len(tmpl_tasks) >= 1
+    assert tmpl_tasks[0]["template_name"] == "Template Nome Teste"
+
+
+def test_task_template_name_null_when_manual(client):
+    """Task criada manualmente (sem template) tem template_name = None."""
+    email = f"fk_manual_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    resp = client.post(
+        "/tasks/",
+        json={"title": "Tarefa Manual", "client_id": cli["id"], "priority": "medium"},
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    assert resp.json()["template_name"] is None
+    assert resp.json()["template_id"] is None
+    assert resp.json()["assignment_id"] is None
