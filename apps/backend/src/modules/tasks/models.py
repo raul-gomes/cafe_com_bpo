@@ -9,9 +9,11 @@ from sqlalchemy import (
     Integer,
     Boolean,
     Float,
+    JSON,
 )
 from sqlalchemy.orm import relationship
 from src.core.database import Base
+from typing import Optional
 import uuid
 
 DEFAULT_PHASES = [
@@ -86,6 +88,18 @@ class Task(Base):
     # Notes
     notes = Column(Text, nullable=True)
 
+    # Template / Routine tracking
+    template_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("activity_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+    assignment_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("client_template_assignments.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -106,11 +120,36 @@ class Task(Base):
         cascade="all, delete-orphan",
         foreign_keys="TaskAttachment.task_id",
     )
+    template = relationship("ActivityTemplate", foreign_keys=[template_id])
+
+    @property
+    def template_name(self) -> Optional[str]:
+        return self.template.name if self.template else None
 
 
 # ──────────────────────────────────────────────
 # NOVOS MODELOS — Client-Centric Task Manager
 # ──────────────────────────────────────────────
+
+
+class RoutineType(Base):
+    """
+    Tipo de rotina customizável pelo usuário.
+    Ex: 'Fiscal', 'Contábil', 'DP' — com cor para badge.
+    """
+
+    __tablename__ = "routine_types"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    name = Column(String(100), nullable=False)
+    color = Column(String(10), nullable=True)
+    suggestions = Column(JSON, nullable=True)  # Optional array of suggested activity names
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
 
 class ActivityTemplate(Base):
@@ -135,6 +174,11 @@ class ActivityTemplate(Base):
     due_date = Column(DateTime(timezone=True), nullable=True)
     recurrence_end_date = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, server_default="true", nullable=False)
+    routine_type_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("routine_types.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -151,6 +195,8 @@ class ActivityTemplate(Base):
         cascade="all, delete-orphan",
         order_by="TemplateActivity.order",
     )
+
+    routine_type = relationship("RoutineType", foreign_keys=[routine_type_id])
 
 
 class TemplateActivity(Base):
@@ -170,6 +216,7 @@ class TemplateActivity(Base):
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
     due_day = Column(Integer, nullable=False)  # dia do mês (1-31)
+    due_days = Column(Integer, nullable=True)  # dias após início (alternativa a due_day)
     estimated_hours = Column(Integer, nullable=True)  # horas estimadas
     order = Column(Integer, nullable=False, default=0)  # ordenação
     phase_id = Column(

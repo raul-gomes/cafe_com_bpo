@@ -10,6 +10,7 @@ from .models import (
     ClientTemplateAssignment,
     ClientSLA,
     TaskAttachment,
+    RoutineType,
 )
 from .schemas import (
     TaskCreate,
@@ -21,6 +22,8 @@ from .schemas import (
     TemplateActivityCreate,
     TemplateActivityUpdate,
     ClientTemplateAssignmentCreate,
+    RoutineTypeCreate,
+    RoutineTypeUpdate,
     ClientSLACreate,
     ClientSLAUpdate,
 )
@@ -446,47 +449,47 @@ class TaskRepository:
     # SLA Alert Queries
     # ──────────────────────────────────────────────
 
-    def get_tasks_overdue(self, user_id: UUID) -> List[Task]:
-        """Get tasks past their deadline, not completed."""
-        default_phase = (
+    def _get_done_phase_ids(self, user_id: UUID) -> list[str]:
+        """Return phase IDs for phases that should be excluded (Concluído)."""
+        done_phase = (
             self.session.query(TaskPhase)
             .filter(TaskPhase.user_id == user_id, TaskPhase.name == "Concluído")
             .first()
         )
-        done_phase_ids = []
-        if default_phase:
-            done_phase_ids.append(str(default_phase.id))
+        return [str(done_phase.id)] if done_phase else []
 
-        return (
-            self.session.query(Task)
-            .filter(
-                Task.user_id == user_id,
-                Task.deleted_at.is_(None),
-                Task.deadline.isnot(None),
-                Task.deadline < datetime.now(timezone.utc),
-            )
-            .order_by(Task.deadline.asc())
-            .all()
+    def get_tasks_overdue(self, user_id: UUID) -> List[Task]:
+        """Get tasks past their deadline, excluding completed/cancelled."""
+        done_ids = self._get_done_phase_ids(user_id)
+        query = self.session.query(Task).filter(
+            Task.user_id == user_id,
+            Task.deleted_at.is_(None),
+            Task.cancelled_at.is_(None),
+            Task.deadline.isnot(None),
+            Task.deadline < datetime.now(timezone.utc),
         )
+        if done_ids:
+            query = query.filter(~Task.phase_id.in_(done_ids))
+        return query.order_by(Task.deadline.asc()).all()
 
     def get_tasks_near_deadline(self, user_id: UUID, days_ahead: int = 2) -> List[Task]:
-        """Get tasks with deadline within the next N days."""
+        """Get tasks with deadline within the next N days, excluding completed/cancelled."""
         from datetime import timedelta
 
+        done_ids = self._get_done_phase_ids(user_id)
         now = datetime.now(timezone.utc)
         cutoff = now + timedelta(days=days_ahead)
-        return (
-            self.session.query(Task)
-            .filter(
-                Task.user_id == user_id,
-                Task.deleted_at.is_(None),
-                Task.deadline.isnot(None),
-                Task.deadline >= now,
-                Task.deadline <= cutoff,
-            )
-            .order_by(Task.deadline.asc())
-            .all()
+        query = self.session.query(Task).filter(
+            Task.user_id == user_id,
+            Task.deleted_at.is_(None),
+            Task.cancelled_at.is_(None),
+            Task.deadline.isnot(None),
+            Task.deadline >= now,
+            Task.deadline <= cutoff,
         )
+        if done_ids:
+            query = query.filter(~Task.phase_id.in_(done_ids))
+        return query.order_by(Task.deadline.asc()).all()
 
     def get_tasks_by_client_and_month(
         self, client_id: UUID, start_date: datetime, end_date: datetime
@@ -503,3 +506,51 @@ class TaskRepository:
             .order_by(Task.deadline.asc())
             .all()
         )
+
+    # ──────────────────────────────────────────────
+    # RoutineType
+    # ──────────────────────────────────────────────
+
+    def create_routine_type(self, user_id: UUID, data: RoutineTypeCreate) -> RoutineType:
+        obj = RoutineType(**data.model_dump(), user_id=user_id)
+        self.session.add(obj)
+        self.session.commit()
+        self.session.refresh(obj)
+        return obj
+
+    def list_routine_types(self, user_id: UUID) -> List[RoutineType]:
+        return (
+            self.session.query(RoutineType)
+            .filter(RoutineType.user_id == user_id)
+            .order_by(RoutineType.name)
+            .all()
+        )
+
+    def get_routine_type(self, type_id: UUID, user_id: UUID) -> Optional[RoutineType]:
+        return (
+            self.session.query(RoutineType)
+            .filter(RoutineType.id == type_id, RoutineType.user_id == user_id)
+            .first()
+        )
+
+    def update_routine_type(self, type_id: UUID, user_id: UUID, data: RoutineTypeUpdate) -> Optional[RoutineType]:
+        obj = self.get_routine_type(type_id, user_id)
+        if not obj:
+            return None
+        for key, val in data.model_dump(exclude_unset=True).items():
+            setattr(obj, key, val)
+        self.session.commit()
+        self.session.refresh(obj)
+        return obj
+
+    def delete_routine_type(self, type_id: UUID, user_id: UUID) -> bool:
+        obj = self.get_routine_type(type_id, user_id)
+        if not obj:
+            return False
+        # Set routine_type_id to NULL on templates that reference it
+        self.session.query(ActivityTemplate).filter(
+            ActivityTemplate.routine_type_id == type_id
+        ).update({ActivityTemplate.routine_type_id: None})
+        self.session.delete(obj)
+        self.session.commit()
+        return True

@@ -19,7 +19,8 @@ class TaskBase(BaseModel):
 
 
 class TaskCreate(TaskBase):
-    pass
+    template_id: Optional[UUID] = None
+    assignment_id: Optional[UUID] = None
 
 
 class TaskUpdate(BaseModel):
@@ -40,6 +41,9 @@ class TaskResponse(TaskBase):
     id: UUID
     user_id: UUID
     phase_id: Optional[UUID] = None
+    template_id: Optional[UUID] = None
+    assignment_id: Optional[UUID] = None
+    template_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     cancelled_at: Optional[datetime] = None
@@ -130,10 +134,40 @@ class ConflictsResponse(BaseModel):
 # ──────────────────────────────────────────────
 
 
+# ──────────────────────────────────────────────
+# Routine Type Schemas
+# ──────────────────────────────────────────────
+
+
+class RoutineTypeBase(BaseModel):
+    name: str
+    color: Optional[str] = None
+    suggestions: Optional[list[str]] = None
+
+
+class RoutineTypeCreate(RoutineTypeBase):
+    pass
+
+
+class RoutineTypeUpdate(BaseModel):
+    name: Optional[str] = None
+    color: Optional[str] = None
+    suggestions: Optional[list[str]] = None
+
+
+class RoutineTypeResponse(RoutineTypeBase):
+    id: UUID
+    user_id: UUID
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class TemplateActivityBase(BaseModel):
     name: str
     description: Optional[str] = None
     due_day: int  # 1-31
+    due_days: Optional[int] = None  # dias após início (alternativa)
     estimated_hours: Optional[int] = None
     order: int = 0
     phase_id: Optional[UUID] = None
@@ -147,6 +181,7 @@ class TemplateActivityUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
     due_day: Optional[int] = None
+    due_days: Optional[int] = None
     estimated_hours: Optional[int] = None
     order: Optional[int] = None
     phase_id: Optional[UUID] = None
@@ -168,6 +203,7 @@ class ActivityTemplateBase(BaseModel):
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: bool = True
+    routine_type_id: Optional[UUID] = None
 
 
 class ActivityTemplateCreate(ActivityTemplateBase):
@@ -182,6 +218,7 @@ class ActivityTemplateUpdate(BaseModel):
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: Optional[bool] = None
+    routine_type_id: Optional[UUID] = None
 
 
 class ActivityTemplateResponse(ActivityTemplateBase):
@@ -190,6 +227,8 @@ class ActivityTemplateResponse(ActivityTemplateBase):
     created_at: datetime
     updated_at: datetime
     activities: list[TemplateActivityResponse] = []
+    routine_type_name: Optional[str] = None
+    routine_type_color: Optional[str] = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -208,6 +247,9 @@ class ActivityTemplateListItem(BaseModel):
     is_overdue: bool = False
     days_overdue: int = 0
     activity_count: int = 0
+    routine_type_id: Optional[UUID] = None
+    routine_type_name: Optional[str] = None
+    routine_type_color: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -227,6 +269,9 @@ class OverdueTemplateResponse(BaseModel):
     is_active: bool
     days_overdue: int
     activity_count: int = 0
+    routine_type_id: Optional[UUID] = None
+    routine_type_name: Optional[str] = None
+    routine_type_color: Optional[str] = None
 
 
 # ──────────────────────────────────────────────

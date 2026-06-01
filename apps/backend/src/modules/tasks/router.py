@@ -30,6 +30,9 @@ from .schemas import (
     TemplateActivityResponse,
     ClientTemplateAssignmentCreate,
     ClientTemplateAssignmentResponse,
+    RoutineTypeCreate,
+    RoutineTypeUpdate,
+    RoutineTypeResponse,
     ClientSLACreate,
     ClientSLAUpdate,
     ClientSLAResponse,
@@ -387,6 +390,58 @@ def regenerate_client_tasks(
     """Regenera tarefas para o próximo período de um vínculo."""
     try:
         return service.regenerate_client_tasks(assignment_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+# ================================================================
+# RoutineType Endpoints
+# ================================================================
+
+
+@router.get("/routine-types/", response_model=List[RoutineTypeResponse])
+def list_routine_types(service: ServiceDep, current_user: CurrentUserDep):
+    """Lista os tipos de rotina do usuário."""
+    return service.list_routine_types(current_user.id)
+
+
+@router.post(
+    "/routine-types/",
+    response_model=RoutineTypeResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_routine_type(
+    data: RoutineTypeCreate,
+    service: ServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Cria um novo tipo de rotina."""
+    return service.create_routine_type(current_user.id, data)
+
+
+@router.put("/routine-types/{type_id}", response_model=RoutineTypeResponse)
+def update_routine_type(
+    type_id: UUID,
+    data: RoutineTypeUpdate,
+    service: ServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Atualiza um tipo de rotina."""
+    try:
+        return service.update_routine_type(type_id, current_user.id, data)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@router.delete("/routine-types/{type_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_routine_type(
+    type_id: UUID,
+    service: ServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Remove um tipo de rotina (desvincula dos templates)."""
+    try:
+        service.delete_routine_type(type_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
 

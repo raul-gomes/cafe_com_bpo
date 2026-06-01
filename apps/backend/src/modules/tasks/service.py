@@ -8,6 +8,7 @@ from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
 
+from src.core.utils import next_business_day
 from src.modules.tasks.repository import TaskRepository
 from src.modules.tasks.models import TemplateActivity as TemplateActivityModel
 from src.modules.tasks.schemas import (
@@ -33,6 +34,9 @@ from src.modules.tasks.schemas import (
     TemplateActivityResponse,
     ClientTemplateAssignmentCreate,
     ClientTemplateAssignmentResponse,
+    RoutineTypeCreate,
+    RoutineTypeUpdate,
+    RoutineTypeResponse,
     ClientSLACreate,
     ClientSLAUpdate,
     ClientSLAResponse,
@@ -550,6 +554,8 @@ class TaskService:
                 process_type=tmpl.process_type,
                 deadline=deadline,
                 time_estimate_hours=act.estimated_hours,
+                template_id=assignment_in.template_id,
+                assignment_id=assignment.id,
             )
             # Use a fresh session for task creation to keep things clean
             task = self.repository.create(task_data, user_id)
@@ -576,16 +582,26 @@ class TaskService:
     def _calculate_activity_deadline(
         self, activity: TemplateActivityModel, start_date: Optional[datetime] = None
     ) -> datetime:
-        """Calculate the next deadline for an activity based on its due_day."""
+        """Calculate the next deadline for an activity.
+
+        If the activity has ``due_days`` set, the deadline is
+        *start_date + due_days*, adjusted to the next business day.
+        Otherwise the existing ``due_day``-based logic kicks in.
+        """
         now = datetime.now(timezone.utc)
         base = start_date if start_date else now
 
-        # Use the base date's month/year, but with the activity's due_day
+        # ── due_days mode (days after start) ──────────────────────
+        if activity.due_days is not None:
+            deadline = base + timedelta(days=activity.due_days)
+            deadline = deadline.replace(hour=18, minute=0, second=0, microsecond=0)
+            return next_business_day(deadline)
+
+        # ── due_day mode (day of month) ───────────────────────────
+        import calendar
+
         year = base.year
         month = base.month
-
-        # Clamp due_day to valid days in month
-        import calendar
 
         max_day = calendar.monthrange(year, month)[1]
         day = min(activity.due_day, max_day)
@@ -652,6 +668,8 @@ class TaskService:
                 process_type=tmpl.process_type,
                 deadline=deadline,
                 time_estimate_hours=act.estimated_hours,
+                template_id=assignment.template_id,
+                assignment_id=assignment.id,
             )
             task = self.repository.create(task_data, user_id)
             if first_phase:
@@ -662,6 +680,36 @@ class TaskService:
             self.repository.session.commit()
 
         return {"tasks_generated": generated}
+
+    # ================================================================
+    # RoutineType Service Methods
+    # ================================================================
+
+    def create_routine_type(self, user_id: UUID, data: RoutineTypeCreate) -> RoutineTypeResponse:
+        obj = self.repository.create_routine_type(user_id, data)
+        log.info(f"🏷️ Tipo de rotina criado: {obj.name} (user={user_id})")
+        return RoutineTypeResponse.model_validate(obj)
+
+    def list_routine_types(self, user_id: UUID) -> List[RoutineTypeResponse]:
+        objs = self.repository.list_routine_types(user_id)
+        return [RoutineTypeResponse.model_validate(o) for o in objs]
+
+    def get_routine_type(self, type_id: UUID, user_id: UUID) -> RoutineTypeResponse:
+        obj = self.repository.get_routine_type(type_id, user_id)
+        if not obj:
+            raise ValueError(f"RoutineType {type_id} not found")
+        return RoutineTypeResponse.model_validate(obj)
+
+    def update_routine_type(self, type_id: UUID, user_id: UUID, data: RoutineTypeUpdate) -> RoutineTypeResponse:
+        obj = self.repository.update_routine_type(type_id, user_id, data)
+        if not obj:
+            raise ValueError(f"RoutineType {type_id} not found")
+        return RoutineTypeResponse.model_validate(obj)
+
+    def delete_routine_type(self, type_id: UUID, user_id: UUID) -> None:
+        if not self.repository.delete_routine_type(type_id, user_id):
+            raise ValueError(f"RoutineType {type_id} not found")
+        log.info(f"🗑️ Tipo de rotina removido: {type_id}")
 
     # ================================================================
     # SLA Service Methods
