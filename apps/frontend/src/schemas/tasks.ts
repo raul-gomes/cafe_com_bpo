@@ -11,6 +11,9 @@ export interface TaskResponse {
   phase_id?: string;
   time_estimate_hours?: number;
   notes?: string;
+  template_id?: string;
+  assignment_id?: string;
+  template_name?: string;
   cancelled_at?: string;
   deleted_at?: string;
   created_at: string;
@@ -105,6 +108,29 @@ export interface ConflictsResponse {
 
 // ── Activity Templates ──
 
+// ── RoutineType ──
+
+export interface RoutineTypeResponse {
+  id: string;
+  user_id: string;
+  name: string;
+  color?: string;
+  suggestions?: string[];
+  created_at: string;
+}
+
+export interface RoutineTypeCreate {
+  name: string;
+  color?: string;
+  suggestions?: string[];
+}
+
+export interface RoutineTypeUpdate {
+  name?: string;
+  color?: string;
+  suggestions?: string[];
+}
+
 export interface ActivityTemplateListItem {
   id: string;
   name: string;
@@ -117,6 +143,9 @@ export interface ActivityTemplateListItem {
   is_overdue?: boolean;
   days_overdue?: number;
   activity_count: number;
+  routine_type_id?: string;
+  routine_type_name?: string;
+  routine_type_color?: string;
   created_at: string;
   updated_at: string;
 }
@@ -127,6 +156,7 @@ export interface TemplateActivityResponse {
   name: string;
   description?: string;
   due_day: number;
+  due_days?: number;
   estimated_hours?: number;
   order: number;
   phase_id?: string;
@@ -143,6 +173,9 @@ export interface ActivityTemplateResponse {
   due_date?: string;
   recurrence_end_date?: string;
   is_active: boolean;
+  routine_type_id?: string;
+  routine_type_name?: string;
+  routine_type_color?: string;
   created_at: string;
   updated_at: string;
   activities: TemplateActivityResponse[];
@@ -156,6 +189,7 @@ export interface ActivityTemplateCreate {
   due_date?: string;
   recurrence_end_date?: string;
   is_active?: boolean;
+  routine_type_id?: string;
 }
 
 export interface ActivityTemplateUpdate {
@@ -166,12 +200,14 @@ export interface ActivityTemplateUpdate {
   due_date?: string;
   recurrence_end_date?: string;
   is_active?: boolean;
+  routine_type_id?: string;
 }
 
 export interface TemplateActivityCreate {
   name: string;
   description?: string;
   due_day: number;
+  due_days?: number;
   estimated_hours?: number;
   order?: number;
   phase_id?: string;
@@ -181,6 +217,7 @@ export interface TemplateActivityUpdate {
   name?: string;
   description?: string;
   due_day?: number;
+  due_days?: number;
   estimated_hours?: number;
   order?: number;
   phase_id?: string;
