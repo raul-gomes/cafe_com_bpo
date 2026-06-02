@@ -45,14 +45,38 @@ class TaskRepository:
         user_id: UUID,
         status_filter: Optional[str] = None,
         process_type_filter: Optional[str] = None,
+        today_filter: bool = False,
+        overdue_filter: bool = False,
     ) -> List[Task]:
+        from datetime import datetime, timezone, timedelta
+
         query = self.session.query(Task).filter(
             Task.user_id == user_id, Task.deleted_at.is_(None)
         )
         if status_filter:
             query = query.filter(Task.status == status_filter)
+
         if process_type_filter:
             query = query.filter(Task.process_type == process_type_filter)
+
+        if today_filter:
+            now = datetime.now(timezone.utc)
+            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = day_start + timedelta(days=1)
+            query = query.filter(
+                Task.deadline >= day_start,
+                Task.deadline < day_end,
+            )
+
+        if overdue_filter:
+            now = datetime.now(timezone.utc)
+            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            query = query.filter(
+                Task.deadline < day_start,
+                Task.status != "done",
+                Task.cancelled_at.is_(None),
+            )
+
         return query.order_by(Task.deadline.asc().nullslast()).all()
 
     def create(self, task_in: TaskCreate, user_id: UUID) -> Task:

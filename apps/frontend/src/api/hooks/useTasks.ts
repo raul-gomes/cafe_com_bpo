@@ -78,6 +78,7 @@ export const useTasks = () => {
       },
       onSettled: () => {
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['sla-alerts'] });
       },
     });
   };
@@ -114,6 +115,7 @@ export const useTasks = () => {
       },
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        queryClient.invalidateQueries({ queryKey: ['sla-alerts'] });
       },
     });
   };

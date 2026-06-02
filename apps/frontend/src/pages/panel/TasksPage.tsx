@@ -170,7 +170,10 @@ export const TasksPage: React.FC = () => {
                         <span style={{ fontWeight: 700, color: 'var(--ds-primary)' }}>
                             {tasksList.filter(t => {
                                 if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
-                                return !t.deadline || new Date(t.deadline) < new Date();
+                                if (!t.deadline) return false;
+                                const todayStart = new Date();
+                                todayStart.setHours(0, 0, 0, 0);
+                                return new Date(t.deadline) < todayStart;
                             }).length}
                         </span> em atraso
                     </div>

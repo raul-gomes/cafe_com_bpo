@@ -64,9 +64,23 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
 @router.get("/", response_model=List[TaskResponse])
-def get_tasks(repo: RepoDep, current_user: CurrentUserDep):
-    """Retorna tarefas cadastradas pelo usuário atual"""
-    return repo.get_by_user(current_user.id)
+def get_tasks(
+    repo: RepoDep,
+    current_user: CurrentUserDep,
+    today: bool = False,
+    overdue: bool = False,
+):
+    """Retorna tarefas cadastradas pelo usuário atual.
+
+    Query params:
+    - today: filtra apenas tarefas com deadline igual à data de hoje
+    - overdue: filtra apenas tarefas com deadline anterior a hoje e não concluídas
+    """
+    return repo.get_by_user(
+        current_user.id,
+        today_filter=today,
+        overdue_filter=overdue,
+    )
 
 
 @router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)

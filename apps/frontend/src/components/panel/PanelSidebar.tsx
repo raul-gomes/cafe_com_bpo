@@ -238,6 +238,20 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
             </svg>
             Info
           </button>
+          <button
+            className="panel-sidebar__logout-btn"
+            onClick={() => alert('Nenhum erro registrado no momento.')}
+            title="Exibir erros do sistema"
+            aria-label="Erros"
+            style={{ fontSize: '11px', padding: '8px', justifyContent: 'center', opacity: 0.5 }}
+          >
+            <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            Erros
+          </button>
           <div className="panel-sidebar__footer-copy">Café com BPO 2026</div>
         </div>
       </aside>
