@@ -1244,3 +1244,51 @@ def test_scheduler_response_structure(client):
     assert "tasks_generated" in data
     assert "tasks_skipped" in data
     assert "errors" in data
+
+
+# ── Cron endpoint tests ──
+
+
+def test_scheduler_cron_requires_secret(client):
+    """POST /tasks/scheduler/cron sem X-Cron-Secret retorna 501 ou 401."""
+    email = f"cron_nosecret_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = client.post("/tasks/scheduler/cron", headers=auth)
+    assert resp.status_code in (401, 501)
+
+
+def test_scheduler_cron_wrong_secret(client, monkeypatch):
+    """X-Cron-Secret inválido retorna 401."""
+    monkeypatch.setattr(
+        "src.core.config.Settings.cron_secret", "my-cron-secret"
+    )
+    email = f"cron_wrong_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = client.post(
+        "/tasks/scheduler/cron",
+        headers={**auth, "x-cron-secret": "wrong-secret"},
+    )
+    assert resp.status_code == 401
+    assert "inválido" in resp.json()["detail"].lower()
+
+
+def test_scheduler_cron_success(client, monkeypatch):
+    """X-Cron-Secret correto executa o scheduler para todos os usuários."""
+    monkeypatch.setattr(
+        "src.core.config.Settings.cron_secret", "my-cron-secret"
+    )
+    email = f"cron_ok_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = client.post(
+        "/tasks/scheduler/cron",
+        headers={**auth, "x-cron-secret": "my-cron-secret"},
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert "assignments_processed" in data
+    assert "tasks_generated" in data
+    assert "tasks_skipped" in data
+    assert "errors" in data

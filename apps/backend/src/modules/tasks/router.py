@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, Header
 from typing import Annotated, List, Optional
 from datetime import datetime
 from sqlalchemy.orm import Session
@@ -6,6 +6,7 @@ from uuid import UUID
 
 from src.core.database import get_db_session
 from src.core.logger import log
+from src.core.config import get_settings
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 from src.modules.notifications.repository import NotificationRepository
@@ -398,6 +399,30 @@ def regenerate_client_tasks(
 def run_scheduler(service: ServiceDep, current_user: CurrentUserDep):
     """Executa o scheduler de rotinas — gera tarefas pendentes com base na recorrência."""
     result = service.run_scheduler(user_id=current_user.id)
+    return result
+
+
+@router.post("/scheduler/cron")
+def run_scheduler_cron(
+    service: ServiceDep,
+    x_cron_secret: Annotated[str, Header(alias="x-cron-secret")] = "",
+):
+    """Executa o scheduler para TODOS os usuários (chamado por cron job).
+
+    Protegido pelo header X-Cron-Secret que deve bater com CRON_SECRET no .env.
+    """
+    settings = get_settings()
+    if not settings.cron_secret:
+        raise HTTPException(
+            status_code=501,
+            detail="Endpoint de cron não configurado. Defina CRON_SECRET no .env.",
+        )
+    if x_cron_secret != settings.cron_secret:
+        raise HTTPException(
+            status_code=401,
+            detail="X-Cron-Secret inválido.",
+        )
+    result = service.run_scheduler()
     return result
 
 
