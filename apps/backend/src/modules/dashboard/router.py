@@ -32,7 +32,9 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             and_(
                 Task.user_id == current_user.id,
                 Task.status != "done",
+                Task.status != "cancelled",
                 Task.deleted_at.is_(None),
+                Task.cancelled_at.is_(None),
                 or_(Task.deadline <= three_days_from_now, Task.deadline < now),
             )
         )
@@ -110,7 +112,9 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
         .filter(
             Task.user_id == current_user.id,
             Task.status != "done",
+            Task.status != "cancelled",
             Task.deleted_at.is_(None),
+            Task.cancelled_at.is_(None),
         )
         .count(),
         "unread_notifications_count": len(activities),
