@@ -15,8 +15,8 @@ vi.mock('../src/api/hooks/useTasks', () => {
   const mockData = {
     useTasksList: () => ({
       data: [
-        { id: 'task-1', title: 'Task 1', client_id: 'c1', status: 'todo', priority: 'high', phase_id: 'phase-1', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1' },
-        { id: 'task-2', title: 'Task 2', client_id: 'c1', status: 'doing', priority: 'medium', phase_id: 'phase-2', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1' },
+        { id: 'task-1', title: 'Task 1', client_id: 'c1', status: 'todo', priority: 'high', phase_id: 'phase-1', deadline: '2026-06-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1' },
+        { id: 'task-2', title: 'Task 2', client_id: 'c1', status: 'doing', priority: 'medium', phase_id: 'phase-2', deadline: '2026-06-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1' },
       ],
       isLoading: false,
     }),

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, AlertTriangle, XCircle } from 'lucide-react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, AlertTriangle, RefreshCw } from 'lucide-react';
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
@@ -7,6 +7,7 @@ import { apiClient } from '../../api/client';
 import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
 import { TaskModal } from '../../components/tasks/TaskModal';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
+import { TaskCard } from '../../components/tasks/TaskCard';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
 type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_hours?: number; priority: string; process_type?: string; status: string };
@@ -14,7 +15,7 @@ type ConflictTaskItem = { id: string; title: string; time_estimate_hours?: numbe
 
 export const TasksPage: React.FC = () => {
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
-    const [sectionFilter, setSectionFilter] = useState<'all' | 'today' | 'doing' | 'overdue'>('all');
+    const [sectionFilter, setSectionFilter] = useState<'all' | 'pendentes' | 'today' | 'doing' | 'overdue'>('pendentes');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [showPhaseManager, setShowPhaseManager] = useState(false);
     const [dateFrom, setDateFrom] = useState('');
@@ -81,6 +82,24 @@ export const TasksPage: React.FC = () => {
         }
     };
 
+    const handleRunScheduler = async () => {
+        try {
+            const { data } = await apiClient.post('/tasks/scheduler/run');
+            const parts = [
+                `${data.tasks_generated} tarefa(s) gerada(s)`,
+                `${data.tasks_skipped} já existente(s)`,
+                `${data.assignments_processed} vinculo(s) processado(s)`,
+            ];
+            if (data.errors?.length > 0) {
+                parts.push(`${data.errors.length} erro(s)`);
+            }
+            alert(`Rotinas executadas!\n\n${parts.join('\n')}`);
+        } catch (err: any) {
+            const detail = err?.response?.data?.detail || 'Erro ao executar rotinas';
+            alert(detail);
+        }
+    };
+
     const handleEditTask = (task: TaskResponse) => {
         setSelectedTask(task);
         setTaskModalOpen(true);
@@ -107,6 +126,13 @@ export const TasksPage: React.FC = () => {
         // Section filter
         if (sectionFilter !== 'all') {
             if (t.status === 'done') return false;
+            if (sectionFilter === 'pendentes') {
+                // Show only today's tasks + overdue tasks (not done)
+                if (!t.deadline) return false;
+                const deadlineStr = t.deadline.startsWith(todayStr);
+                const isOverdue = !deadlineStr && new Date(t.deadline) < todayStart;
+                if (!deadlineStr && !isOverdue) return false;
+            }
             if (sectionFilter === 'today') {
                 if (!t.deadline?.startsWith(todayStr)) return false;
             }
@@ -176,6 +202,14 @@ export const TasksPage: React.FC = () => {
                     >
                         <CalendarIcon size={16} /> Sincronizar
                     </button>
+                    <button 
+                        className="ds-btn ds-btn-ghost" 
+                        onClick={handleRunScheduler}
+                        style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}
+                        title="Executar rotinas — gerar tarefas pendentes com base na recorrência"
+                    >
+                        <RefreshCw size={16} /> Executar Rotinas
+                    </button>
                     <div className="view-toggle" style={{ 
                         display: 'flex', background: 'var(--ds-surface-2)', padding: '4px', 
                         borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)'
@@ -200,6 +234,7 @@ export const TasksPage: React.FC = () => {
             {view === 'kanban' && (
                 <div style={{ display: 'flex', gap: '4px', marginBottom: '12px', background: 'var(--ds-surface-2)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content' }}>
                     {([
+                        { key: 'pendentes', label: 'Pendentes', icon: null },
                         { key: 'all', label: 'Todas', icon: null },
                         { key: 'today', label: 'Hoje', icon: null },
                         { key: 'doing', label: 'Em andamento', icon: null },
@@ -215,7 +250,7 @@ export const TasksPage: React.FC = () => {
                             }}
                         >
                             {s.label}
-                            {s.key !== 'all' && (
+                            {s.key !== 'all' && s.key !== 'pendentes' && (
                                 <span style={{
                                     marginLeft: '6px', fontSize: '10px', fontWeight: 700,
                                     background: 'rgba(255,255,255,0.08)', padding: '0 6px',
@@ -241,53 +276,117 @@ export const TasksPage: React.FC = () => {
                                     }).length}
                                 </span>
                             )}
+                            {s.key === 'pendentes' && (
+                                <span style={{
+                                    marginLeft: '6px', fontSize: '10px', fontWeight: 700,
+                                    background: 'rgba(255,255,255,0.08)', padding: '0 6px',
+                                    borderRadius: '10px', color: 'var(--ds-primary)',
+                                }}>
+                                    {tasksList.filter(t => {
+                                        if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
+                                        if (!t.deadline) return false;
+                                        const today = new Date().toISOString().split('T')[0];
+                                        const deadline = new Date(t.deadline);
+                                        const todayStart = new Date(); todayStart.setHours(0,0,0,0);
+                                        return t.deadline.startsWith(today) || deadline < todayStart;
+                                    }).length}
+                                </span>
+                            )}
                         </button>
                     ))}
                 </div>
             )}
             
-            {/* Date range and phase filter controls */}
+            {/* Date range, phase filter, and period presets */}
             {view === 'kanban' && (
-                <div style={{ display: 'flex', gap: '12px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ds-text-muted)' }}>De</label>
+                <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                    {/* Period presets */}
+                    <div style={{ display: 'flex', gap: '4px' }}>
+                        {(['Hoje', 'Semana', 'Mês'] as const).map(preset => {
+                            const isActive =
+                                (preset === 'Hoje' && dateFrom === todayStr && dateTo === todayStr) ||
+                                (preset === 'Semana' && (() => {
+                                    const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1);
+                                    const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+                                    return dateFrom === mon.toISOString().split('T')[0] && dateTo === sun.toISOString().split('T')[0];
+                                })()) ||
+                                (preset === 'Mês' && (() => {
+                                    const now = new Date();
+                                    const first = new Date(now.getFullYear(), now.getMonth(), 1);
+                                    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                                    return dateFrom === first.toISOString().split('T')[0] && dateTo === last.toISOString().split('T')[0];
+                                })());
+                            return (
+                                <button
+                                    key={preset}
+                                    onClick={() => {
+                                        const now = new Date();
+                                        if (preset === 'Hoje') {
+                                            setDateFrom(todayStr);
+                                            setDateTo(todayStr);
+                                        } else if (preset === 'Semana') {
+                                            const mon = new Date(now); mon.setDate(mon.getDate() - mon.getDay() + 1);
+                                            const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+                                            setDateFrom(mon.toISOString().split('T')[0]);
+                                            setDateTo(sun.toISOString().split('T')[0]);
+                                        } else {
+                                            const first = new Date(now.getFullYear(), now.getMonth(), 1);
+                                            const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
+                                            setDateFrom(first.toISOString().split('T')[0]);
+                                            setDateTo(last.toISOString().split('T')[0]);
+                                        }
+                                    }}
+                                    style={{
+                                        padding: '4px 10px',
+                                        fontSize: '11px',
+                                        fontWeight: 700,
+                                        fontFamily: 'inherit',
+                                        background: isActive ? 'var(--ds-primary)' : 'var(--ds-surface-2)',
+                                        color: isActive ? 'var(--ds-primary-text)' : 'var(--ds-text-muted)',
+                                        border: isActive ? '1px solid var(--ds-primary)' : '1px solid rgba(255,255,255,0.08)',
+                                        borderRadius: 'var(--radius-sm)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.15s ease',
+                                    }}
+                                >
+                                    {preset}
+                                </button>
+                            );
+                        })}
+                    </div>
+
+                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.08)' }} />
+
+                    {/* Date from */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>De</label>
                         <input
                             type="date"
                             value={dateFrom}
                             onChange={e => setDateFrom(e.target.value)}
-                            style={{
-                                background: 'var(--ds-surface-2)', border: '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: 'var(--radius-sm)', padding: '4px 8px',
-                                color: 'var(--ds-text)', fontSize: '12px',
-                                fontFamily: 'inherit',
-                            }}
+                            className="filter-date-input"
                         />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ds-text-muted)' }}>Até</label>
+                    {/* Date to */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Até</label>
                         <input
                             type="date"
                             value={dateTo}
                             onChange={e => setDateTo(e.target.value)}
-                            style={{
-                                background: 'var(--ds-surface-2)', border: '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: 'var(--radius-sm)', padding: '4px 8px',
-                                color: 'var(--ds-text)', fontSize: '12px',
-                                fontFamily: 'inherit',
-                            }}
+                            className="filter-date-input"
                         />
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        <label style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ds-text-muted)' }}>Fase</label>
+
+                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.08)' }} />
+
+                    {/* Phase filter */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fase</label>
                         <select
                             value={phaseFilter}
                             onChange={e => setPhaseFilter(e.target.value)}
-                            style={{
-                                background: 'var(--ds-surface-2)', border: '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: 'var(--radius-sm)', padding: '4px 8px',
-                                color: 'var(--ds-text)', fontSize: '12px',
-                                fontFamily: 'inherit',
-                            }}
+                            className="filter-select"
                         >
                             <option value="all">Todas</option>
                             {(phases || []).map(p => (
@@ -295,16 +394,19 @@ export const TasksPage: React.FC = () => {
                             ))}
                         </select>
                     </div>
+
+                    {/* Clear filters */}
                     {(dateFrom || dateTo || phaseFilter !== 'all') && (
                         <button
                             onClick={() => { setDateFrom(''); setDateTo(''); setPhaseFilter('all'); }}
                             style={{
-                                fontSize: '11px', color: 'var(--ds-primary)', background: 'none',
+                                fontSize: '10px', color: 'var(--ds-primary)', background: 'none',
                                 border: 'none', cursor: 'pointer', fontWeight: 700,
-                                fontFamily: 'inherit',
+                                fontFamily: 'inherit', textDecoration: 'underline',
+                                textUnderlineOffset: '2px',
                             }}
                         >
-                            Limpar filtros
+                            Limpar
                         </button>
                     )}
                 </div>
@@ -430,6 +532,57 @@ export const TasksPage: React.FC = () => {
                 .kanban-column--dragging-over {
                     background: rgba(255,255,255,0.04);
                 }
+                .kanban-grid {
+                    display: grid;
+                    grid-template-columns: repeat(var(--kanban-cols), 1fr);
+                    gap: 24px;
+                    align-items: start;
+                }
+                @media (max-width: 1200px) {
+                    .kanban-grid {
+                        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+                    }
+                }
+                @media (max-width: 768px) {
+                    .kanban-grid {
+                        grid-template-columns: 1fr;
+                        overflow-x: auto;
+                    }
+                }
+                .filter-date-input {
+                    background: var(--ds-surface-2);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: var(--radius-sm);
+                    padding: 4px 8px;
+                    color: var(--ds-text);
+                    font-size: 12px;
+                    font-family: inherit;
+                    outline: none;
+                    transition: border-color 0.15s ease;
+                    color-scheme: dark;
+                }
+                .filter-date-input:focus {
+                    border-color: var(--ds-primary);
+                }
+                .filter-select {
+                    background: var(--ds-surface-2);
+                    border: 1px solid rgba(255,255,255,0.08);
+                    border-radius: var(--radius-sm);
+                    padding: 4px 8px;
+                    color: var(--ds-text);
+                    font-size: 12px;
+                    font-family: inherit;
+                    outline: none;
+                    cursor: pointer;
+                    transition: border-color 0.15s ease;
+                }
+                .filter-select:focus {
+                    border-color: var(--ds-primary);
+                }
+                .filter-select option {
+                    background: var(--ds-surface);
+                    color: var(--ds-text);
+                }
                 @keyframes slideInRight {
                     from { transform: translateX(20px); opacity: 0; }
                     to { transform: translateX(0); opacity: 1; }
@@ -498,7 +651,7 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
     const getClient = (id: string) => clients.find(c => c.id === id);
 
     return (
-        <div style={{ display: 'grid', gridTemplateColumns: `repeat(${columns.length}, 1fr)`, gap: '24px', alignItems: 'start' }}>
+        <div className="kanban-grid" style={{ '--kanban-cols': columns.length } as React.CSSProperties}>
             {columns.map(col => (
                 <Droppable key={col.id} droppableId={col.id}>
                     {(provided, snapshot) => (
@@ -523,96 +676,23 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                     return (
                                         <Draggable key={task.id} draggableId={task.id} index={index}>
                                             {(provided, snapshot) => (
-                                                <div 
-                                                    ref={provided.innerRef}
-                                                    {...provided.draggableProps}
-                                                    {...provided.dragHandleProps}
-                                                    className={`task-card ds-card ${isTaskOverdue(task) ? 'task-card--overdue' : ''}`}
-                                                    onClick={() => onEdit(task)}
-                                                    style={{ 
-                                                        ...provided.draggableProps.style,
-                                                        padding: '16px', 
-                                                        borderLeft: `4px solid ${client?.color || col.color}`,
-                                                        cursor: 'pointer',
-                                                        backgroundColor: snapshot.isDragging ? 'var(--ds-surface-3)' : 'var(--ds-surface-2)',
-                                                        zIndex: snapshot.isDragging ? 999 : 1,
-                                                        transform: snapshot.isDragging 
-                                                            ? `${provided.draggableProps.style?.transform || ''} rotate(2deg) scale(1.02)` 
-                                                            : provided.draggableProps.style?.transform
-                                                    }}
-                                                >
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                                                        <div style={{ fontSize: '10px', fontWeight: 900, color: client?.color || col.color, marginBottom: '6px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                                                            {client?.name || 'Cliente'}
-                                                        </div>
-                                                        <div style={{ 
-                                                            width: '6px', height: '6px', borderRadius: '50%',
-                                                            background: task.priority === 'high' ? 'var(--ds-error)' : task.priority === 'medium' ? 'var(--ds-warning)' : 'var(--ds-success)'
-                                                        }} />
-                                                    </div>
-                                                    <div style={{ fontWeight: 600, fontSize: '14px', lineHeight: 1.4, color: 'var(--ds-text)', marginBottom: '12px' }}>{task.title}</div>
-                                                    
-                                                    <div style={{ display: 'flex', gap: '6px', marginBottom: '10px' }}>
-                                                        {onFinalize && getTaskStatus(task) !== doneColumnId && (
-                                                            <button
-                                                                onClick={(e) => { e.stopPropagation(); onFinalize(task.id); }}
-                                                                style={{
-                                                                    background: 'rgba(34,197,94,0.1)', border: 'none',
-                                                                    color: '#22c55e', fontSize: '11px', fontWeight: 700,
-                                                                    padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                                                                    cursor: 'pointer', display: 'inline-flex',
-                                                                    alignItems: 'center', gap: '6px', width: 'fit-content',
-                                                                }}
-                                                                className="finalize-btn"
-                                                                title="Mover para Concluído"
-                                                            >
-                                                                ✓ Finalizar
-                                                            </button>
-                                                        )}
-                                                        {onCancel && getTaskStatus(task) !== doneColumnId && task.status !== 'cancelled' && !task.cancelled_at && (
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    if (window.confirm(`Tem certeza que deseja cancelar "${task.title}"?`)) {
-                                                                        onCancel(task.id);
-                                                                    }
-                                                                }}
-                                                                style={{
-                                                                    background: 'rgba(239,68,68,0.1)', border: 'none',
-                                                                    color: '#ef4444', fontSize: '11px', fontWeight: 700,
-                                                                    padding: '4px 12px', borderRadius: 'var(--radius-sm)',
-                                                                    cursor: 'pointer', display: 'inline-flex',
-                                                                    alignItems: 'center', gap: '6px', width: 'fit-content',
-                                                                }}
-                                                                className="cancel-btn"
-                                                                title="Cancelar tarefa"
-                                                            >
-                                                                <XCircle size={12} /> Cancelar
-                                                            </button>
-                                                        )}
-                                                    </div>
-                                                    
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                                        <div>
-                                                            {isTaskOverdue(task) && (
-                                                                <span className="overdue-badge">
-                                                                    <AlertTriangle size={10} /> Atrasado {getOverdueDays(task)}d
-                                                                </span>
-                                                            )}
-                                                        </div>
-                                                        {task.deadline && (
-                                                            <div style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                                                                <CalendarIcon size={12} /> {new Date(task.deadline).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}
-                                                            </div>
-                                                        )}
-                                                    </div>
-                                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '8px', fontSize: '10px', color: 'var(--ds-text-muted)', opacity: 0.7 }}>
-                                                        <span>Criada em {new Date(task.created_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                                                        {(getTaskStatus(task) === doneColumnId) && (
-                                                            <span>Finalizada em {new Date(task.updated_at).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })}</span>
-                                                        )}
-                                                    </div>
-                                                </div>
+                                                <TaskCard
+                                                    task={task}
+                                                    client={client}
+                                                    colColor={col.color}
+                                                    doneColumnId={doneColumnId}
+                                                    onEdit={onEdit}
+                                                    onFinalize={onFinalize}
+                                                    onCancel={onCancel}
+                                                    getTaskStatus={getTaskStatus}
+                                                    isTaskOverdue={isTaskOverdue}
+                                                    getOverdueDays={getOverdueDays}
+                                                    innerRef={provided.innerRef}
+                                                    draggableProps={provided.draggableProps}
+                                                    dragHandleProps={provided.dragHandleProps}
+                                                    isDragging={snapshot.isDragging}
+                                                    style={provided.draggableProps.style}
+                                                />
                                             )}
                                         </Draggable>
                                     );
