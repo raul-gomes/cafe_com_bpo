@@ -1,8 +1,9 @@
 """
 Calendar sync endpoints (skeleton).
 
-POST /calendar/sync      — Sync selected tasks to Google Calendar
+POST /calendar/sync       — Sync selected tasks to Google Calendar
 GET  /calendar/auth-url   — Get Google OAuth authorization URL
+GET  /calendar/status     — Check Google Calendar connection status
 """
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -12,7 +13,12 @@ from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
-from .schemas import CalendarSyncRequest, CalendarSyncResponse, CalendarAuthUrlResponse
+from .schemas import (
+    CalendarSyncRequest,
+    CalendarSyncResponse,
+    CalendarAuthUrlResponse,
+    TokenStatusResponse,
+)
 from .service import GoogleCalendarService
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
@@ -24,6 +30,15 @@ def get_calendar_service() -> GoogleCalendarService:
 
 CalendarServiceDep = Annotated[GoogleCalendarService, Depends(get_calendar_service)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
+
+
+@router.get("/status", response_model=TokenStatusResponse)
+def get_status(
+    service: CalendarServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Check whether the current user has a valid Google Calendar token."""
+    return TokenStatusResponse(**service.get_token_status(user_id=current_user.id))
 
 
 @router.get("/auth-url", response_model=CalendarAuthUrlResponse)

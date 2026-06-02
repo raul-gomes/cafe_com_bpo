@@ -1,9 +1,10 @@
 """
 Tests for the Calendar sync endpoints (Tarefa 8.3).
 
-Tests mock mode behavior — real Google Calendar API calls are not tested.
+Tests mock mode behavior — real Google Calendar API calls are mocked via httpx.
 """
 from uuid import uuid4
+from datetime import datetime, timedelta, timezone
 
 
 def get_auth_header(client, email):
@@ -14,6 +15,36 @@ def get_auth_header(client, email):
     )
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
+
+
+def create_client(client, auth_header, name="Empresa Teste", color="#FF5733"):
+    payload = {"name": name, "cnpj": "12.345.678/0001-99", "color": color}
+    resp = client.post("/clients/", json=payload, headers=auth_header)
+    return resp.json()
+
+
+# ── Tarefa 8.3a: UserGoogleToken model ──
+
+
+def test_calendar_status_disconnected_when_no_token(client):
+    """GET /calendar/status returns connected=false when no token stored."""
+    email = f"cal_status_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = client.get("/calendar/status", headers=auth)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["connected"] is False
+    assert data["email"] is None
+
+
+def test_calendar_status_requires_auth(client):
+    """GET /calendar/status without auth returns 401."""
+    resp = client.get("/calendar/status")
+    assert resp.status_code == 401
+
+
+# ── Existing mock tests ──
 
 
 def test_calendar_auth_url_not_configured(client):

@@ -16,3 +16,8 @@ class CalendarSyncResponse(BaseModel):
 
 class CalendarAuthUrlResponse(BaseModel):
     auth_url: str
+
+
+class TokenStatusResponse(BaseModel):
+    connected: bool
+    email: Optional[str] = None
