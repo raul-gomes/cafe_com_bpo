@@ -394,6 +394,13 @@ def regenerate_client_tasks(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.post("/scheduler/run")
+def run_scheduler(service: ServiceDep, current_user: CurrentUserDep):
+    """Executa o scheduler de rotinas — gera tarefas pendentes com base na recorrência."""
+    result = service.run_scheduler(user_id=current_user.id)
+    return result
+
+
 # ================================================================
 # RoutineType Endpoints
 # ================================================================

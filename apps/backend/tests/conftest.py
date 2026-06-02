@@ -17,9 +17,13 @@ class SQLiteArray(TypeDecorator):
     cache_ok = True
 
     def __init__(self, item_type=None, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        # Accept but ignore the item_type argument from ARRAY(String)
-        pass
+        # ARRAY can receive item_type (e.g. ARRAY(String)).
+        # Ignore it and just pass through to the Text impl.
+        # Also drop positional args that aren't standard Text params.
+        filtered_args = tuple(
+            a for a in args if isinstance(a, (int, type(None)))
+        )
+        super().__init__(*filtered_args, **kwargs)
 
     def process_bind_param(self, value, dialect):
         if value is None:

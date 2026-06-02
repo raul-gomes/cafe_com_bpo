@@ -10,7 +10,10 @@ from datetime import datetime, timezone, timedelta
 
 from src.core.utils import next_business_day
 from src.modules.tasks.repository import TaskRepository
-from src.modules.tasks.models import TemplateActivity as TemplateActivityModel
+from src.modules.tasks.models import (
+    ActivityTemplate,
+    TemplateActivity as TemplateActivityModel,
+)
 from src.modules.tasks.schemas import (
     TaskCreate,
     TaskUpdate,
@@ -680,6 +683,162 @@ class TaskService:
             self.repository.session.commit()
 
         return {"tasks_generated": generated}
+
+    # ================================================================
+    # Scheduler — Recurrence-based task generation
+    # ================================================================
+
+    def _should_generate_today(
+        self, tmpl: ActivityTemplate, activity: TemplateActivityModel
+    ) -> Optional[datetime]:
+        """Check if a task should be generated today for the given template+activity.
+
+        Returns the deadline datetime if it should generate, None otherwise.
+        """
+        now = datetime.now(timezone.utc)
+
+        if tmpl.recurrence == "once":
+            # "once" only generates at assignment time, not by scheduler
+            return None
+
+        if tmpl.recurrence == "daily":
+            # Generate Mon-Fri
+            if now.weekday() < 5:  # 0=Monday, 6=Sunday
+                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
+                return next_business_day(deadline)
+            return None
+
+        if tmpl.recurrence == "weekly":
+            if not tmpl.weekday_mask:
+                return None
+            weekdays = [int(d.strip()) for d in tmpl.weekday_mask.split(",") if d.strip()]
+            if now.weekday() in weekdays:
+                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
+                return next_business_day(deadline)
+            return None
+
+        if tmpl.recurrence == "biweekly":
+            # Generate on 01 and 15
+            if now.day in (1, 15):
+                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
+                return next_business_day(deadline)
+            return None
+
+        if tmpl.recurrence == "monthly":
+            # Generate on due_day
+            import calendar
+
+            year = now.year
+            month = now.month
+            max_day = calendar.monthrange(year, month)[1]
+            day = min(activity.due_day, max_day)
+            if now.day == day:
+                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
+                return next_business_day(deadline)
+            # Also check if due_day has already passed this month (generate if not yet generated)
+            return None
+
+        if tmpl.recurrence in ("yearly", "annual"):
+            # Generate if current month matches due_month and today is due_day
+            if tmpl.due_month and now.month == tmpl.due_month:
+                import calendar
+
+                max_day = calendar.monthrange(now.year, now.month)[1]
+                day = min(activity.due_day, max_day)
+                if now.day == day:
+                    deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
+                    return next_business_day(deadline)
+            return None
+
+        return None
+
+    def run_scheduler(self, user_id: Optional[UUID] = None) -> dict:
+        """Run the scheduler for active assignments.
+
+        Iterates active assignments (optionally filtered by user),
+        checks each template's recurrence, and generates tasks for
+        activities that are due today.
+        """
+        if user_id:
+            assignments = self.repository.get_assignments_by_user(user_id)
+            assignments = [a for a in assignments if a.is_active]
+        else:
+            assignments = self.repository.get_active_assignments()
+        total_generated = 0
+        total_skipped = 0
+        assignments_processed = 0
+        errors = []
+
+        for assignment in assignments:
+            try:
+                tmpl = self.repository.get_template_by_id(
+                    assignment.template_id, assignment.user_id
+                )
+                if not tmpl or not tmpl.is_active:
+                    continue
+
+                activities = self.repository.get_activities_by_template(tmpl.id)
+                if not activities:
+                    continue
+
+                phases = self.repository.get_phases_by_user(assignment.user_id)
+                first_phase = phases[0] if phases else None
+
+                generated_for_assignment = 0
+
+                for act in activities:
+                    deadline = self._should_generate_today(tmpl, act)
+                    if deadline is None:
+                        continue
+
+                    # Check if there's already a pending task for this deadline
+                    if self.repository.has_pending_task_for_deadline(
+                        assignment.id, deadline
+                    ):
+                        total_skipped += 1
+                        continue
+
+                    task_data = TaskCreate(
+                        title=act.name,
+                        description=act.description,
+                        client_id=assignment.client_id,
+                        status="todo",
+                        priority="medium",
+                        process_type=tmpl.process_type,
+                        deadline=deadline,
+                        time_estimate_hours=act.estimated_hours,
+                        template_id=tmpl.id,
+                        assignment_id=assignment.id,
+                    )
+                    task = self.repository.create(task_data, assignment.user_id)
+                    if first_phase:
+                        task.phase_id = first_phase.id
+                    generated_for_assignment += 1
+
+                if generated_for_assignment:
+                    self.repository.session.commit()
+                    self.repository.update_assignment_last_generated(assignment.id)
+                    total_generated += generated_for_assignment
+
+                assignments_processed += 1
+
+            except Exception as e:
+                log.error(
+                    f"Scheduler error for assignment {assignment.id}: {e}"
+                )
+                errors.append({"assignment_id": str(assignment.id), "error": str(e)})
+
+        log.info(
+            f"Scheduler run complete: {assignments_processed} assignments, "
+            f"{total_generated} tasks generated, {total_skipped} skipped"
+        )
+
+        return {
+            "assignments_processed": assignments_processed,
+            "tasks_generated": total_generated,
+            "tasks_skipped": total_skipped,
+            "errors": errors,
+        }
 
     # ================================================================
     # RoutineType Service Methods

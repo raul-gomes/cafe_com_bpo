@@ -346,11 +346,53 @@ class TaskRepository:
         )
 
     def get_active_assignments(self) -> List[ClientTemplateAssignment]:
+        all_assignments = self.session.query(ClientTemplateAssignment).all()
+        return [a for a in all_assignments if a.is_active is True]
+
+    def get_tasks_by_assignment_and_deadline(
+        self, assignment_id: UUID, deadline_start: datetime, deadline_end: datetime
+    ) -> List[Task]:
+        """Get tasks for an assignment with deadline in a given range."""
         return (
-            self.session.query(ClientTemplateAssignment)
-            .filter(ClientTemplateAssignment.is_active)
+            self.session.query(Task)
+            .filter(
+                Task.assignment_id == assignment_id,
+                Task.deadline >= deadline_start,
+                Task.deadline <= deadline_end,
+                Task.deleted_at.is_(None),
+            )
             .all()
         )
+
+    def has_pending_task_for_deadline(
+        self, assignment_id: UUID, deadline: datetime
+    ) -> bool:
+        """Check if there is a pending (not done/cancelled) task for this assignment on a given deadline."""
+        from src.modules.tasks.models import Task as TaskModel
+
+        deadline_start = deadline.replace(hour=0, minute=0, second=0, microsecond=0)
+        deadline_end = deadline.replace(hour=23, minute=59, second=59, microsecond=999999)
+        existing = (
+            self.session.query(TaskModel.id)
+            .filter(
+                TaskModel.assignment_id == assignment_id,
+                TaskModel.deadline >= deadline_start,
+                TaskModel.deadline <= deadline_end,
+                TaskModel.deleted_at.is_(None),
+                TaskModel.status.notin_(["done", "cancelled"]),
+            )
+            .first()
+        )
+        return existing is not None
+
+    def update_assignment_last_generated(
+        self, assignment_id: UUID, timestamp: Optional[datetime] = None
+    ) -> None:
+        """Update last_generated_at on an assignment."""
+        assignment = self.get_assignment_by_id(assignment_id)
+        if assignment:
+            assignment.last_generated_at = timestamp or datetime.now(timezone.utc)
+            self.session.commit()
 
     # ──────────────────────────────────────────────
     # ClientSLA

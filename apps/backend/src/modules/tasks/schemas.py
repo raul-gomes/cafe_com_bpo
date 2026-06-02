@@ -200,6 +200,8 @@ class ActivityTemplateBase(BaseModel):
     description: Optional[str] = None
     process_type: Optional[str] = None
     recurrence: str = "monthly"
+    weekday_mask: Optional[str] = None  # ex: "0,2,4" (dom=0, seg=1, ...)
+    due_month: Optional[int] = None  # 1-12, para recorrência anual
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: bool = True
@@ -215,6 +217,8 @@ class ActivityTemplateUpdate(BaseModel):
     description: Optional[str] = None
     process_type: Optional[str] = None
     recurrence: Optional[str] = None
+    weekday_mask: Optional[str] = None
+    due_month: Optional[int] = None
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: Optional[bool] = None
@@ -241,6 +245,8 @@ class ActivityTemplateListItem(BaseModel):
     description: Optional[str] = None
     process_type: Optional[str] = None
     recurrence: str
+    weekday_mask: Optional[str] = None
+    due_month: Optional[int] = None
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: bool
@@ -264,6 +270,8 @@ class OverdueTemplateResponse(BaseModel):
     description: Optional[str] = None
     process_type: Optional[str] = None
     recurrence: str
+    weekday_mask: Optional[str] = None
+    due_month: Optional[int] = None
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: bool
@@ -292,6 +300,7 @@ class ClientTemplateAssignmentResponse(BaseModel):
     user_id: UUID
     start_date: Optional[datetime] = None
     is_active: bool
+    last_generated_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

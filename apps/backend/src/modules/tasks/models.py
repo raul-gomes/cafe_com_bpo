@@ -170,7 +170,9 @@ class ActivityTemplate(Base):
     process_type = Column(String(50), nullable=True)
     recurrence = Column(
         String(50), nullable=False, default="monthly"
-    )  # monthly, quarterly, yearly
+    )  # once, daily, weekly, biweekly, monthly, quarterly, yearly
+    weekday_mask = Column(String(20), nullable=True)  # ex: "0,2,4" (dom=0, seg=1, ...)
+    due_month = Column(Integer, nullable=True)  # mês para recorrência anual (1-12)
     due_date = Column(DateTime(timezone=True), nullable=True)
     recurrence_end_date = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, server_default="true", nullable=False)
@@ -253,6 +255,7 @@ class ClientTemplateAssignment(Base):
     )
     start_date = Column(DateTime(timezone=True), nullable=True)  # quando começa a gerar
     is_active = Column(Boolean, server_default="true", nullable=False)
+    last_generated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
