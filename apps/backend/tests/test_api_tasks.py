@@ -1074,6 +1074,46 @@ def test_scheduler_monthly_skips_existing_task(client):
     assert data["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
 
 
+def test_scheduler_monthly_skips_wrong_day(client):
+    """Scheduler mensal não gera se due_day da activity não coincide com hoje."""
+    now = datetime.now(timezone.utc)
+    wrong_day = (now.day % 28) + 1  # Garante que é diferente do dia atual
+    if wrong_day == now.day:
+        wrong_day = wrong_day % 28 + 1  # fallback
+
+    email = f"sched_monthly_skip_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    tmpl_resp = client.post(
+        "/tasks/templates/",
+        json={
+            "name": "Mensal Skip",
+            "recurrence": "monthly",
+            "process_type": "fiscal",
+        },
+        headers=auth,
+    )
+    tmpl_id = tmpl_resp.json()["id"]
+    client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={"name": "Task Mensal Skip", "due_day": wrong_day},
+        headers=auth,
+    )
+    client.post(
+        "/tasks/client-templates/",
+        json={"client_id": cli["id"], "template_id": tmpl_id},
+        headers=auth,
+    )
+
+    resp = client.post("/tasks/scheduler/run", headers=auth)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["tasks_generated"] == 0, (
+        f"Due day {wrong_day} diferente de hoje {now.day} não deve gerar"
+    )
+
+
 def test_scheduler_yearly_skips_existing_task(client):
     """Scheduler anual não gera task duplicada quando já existe pendente."""
     now = datetime.now(timezone.utc)
