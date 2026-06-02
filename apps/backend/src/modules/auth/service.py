@@ -90,6 +90,7 @@ class AuthService:
             company_commercial_phone=user.company_commercial_phone,
             company_logo_url=user.company_logo_url,
             company_color_code=user.company_color_code,
+            company_color_secondary=user.company_color_secondary,
         )
 
     def update_user_profile(
@@ -120,6 +121,7 @@ class AuthService:
             company_commercial_phone=user.company_commercial_phone,
             company_logo_url=user.company_logo_url,
             company_color_code=user.company_color_code,
+            company_color_secondary=user.company_color_secondary,
         )
 
     def authenticate_oauth_user(self, email: str, provider: str) -> dict:

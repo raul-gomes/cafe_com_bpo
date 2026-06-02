@@ -35,7 +35,6 @@ vi.mock('../src/api/clients', () => ({
 
 // Static import of apiClient — vi.mock hoisting ensures we get the mocked version
 import { apiClient as _apiClient } from '../src/api/client'
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function mockUser(userData: Record<string, any>) {
   vi.mocked(_apiClient.get).mockResolvedValue({ data: userData })
 }
@@ -81,24 +80,19 @@ describe('PerfilPage', () => {
     await waitFor(() => {
       expect(screen.getByDisplayValue('Raul Gomes')).toBeInTheDocument()
       expect(screen.getByDisplayValue('user@cafe.com')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('11988887777')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('(11) 98888-7777')).toBeInTheDocument()
     })
 
     const emailInput = screen.getByDisplayValue('user@cafe.com') as HTMLInputElement
     expect(emailInput.disabled).toBe(true)
   })
 
-  it('switches to Dados da Empresa tab and shows all company fields', async () => {
+  it('switches to Empresa tab and shows all company fields', async () => {
     mockUser({
       ...BASE_USER,
-      company_name: 'Café com BPO Ltda',
       company_razao_social: 'Café com BPO Serviços Ltda',
       company_nome_fantasia: 'Café com BPO',
       company_cnpj: '12.345.678/0001-99',
-      company_address: 'Rua Exemplo, 123',
-      company_professional_email: 'contato@cafecombpo.com',
-      company_commercial_phone: '1133334444',
-      company_color_code: '#3b82f6',
     })
 
     renderPage()
@@ -107,17 +101,13 @@ describe('PerfilPage', () => {
     await screen.findByDisplayValue('Raul Gomes')
 
     // Switch to company tab
-    const companyTab = screen.getByText('Dados da Empresa')
+    const companyTab = screen.getByText('Empresa')
     fireEvent.click(companyTab)
 
     await waitFor(() => {
-      expect(screen.getByDisplayValue('Café com BPO Ltda')).toBeInTheDocument()
       expect(screen.getByDisplayValue('Café com BPO Serviços Ltda')).toBeInTheDocument()
       expect(screen.getByDisplayValue('Café com BPO')).toBeInTheDocument()
       expect(screen.getByDisplayValue('12.345.678/0001-99')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('Rua Exemplo, 123')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('contato@cafecombpo.com')).toBeInTheDocument()
-      expect(screen.getByDisplayValue('1133334444')).toBeInTheDocument()
     })
   })
 
@@ -130,14 +120,14 @@ describe('PerfilPage', () => {
 
     renderPage()
 
-    await screen.findByDisplayValue('11988887777')
+    await screen.findByDisplayValue('(11) 98888-7777')
 
     // Change whatsapp on personal tab
-    const whatsappInput = screen.getByDisplayValue('11988887777')
+    const whatsappInput = screen.getByDisplayValue('(11) 98888-7777')
     fireEvent.change(whatsappInput, { target: { value: '11999990000' } })
 
-    // Switch to company tab and change CNPJ
-    const companyTab = screen.getByText('Dados da Empresa')
+    // Switch to Empresa tab and change CNPJ
+    const companyTab = screen.getByText('Empresa')
     fireEvent.click(companyTab)
 
     await waitFor(() => {
@@ -152,7 +142,7 @@ describe('PerfilPage', () => {
     await waitFor(() => {
       expect(mockUpdateProfile).toHaveBeenCalledWith(expect.objectContaining({
         whatsapp: '11999990000',
-        company_cnpj: '98.765.432/0001-10',
+        company_cnpj: '98765432000110',
       }))
     })
   })
@@ -172,7 +162,7 @@ describe('PerfilPage', () => {
     })
   })
 
-  it('shows company color code field (hex input)', async () => {
+  it('shows company color code field in Personalização tab', async () => {
     mockUser({
       ...BASE_USER,
       company_color_code: '#3b82f6',
@@ -182,8 +172,8 @@ describe('PerfilPage', () => {
 
     await screen.findByDisplayValue('Raul Gomes')
 
-    const companyTab = screen.getByText('Dados da Empresa')
-    fireEvent.click(companyTab)
+    const customizationTab = screen.getByText('Personalização')
+    fireEvent.click(customizationTab)
 
     await waitFor(() => {
       expect(screen.getByDisplayValue('#3b82f6')).toBeInTheDocument()

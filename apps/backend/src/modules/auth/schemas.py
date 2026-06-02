@@ -33,6 +33,7 @@ class UserResponse(BaseModel):
     company_commercial_phone: Optional[str] = None
     company_logo_url: Optional[str] = None
     company_color_code: Optional[str] = None
+    company_color_secondary: Optional[str] = None
 
 
 class ProfileUpdate(BaseModel):
@@ -50,6 +51,7 @@ class ProfileUpdate(BaseModel):
     company_commercial_phone: Optional[str] = None
     company_logo_url: Optional[str] = None
     company_color_code: Optional[str] = None
+    company_color_secondary: Optional[str] = None
 
 
 class TokenResponse(BaseModel):

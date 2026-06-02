@@ -35,6 +35,7 @@ export interface User {
   company_commercial_phone?: string;
   company_logo_url?: string;
   company_color_code?: string;
+  company_color_secondary?: string;
 }
 
 interface RegisterPayload {

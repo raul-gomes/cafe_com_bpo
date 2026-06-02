@@ -215,6 +215,29 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
             </svg>
             Sair da conta
           </button>
+          <button
+            className="panel-sidebar__logout-btn"
+            onClick={() => {
+              const info = [
+                '📧 Email: ' + (user?.email || '—'),
+                '👤 Nome: ' + (user?.name || '—'),
+                '🏢 Empresa: ' + (user?.company || '—'),
+                '🆔 ID: ' + (user?.id || '—'),
+                '📅 Conta criada: ' + (user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '—'),
+              ];
+              alert('📋 Informações do Sistema\n\n' + info.join('\n'));
+            }}
+            title="Mostrar informações do sistema"
+            aria-label="Informações do sistema"
+            style={{ fontSize: '11px', padding: '8px', justifyContent: 'center', opacity: 0.5 }}
+          >
+            <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="16" x2="12" y2="12" />
+              <line x1="12" y1="8" x2="12.01" y2="8" />
+            </svg>
+            Info
+          </button>
           <div className="panel-sidebar__footer-copy">Café com BPO 2026</div>
         </div>
       </aside>
