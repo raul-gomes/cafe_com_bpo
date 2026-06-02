@@ -582,14 +582,29 @@ class TaskService:
             "template_name": tmpl.name,
         }
 
+    def _get_effective_due_day(
+        self, activity: TemplateActivityModel, tmpl: Optional[ActivityTemplate] = None
+    ) -> Optional[int]:
+        """Resolve the effective due_day for an activity.
+        
+        Falls back to the template's due_day if the activity doesn't have one.
+        Returns None if neither is set (caller must handle).
+        """
+        if activity.due_day is not None:
+            return activity.due_day
+        if tmpl is not None and tmpl.due_day is not None:
+            return tmpl.due_day
+        return None
+
     def _calculate_activity_deadline(
-        self, activity: TemplateActivityModel, start_date: Optional[datetime] = None
+        self, activity: TemplateActivityModel, start_date: Optional[datetime] = None,
+        tmpl: Optional[ActivityTemplate] = None
     ) -> datetime:
         """Calculate the next deadline for an activity.
 
         If the activity has ``due_days`` set, the deadline is
         *start_date + due_days*, adjusted to the next business day.
-        Otherwise the existing ``due_day``-based logic kicks in.
+        Otherwise the ``due_day``-based logic kicks in (falls back to template's due_day).
         """
         now = datetime.now(timezone.utc)
         base = start_date if start_date else now
@@ -601,13 +616,18 @@ class TaskService:
             return next_business_day(deadline)
 
         # ── due_day mode (day of month) ───────────────────────────
+        effective_due_day = self._get_effective_due_day(activity, tmpl)
+        if effective_due_day is None:
+            # Fallback: use current day if no due_day configured
+            effective_due_day = now.day
+
         import calendar
 
         year = base.year
         month = base.month
 
         max_day = calendar.monthrange(year, month)[1]
-        day = min(activity.due_day, max_day)
+        day = min(effective_due_day, max_day)
 
         deadline = base.replace(day=day, hour=18, minute=0, second=0, microsecond=0)
 
@@ -618,7 +638,7 @@ class TaskService:
                 month = 1
                 year += 1
             max_day = calendar.monthrange(year, month)[1]
-            day = min(activity.due_day, max_day)
+            day = min(effective_due_day, max_day)
             deadline = base.replace(
                 year=year,
                 month=month,
@@ -660,7 +680,7 @@ class TaskService:
         generated = 0
         for act in activities:
             deadline = self._calculate_activity_deadline(
-                act, datetime.now(timezone.utc)
+                act, datetime.now(timezone.utc), tmpl
             )
             task_data = TaskCreate(
                 title=act.name,
@@ -725,13 +745,16 @@ class TaskService:
             return None
 
         if tmpl.recurrence == "monthly":
-            # Generate on due_day
+            # Generate on due_day (fallback to template's due_day)
+            effective_due_day = self._get_effective_due_day(activity, tmpl)
+            if effective_due_day is None:
+                return None
             import calendar
 
             year = now.year
             month = now.month
             max_day = calendar.monthrange(year, month)[1]
-            day = min(activity.due_day, max_day)
+            day = min(effective_due_day, max_day)
             if now.day == day:
                 deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
                 return next_business_day(deadline)
@@ -741,10 +764,13 @@ class TaskService:
         if tmpl.recurrence in ("yearly", "annual"):
             # Generate if current month matches due_month and today is due_day
             if tmpl.due_month and now.month == tmpl.due_month:
+                effective_due_day = self._get_effective_due_day(activity, tmpl)
+                if effective_due_day is None:
+                    return None
                 import calendar
 
                 max_day = calendar.monthrange(now.year, now.month)[1]
-                day = min(activity.due_day, max_day)
+                day = min(effective_due_day, max_day)
                 if now.day == day:
                     deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
                     return next_business_day(deadline)

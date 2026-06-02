@@ -137,6 +137,10 @@ export interface ActivityTemplateListItem {
   description?: string;
   process_type?: string;
   recurrence: string;
+  weekday_mask?: string;
+  due_day?: number;
+  due_month?: number;
+  due_days_from_start?: number;
   due_date?: string;
   recurrence_end_date?: string;
   is_active: boolean;
@@ -155,7 +159,8 @@ export interface TemplateActivityResponse {
   template_id: string;
   name: string;
   description?: string;
-  due_day: number;
+  priority: string;
+  due_day?: number;
   due_days?: number;
   estimated_hours?: number;
   order: number;
@@ -170,6 +175,10 @@ export interface ActivityTemplateResponse {
   description?: string;
   process_type?: string;
   recurrence: string;
+  weekday_mask?: string;
+  due_day?: number;
+  due_month?: number;
+  due_days_from_start?: number;
   due_date?: string;
   recurrence_end_date?: string;
   is_active: boolean;
@@ -186,6 +195,10 @@ export interface ActivityTemplateCreate {
   description?: string;
   process_type?: string;
   recurrence?: string;
+  weekday_mask?: string;
+  due_day?: number;
+  due_month?: number;
+  due_days_from_start?: number;
   due_date?: string;
   recurrence_end_date?: string;
   is_active?: boolean;
@@ -197,6 +210,10 @@ export interface ActivityTemplateUpdate {
   description?: string;
   process_type?: string;
   recurrence?: string;
+  weekday_mask?: string;
+  due_day?: number;
+  due_month?: number;
+  due_days_from_start?: number;
   due_date?: string;
   recurrence_end_date?: string;
   is_active?: boolean;
@@ -206,7 +223,8 @@ export interface ActivityTemplateUpdate {
 export interface TemplateActivityCreate {
   name: string;
   description?: string;
-  due_day: number;
+  priority?: string;
+  due_day?: number;
   due_days?: number;
   estimated_hours?: number;
   order?: number;
@@ -216,6 +234,7 @@ export interface TemplateActivityCreate {
 export interface TemplateActivityUpdate {
   name?: string;
   description?: string;
+  priority?: string;
   due_day?: number;
   due_days?: number;
   estimated_hours?: number;

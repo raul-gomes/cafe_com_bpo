@@ -21,6 +21,18 @@ const RECURRENCE_LABELS: Record<string, string> = {
   yearly: 'Anual',
 };
 
+const PRIORITY_OPTIONS = [
+  { value: 'low', label: '🔵 Baixa' },
+  { value: 'medium', label: '🟡 Média' },
+  { value: 'high', label: '🔴 Alta' },
+];
+
+const PRIORITY_COLORS: Record<string, string> = {
+  low: '#3b82f6',
+  medium: '#eab308',
+  high: '#ef4444',
+};
+
 export const TemplateDetailPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -37,13 +49,13 @@ export const TemplateDetailPage: React.FC = () => {
   const [nameValue, setNameValue] = useState('');
   const [showAdd, setShowAdd] = useState(false);
   const [newActName, setNewActName] = useState('');
-  const [newActDay, setNewActDay] = useState(20);
-  const [newActDueDays, setNewActDueDays] = useState<number | ''>('');
+  const [newActDescription, setNewActDescription] = useState('');
+  const [newActPriority, setNewActPriority] = useState('medium');
   const [newActHours, setNewActHours] = useState<number | ''>('');
   const [editingAct, setEditingAct] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
-  const [editDay, setEditDay] = useState(20);
-  const [editDueDays, setEditDueDays] = useState<number | ''>('');
+  const [editDescription, setEditDescription] = useState('');
+  const [editPriority, setEditPriority] = useState('medium');
   const [editHours, setEditHours] = useState<number | ''>('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
 
@@ -58,21 +70,23 @@ export const TemplateDetailPage: React.FC = () => {
     await createActivity.mutateAsync({
       template_id: id!,
       name: newActName.trim(),
-      due_day: newActDay,
-      due_days: newActDueDays === '' ? undefined : Number(newActDueDays),
+      description: newActDescription.trim() || undefined,
+      priority: newActPriority,
       estimated_hours: newActHours === '' ? undefined : Number(newActHours),
       order: template?.activities?.length || 0,
     });
     setNewActName('');
-    setNewActDueDays('');
+    setNewActDescription('');
+    setNewActPriority('medium');
+    setNewActHours('');
     setShowAdd(false);
   };
 
   const startEdit = (act: any) => {
     setEditingAct(act.id);
     setEditName(act.name);
-    setEditDay(act.due_day);
-    setEditDueDays(act.due_days ?? '');
+    setEditDescription(act.description || '');
+    setEditPriority(act.priority || 'medium');
     setEditHours(act.estimated_hours ?? '');
   };
 
@@ -82,8 +96,8 @@ export const TemplateDetailPage: React.FC = () => {
       template_id: id!,
       id: editingAct,
       name: editName.trim(),
-      due_day: editDay,
-      due_days: editDueDays === '' ? undefined : Number(editDueDays),
+      description: editDescription.trim() || undefined,
+      priority: editPriority,
       estimated_hours: editHours === '' ? undefined : Number(editHours),
     });
     setEditingAct(null);
@@ -112,6 +126,24 @@ export const TemplateDetailPage: React.FC = () => {
   }
 
   const sortedActivities = [...(template.activities || [])].sort((a, b) => a.order - b.order);
+
+  const inputStyle: React.CSSProperties = {
+    width: '100%',
+    padding: '8px 12px',
+    borderRadius: 'var(--radius-sm)',
+    border: '1px solid var(--ds-border)',
+    background: 'var(--ds-surface)',
+    color: 'var(--ds-text)',
+    fontSize: '14px',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '12px',
+    fontWeight: 600,
+    color: 'var(--ds-text-muted)',
+    display: 'block',
+    marginBottom: '4px',
+  };
 
   return (
     <div className="tasks-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
@@ -196,31 +228,46 @@ export const TemplateDetailPage: React.FC = () => {
 
         {showAdd && (
           <div style={{ padding: '16px', background: 'var(--ds-surface-2)', borderRadius: 'var(--radius-md)', marginBottom: '16px', border: '1px solid var(--ds-primary-low)' }}>
-            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
-              <div style={{ flex: 1, minWidth: '180px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '4px' }}>Nome</label>
-                <input type="text" value={newActName} onChange={(e) => setNewActName(e.target.value)} placeholder="Ex: Apuração de tributos"
-                  style={{ width: '100%', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }} />
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-start' }}>
+                <div style={{ flex: 1, minWidth: '200px' }}>
+                  <label style={labelStyle}>Título da Tarefa</label>
+                  <input type="text" value={newActName} onChange={(e) => setNewActName(e.target.value)} placeholder="Ex: Apuração de tributos" style={inputStyle} />
+                </div>
+                <div style={{ minWidth: '140px' }}>
+                  <label style={labelStyle}>Prioridade</label>
+                  <select
+                    value={newActPriority}
+                    onChange={(e) => setNewActPriority(e.target.value)}
+                    style={inputStyle}
+                  >
+                    {PRIORITY_OPTIONS.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={labelStyle}>Hora Estimada</label>
+                  <input type="number" min={0} value={newActHours} onChange={(e) => setNewActHours(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0"
+                    style={{ width: '80px', ...inputStyle }} />
+                </div>
               </div>
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '4px' }}>Vence dia</label>
-                <input type="number" min={1} max={31} value={newActDay} onChange={(e) => setNewActDay(Number(e.target.value))}
-                  style={{ width: '80px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }} />
+                <label style={labelStyle}>Descrição</label>
+                <textarea
+                  value={newActDescription}
+                  onChange={(e) => setNewActDescription(e.target.value)}
+                  placeholder="Passo a passo da atividade..."
+                  rows={3}
+                  style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+                />
               </div>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '4px' }}>Dias corridos</label>
-                <input type="number" min={1} value={newActDueDays} onChange={(e) => setNewActDueDays(e.target.value === '' ? '' : Number(e.target.value))} placeholder="opcional"
-                  style={{ width: '80px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }} />
+              <div style={{ display: 'flex', gap: '8px' }}>
+                <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={handleAddActivity} disabled={!newActName.trim() || createActivity.isPending}>
+                  Adicionar
+                </button>
+                <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setShowAdd(false)}>Cancelar</button>
               </div>
-              <div>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '4px' }}>Horas</label>
-                <input type="number" min={0} value={newActHours} onChange={(e) => setNewActHours(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0"
-                  style={{ width: '80px', padding: '8px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }} />
-              </div>
-              <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={handleAddActivity} disabled={!newActName.trim() || createActivity.isPending}>
-                Adicionar
-              </button>
-              <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setShowAdd(false)}>Cancelar</button>
             </div>
           </div>
         )}
@@ -250,57 +297,85 @@ export const TemplateDetailPage: React.FC = () => {
                   setDraggedId(null);
                 }}
                 style={{
-                  display: 'flex', alignItems: 'center', gap: '12px',
+                  display: 'flex', flexDirection: 'column', gap: '8px',
                   padding: '12px 16px', borderRadius: 'var(--radius-md)',
                   background: editingAct === act.id ? 'var(--ds-surface-2)' : 'var(--ds-surface-1)',
                   border: '1px solid var(--ds-border)',
                   opacity: draggedId === act.id ? 0.5 : 1,
                 }}
               >
-                <GripVertical size={16} style={{ color: 'var(--ds-text-muted)', cursor: 'grab', flexShrink: 0 }} />
-                <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ds-text-muted)', minWidth: '24px' }}>{idx + 1}.</span>
-
                 {editingAct === act.id ? (
-                  <div style={{ display: 'flex', gap: '8px', flex: 1, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
-                      style={{ flex: 1, minWidth: '150px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px' }} />
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}>
-                       Vence dia
-                      <input type="number" min={1} max={31} value={editDay} onChange={(e) => setEditDay(Number(e.target.value))}
-                        style={{ width: '60px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px', textAlign: 'center' }} />
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+                      <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                        style={{ flex: 1, minWidth: '150px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px' }} />
+                      <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)}
+                        style={{ padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px' }}>
+                        {PRIORITY_OPTIONS.map(opt => (
+                          <option key={opt.value} value={opt.value}>{opt.label}</option>
+                        ))}
+                      </select>
+                      <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}>
+                        ⏱
+                        <input type="number" min={0} value={editHours} onChange={(e) => setEditHours(e.target.value === '' ? '' : Number(e.target.value))}
+                          style={{ width: '60px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px', textAlign: 'center' }} />
+                        h
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}>
-                       Dias corridos
-                      <input type="number" min={1} value={editDueDays} onChange={(e) => setEditDueDays(e.target.value === '' ? '' : Number(e.target.value))} placeholder="opc"
-                        style={{ width: '60px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px', textAlign: 'center' }} />
+                    <textarea
+                      value={editDescription}
+                      onChange={(e) => setEditDescription(e.target.value)}
+                      placeholder="Descrição da atividade..."
+                      rows={2}
+                      style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+                    />
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={saveEdit} disabled={updateActivity.isPending}>Salvar</button>
+                      <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setEditingAct(null)}>Cancelar</button>
                     </div>
-                    <div style={{ display: 'flex', gap: '4px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}>
-                      ⏱
-                      <input type="number" min={0} value={editHours} onChange={(e) => setEditHours(e.target.value === '' ? '' : Number(e.target.value))}
-                        style={{ width: '60px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px', textAlign: 'center' }} />
-                      h
-                    </div>
-                    <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={saveEdit} disabled={updateActivity.isPending}>Salvar</button>
-                    <button className="ds-btn ds-btn-ghost ds-btn-sm" onClick={() => setEditingAct(null)}>Cancelar</button>
                   </div>
                 ) : (
                   <>
-                    <span style={{ flex: 1, fontWeight: 600, fontSize: '14px' }}>{act.name}</span>
-                    <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                      📅 Dia {act.due_day}{act.due_days != null ? ` (${act.due_days}d corridos)` : ''}
-                    </span>
-                    {act.estimated_hours && (
-                      <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        ⏱ {act.estimated_hours}h
-                      </span>
-                    )}
-                    <button onClick={() => startEdit(act)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-text-muted)', padding: '4px' }}>
-                      <Edit2 size={14} />
-                    </button>
-                    <button onClick={() => { if (window.confirm(`Remover "${act.name}"?`)) deleteActivity.mutate({ template_id: id!, id: act.id }); }}
-                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-error)', padding: '4px' }}>
-                      <X size={14} />
-                    </button>
+                    <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
+                      <GripVertical size={16} style={{ color: 'var(--ds-text-muted)', cursor: 'grab', flexShrink: 0, marginTop: '2px' }} />
+                      <span style={{ fontSize: '12px', fontWeight: 700, color: 'var(--ds-text-muted)', minWidth: '24px', marginTop: '2px' }}>{idx + 1}.</span>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                          <span style={{ fontWeight: 600, fontSize: '14px' }}>{act.name}</span>
+                          <span style={{
+                            fontSize: '11px', padding: '1px 8px', borderRadius: '10px',
+                            fontWeight: 700, color: '#fff',
+                            background: PRIORITY_COLORS[act.priority] || '#6b7280',
+                          }}>
+                            {PRIORITY_OPTIONS.find(p => p.value === act.priority)?.label.split(' ')[1] || act.priority}
+                          </span>
+                          {act.due_day && (
+                            <span style={{ fontSize: '12px', color: 'var(--ds-text-muted)' }}>
+                              📅 Dia {act.due_day}
+                            </span>
+                          )}
+                          {act.estimated_hours && (
+                            <span style={{ fontSize: '12px', color: 'var(--ds-text-muted)' }}>
+                              ⏱ {act.estimated_hours}h
+                            </span>
+                          )}
+                        </div>
+                        {act.description && (
+                          <p style={{ fontSize: '13px', color: 'var(--ds-text-muted)', marginTop: '4px', lineHeight: 1.4, whiteSpace: 'pre-wrap' }}>
+                            {act.description}
+                          </p>
+                        )}
+                      </div>
+                      <div style={{ display: 'flex', gap: '4px', flexShrink: 0, marginTop: '2px' }}>
+                        <button onClick={() => startEdit(act)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-text-muted)', padding: '4px' }}>
+                          <Edit2 size={14} />
+                        </button>
+                        <button onClick={() => { if (window.confirm(`Remover "${act.name}"?`)) deleteActivity.mutate({ template_id: id!, id: act.id }); }}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-error)', padding: '4px' }}>
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
                   </>
                 )}
               </div>

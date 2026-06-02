@@ -166,7 +166,8 @@ class RoutineTypeResponse(RoutineTypeBase):
 class TemplateActivityBase(BaseModel):
     name: str
     description: Optional[str] = None
-    due_day: int  # 1-31
+    priority: str = "medium"  # low, medium, high
+    due_day: Optional[int] = None  # 1-31, opcional (usa do template se null)
     due_days: Optional[int] = None  # dias após início (alternativa)
     estimated_hours: Optional[int] = None
     order: int = 0
@@ -180,6 +181,7 @@ class TemplateActivityCreate(TemplateActivityBase):
 class TemplateActivityUpdate(BaseModel):
     name: Optional[str] = None
     description: Optional[str] = None
+    priority: Optional[str] = None  # low, medium, high
     due_day: Optional[int] = None
     due_days: Optional[int] = None
     estimated_hours: Optional[int] = None
@@ -201,7 +203,9 @@ class ActivityTemplateBase(BaseModel):
     process_type: Optional[str] = None
     recurrence: str = "monthly"
     weekday_mask: Optional[str] = None  # ex: "0,2,4" (dom=0, seg=1, ...)
+    due_day: Optional[int] = None  # dia do mês p/ mensal (1-31)
     due_month: Optional[int] = None  # 1-12, para recorrência anual
+    due_days_from_start: Optional[int] = None  # dias p/ "once"
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: bool = True
@@ -218,7 +222,9 @@ class ActivityTemplateUpdate(BaseModel):
     process_type: Optional[str] = None
     recurrence: Optional[str] = None
     weekday_mask: Optional[str] = None
+    due_day: Optional[int] = None
     due_month: Optional[int] = None
+    due_days_from_start: Optional[int] = None
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: Optional[bool] = None
@@ -246,7 +252,9 @@ class ActivityTemplateListItem(BaseModel):
     process_type: Optional[str] = None
     recurrence: str
     weekday_mask: Optional[str] = None
+    due_day: Optional[int] = None
     due_month: Optional[int] = None
+    due_days_from_start: Optional[int] = None
     due_date: Optional[datetime] = None
     recurrence_end_date: Optional[datetime] = None
     is_active: bool

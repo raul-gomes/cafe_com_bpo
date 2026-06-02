@@ -21,6 +21,46 @@ const RECURRENCE_LABELS: Record<string, string> = {
   yearly: 'Anual',
 };
 
+const WEEKDAY_LABELS: { value: number; label: string }[] = [
+  { value: 1, label: 'Seg' },
+  { value: 2, label: 'Ter' },
+  { value: 3, label: 'Qua' },
+  { value: 4, label: 'Qui' },
+  { value: 5, label: 'Sex' },
+];
+
+const MONTH_OPTIONS = [
+  { value: 1, label: 'Janeiro' },
+  { value: 2, label: 'Fevereiro' },
+  { value: 3, label: 'Março' },
+  { value: 4, label: 'Abril' },
+  { value: 5, label: 'Maio' },
+  { value: 6, label: 'Junho' },
+  { value: 7, label: 'Julho' },
+  { value: 8, label: 'Agosto' },
+  { value: 9, label: 'Setembro' },
+  { value: 10, label: 'Outubro' },
+  { value: 11, label: 'Novembro' },
+  { value: 12, label: 'Dezembro' },
+];
+
+const inputStyle: React.CSSProperties = {
+  padding: '10px 14px',
+  borderRadius: 'var(--radius-sm)',
+  border: '1px solid var(--ds-border)',
+  background: 'var(--ds-surface)',
+  color: 'var(--ds-text)',
+  fontSize: '14px',
+};
+
+const labelStyle: React.CSSProperties = {
+  fontSize: '12px',
+  fontWeight: 600,
+  color: 'var(--ds-text-muted)',
+  display: 'block',
+  marginBottom: '6px',
+};
+
 export const TemplateListPage: React.FC = () => {
   const navigate = useNavigate();
   const { useTemplatesList, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useRoutineTypes, useCreateRoutineType, useUpdateRoutineType, useDeleteRoutineType } = useTasks();
@@ -37,9 +77,18 @@ export const TemplateListPage: React.FC = () => {
   const [newName, setNewName] = useState('');
   const [newType, setNewType] = useState('fiscal');
   const [newRecurrence, setNewRecurrence] = useState('monthly');
-  const [newDueDate, setNewDueDate] = useState('');
+  const [newDaysFromStart, setNewDaysFromStart] = useState<number | ''>('');
+  const [newDueDay, setNewDueDay] = useState<number | ''>('');
+  const [newDueMonth, setNewDueMonth] = useState<number | ''>('');
+  const [newWeekdays, setNewWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [showTypeManager, setShowTypeManager] = useState(false);
   const [typeEdit, setTypeEdit] = useState<{ id?: string; name: string; color: string }>({ name: '', color: '#3b82f6' });
+
+  const toggleWeekday = (day: number) => {
+    setNewWeekdays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+    );
+  };
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -48,12 +97,25 @@ export const TemplateListPage: React.FC = () => {
       process_type: newType,
       recurrence: newRecurrence,
     };
-    if (newRecurrence === 'once' && newDueDate) {
-      payload.due_date = new Date(newDueDate).toISOString();
+    if (newRecurrence === 'once') {
+      payload.due_days_from_start = newDaysFromStart === '' ? undefined : Number(newDaysFromStart);
+    }
+    if (newRecurrence === 'weekly') {
+      payload.weekday_mask = newWeekdays.join(',');
+    }
+    if (newRecurrence === 'monthly') {
+      payload.due_day = newDueDay === '' ? undefined : Number(newDueDay);
+    }
+    if (newRecurrence === 'yearly') {
+      payload.due_day = newDueDay === '' ? undefined : Number(newDueDay);
+      payload.due_month = newDueMonth === '' ? undefined : Number(newDueMonth);
     }
     await createTemplate.mutateAsync(payload as any);
     setNewName('');
-    setNewDueDate('');
+    setNewDaysFromStart('');
+    setNewDueDay('');
+    setNewDueMonth('');
+    setNewWeekdays([1, 2, 3, 4, 5]);
     setShowCreate(false);
   };
 
@@ -102,22 +164,22 @@ export const TemplateListPage: React.FC = () => {
           </div>
           <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'flex-end' }}>
             <div style={{ flex: 1, minWidth: '200px' }}>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '6px' }}>Nome</label>
+              <label style={labelStyle}>Nome</label>
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Ex: Fiscal Mensal"
-                style={{ width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }}
+                style={{ width: '100%', ...inputStyle }}
                 autoFocus
               />
             </div>
             <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '6px' }}>Tipo</label>
+              <label style={labelStyle}>Tipo</label>
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
-                style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }}
+                style={inputStyle}
               >
                 {Object.entries(PROCESS_TYPE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
@@ -125,11 +187,17 @@ export const TemplateListPage: React.FC = () => {
               </select>
             </div>
             <div>
-              <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '6px' }}>Periodicidade</label>
+              <label style={labelStyle}>Periodicidade</label>
               <select
                 value={newRecurrence}
-                onChange={(e) => { setNewRecurrence(e.target.value); if (e.target.value !== 'once') setNewDueDate(''); }}
-                style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }}
+                onChange={(e) => {
+                  setNewRecurrence(e.target.value);
+                  setNewDaysFromStart('');
+                  setNewDueDay('');
+                  setNewDueMonth('');
+                  setNewWeekdays([1, 2, 3, 4, 5]);
+                }}
+                style={inputStyle}
               >
                 {Object.entries(RECURRENCE_LABELS).map(([k, v]) => (
                   <option key={k} value={k}>{v}</option>
@@ -138,14 +206,88 @@ export const TemplateListPage: React.FC = () => {
             </div>
             {newRecurrence === 'once' && (
               <div>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '6px' }}>Data de Vencimento</label>
+                <label style={labelStyle}>Dias para execução</label>
                 <input
-                  type="date"
-                  value={newDueDate}
-                  onChange={(e) => setNewDueDate(e.target.value)}
-                  style={{ padding: '10px 14px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '14px' }}
+                  type="number"
+                  min={1}
+                  value={newDaysFromStart}
+                  onChange={(e) => setNewDaysFromStart(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="Ex: 30"
+                  style={{ width: '100px', ...inputStyle }}
                 />
               </div>
+            )}
+            {newRecurrence === 'weekly' && (
+              <div>
+                <label style={labelStyle}>Dias da semana</label>
+                <div style={{ display: 'flex', gap: '6px', paddingTop: '4px' }}>
+                  {WEEKDAY_LABELS.map(({ value, label }) => (
+                    <label
+                      key={value}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '4px',
+                        padding: '6px 10px', borderRadius: 'var(--radius-sm)',
+                        background: newWeekdays.includes(value) ? 'var(--ds-primary-low)' : 'var(--ds-surface-2)',
+                        border: `1px solid ${newWeekdays.includes(value) ? 'var(--ds-primary)' : 'var(--ds-border)'}`,
+                        cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+                        color: newWeekdays.includes(value) ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={newWeekdays.includes(value)}
+                        onChange={() => toggleWeekday(value)}
+                        style={{ display: 'none' }}
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            {newRecurrence === 'monthly' && (
+              <div>
+                <label style={labelStyle}>Dia do vencimento</label>
+                <input
+                  type="number"
+                  min={1}
+                  max={31}
+                  value={newDueDay}
+                  onChange={(e) => setNewDueDay(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="Ex: 15"
+                  style={{ width: '100px', ...inputStyle }}
+                />
+              </div>
+            )}
+            {newRecurrence === 'yearly' && (
+              <>
+                <div>
+                  <label style={labelStyle}>Dia</label>
+                  <input
+                    type="number"
+                    min={1}
+                    max={31}
+                    value={newDueDay}
+                    onChange={(e) => setNewDueDay(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="Ex: 15"
+                    style={{ width: '80px', ...inputStyle }}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Mês</label>
+                  <select
+                    value={newDueMonth}
+                    onChange={(e) => setNewDueMonth(e.target.value === '' ? '' : Number(e.target.value))}
+                    style={inputStyle}
+                  >
+                    <option value="">Selecione</option>
+                    {MONTH_OPTIONS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </>
             )}
             <button
               className="ds-btn ds-btn-primary"
