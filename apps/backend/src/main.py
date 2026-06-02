@@ -1,5 +1,6 @@
 from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
+from fastapi.responses import JSONResponse
 import os
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
@@ -54,15 +55,20 @@ def create_app() -> FastAPI:
             db_status = "disconnected"
             error_msg = str(e)
 
-        status = "healthy" if db_status == "connected" else "unhealthy"
+        healthy = db_status == "connected"
         response = {
-            "status": status,
+            "status": "healthy" if healthy else "unhealthy",
+            "version": app.version,
+            "mode": settings.mode,
             "database": db_status,
+            "cron_configured": bool(settings.cron_secret),
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
         if error_msg:
             response["error"] = error_msg
-        return response
+
+        status_code = 200 if healthy else 503
+        return JSONResponse(content=response, status_code=status_code)
 
     # Registro de Roteadores Modulares
     app.include_router(pricing_router)
