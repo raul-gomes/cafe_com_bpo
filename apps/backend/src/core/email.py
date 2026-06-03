@@ -10,6 +10,49 @@ settings = get_settings()
 
 class EmailService:
     @staticmethod
+    def _build_message(to_email: str, subject: str, text: str, html: str) -> MIMEMultipart:
+        msg = MIMEMultipart("alternative")
+        msg["Subject"] = subject
+        msg["From"] = settings.smtp_from_email
+        msg["To"] = to_email
+        msg.attach(MIMEText(text, "plain"))
+        msg.attach(MIMEText(html, "html"))
+        return msg
+
+    @staticmethod
+    def _send(msg: MIMEMultipart, to_email: str) -> None:
+        context = ssl.create_default_context() if settings.smtp_use_tls else None
+
+        if settings.smtp_use_tls:
+            server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
+            server.starttls(context=context)
+        else:
+            server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
+
+        if settings.smtp_user and settings.smtp_password:
+            server.login(settings.smtp_user, settings.smtp_password)
+
+        server.sendmail(settings.smtp_from_email, to_email, msg.as_string())
+        server.quit()
+
+    @staticmethod
+    def send_email(to_email: str, subject: str, text: str, html: str) -> None:
+        """Send a generic email. Logs in dev mode if SMTP is not configured."""
+        msg = EmailService._build_message(to_email, subject, text, html)
+
+        if settings.mode in ("development", "test") and not settings.smtp_user:
+            log.info(f"📧 [DEV MODE] E-mail para {to_email}")
+            log.info(f"📧 [DEV MODE] Assunto: {subject}")
+            return
+
+        try:
+            EmailService._send(msg, to_email)
+            log.info(f"📧 E-mail enviado para {to_email}: {subject}")
+        except Exception as e:
+            log.error(f"❌ Falha ao enviar e-mail para {to_email}: {str(e)}")
+            raise
+
+    @staticmethod
     def send_reset_password_email(to_email: str, reset_token: str):
         reset_url = f"{settings.frontend_url}/redefinir-senha?token={reset_token}"
 
@@ -57,34 +100,4 @@ class EmailService:
         Este link expira em 1 hora.
         """
 
-        msg = MIMEMultipart("alternative")
-        msg["Subject"] = subject
-        msg["From"] = settings.smtp_from_email
-        msg["To"] = to_email
-        msg.attach(MIMEText(text, "plain"))
-        msg.attach(MIMEText(html, "html"))
-
-        if settings.mode == "development" and not settings.smtp_user:
-            log.info(f"📧 [DEV MODE] E-mail de redefinição para {to_email}")
-            log.info(f"📧 [DEV MODE] Token: {reset_token}")
-            log.info(f"📧 [DEV MODE] Link: {reset_url}")
-            return
-
-        try:
-            context = ssl.create_default_context() if settings.smtp_use_tls else None
-
-            if settings.smtp_use_tls:
-                server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
-                server.starttls(context=context)
-            else:
-                server = smtplib.SMTP(settings.smtp_host, settings.smtp_port)
-
-            if settings.smtp_user and settings.smtp_password:
-                server.login(settings.smtp_user, settings.smtp_password)
-
-            server.sendmail(settings.smtp_from_email, to_email, msg.as_string())
-            server.quit()
-            log.info(f"📧 E-mail de redefinição enviado para {to_email}")
-        except Exception as e:
-            log.error(f"❌ Falha ao enviar e-mail para {to_email}: {str(e)}")
-            raise
+        EmailService.send_email(to_email, subject, text, html)

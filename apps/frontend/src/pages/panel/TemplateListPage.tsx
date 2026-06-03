@@ -4,14 +4,6 @@ import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
-const PROCESS_TYPE_LABELS: Record<string, string> = {
-  fiscal: 'Fiscal',
-  contabil: 'Contábil',
-  dp: 'DP',
-  financeiro: 'Financeiro',
-  administrativo: 'Administrativo',
-};
-
 const RECURRENCE_LABELS: Record<string, string> = {
   once: 'Uma só vez',
   daily: 'Diário',
@@ -75,7 +67,7 @@ export const TemplateListPage: React.FC = () => {
 
   const [showCreate, setShowCreate] = useState(false);
   const [newName, setNewName] = useState('');
-  const [newType, setNewType] = useState('fiscal');
+  const [newRoutineTypeId, setNewRoutineTypeId] = useState('');
   const [newRecurrence, setNewRecurrence] = useState('monthly');
   const [newDaysFromStart, setNewDaysFromStart] = useState<number | ''>('');
   const [newDueDay, setNewDueDay] = useState<number | ''>('');
@@ -94,9 +86,11 @@ export const TemplateListPage: React.FC = () => {
     if (!newName.trim()) return;
     const payload: Record<string, unknown> = {
       name: newName.trim(),
-      process_type: newType,
       recurrence: newRecurrence,
     };
+    if (newRoutineTypeId) {
+      payload.routine_type_id = newRoutineTypeId;
+    }
     if (newRecurrence === 'once') {
       payload.due_days_from_start = newDaysFromStart === '' ? undefined : Number(newDaysFromStart);
     }
@@ -177,12 +171,13 @@ export const TemplateListPage: React.FC = () => {
             <div>
               <label style={labelStyle}>Tipo</label>
               <select
-                value={newType}
-                onChange={(e) => setNewType(e.target.value)}
+                value={newRoutineTypeId}
+                onChange={(e) => setNewRoutineTypeId(e.target.value)}
                 style={inputStyle}
               >
-                {Object.entries(PROCESS_TYPE_LABELS).map(([k, v]) => (
-                  <option key={k} value={k}>{v}</option>
+                <option value="">Selecione um tipo</option>
+                {routineTypes?.map((rt) => (
+                  <option key={rt.id} value={rt.id}>{rt.name}</option>
                 ))}
               </select>
             </div>
@@ -329,9 +324,12 @@ export const TemplateListPage: React.FC = () => {
               <div style={{ flex: 1 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
                   <span style={{ fontSize: '16px', fontWeight: 700 }}>{tmpl.name}</span>
-                  <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(59,130,246,0.1)', color: 'var(--ds-primary)', fontWeight: 700 }}>
-                    {PROCESS_TYPE_LABELS[tmpl.process_type || ''] || tmpl.process_type}
-                  </span>
+                  {tmpl.routine_type_name && (
+                    <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: (tmpl.routine_type_color || '#3b82f6') + '20', color: tmpl.routine_type_color || '#3b82f6', fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: '4px' }}>
+                      <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: tmpl.routine_type_color || '#3b82f6', display: 'inline-block' }} />
+                      {tmpl.routine_type_name}
+                    </span>
+                  )}
                   <span style={{ fontSize: '11px', padding: '2px 8px', borderRadius: '12px', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 700 }}>
                     {RECURRENCE_LABELS[tmpl.recurrence] || tmpl.recurrence}
                   </span>
@@ -341,7 +339,29 @@ export const TemplateListPage: React.FC = () => {
                     </span>
                   )}
                 </div>
-                <div style={{ fontSize: '13px', color: 'var(--ds-text-muted)' }}>
+                <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginTop: '4px' }}>
+                  {tmpl.recurrence === 'once' && tmpl.due_days_from_start && (
+                    <span style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '12px', background: 'rgba(107,114,128,0.1)', color: '#6b7280', fontWeight: 600 }}>
+                      {tmpl.due_days_from_start} dias p/ execução
+                    </span>
+                  )}
+                  {tmpl.recurrence === 'weekly' && tmpl.weekday_mask && (
+                    <span style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '12px', background: 'rgba(107,114,128,0.1)', color: '#6b7280', fontWeight: 600 }}>
+                      {tmpl.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}
+                    </span>
+                  )}
+                  {tmpl.recurrence === 'monthly' && tmpl.due_day && (
+                    <span style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '12px', background: 'rgba(107,114,128,0.1)', color: '#6b7280', fontWeight: 600 }}>
+                      Vence dia {tmpl.due_day}
+                    </span>
+                  )}
+                  {tmpl.recurrence === 'yearly' && tmpl.due_day && (
+                    <span style={{ fontSize: '12px', padding: '2px 10px', borderRadius: '12px', background: 'rgba(107,114,128,0.1)', color: '#6b7280', fontWeight: 600 }}>
+                      Vence {tmpl.due_day}/{tmpl.due_month}
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '13px', color: 'var(--ds-text-muted)', marginTop: '4px' }}>
                   {tmpl.activity_count} atividade(s) • {tmpl.description || 'Sem descrição'}
                 </div>
               </div>

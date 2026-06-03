@@ -15,12 +15,13 @@ type ConflictTaskItem = { id: string; title: string; time_estimate_hours?: numbe
 
 export const TasksPage: React.FC = () => {
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
-    const [sectionFilter, setSectionFilter] = useState<'all' | 'pendentes' | 'today' | 'doing' | 'overdue'>('pendentes');
+    const [filterMode, setFilterMode] = useState<'all' | 'today' | 'week' | 'month' | 'overdue'>('all');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [showPhaseManager, setShowPhaseManager] = useState(false);
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
-    const [phaseFilter, setPhaseFilter] = useState('all');
+    const [showDatePicker, setShowDatePicker] = useState(false);
+    const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
     const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask } = useTasks();
     const { data: tasks, isLoading } = useTasksList();
     const { data: phases } = usePhases();
@@ -123,34 +124,33 @@ export const TasksPage: React.FC = () => {
     const filteredTasks = tasksList.filter(t => {
         // Hide cancelled tasks by default
         if (t.status === 'cancelled' || t.cancelled_at) return false;
-        // Section filter
-        if (sectionFilter !== 'all') {
-            if (t.status === 'done') return false;
-            if (sectionFilter === 'pendentes') {
-                // Show only today's tasks + overdue tasks (not done)
-                if (!t.deadline) return false;
-                const deadlineStr = t.deadline.startsWith(todayStr);
-                const isOverdue = !deadlineStr && new Date(t.deadline) < todayStart;
-                if (!deadlineStr && !isOverdue) return false;
-            }
-            if (sectionFilter === 'today') {
-                if (!t.deadline?.startsWith(todayStr)) return false;
-            }
-            if (sectionFilter === 'doing') {
-                const phaseName = phases?.find(p => p.id === t.phase_id)?.name;
-                if (phaseName !== 'Em Andamento' && t.status !== 'doing') return false;
-            }
-            if (sectionFilter === 'overdue') {
-                if (!t.deadline) return false;
-                if (new Date(t.deadline) >= todayStart) return false;
-            }
+        // Filter mode
+        if (filterMode === 'today') {
+            if (!t.deadline?.startsWith(todayStr)) return false;
         }
-        // Date range filter
+        if (filterMode === 'week') {
+            const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1);
+            const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+            const weekStart = mon.toISOString().split('T')[0];
+            const weekEnd = sun.toISOString().split('T')[0];
+            const deadlineDate = t.deadline?.split('T')[0];
+            if (!deadlineDate || deadlineDate < weekStart || deadlineDate > weekEnd) return false;
+        }
+        if (filterMode === 'month') {
+            const now = new Date();
+            const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+            const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+            const deadlineDate = t.deadline?.split('T')[0];
+            if (!deadlineDate || deadlineDate < first || deadlineDate > last) return false;
+        }
+        if (filterMode === 'overdue') {
+            if (!t.deadline) return false;
+            if (new Date(t.deadline) >= todayStart) return false;
+        }
+        // Date range filter (from datepicker)
         const deadlineDate = t.deadline?.split('T')[0];
         if (dateFrom && deadlineDate && deadlineDate < dateFrom) return false;
         if (dateTo && deadlineDate && deadlineDate > dateTo) return false;
-        // Phase filter
-        if (phaseFilter !== 'all' && t.phase_id !== phaseFilter) return false;
         return true;
     });
 
@@ -233,182 +233,95 @@ export const TasksPage: React.FC = () => {
                 </div>
             </div>
 
-            {/* Section filter tabs */}
+            {/* Unified filter bar */}
             {view === 'kanban' && (
-                <div style={{ display: 'flex', gap: '4px', marginBottom: '12px', background: 'var(--ds-surface-2)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content' }}>
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
                     {([
-                        { key: 'pendentes', label: 'Pendentes', icon: null },
-                        { key: 'all', label: 'Todas', icon: null },
-                        { key: 'today', label: 'Hoje', icon: null },
-                        { key: 'doing', label: 'Em andamento', icon: null },
-                        { key: 'overdue', label: 'Atrasadas', icon: null },
-                    ] as const).map(s => (
+                        { key: 'all', label: 'Todas' },
+                        { key: 'today', label: 'Hoje' },
+                        { key: 'week', label: 'Semana' },
+                        { key: 'month', label: 'Mês' },
+                        { key: 'overdue', label: 'Atrasadas' },
+                    ] as const).map(f => (
                         <button
-                            key={s.key}
-                            onClick={() => setSectionFilter(s.key)}
-                            className={`vt-btn ${sectionFilter === s.key ? 'active' : ''}`}
+                            key={f.key}
+                            onClick={() => { setFilterMode(f.key); setDateFrom(''); setDateTo(''); }}
                             style={{
-                                fontSize: '12px',
-                                position: 'relative',
+                                padding: '5px 12px', fontSize: '12px', fontWeight: 700,
+                                fontFamily: 'inherit', cursor: 'pointer',
+                                background: filterMode === f.key ? 'var(--ds-primary)' : 'var(--ds-surface-2)',
+                                color: filterMode === f.key ? 'var(--ds-primary-text)' : 'var(--ds-text-muted)',
+                                border: filterMode === f.key ? '1px solid var(--ds-primary)' : '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: 'var(--radius-sm)',
+                                transition: 'all 0.15s ease',
                             }}
                         >
-                            {s.label}
-                            {s.key !== 'all' && s.key !== 'pendentes' && (
-                                <span style={{
-                                    marginLeft: '6px', fontSize: '10px', fontWeight: 700,
-                                    background: 'rgba(255,255,255,0.08)', padding: '0 6px',
-                                    borderRadius: '10px',
-                                }}>
-                                    {s.key === 'today' && tasksList.filter(t => {
-                                        if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
-                                        if (!t.deadline) return false;
-                                        const today = new Date().toISOString().split('T')[0];
-                                        return t.deadline.startsWith(today);
-                                    }).length}
-                                    {s.key === 'doing' && tasksList.filter(t => {
-                                        if (t.status === 'cancelled' || t.cancelled_at) return false;
-                                        const phaseName = phases?.find(p => p.id === t.phase_id)?.name;
-                                        return phaseName === 'Em Andamento' || t.status === 'doing';
-                                    }).length}
-                                    {s.key === 'overdue' && tasksList.filter(t => {
-                                        if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
-                                        if (!t.deadline) return false;
-                                        const today = new Date();
-                                        today.setHours(0, 0, 0, 0);
-                                        return new Date(t.deadline) < today;
-                                    }).length}
-                                </span>
-                            )}
-                            {s.key === 'pendentes' && (
-                                <span style={{
-                                    marginLeft: '6px', fontSize: '10px', fontWeight: 700,
-                                    background: 'rgba(255,255,255,0.08)', padding: '0 6px',
-                                    borderRadius: '10px', color: 'var(--ds-primary)',
-                                }}>
+                            {f.label}
+                            {f.key === 'overdue' && (
+                                <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 700, background: 'rgba(255,255,255,0.15)', padding: '0 6px', borderRadius: '10px' }}>
                                     {tasksList.filter(t => {
                                         if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
                                         if (!t.deadline) return false;
-                                        const today = new Date().toISOString().split('T')[0];
-                                        const deadline = new Date(t.deadline);
-                                        const todayStart = new Date(); todayStart.setHours(0,0,0,0);
-                                        return t.deadline.startsWith(today) || deadline < todayStart;
+                                        return new Date(t.deadline) < todayStart;
                                     }).length}
                                 </span>
                             )}
                         </button>
                     ))}
-                </div>
-            )}
-            
-            {/* Date range, phase filter, and period presets */}
-            {view === 'kanban' && (
-                <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
-                    {/* Period presets */}
-                    <div style={{ display: 'flex', gap: '4px' }}>
-                        {(['Hoje', 'Semana', 'Mês'] as const).map(preset => {
-                            const isActive =
-                                (preset === 'Hoje' && dateFrom === todayStr && dateTo === todayStr) ||
-                                (preset === 'Semana' && (() => {
-                                    const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1);
-                                    const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-                                    return dateFrom === mon.toISOString().split('T')[0] && dateTo === sun.toISOString().split('T')[0];
-                                })()) ||
-                                (preset === 'Mês' && (() => {
-                                    const now = new Date();
-                                    const first = new Date(now.getFullYear(), now.getMonth(), 1);
-                                    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                                    return dateFrom === first.toISOString().split('T')[0] && dateTo === last.toISOString().split('T')[0];
-                                })());
-                            return (
-                                <button
-                                    key={preset}
-                                    onClick={() => {
-                                        const now = new Date();
-                                        if (preset === 'Hoje') {
-                                            setDateFrom(todayStr);
-                                            setDateTo(todayStr);
-                                        } else if (preset === 'Semana') {
-                                            const mon = new Date(now); mon.setDate(mon.getDate() - mon.getDay() + 1);
-                                            const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-                                            setDateFrom(mon.toISOString().split('T')[0]);
-                                            setDateTo(sun.toISOString().split('T')[0]);
-                                        } else {
-                                            const first = new Date(now.getFullYear(), now.getMonth(), 1);
-                                            const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
-                                            setDateFrom(first.toISOString().split('T')[0]);
-                                            setDateTo(last.toISOString().split('T')[0]);
-                                        }
-                                    }}
-                                    style={{
-                                        padding: '4px 10px',
-                                        fontSize: '11px',
-                                        fontWeight: 700,
-                                        fontFamily: 'inherit',
-                                        background: isActive ? 'var(--ds-primary)' : 'var(--ds-surface-2)',
-                                        color: isActive ? 'var(--ds-primary-text)' : 'var(--ds-text-muted)',
-                                        border: isActive ? '1px solid var(--ds-primary)' : '1px solid rgba(255,255,255,0.08)',
-                                        borderRadius: 'var(--radius-sm)',
-                                        cursor: 'pointer',
-                                        transition: 'all 0.15s ease',
-                                    }}
-                                >
-                                    {preset}
-                                </button>
-                            );
-                        })}
-                    </div>
-
                     <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.08)' }} />
-
-                    {/* Date from */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>De</label>
-                        <input
-                            type="date"
-                            value={dateFrom}
-                            onChange={e => setDateFrom(e.target.value)}
-                            className="filter-date-input"
-                        />
-                    </div>
-                    {/* Date to */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Até</label>
-                        <input
-                            type="date"
-                            value={dateTo}
-                            onChange={e => setDateTo(e.target.value)}
-                            className="filter-date-input"
-                        />
-                    </div>
-
-                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.08)' }} />
-
-                    {/* Phase filter */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                        <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Fase</label>
-                        <select
-                            value={phaseFilter}
-                            onChange={e => setPhaseFilter(e.target.value)}
-                            className="filter-select"
-                        >
-                            <option value="all">Todas</option>
-                            {(phases || []).map(p => (
-                                <option key={p.id} value={p.id}>{p.name}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    {/* Clear filters */}
-                    {(dateFrom || dateTo || phaseFilter !== 'all') && (
+                    {/* Datepicker icon */}
+                    <div style={{ position: 'relative' }}>
                         <button
-                            onClick={() => { setDateFrom(''); setDateTo(''); setPhaseFilter('all'); }}
+                            onClick={() => setShowDatePicker(!showDatePicker)}
                             style={{
-                                fontSize: '10px', color: 'var(--ds-primary)', background: 'none',
-                                border: 'none', cursor: 'pointer', fontWeight: 700,
-                                fontFamily: 'inherit', textDecoration: 'underline',
-                                textUnderlineOffset: '2px',
+                                padding: '5px 10px', fontSize: '12px', cursor: 'pointer',
+                                background: showDatePicker || dateFrom ? 'var(--ds-primary)' : 'var(--ds-surface-2)',
+                                color: showDatePicker || dateFrom ? 'var(--ds-primary-text)' : 'var(--ds-text-muted)',
+                                border: '1px solid rgba(255,255,255,0.08)',
+                                borderRadius: 'var(--radius-sm)',
+                                display: 'flex', alignItems: 'center', gap: '4px',
+                                fontFamily: 'inherit', fontWeight: 700,
+                                transition: 'all 0.15s ease',
                             }}
+                            title="Filtrar por intervalo de datas"
                         >
+                            <CalendarIcon size={14} />
+                            {dateFrom ? `${dateFrom.split('-').slice(1).join('/')} - ${dateTo?.split('-').slice(1).join('/')}` : 'Período'}
+                        </button>
+                        {showDatePicker && (
+                            <div style={{
+                                position: 'absolute', top: '100%', left: 0, marginTop: '4px',
+                                padding: '12px', background: 'var(--ds-surface)', borderRadius: 'var(--radius-md)',
+                                border: '1px solid var(--ds-border)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
+                                zIndex: 100, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px',
+                            }}>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)' }}>De</label>
+                                    <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setFilterMode('all'); }}
+                                        style={{ padding: '4px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface-2)', color: 'var(--ds-text)' }} />
+                                </div>
+                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+                                    <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)' }}>Até</label>
+                                    <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setFilterMode('all'); }}
+                                        style={{ padding: '4px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface-2)', color: 'var(--ds-text)' }} />
+                                </div>
+                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                    <button onClick={() => { setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
+                                        style={{ padding: '4px 10px', fontSize: '11px', background: 'none', border: '1px solid var(--ds-border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--ds-text-muted)' }}>
+                                        Limpar
+                                    </button>
+                                    <button onClick={() => setShowDatePicker(false)}
+                                        style={{ padding: '4px 10px', fontSize: '11px', background: 'var(--ds-primary)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--ds-primary-text)', fontWeight: 700 }}>
+                                        OK
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                    {/* Clear all filters */}
+                    {(filterMode !== 'all' || dateFrom) && (
+                        <button onClick={() => { setFilterMode('all'); setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
+                            style={{ fontSize: '10px', color: 'var(--ds-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
                             Limpar
                         </button>
                     )}
@@ -424,10 +337,10 @@ export const TasksPage: React.FC = () => {
                                     <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
                                 </svg>
                                 <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--ds-text)' }}>
-                                    {sectionFilter !== 'all' ? 'Nenhuma tarefa encontrada' : 'Nenhuma tarefa criada'}
+                                    {filterMode !== 'all' ? 'Nenhuma tarefa encontrada' : 'Nenhuma tarefa criada'}
                                 </h3>
                                 <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px', marginBottom: '20px' }}>
-                                    {sectionFilter !== 'all' ? 'Tente alterar o filtro ou criar uma nova tarefa.' : 'Comece organizando suas tarefas operacionais por empresa e fase.'}
+                                    {filterMode !== 'all' ? 'Tente alterar o filtro ou criar uma nova tarefa.' : 'Comece organizando suas tarefas operacionais por empresa e fase.'}
                                 </p>
                                 <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
                                     <Plus size={18} /> Criar Primeira Tarefa
@@ -435,7 +348,7 @@ export const TasksPage: React.FC = () => {
                             </div>
                         ) : (
                             <DragDropContext onDragEnd={handleDragEnd}>
-                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} onFinalize={(id) => {
+                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} columnSearch={columnSearch} setColumnSearch={setColumnSearch} onFinalize={(id) => {
                                     if (phases && phases.length > 0) {
                                         updateTaskStatus.mutate({ id, phase_id: doneColumnId, status: 'done' });
                                     } else {
@@ -595,7 +508,7 @@ export const TasksPage: React.FC = () => {
     );
 };
 
-const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string, onFinalize?: (id: string) => void, onCancel?: (id: string) => void }> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize, onCancel }) => {
+const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string, onFinalize?: (id: string) => void, onCancel?: (id: string) => void, columnSearch: Record<string, string>, setColumnSearch: React.Dispatch<React.SetStateAction<Record<string, string>>> }> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize, onCancel, columnSearch, setColumnSearch }) => {
     const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
     const columns = sortedPhases.length > 0 ? sortedPhases.map(p => ({
         id: p.id,
@@ -663,7 +576,7 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                             ref={provided.innerRef}
                             className={`kanban-column ${snapshot.isDraggingOver ? 'kanban-column--dragging-over' : ''}`}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '20px', alignItems: 'center' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
                                 <h3 style={{ fontSize: '11px', fontWeight: 800, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', gap: '8px', alignItems: 'center' }}>
                                     <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.color }} />
                                     {col.title}
@@ -672,9 +585,27 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                     {tasks.filter(t => getTaskStatus(t) === col.id).length}
                                 </span>
                             </div>
-                            
+                            {/* Column search */}
+                            <div style={{ marginBottom: '12px' }}>
+                                <input
+                                    type="text"
+                                    value={columnSearch[col.id] || ''}
+                                    onChange={e => setColumnSearch(prev => ({ ...prev, [col.id]: e.target.value }))}
+                                    placeholder="Filtrar cards..."
+                                    style={{
+                                        width: '100%', padding: '6px 10px', fontSize: '12px',
+                                        borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)',
+                                        background: 'var(--ds-surface-2)', color: 'var(--ds-text)',
+                                        fontFamily: 'inherit', boxSizing: 'border-box',
+                                    }}
+                                />
+                            </div>
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
-                                {sortTasksByUrgency(tasks.filter(t => getTaskStatus(t) === col.id)).map((task, index) => {
+                                {sortTasksByUrgency(tasks.filter(t => getTaskStatus(t) === col.id).filter(t => {
+                                    const q = (columnSearch[col.id] || '').toLowerCase();
+                                    if (!q) return true;
+                                    return t.title.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q);
+                                })).map((task, index) => {
                                     const client = getClient(task.client_id);
                                     return (
                                         <Draggable key={task.id} draggableId={task.id} index={index}>

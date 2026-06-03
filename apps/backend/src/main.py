@@ -21,6 +21,7 @@ from src.modules.payments.router import router as payments_router
 from src.modules.notifications.router import router as notifications_router
 from src.modules.companies.router import router as companies_router
 from src.modules.calendar.router import router as calendar_router
+from src.modules.feedback.router import router as feedback_router
 
 
 def create_app() -> FastAPI:
@@ -83,6 +84,7 @@ def create_app() -> FastAPI:
     app.include_router(notifications_router)
     app.include_router(companies_router)
     app.include_router(calendar_router)
+    app.include_router(feedback_router)
 
     os.makedirs("storage/avatars", exist_ok=True)
     app.mount("/avatars", StaticFiles(directory="storage/avatars"), name="avatars")

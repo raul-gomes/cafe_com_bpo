@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getClients, ClientData } from '../../api/clients';
 import logoSide from '../../assets/logo-side.png';
 import { ModalNosAjude } from './ModalNosAjude';
+import { ModalReportarErro } from './ModalReportarErro';
 
 interface PanelSidebarProps {
   isOpen: boolean;
@@ -14,36 +14,12 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const [clients, setClients] = useState<ClientData[]>([]);
-  const [loadingClients, setLoadingClients] = useState(true);
-  const [activeCompanyId, setActiveCompanyId] = useState<string | null>(() => {
-    return localStorage.getItem('activeCompanyId');
-  });
   const [showDonateModal, setShowDonateModal] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const initials = user?.name
     ? user.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
     : 'U';
-
-  const activeCompany = clients.find(c => c.id === activeCompanyId) || clients[0] || null;
-
-  useEffect(() => {
-    const loadClients = async () => {
-      try {
-        setLoadingClients(true);
-        const data = await getClients();
-        setClients(data);
-        if (data.length > 0 && !activeCompanyId) {
-          setActiveCompanyId(data[0].id);
-        }
-      } catch (err) {
-        console.error('Erro ao carregar clientes:', err);
-      } finally {
-        setLoadingClients(false);
-      }
-    };
-    loadClients();
-  }, [activeCompanyId]);
 
   const handleNav = (path: string) => {
     navigate(path);
@@ -72,21 +48,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
           <img src={logoSide} alt="Café com BPO" style={{ height: '50px', width: 'auto' }} />
         </div>
 
-        <div 
-          className="panel-sidebar__company-info"
-          onClick={() => handleNav('/painel/empresas')}
-          style={{ cursor: 'pointer', padding: '12px 16px', margin: '0 12px', borderRadius: 'var(--radius-md)', background: 'var(--ds-surface-1)', display: 'flex', alignItems: 'center', gap: '10px' }}
-        >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ds-primary)', flexShrink: 0 }}>
-            <path d="M3 21h18M3 10h18M3 7l9-4 9 4M4 10v11M20 10v11M8 14v3M12 14v3M16 14v3" />
-          </svg>
-          <span style={{ fontSize: '13px', fontWeight: 600, color: 'var(--ds-text)' }}>
-            {loadingClients ? 'Carregando...' : `${activeCompany?.name || 'Todos os Clientes'}`}
-          </span>
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" style={{ color: 'var(--ds-text-muted)', marginLeft: 'auto' }}>
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
-        </div>
+        <div className="panel-sidebar__divider" />
 
         <div className="panel-sidebar__profile">
           <div 
@@ -193,15 +155,23 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
               Fórum da Comunidade
             </button>
           </nav>
+        </div>
 
-          <div className="panel-sidebar__donate-section">
-            <button className="panel-sidebar__donate-btn" onClick={() => setShowDonateModal(true)}>
-              <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-              </svg>
-              Nos Ajude
-            </button>
-          </div>
+        <div className="panel-sidebar__donate-section">
+          <button className="panel-sidebar__donate-btn" onClick={() => setShowReportModal(true)}>
+            <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+              <line x1="12" y1="9" x2="12" y2="13" />
+              <line x1="12" y1="17" x2="12.01" y2="17" />
+            </svg>
+            Reportar erro
+          </button>
+          <button className="panel-sidebar__donate-btn" onClick={() => setShowDonateModal(true)}>
+            <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
+            </svg>
+            Nos Ajude
+          </button>
         </div>
 
         <div className="panel-sidebar__divider" />
@@ -215,48 +185,12 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose }) =
             </svg>
             Sair da conta
           </button>
-          <button
-            className="panel-sidebar__logout-btn"
-            onClick={() => {
-              const info = [
-                '📧 Email: ' + (user?.email || '—'),
-                '👤 Nome: ' + (user?.name || '—'),
-                '🏢 Empresa: ' + (user?.company || '—'),
-                '🆔 ID: ' + (user?.id || '—'),
-                '📅 Conta criada: ' + (user?.created_at ? new Date(user.created_at).toLocaleDateString('pt-BR') : '—'),
-              ];
-              alert('📋 Informações do Sistema\n\n' + info.join('\n'));
-            }}
-            title="Mostrar informações do sistema"
-            aria-label="Informações do sistema"
-            style={{ fontSize: '11px', padding: '8px', justifyContent: 'center', opacity: 0.5 }}
-          >
-            <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
-              <circle cx="12" cy="12" r="10" />
-              <line x1="12" y1="16" x2="12" y2="12" />
-              <line x1="12" y1="8" x2="12.01" y2="8" />
-            </svg>
-            Info
-          </button>
-          <button
-            className="panel-sidebar__logout-btn"
-            onClick={() => alert('Nenhum erro registrado no momento.')}
-            title="Exibir erros do sistema"
-            aria-label="Erros"
-            style={{ fontSize: '11px', padding: '8px', justifyContent: 'center', opacity: 0.5 }}
-          >
-            <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" style={{ width: '14px', height: '14px' }}>
-              <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-              <line x1="12" y1="9" x2="12" y2="13" />
-              <line x1="12" y1="17" x2="12.01" y2="17" />
-            </svg>
-            Erros
-          </button>
           <div className="panel-sidebar__footer-copy">Café com BPO 2026</div>
         </div>
       </aside>
 
       <ModalNosAjude isOpen={showDonateModal} onClose={() => setShowDonateModal(false)} />
+      <ModalReportarErro isOpen={showReportModal} onClose={() => setShowReportModal(false)} />
     </>
   );
 };

@@ -49,6 +49,9 @@ class Settings(BaseSettings):
     # Cron / Scheduler
     cron_secret: str = ""
 
+    # Support / Feedback
+    support_email: str = "cafe@cafecombpo.com.br"
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )

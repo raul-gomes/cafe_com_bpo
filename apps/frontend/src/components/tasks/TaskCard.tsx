@@ -193,6 +193,24 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
       </div>
 
+      {/* Description */}
+      {task.description && (
+        <div style={{
+          fontSize: '12px',
+          color: 'var(--ds-text-muted)',
+          lineHeight: 1.4,
+          marginBottom: '8px',
+          display: '-webkit-box',
+          WebkitLineClamp: 2,
+          WebkitBoxOrient: 'vertical',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'pre-wrap',
+        }}>
+          {task.description}
+        </div>
+      )}
+
       {/* Line 3: Overdue badge + Deadline */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>

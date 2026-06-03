@@ -350,6 +350,14 @@ class TaskService:
         result = []
         for tmpl in templates:
             activities = self.repository.get_activities_by_template(tmpl.id)
+            # Lookup routine type info
+            rt_name = None
+            rt_color = None
+            if tmpl.routine_type_id:
+                rt = self.repository.get_routine_type(tmpl.routine_type_id, user_id)
+                if rt:
+                    rt_name = rt.name
+                    rt_color = rt.color
             result.append(
                 ActivityTemplateListItem(
                     id=tmpl.id,
@@ -357,12 +365,19 @@ class TaskService:
                     description=tmpl.description,
                     process_type=tmpl.process_type,
                     recurrence=tmpl.recurrence,
+                    weekday_mask=tmpl.weekday_mask,
+                    due_day=tmpl.due_day,
+                    due_month=tmpl.due_month,
+                    due_days_from_start=tmpl.due_days_from_start,
                     due_date=tmpl.due_date,
                     recurrence_end_date=tmpl.recurrence_end_date,
                     is_active=tmpl.is_active,
                     is_overdue=self._is_template_overdue(tmpl),
                     days_overdue=self._compute_days_overdue(tmpl),
                     activity_count=len(activities),
+                    routine_type_id=tmpl.routine_type_id,
+                    routine_type_name=rt_name,
+                    routine_type_color=rt_color,
                     created_at=tmpl.created_at,
                     updated_at=tmpl.updated_at,
                 )
@@ -402,6 +417,13 @@ class TaskService:
         if not tmpl:
             return None
         activities = self.repository.get_activities_by_template(template_id)
+        rt_name = None
+        rt_color = None
+        if tmpl.routine_type_id:
+            rt = self.repository.get_routine_type(tmpl.routine_type_id, user_id)
+            if rt:
+                rt_name = rt.name
+                rt_color = rt.color
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
@@ -409,9 +431,16 @@ class TaskService:
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
+            weekday_mask=tmpl.weekday_mask,
+            due_day=tmpl.due_day,
+            due_month=tmpl.due_month,
+            due_days_from_start=tmpl.due_days_from_start,
             due_date=tmpl.due_date,
             recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
+            routine_type_id=tmpl.routine_type_id,
+            routine_type_name=rt_name,
+            routine_type_color=rt_color,
             created_at=tmpl.created_at,
             updated_at=tmpl.updated_at,
             activities=[TemplateActivityResponse.model_validate(a) for a in activities],
@@ -422,6 +451,13 @@ class TaskService:
     ) -> ActivityTemplateResponse:
         tmpl = self.repository.create_template(template_in, user_id)
         log.info(f"📋 Template criado: {tmpl.name} por usuário {user_id}")
+        rt_name = None
+        rt_color = None
+        if tmpl.routine_type_id:
+            rt = self.repository.get_routine_type(tmpl.routine_type_id, user_id)
+            if rt:
+                rt_name = rt.name
+                rt_color = rt.color
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
@@ -429,9 +465,16 @@ class TaskService:
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
+            weekday_mask=tmpl.weekday_mask,
+            due_day=tmpl.due_day,
+            due_month=tmpl.due_month,
+            due_days_from_start=tmpl.due_days_from_start,
             due_date=tmpl.due_date,
             recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
+            routine_type_id=tmpl.routine_type_id,
+            routine_type_name=rt_name,
+            routine_type_color=rt_color,
             created_at=tmpl.created_at,
             updated_at=tmpl.updated_at,
             activities=[],
@@ -445,6 +488,13 @@ class TaskService:
             raise ValueError(f"Template {template_id} not found")
         updated = self.repository.update_template(tmpl, template_in)
         activities = self.repository.get_activities_by_template(template_id)
+        rt_name = None
+        rt_color = None
+        if updated.routine_type_id:
+            rt = self.repository.get_routine_type(updated.routine_type_id, user_id)
+            if rt:
+                rt_name = rt.name
+                rt_color = rt.color
         return ActivityTemplateResponse(
             id=updated.id,
             user_id=updated.user_id,
@@ -452,9 +502,16 @@ class TaskService:
             description=updated.description,
             process_type=updated.process_type,
             recurrence=updated.recurrence,
+            weekday_mask=updated.weekday_mask,
+            due_day=updated.due_day,
+            due_month=updated.due_month,
+            due_days_from_start=updated.due_days_from_start,
             due_date=updated.due_date,
             recurrence_end_date=updated.recurrence_end_date,
             is_active=updated.is_active,
+            routine_type_id=updated.routine_type_id,
+            routine_type_name=rt_name,
+            routine_type_color=rt_color,
             created_at=updated.created_at,
             updated_at=updated.updated_at,
             activities=[TemplateActivityResponse.model_validate(a) for a in activities],
@@ -547,7 +604,7 @@ class TaskService:
         # Generate tasks for each activity
         generated_tasks = []
         for act in activities:
-            deadline = self._calculate_activity_deadline(act, assignment.start_date)
+            deadline = self._calculate_activity_deadline(act, assignment.start_date, tmpl)
             task_data = TaskCreate(
                 title=act.name,
                 description=act.description,
@@ -612,6 +669,12 @@ class TaskService:
         # ── due_days mode (days after start) ──────────────────────
         if activity.due_days is not None:
             deadline = base + timedelta(days=activity.due_days)
+            deadline = deadline.replace(hour=18, minute=0, second=0, microsecond=0)
+            return next_business_day(deadline)
+
+        # ── due_days_from_start mode (template-level, for "once") ─
+        if tmpl is not None and tmpl.due_days_from_start is not None:
+            deadline = base + timedelta(days=tmpl.due_days_from_start)
             deadline = deadline.replace(hour=18, minute=0, second=0, microsecond=0)
             return next_business_day(deadline)
 

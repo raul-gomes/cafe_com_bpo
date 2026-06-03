@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, X, Edit2, GripVertical } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
@@ -58,6 +58,79 @@ export const TemplateDetailPage: React.FC = () => {
   const [editPriority, setEditPriority] = useState('medium');
   const [editHours, setEditHours] = useState<number | ''>('');
   const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [showConfig, setShowConfig] = useState(false);
+  const [cfgDescription, setCfgDescription] = useState('');
+  const [cfgDueDay, setCfgDueDay] = useState<number | ''>('');
+  const [cfgDueMonth, setCfgDueMonth] = useState<number | ''>('');
+  const [cfgDueDaysFromStart, setCfgDueDaysFromStart] = useState<number | ''>('');
+  const [cfgWeekdays, setCfgWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [cfgRecurrence, setCfgRecurrence] = useState('monthly');
+  const [cfgProcessType, setCfgProcessType] = useState('');
+  const [cfgRoutineTypeId, setCfgRoutineTypeId] = useState('');
+
+  useEffect(() => {
+    if (template) {
+      setCfgDescription(template.description || '');
+      setCfgDueDay(template.due_day ?? '');
+      setCfgDueMonth(template.due_month ?? '');
+      setCfgDueDaysFromStart(template.due_days_from_start ?? '');
+      if (template.weekday_mask) {
+        setCfgWeekdays(template.weekday_mask.split(',').map(Number));
+      } else {
+        setCfgWeekdays([1, 2, 3, 4, 5]);
+      }
+      setCfgRecurrence(template.recurrence);
+      setCfgProcessType(template.process_type || '');
+      setCfgRoutineTypeId(template.routine_type_id || '');
+    }
+  }, [template]);
+
+  const WEEKDAY_LABELS = [
+    { value: 1, label: 'Seg' },
+    { value: 2, label: 'Ter' },
+    { value: 3, label: 'Qua' },
+    { value: 4, label: 'Qui' },
+    { value: 5, label: 'Sex' },
+  ];
+
+  const MONTH_OPTIONS = [
+    { value: 1, label: 'Janeiro' }, { value: 2, label: 'Fevereiro' },
+    { value: 3, label: 'Março' }, { value: 4, label: 'Abril' },
+    { value: 5, label: 'Maio' }, { value: 6, label: 'Junho' },
+    { value: 7, label: 'Julho' }, { value: 8, label: 'Agosto' },
+    { value: 9, label: 'Setembro' }, { value: 10, label: 'Outubro' },
+    { value: 11, label: 'Novembro' }, { value: 12, label: 'Dezembro' },
+  ];
+
+  const toggleWeekday = (day: number) => {
+    setCfgWeekdays(prev =>
+      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+    );
+  };
+
+  const saveConfig = async () => {
+    const payload: Record<string, unknown> = {
+      id: id!,
+      description: cfgDescription.trim() || undefined,
+      process_type: cfgProcessType || undefined,
+      routine_type_id: cfgRoutineTypeId || undefined,
+    };
+    if (cfgRecurrence === 'once') {
+      payload.due_days_from_start = cfgDueDaysFromStart === '' ? undefined : Number(cfgDueDaysFromStart);
+    }
+    if (cfgRecurrence === 'weekly') {
+      payload.weekday_mask = cfgWeekdays.join(',');
+    }
+    if (cfgRecurrence === 'monthly') {
+      payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
+    }
+    if (cfgRecurrence === 'yearly') {
+      payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
+      payload.due_month = cfgDueMonth === '' ? undefined : Number(cfgDueMonth);
+    }
+    await updateTemplate.mutateAsync(payload as any);
+    setShowConfig(false);
+  };
 
   const saveName = async () => {
     if (!nameValue.trim()) return;
@@ -194,27 +267,187 @@ export const TemplateDetailPage: React.FC = () => {
               <span style={{ fontSize: '13px', color: 'var(--ds-text-muted)' }}>{template.description}</span>
             )}
           </div>
-          {/* Routine type selector */}
-          <div style={{ marginTop: '12px' }}>
-            <select
-              value={template.routine_type_id || ''}
-              onChange={async (e) => {
-                await updateTemplate.mutateAsync({
-                  id: id!,
-                  routine_type_id: e.target.value || undefined,
-                });
-              }}
-              style={{ padding: '6px 12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px' }}
-            >
-              <option value="">Sem tipo</option>
-              {routineTypes?.map((rt) => (
-                <option key={rt.id} value={rt.id}>
-                  {rt.name}
-                </option>
-              ))}
-            </select>
-          </div>
+          {/* Recurrence details — always visible */}
+          {template.recurrence === 'once' && template.due_days_from_start && (
+            <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+              <span>Prazo: <strong>{template.due_days_from_start} dias</strong> após o start</span>
+            </div>
+          )}
+          {template.recurrence === 'weekly' && template.weekday_mask && (
+            <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Dias: <strong>{template.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}</strong></span>
+            </div>
+          )}
+          {template.recurrence === 'monthly' && template.due_day && (
+            <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Vencimento: <strong>dia {template.due_day}</strong> de cada mês</span>
+            </div>
+          )}
+          {template.recurrence === 'yearly' && template.due_day && (
+            <div style={{ marginTop: '10px', fontSize: '13px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+              <span>Vencimento: <strong>dia {template.due_day}/{template.due_month}</strong> anualmente</span>
+            </div>
+          )}
         </div>
+      </div>
+
+      {/* Template Config */}
+      <div className="ds-card" style={{ padding: '20px', marginBottom: '24px' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Configurações da Rotina</h3>
+          <button className="ds-btn ds-btn-sm" onClick={() => setShowConfig(!showConfig)} style={{ border: '1px solid var(--ds-border)' }}>
+            {showConfig ? 'Cancelar' : <><Edit2 size={14} /> Editar</>}
+          </button>
+        </div>
+        {showConfig ? (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            <div>
+              <label style={labelStyle}>Descrição</label>
+              <textarea
+                value={cfgDescription}
+                onChange={(e) => setCfgDescription(e.target.value)}
+                placeholder="Descrição da rotina..."
+                rows={2}
+                style={{ ...inputStyle, resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+            <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+              <div>
+                <label style={labelStyle}>Tipo de Processo</label>
+                <select value={cfgProcessType} onChange={(e) => setCfgProcessType(e.target.value)} style={inputStyle}>
+                  <option value="">Selecione</option>
+                  {Object.entries(PROCESS_TYPE_LABELS).map(([k, v]) => (
+                    <option key={k} value={k}>{v}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Tipo de Rotina</label>
+                <select value={cfgRoutineTypeId} onChange={(e) => setCfgRoutineTypeId(e.target.value)} style={inputStyle}>
+                  <option value="">Sem tipo</option>
+                  {routineTypes?.map(rt => (
+                    <option key={rt.id} value={rt.id}>
+                      {rt.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            {cfgRecurrence === 'once' && (
+              <div>
+                <label style={labelStyle}>Dias para execução</label>
+                <input
+                  type="number" min={1}
+                  value={cfgDueDaysFromStart}
+                  onChange={(e) => setCfgDueDaysFromStart(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="Ex: 30"
+                  style={{ width: '120px', ...inputStyle }}
+                />
+              </div>
+            )}
+            {cfgRecurrence === 'weekly' && (
+              <div>
+                <label style={labelStyle}>Dias da semana</label>
+                <div style={{ display: 'flex', gap: '6px', paddingTop: '4px' }}>
+                  {WEEKDAY_LABELS.map(({ value, label }) => (
+                    <label key={value} style={{
+                      display: 'flex', alignItems: 'center', gap: '4px',
+                      padding: '6px 10px', borderRadius: 'var(--radius-sm)',
+                      background: cfgWeekdays.includes(value) ? 'var(--ds-primary-low)' : 'var(--ds-surface-2)',
+                      border: `1px solid ${cfgWeekdays.includes(value) ? 'var(--ds-primary)' : 'var(--ds-border)'}`,
+                      cursor: 'pointer', fontSize: '13px', fontWeight: 600,
+                      color: cfgWeekdays.includes(value) ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
+                      transition: 'all 0.15s',
+                    }}>
+                      <input type="checkbox" checked={cfgWeekdays.includes(value)} onChange={() => toggleWeekday(value)} style={{ display: 'none' }} />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+            {cfgRecurrence === 'monthly' && (
+              <div>
+                <label style={labelStyle}>Dia do vencimento</label>
+                <input
+                  type="number" min={1} max={31}
+                  value={cfgDueDay}
+                  onChange={(e) => setCfgDueDay(e.target.value === '' ? '' : Number(e.target.value))}
+                  placeholder="Ex: 15"
+                  style={{ width: '100px', ...inputStyle }}
+                />
+              </div>
+            )}
+            {cfgRecurrence === 'yearly' && (
+              <div style={{ display: 'flex', gap: '12px' }}>
+                <div>
+                  <label style={labelStyle}>Dia</label>
+                  <input
+                    type="number" min={1} max={31}
+                    value={cfgDueDay}
+                    onChange={(e) => setCfgDueDay(e.target.value === '' ? '' : Number(e.target.value))}
+                    placeholder="Ex: 15"
+                    style={{ width: '80px', ...inputStyle }}
+                  />
+                </div>
+                <div>
+                  <label style={labelStyle}>Mês</label>
+                  <select value={cfgDueMonth} onChange={(e) => setCfgDueMonth(e.target.value === '' ? '' : Number(e.target.value))} style={inputStyle}>
+                    <option value="">Selecione</option>
+                    {MONTH_OPTIONS.map(m => (
+                      <option key={m.value} value={m.value}>{m.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+            <div>
+              <button className="ds-btn ds-btn-primary ds-btn-sm" onClick={saveConfig} disabled={updateTemplate.isPending}>
+                Salvar Configurações
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center', fontSize: '13px' }}>
+            {template.description && (
+              <span style={{ color: 'var(--ds-text-muted)' }}>{template.description}</span>
+            )}
+            <span style={{ padding: '2px 8px', borderRadius: '10px', background: 'rgba(59,130,246,0.1)', color: 'var(--ds-primary)', fontWeight: 700 }}>
+              {PROCESS_TYPE_LABELS[template.process_type || ''] || template.process_type || 'Sem tipo'}
+            </span>
+            {template.routine_type_id && routineTypes && (
+              <span style={{ display: 'flex', alignItems: 'center', gap: '4px', padding: '2px 8px', borderRadius: '10px', background: 'rgba(16,185,129,0.1)', color: '#10b981', fontWeight: 600 }}>
+                {(() => {
+                  const rt = routineTypes.find(r => r.id === template.routine_type_id);
+                  return rt ? <>{rt.name}</> : null;
+                })()}
+              </span>
+            )}
+            <span style={{ color: 'var(--ds-text-muted)' }}>
+              {RECURRENCE_LABELS[template.recurrence] || template.recurrence}
+            </span>
+            {template.recurrence === 'weekly' && template.weekday_mask && (
+              <span style={{ color: 'var(--ds-text-muted)' }}>
+                {template.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}
+              </span>
+            )}
+            {template.recurrence === 'monthly' && template.due_day && (
+              <span style={{ color: 'var(--ds-text-muted)' }}>Dia {template.due_day}</span>
+            )}
+            {template.recurrence === 'yearly' && template.due_day && (
+              <span style={{ color: 'var(--ds-text-muted)' }}>
+                {template.due_day}/{template.due_month}
+              </span>
+            )}
+            {template.recurrence === 'once' && template.due_days_from_start && (
+              <span style={{ color: 'var(--ds-text-muted)' }}>{template.due_days_from_start} dias p/ execução</span>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Activities */}
