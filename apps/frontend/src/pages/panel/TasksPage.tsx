@@ -10,18 +10,19 @@ import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 
-type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_hours?: number; priority: string; process_type?: string; status: string };
-type ConflictTaskItem = { id: string; title: string; time_estimate_hours?: number; deadline?: string };
+type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_minutes?: number; priority: string; process_type?: string; status: string };
+type ConflictTaskItem = { id: string; title: string; time_estimate_minutes?: number; deadline?: string };
 
 export const TasksPage: React.FC = () => {
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
-    const [filterMode, setFilterMode] = useState<'all' | 'today' | 'week' | 'month' | 'overdue'>('all');
+    const [filterMode, setFilterMode] = useState<'all' | 'today' | 'week' | 'month' | 'overdue'>('today');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [showPhaseManager, setShowPhaseManager] = useState(false);
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
+    const [bulkLoading, setBulkLoading] = useState<Record<string, 'completing' | 'cancelling' | null>>({});
     const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask } = useTasks();
     const { data: tasks, isLoading } = useTasksList();
     const { data: phases } = usePhases();
@@ -44,6 +45,36 @@ export const TasksPage: React.FC = () => {
             return data;
         }
     });
+
+    const handleBulkComplete = async (colId: string) => {
+        if (!tasks) return;
+        const colTasks = tasks.filter(t => getTaskStatus(t) === colId);
+        if (colTasks.length === 0) return;
+        if (!confirm(`Concluir todas as ${colTasks.length} tarefas desta fase?`)) return;
+        setBulkLoading(prev => ({ ...prev, [colId]: 'completing' }));
+        try {
+            await Promise.all(colTasks.map(t =>
+                updateTaskStatus.mutateAsync({ id: t.id, phase_id: doneColumnId })
+            ));
+        } finally {
+            setBulkLoading(prev => ({ ...prev, [colId]: null }));
+        }
+    };
+
+    const handleBulkCancel = async (colId: string) => {
+        if (!tasks) return;
+        const colTasks = tasks.filter(t => getTaskStatus(t) === colId);
+        if (colTasks.length === 0) return;
+        if (!confirm(`Cancelar todas as ${colTasks.length} tarefas desta fase?`)) return;
+        setBulkLoading(prev => ({ ...prev, [colId]: 'cancelling' }));
+        try {
+            await Promise.all(colTasks.map(t =>
+                cancelTask.mutateAsync(t.id)
+            ));
+        } finally {
+            setBulkLoading(prev => ({ ...prev, [colId]: null }));
+        }
+    };
 
     const handleDragEnd = (result: any) => {
         if (!result.destination) return;
@@ -121,9 +152,15 @@ export const TasksPage: React.FC = () => {
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
 
+    const isOverdue = (t: TaskResponse) => t.deadline && new Date(t.deadline) < todayStart;
+
     const filteredTasks = tasksList.filter(t => {
         // Hide cancelled tasks by default
         if (t.status === 'cancelled' || t.cancelled_at) return false;
+
+        // Overdue tasks always appear regardless of filter
+        if (isOverdue(t)) return true;
+
         // Filter mode
         if (filterMode === 'today') {
             if (!t.deadline?.startsWith(todayStr)) return false;
@@ -237,10 +274,10 @@ export const TasksPage: React.FC = () => {
             {view === 'kanban' && (
                 <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
                     {([
-                        { key: 'all', label: 'Todas' },
                         { key: 'today', label: 'Hoje' },
                         { key: 'week', label: 'Semana' },
                         { key: 'month', label: 'Mês' },
+                        { key: 'all', label: 'Todas' },
                         { key: 'overdue', label: 'Atrasadas' },
                     ] as const).map(f => (
                         <button
@@ -354,7 +391,7 @@ export const TasksPage: React.FC = () => {
                                     } else {
                                         updateTaskStatus.mutate({ id, status: 'done' });
                                     }
-                                }} onCancel={(id) => cancelTask.mutate(id)} />
+                                }} onCancel={(id) => cancelTask.mutate(id)} handleBulkComplete={handleBulkComplete} handleBulkCancel={handleBulkCancel} bulkLoading={bulkLoading} />
                             </DragDropContext>
                         )
                     ) : view === 'timeline' ? (
@@ -442,8 +479,20 @@ export const TasksPage: React.FC = () => {
                     border-radius: var(--radius-lg);
                     padding: 16px;
                     min-height: calc(100vh - 250px);
+                    max-height: calc(100vh - 200px);
+                    overflow-y: auto;
                     transition: background 0.2s;
                     display: flex; flex-direction: column;
+                }
+                .kanban-column::-webkit-scrollbar {
+                    width: 4px;
+                }
+                .kanban-column::-webkit-scrollbar-track {
+                    background: transparent;
+                }
+                .kanban-column::-webkit-scrollbar-thumb {
+                    background: rgba(255,255,255,0.15);
+                    border-radius: 2px;
                 }
                 .kanban-column--dragging-over {
                     background: rgba(255,255,255,0.04);
@@ -508,7 +557,7 @@ export const TasksPage: React.FC = () => {
     );
 };
 
-const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string, onFinalize?: (id: string) => void, onCancel?: (id: string) => void, columnSearch: Record<string, string>, setColumnSearch: React.Dispatch<React.SetStateAction<Record<string, string>>> }> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize, onCancel, columnSearch, setColumnSearch }) => {
+const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string, onFinalize?: (id: string) => void, onCancel?: (id: string) => void, columnSearch: Record<string, string>, setColumnSearch: React.Dispatch<React.SetStateAction<Record<string, string>>>, handleBulkComplete: (colId: string) => void, handleBulkCancel: (colId: string) => void, bulkLoading: Record<string, 'completing' | 'cancelling' | null> }> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize, onCancel, columnSearch, setColumnSearch, handleBulkComplete, handleBulkCancel, bulkLoading }) => {
     const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
     const columns = sortedPhases.length > 0 ? sortedPhases.map(p => ({
         id: p.id,
@@ -581,9 +630,43 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                     <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.color }} />
                                     {col.title}
                                 </h3>
-                                <span style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-muted)', background: 'var(--ds-surface-2)', padding: '2px 8px', borderRadius: '12px' }}>
-                                    {tasks.filter(t => getTaskStatus(t) === col.id).length}
-                                </span>
+                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                    {tasks.filter(t => getTaskStatus(t) === col.id).length > 0 && (
+                                        <>
+                                            <button
+                                                onClick={() => handleBulkComplete(col.id)}
+                                                disabled={bulkLoading[col.id] === 'completing'}
+                                                title="Concluir todos"
+                                                style={{
+                                                    padding: '2px 6px', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                                                    background: bulkLoading[col.id] === 'completing' ? 'var(--ds-surface-2)' : 'rgba(34,197,94,0.15)',
+                                                    color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)',
+                                                    borderRadius: 'var(--radius-sm)', fontFamily: 'inherit',
+                                                    transition: 'all 0.15s ease', lineHeight: '1',
+                                                }}
+                                            >
+                                                {bulkLoading[col.id] === 'completing' ? '...' : '✓'}
+                                            </button>
+                                            <button
+                                                onClick={() => handleBulkCancel(col.id)}
+                                                disabled={bulkLoading[col.id] === 'cancelling'}
+                                                title="Cancelar todos"
+                                                style={{
+                                                    padding: '2px 6px', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
+                                                    background: bulkLoading[col.id] === 'cancelling' ? 'var(--ds-surface-2)' : 'rgba(239,68,68,0.15)',
+                                                    color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)',
+                                                    borderRadius: 'var(--radius-sm)', fontFamily: 'inherit',
+                                                    transition: 'all 0.15s ease', lineHeight: '1',
+                                                }}
+                                            >
+                                                {bulkLoading[col.id] === 'cancelling' ? '...' : '✕'}
+                                            </button>
+                                        </>
+                                    )}
+                                    <span style={{ marginLeft: tasks.filter(t => getTaskStatus(t) === col.id).length > 0 ? '8px' : '0', fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-muted)', background: 'var(--ds-surface-2)', padding: '2px 8px', borderRadius: '12px' }}>
+                                        {tasks.filter(t => getTaskStatus(t) === col.id).length}
+                                    </span>
+                                </div>
                             </div>
                             {/* Column search */}
                             <div style={{ marginBottom: '12px' }}>
@@ -812,8 +895,8 @@ const TaskTimeline: React.FC<{
                                                 Em andamento
                                             </span>
                                         )}
-                                        {task.time_estimate_hours && (
-                                            <span style={{ fontSize: '10px', color: 'var(--ds-text-muted)', fontWeight: 700 }}>{task.time_estimate_hours}h</span>
+                                        {task.time_estimate_minutes && (
+                                            <span style={{ fontSize: '10px', color: 'var(--ds-text-muted)', fontWeight: 700 }}>{task.time_estimate_minutes}min</span>
                                         )}
                                     </div>
                                 );

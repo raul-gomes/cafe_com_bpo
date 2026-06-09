@@ -168,7 +168,7 @@ export const ClientTimelinePage: React.FC = () => {
                         {task.process_type && (
                           <span style={{ padding: '1px 6px', borderRadius: '4px', background: 'rgba(59,130,246,0.08)', color: 'var(--ds-primary)', fontWeight: 600 }}>{task.process_type}</span>
                         )}
-                        {task.time_estimate_hours && <span>⏱ {task.time_estimate_hours}h</span>}
+                        {task.time_estimate_minutes && <span>⏱ {task.time_estimate_minutes}min</span>}
                       </div>
                     </div>
 

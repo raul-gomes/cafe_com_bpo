@@ -343,7 +343,7 @@ export const EmpresasPage: React.FC = () => {
                         <div style={{ flex: 1 }}>
                           <div style={{ fontWeight: 600, fontSize: '14px' }}>{tmpl.name}</div>
                           <div style={{ fontSize: '12px', color: 'var(--ds-text-muted)' }}>
-                            {tmpl.activity_count} atividades • {tmpl.recurrence === 'once' ? 'Uma só vez' : tmpl.recurrence === 'daily' ? 'Diário' : tmpl.recurrence === 'weekly' ? 'Semanal' : tmpl.recurrence === 'biweekly' ? 'Quinzenal' : tmpl.recurrence === 'monthly' ? 'Mensal' : tmpl.recurrence === 'yearly' ? 'Anual' : tmpl.recurrence}
+                            {tmpl.activity_count} atividades • {tmpl.recurrence === 'once' ? 'Uma só vez' : tmpl.recurrence === 'daily' ? 'Diário' : tmpl.recurrence === 'weekly' ? 'Semanal' : tmpl.recurrence === 'monthly' ? 'Mensal' : tmpl.recurrence === 'yearly' ? 'Anual' : tmpl.recurrence}
                           </div>
                         </div>
                         {isLinked ? (

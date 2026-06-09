@@ -16,7 +16,6 @@ const RECURRENCE_LABELS: Record<string, string> = {
   once: 'Uma só vez',
   daily: 'Diário',
   weekly: 'Semanal',
-  biweekly: 'Quinzenal',
   monthly: 'Mensal',
   yearly: 'Anual',
 };
@@ -145,7 +144,7 @@ export const TemplateDetailPage: React.FC = () => {
       name: newActName.trim(),
       description: newActDescription.trim() || undefined,
       priority: newActPriority,
-      estimated_hours: newActHours === '' ? undefined : Number(newActHours),
+      estimated_minutes: newActHours === '' ? undefined : Number(newActHours),
       order: template?.activities?.length || 0,
     });
     setNewActName('');
@@ -160,7 +159,7 @@ export const TemplateDetailPage: React.FC = () => {
     setEditName(act.name);
     setEditDescription(act.description || '');
     setEditPriority(act.priority || 'medium');
-    setEditHours(act.estimated_hours ?? '');
+    setEditHours(act.estimated_minutes ?? '');
   };
 
   const saveEdit = async () => {
@@ -171,7 +170,7 @@ export const TemplateDetailPage: React.FC = () => {
       name: editName.trim(),
       description: editDescription.trim() || undefined,
       priority: editPriority,
-      estimated_hours: editHours === '' ? undefined : Number(editHours),
+      estimated_minutes: editHours === '' ? undefined : Number(editHours),
     });
     setEditingAct(null);
   };
@@ -480,7 +479,7 @@ export const TemplateDetailPage: React.FC = () => {
                   </select>
                 </div>
                 <div>
-                  <label style={labelStyle}>Hora Estimada</label>
+                  <label style={labelStyle}>Minutos Estimados</label>
                   <input type="number" min={0} value={newActHours} onChange={(e) => setNewActHours(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0"
                     style={{ width: '80px', ...inputStyle }} />
                 </div>
@@ -552,7 +551,7 @@ export const TemplateDetailPage: React.FC = () => {
                         ⏱
                         <input type="number" min={0} value={editHours} onChange={(e) => setEditHours(e.target.value === '' ? '' : Number(e.target.value))}
                           style={{ width: '60px', padding: '6px 10px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface)', color: 'var(--ds-text)', fontSize: '13px', textAlign: 'center' }} />
-                        h
+                        min
                       </div>
                     </div>
                     <textarea
@@ -587,9 +586,9 @@ export const TemplateDetailPage: React.FC = () => {
                               📅 Dia {act.due_day}
                             </span>
                           )}
-                          {act.estimated_hours && (
+                          {act.estimated_minutes && (
                             <span style={{ fontSize: '12px', color: 'var(--ds-text-muted)' }}>
-                              ⏱ {act.estimated_hours}h
+                              ⏱ {act.estimated_minutes}min
                             </span>
                           )}
                         </div>

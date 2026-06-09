@@ -12,7 +12,7 @@ class TaskBase(BaseModel):
     priority: str = "medium"
     process_type: Optional[str] = None
     deadline: Optional[datetime] = None
-    time_estimate_hours: Optional[int] = None
+    time_estimate_minutes: Optional[int] = None
     notes: Optional[str] = None
     phase_id: Optional[UUID] = None
     cancelled_at: Optional[datetime] = None
@@ -31,7 +31,7 @@ class TaskUpdate(BaseModel):
     priority: Optional[str] = None
     process_type: Optional[str] = None
     deadline: Optional[datetime] = None
-    time_estimate_hours: Optional[int] = None
+    time_estimate_minutes: Optional[int] = None
     notes: Optional[str] = None
     phase_id: Optional[UUID] = None
     cancelled_at: Optional[datetime] = None
@@ -103,7 +103,7 @@ class TimelineTaskResponse(BaseModel):
     title: str
     client_id: UUID
     deadline: Optional[datetime] = None
-    time_estimate_hours: Optional[int] = None
+    time_estimate_minutes: Optional[int] = None
     priority: str
     process_type: Optional[str] = None
     status: str
@@ -112,7 +112,7 @@ class TimelineTaskResponse(BaseModel):
 class TimelineDayResponse(BaseModel):
     date: str
     tasks: list[TimelineTaskResponse]
-    total_hours: int
+    total_minutes: int
 
 
 class TimelineResponse(BaseModel):
@@ -122,7 +122,7 @@ class TimelineResponse(BaseModel):
 class ConflictResponse(BaseModel):
     date: str
     tasks: list[dict]
-    total_hours: int
+    total_minutes: int
 
 
 class ConflictsResponse(BaseModel):
@@ -169,7 +169,7 @@ class TemplateActivityBase(BaseModel):
     priority: str = "medium"  # low, medium, high
     due_day: Optional[int] = None  # 1-31, opcional (usa do template se null)
     due_days: Optional[int] = None  # dias após início (alternativa)
-    estimated_hours: Optional[int] = None
+    estimated_minutes: Optional[int] = None
     order: int = 0
     phase_id: Optional[UUID] = None
 
@@ -184,7 +184,7 @@ class TemplateActivityUpdate(BaseModel):
     priority: Optional[str] = None  # low, medium, high
     due_day: Optional[int] = None
     due_days: Optional[int] = None
-    estimated_hours: Optional[int] = None
+    estimated_minutes: Optional[int] = None
     order: Optional[int] = None
     phase_id: Optional[UUID] = None
 
@@ -378,7 +378,7 @@ class ClientTimelineTask(BaseModel):
     priority: str
     process_type: Optional[str] = None
     deadline: Optional[datetime] = None
-    time_estimate_hours: Optional[int] = None
+    time_estimate_minutes: Optional[int] = None
     sla_status: str = "on_time"  # on_time, warning, overdue
     sla_days_used: Optional[int] = None
     sla_days_limit: Optional[int] = None

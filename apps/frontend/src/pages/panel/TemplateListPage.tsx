@@ -8,7 +8,6 @@ const RECURRENCE_LABELS: Record<string, string> = {
   once: 'Uma só vez',
   daily: 'Diário',
   weekly: 'Semanal',
-  biweekly: 'Quinzenal',
   monthly: 'Mensal',
   yearly: 'Anual',
 };

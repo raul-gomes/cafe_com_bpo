@@ -203,10 +203,10 @@ def get_timeline(
 def get_conflicts(
     service: ServiceDep,
     current_user: CurrentUserDep,
-    max_hours: int = 8,
+    max_minutes: int = 480,
 ):
-    """Detecta conflitos de agendamento onde horas estimadas excedem o limite."""
-    return service.detect_conflicts(current_user.id, max_hours)
+    """Detecta conflitos de agendamento onde minutos estimados excedem o limite."""
+    return service.detect_conflicts(current_user.id, max_minutes)
 
 
 # ================================================================
@@ -437,6 +437,31 @@ def run_scheduler_cron(
             detail="X-Cron-Secret inválido.",
         )
     result = service.run_scheduler()
+    return result
+
+
+@router.post("/scheduler/pre-generate")
+def run_scheduler_pre_generate(
+    service: ServiceDep,
+    x_cron_secret: Annotated[str, Header(alias="x-cron-secret")] = "",
+):
+    """Pré-gera tarefas do mês seguinte para rotinas semanais, mensais e anuais.
+
+    Deve ser chamado por cron job no último dia útil de cada mês.
+    Protegido pelo header X-Cron-Secret que deve bater com CRON_SECRET no .env.
+    """
+    settings = get_settings()
+    if not settings.cron_secret:
+        raise HTTPException(
+            status_code=501,
+            detail="Endpoint de cron não configurado. Defina CRON_SECRET no .env.",
+        )
+    if x_cron_secret != settings.cron_secret:
+        raise HTTPException(
+            status_code=401,
+            detail="X-Cron-Secret inválido.",
+        )
+    result = service.run_pre_generate_for_next_month()
     return result
 
 

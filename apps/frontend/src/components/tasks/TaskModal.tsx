@@ -16,7 +16,7 @@ const taskSchema = z.object({
   priority: z.enum(['low', 'medium', 'high']),
   deadline: z.string().optional(),
   phase_id: z.string().uuid().optional().or(z.literal('')),
-  time_estimate_hours: z.number().optional().or(z.literal(0)),
+  time_estimate_minutes: z.number().optional().or(z.literal(0)),
 });
 
 type TaskFormData = z.infer<typeof taskSchema>;
@@ -61,7 +61,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
           priority: task.priority as any,
           deadline: task.deadline ? task.deadline.split('T')[0] : '',
           phase_id: task.phase_id || '',
-          time_estimate_hours: task.time_estimate_hours || 0,
+          time_estimate_minutes: task.time_estimate_minutes || 0,
         });
       } else {
         reset({
@@ -73,7 +73,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
           priority: 'medium',
           deadline: '',
           phase_id: '',
-          time_estimate_hours: 0,
+          time_estimate_minutes: 0,
         });
       }
     }
@@ -90,7 +90,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
         priority: data.priority,
         deadline: data.deadline || undefined,
         phase_id: data.phase_id || undefined,
-        time_estimate_hours: data.time_estimate_hours || undefined,
+        time_estimate_minutes: data.time_estimate_minutes || undefined,
       };
       if (task) {
         await updateTask.mutateAsync({ id: task.id, ...submitData });
@@ -241,9 +241,9 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
             </div>
 
             <div className="ds-form-group">
-              <label className="ds-label">Horas Est.</label>
+              <label className="ds-label">Min. Est.</label>
               <input 
-                {...register('time_estimate_hours', { valueAsNumber: true })}
+                {...register('time_estimate_minutes', { valueAsNumber: true })}
                 type="number"
                 min="0"
                 step="1"

@@ -576,38 +576,195 @@ sudo webhook -hooks /etc/webhook.conf -port 9000 -verbose
 
 ## 9. Cron Job do Scheduler
 
-### 9.1 Endpoint de cron
+A aplicação possui **dois endpoints** de cron, cada um com uma finalidade específica:
 
-O endpoint `POST /api/tasks/scheduler/cron` (acessível via gateway como `https://app.seudominio.com/api/tasks/scheduler/cron`) executa o scheduler para **todos os usuários**.
+| Endpoint | Frequência | O que faz |
+|----------|-----------|-----------|
+| `POST /api/tasks/scheduler/cron` | Diariamente (dias úteis) | Gera tasks **diárias** para o dia atual |
+| `POST /api/tasks/scheduler/pre-generate` | Último dia útil do mês | Pré-gera tasks **semanais, mensais e anuais** para o mês seguinte |
 
-Protegido pelo header `X-Cron-Secret` que deve bater com `CRON_SECRET` do `.env`.
+Ambos são protegidos pelo header `X-Cron-Secret` que deve bater com `CRON_SECRET` do `.env`.
 
-### 9.2 Configurar cron no VPS
+### 9.1 Endpoints de cron
+
+#### 9.1.1 Cron diário — `/api/tasks/scheduler/cron`
+
+Gera tasks com recorrência **diária** para o dia atual. Processa todos os assignments ativos e cria as tasks pendentes que vencem hoje.
+
+**Exemplo de chamada manual:**
+```bash
+curl -X POST https://app.seudominio.com/api/tasks/scheduler/cron \
+  -H "X-Cron-Secret: SUA_CRON_SECRET" \
+  -H "Content-Type: application/json"
+```
+
+**Resposta:**
+```json
+{
+  "assignments_processed": 12,
+  "tasks_generated": 45,
+  "tasks_skipped": 3,
+  "errors": []
+}
+```
+
+#### 9.1.2 Pré-geração mensal — `/api/tasks/scheduler/pre-generate`
+
+**Deve ser chamado no último dia útil de cada mês.** Gera todas as tasks com recorrência **semanal, mensal e anual** para o mês seguinte.
+
+- **Semanal**: cria tasks para **todos os dias da semana marcados** no mês seguinte
+- **Mensal**: cria uma task no `due_day` do mês seguinte
+- **Anual**: cria uma task se o mês seguinte corresponder ao `due_month`
+
+**Exemplo de chamada manual:**
+```bash
+curl -X POST https://app.seudominio.com/api/tasks/scheduler/pre-generate \
+  -H "X-Cron-Secret: SUA_CRON_SECRET" \
+  -H "Content-Type: application/json"
+```
+
+**Resposta:**
+```json
+{
+  "month": 7,
+  "year": 2026,
+  "assignments_processed": 12,
+  "tasks_generated": 180,
+  "tasks_skipped": 5,
+  "errors": []
+}
+```
+
+### 9.2 Configurar crons no VPS
+
+Edite o crontab do usuário `deploy`:
 
 ```bash
 crontab -e
 ```
 
-Adicione a linha:
+Adicione as linhas abaixo (ajuste o horário conforme necessário):
 
 ```cron
-# Executar scheduler todos os dias úteis às 6h (horário de Brasília)
-0 6 * * 1-5 curl -X POST https://app.seudominio.com/api/tasks/scheduler/cron -H "X-Cron-Secret: SUA_CRON_SECRET" -H "Content-Type: application/json" -s -o /dev/null
+# ─── Café com BPO ──────────────────────────────────────────────
+
+# 1. Scheduler diário — dias úteis às 6h (horário de Brasília = UTC-3)
+#    Gera tasks diárias para o dia atual
+0 9 * * 1-5 curl -X POST https://app.seudominio.com/api/tasks/scheduler/cron -H "X-Cron-Secret: SUA_CRON_SECRET" -H "Content-Type: application/json" -s -o /dev/null
+
+# 2. Pré-geração mensal — último dia útil do mês às 5h
+#    Gera tasks semanais, mensais e anuais para o mês seguinte
+#
+# ⚠️ Como o cron padrão não suporta "último dia útil", usamos um
+#    script shell que verifica se hoje é o último dia útil do mês.
+0 8 28-31 * * /home/deploy/cafe-com-bpo/scripts/cron-pre-generate.sh
 ```
 
-### 9.3 Verificar cron
+> **Explicação dos horários:** O cron roda em UTC (padrão do VPS). Para 6h BRT (UTC-3), configuramos 9h UTC. Ajuste `SUA_CRON_SECRET` pelo valor definido no `.env`.
+
+### 9.3 Script de verificação do último dia útil
+
+Crie o arquivo `/home/deploy/cafe-com-bpo/scripts/cron-pre-generate.sh`:
+
+```bash
+#!/bin/bash
+# Script para executar a pré-geração mensal apenas no último dia útil do mês
+# Usado com: 0 8 28-31 * * /caminho/para/este/script.sh
+
+# Verificar se hoje é o último dia útil do mês
+TODAY=$(date +%d)
+TOMORROW=$(date +%d -d "+1 day")
+
+# Se amanhã for dia 1, hoje é o último dia do mês
+if [ "$TOMORROW" != "01" ]; then
+    exit 0
+fi
+
+# Verificar se hoje é dia útil (seg-sex)
+DOW=$(date +%u)  # 1=seg, 7=dom
+if [ "$DOW" -ge 6 ]; then
+    exit 0
+fi
+
+# Se for sexta e o último dia cair no sábado/domingo,
+# precisamos verificar se hoje é sexta E amanhã (sábado) + dias até segunda > 1
+# Exemplo: mês termina no sábado → última sexta é o último dia útil
+if [ "$DOW" -eq 5 ]; then
+    # Hoje é sexta. Verificar se segunda é dia 3+ (significa que sábado era dia 1)
+    MONDAY=$(date +%d -d "+3 day")
+    if [ "$MONDAY" -le 2 ]; then  # segunda é dia 1 ou 2 → sábado era último dia
+        # Último dia do mês é sábado/domingo, então sexta já é o último dia útil
+        :  # continua execução
+    fi
+fi
+
+# Se chegou aqui, hoje é o último dia útil do mês
+curl -X POST https://app.seudominio.com/api/tasks/scheduler/pre-generate \
+  -H "X-Cron-Secret: SUA_CRON_SECRET" \
+  -H "Content-Type: application/json" \
+  -s -o /dev/null
+
+echo "[$(date)] Pré-geração do mês seguinte concluída."
+```
+
+```bash
+chmod +x /home/deploy/cafe-com-bpo/scripts/cron-pre-generate.sh
+```
+
+### 9.4 Alternativa: agendar via crontab.guru
+
+Se preferir uma solução mais simples, você pode agendar o pre-generate para **todo dia 1º de cada mês** (assumindo que o banco tem tarefas do mês anterior já concluídas):
+
+```cron
+# Executar no dia 1 de cada mês às 5h
+0 8 1 * * curl -X POST https://app.seudominio.com/api/tasks/scheduler/pre-generate -H "X-Cron-Secret: SUA_CRON_SECRET" -H "Content-Type: application/json" -s -o /dev/null
+```
+
+> ⚠️ Essa alternativa cria as tasks para o mês corrente no primeiro dia. Não é ideal porque tasks do mês anterior ainda podem estar pendentes, mas funciona como fallback.
+
+### 9.5 Verificar crons
 
 ```bash
 crontab -l
 ```
 
-### 9.4 Logs do cron
+### 9.6 Logs dos crons
 
 O cron envia saída por email local. Para ver:
 
 ```bash
 grep CRON /var/log/syslog
 ```
+
+Para logs mais detalhados, redirecione a saída do script para um arquivo:
+
+```cron
+0 8 28-31 * * /home/deploy/cafe-com-bpo/scripts/cron-pre-generate.sh >> /home/deploy/cafe-com-bpo/logs/cron-pre-generate.log 2>&1
+```
+
+Crie o diretório de logs:
+
+```bash
+mkdir -p /home/deploy/cafe-com-bpo/logs
+```
+
+### 9.7 Testar endpoints manualmente
+
+Antes de confiar no cron, teste cada endpoint manualmente:
+
+```bash
+# Testar cron diário
+curl -X POST https://app.seudominio.com/api/tasks/scheduler/cron \
+  -H "X-Cron-Secret: SUA_CRON_SECRET" \
+  -H "Content-Type: application/json" | jq .
+
+# Testar pré-geração
+curl -X POST https://app.seudominio.com/api/tasks/scheduler/pre-generate \
+  -H "X-Cron-Secret: SUA_CRON_SECRET" \
+  -H "Content-Type: application/json" | jq .
+```
+
+> 💡 Instale o `jq` para formatar a saída JSON: `sudo apt install -y jq`
 
 ---
 
@@ -798,17 +955,31 @@ ls -lt /home/deploy/backups/ | head -5
 # Verificar se o cron está ativo
 crontab -l
 
-# Testar endpoint manualmente
-curl -X POST https://app.seudominio.com/api/tasks/scheduler/cron \
-  -H "X-Cron-Secret: SUA_CRON_SECRET" \
-  -H "Content-Type: application/json"
-
 # Verificar se CRON_SECRET está no .env
 grep CRON_SECRET /home/deploy/cafe-com-bpo/.env
 
 # Verificar health check
 curl https://app.seudominio.com/api/health
+
+# Testar cron diário manualmente
+curl -X POST https://app.seudominio.com/api/tasks/scheduler/cron \
+  -H "X-Cron-Secret: SUA_CRON_SECRET" \
+  -H "Content-Type: application/json" | jq .
+
+# Testar pré-geração mensal manualmente
+curl -X POST https://app.seudominio.com/api/tasks/scheduler/pre-generate \
+  -H "X-Cron-Secret: SUA_CRON_SECRET" \
+  -H "Content-Type: application/json" | jq .
 ```
+
+**Tasks diárias não aparecem?**
+- Verifique se o template tem `recurrence: "daily"` 
+- O scheduler diário só gera em dias úteis (seg-sex)
+
+**Tasks semanais/mensais/anuais não aparecem?**
+- Verifique se a pré-geração mensal foi executada (cheque os logs em `/home/deploy/cafe-com-bpo/logs/cron-pre-generate.log`)
+- A pré-geração só cria tasks para o **mês seguinte** — se o script rodar hoje, as tasks aparecerão com deadline no mês que vem
+- Templates com `recurrence: "once"` nunca são gerados pelo scheduler (são criados manualmente)
 
 ### 13.6 Erro 502 Bad Gateway
 

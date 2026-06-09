@@ -109,7 +109,10 @@
 }
 
 .panel-sidebar__donate-section {
-  padding: 4px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 12px;
 }
 
 .panel-sidebar__divider {
@@ -506,7 +509,7 @@
 /* Sidebar Footer */
 .panel-sidebar__footer {
   margin-top: auto;
-  padding: 12px;
+  padding: 16px;
   border-top: 1px solid rgba(255, 255, 255, 0.06);
 }
 

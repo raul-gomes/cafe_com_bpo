@@ -96,7 +96,7 @@ class TestTimelineAPI:
                 "title": "Conflicting Task 1",
                 "client_id": client_id,
                 "deadline": same_deadline.isoformat(),
-                "time_estimate_hours": 5,
+                "time_estimate_minutes": 300,
             },
             headers=auth,
         )
@@ -107,7 +107,7 @@ class TestTimelineAPI:
                 "title": "Conflicting Task 2",
                 "client_id": client_id,
                 "deadline": same_deadline.isoformat(),
-                "time_estimate_hours": 5,
+                "time_estimate_minutes": 300,
             },
             headers=auth,
         )
@@ -138,7 +138,7 @@ class TestTimelineAPI:
                     "title": f"Task {i}",
                     "client_id": client_id,
                     "deadline": (datetime.now() + timedelta(days=i * 3)).isoformat(),
-                    "time_estimate_hours": 2,
+                    "time_estimate_minutes": 120,
                 },
                 headers=auth,
             )
@@ -195,7 +195,7 @@ class TestTimelineAPI:
         assert total_tasks == 1
 
     def test_task_has_time_estimate_field(self, client):
-        """Task should support time_estimate_hours field."""
+        """Task should support time_estimate_minutes field."""
         email = f"time_est_user_{uuid4()}@cafe.com"
         auth = self._get_auth_header(client, email)
 
@@ -210,11 +210,11 @@ class TestTimelineAPI:
             json={
                 "title": "Task with time estimate",
                 "client_id": client_id,
-                "time_estimate_hours": 3,
+                "time_estimate_minutes": 180,
             },
             headers=auth,
         )
 
         assert resp.status_code == 201
         data = resp.json()
-        assert data.get("time_estimate_hours") == 3
+        assert data.get("time_estimate_minutes") == 180

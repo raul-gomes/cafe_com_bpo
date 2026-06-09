@@ -9,7 +9,7 @@ export interface TaskResponse {
   process_type?: string;
   deadline?: string;
   phase_id?: string;
-  time_estimate_hours?: number;
+  time_estimate_minutes?: number;
   notes?: string;
   template_id?: string;
   assignment_id?: string;
@@ -29,7 +29,7 @@ export interface TaskCreate {
   process_type?: string;
   deadline?: string;
   phase_id?: string;
-  time_estimate_hours?: number;
+  time_estimate_minutes?: number;
   notes?: string;
 }
 
@@ -42,7 +42,7 @@ export interface TaskUpdate {
   process_type?: string;
   deadline?: string;
   phase_id?: string;
-  time_estimate_hours?: number;
+  time_estimate_minutes?: number;
   notes?: string;
 }
 
@@ -73,7 +73,7 @@ export interface TimelineTask {
   title: string;
   client_id: string;
   deadline?: string;
-  time_estimate_hours?: number;
+  time_estimate_minutes?: number;
   priority: string;
   process_type?: string;
   status: string;
@@ -92,7 +92,7 @@ export interface TimelineResponse {
 export interface ConflictTask {
   id: string;
   title: string;
-  time_estimate_hours?: number;
+  time_estimate_minutes?: number;
   deadline?: string;
 }
 
@@ -162,7 +162,7 @@ export interface TemplateActivityResponse {
   priority: string;
   due_day?: number;
   due_days?: number;
-  estimated_hours?: number;
+  estimated_minutes?: number;
   order: number;
   phase_id?: string;
   created_at: string;
@@ -226,7 +226,7 @@ export interface TemplateActivityCreate {
   priority?: string;
   due_day?: number;
   due_days?: number;
-  estimated_hours?: number;
+  estimated_minutes?: number;
   order?: number;
   phase_id?: string;
 }
@@ -237,7 +237,7 @@ export interface TemplateActivityUpdate {
   priority?: string;
   due_day?: number;
   due_days?: number;
-  estimated_hours?: number;
+  estimated_minutes?: number;
   order?: number;
   phase_id?: string;
 }
@@ -311,7 +311,7 @@ export interface ClientTimelineTask {
   priority: string;
   process_type?: string;
   deadline?: string;
-  time_estimate_hours?: number;
+  time_estimate_minutes?: number;
   sla_status: string; // on_time, warning, overdue
   sla_days_used?: number;
   sla_days_limit?: number;

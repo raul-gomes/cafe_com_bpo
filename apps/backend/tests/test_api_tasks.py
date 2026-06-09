@@ -66,19 +66,6 @@ def test_create_template_weekly(client):
     assert resp.json()["recurrence"] == "weekly"
 
 
-def test_create_template_biweekly(client):
-    """Tarefa 4.1: Criar template com recorrência 'biweekly'."""
-    email = f"tmpl_biweekly_{uuid4()}@cafe.com"
-    auth = get_auth_header(client, email)
-    payload = {
-        "name": "Quinzenal",
-        "recurrence": "biweekly",
-    }
-    resp = client.post("/tasks/templates/", json=payload, headers=auth)
-    assert resp.status_code == 201
-    assert resp.json()["recurrence"] == "biweekly"
-
-
 def test_create_template_yearly(client):
     """Tarefa 4.1: Criar template com recorrência 'yearly'."""
     email = f"tmpl_yearly_{uuid4()}@cafe.com"
@@ -1002,41 +989,6 @@ def test_scheduler_weekly_skips_when_mask_mismatch(client):
     )
 
 
-def test_scheduler_biweekly_on_1_or_15(client):
-    """Scheduler gera quinzenal se hoje é 01 ou 15."""
-    now = datetime.now(timezone.utc)
-    is_biweekly_day = now.day in (1, 15)
-
-    email = f"sched_biweekly_{uuid4()}@cafe.com"
-    auth = get_auth_header(client, email)
-    cli = create_client(client, auth)
-
-    tmpl_resp = client.post(
-        "/tasks/templates/",
-        json={"name": "Quinzenal", "recurrence": "biweekly", "process_type": "fiscal"},
-        headers=auth,
-    )
-    tmpl_id = tmpl_resp.json()["id"]
-    client.post(
-        f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Quinzenal", "due_day": 1},
-        headers=auth,
-    )
-    client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli["id"], "template_id": tmpl_id},
-        headers=auth,
-    )
-
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
-    if is_biweekly_day:
-        assert data["tasks_generated"] >= 1
-    else:
-        assert data["tasks_generated"] == 0
-
-
 def test_scheduler_monthly_skips_existing_task(client):
     """Scheduler mensal não gera task duplicada quando já existe pendente."""
     now = datetime.now(timezone.utc)
@@ -1300,9 +1252,9 @@ def test_scheduler_cron_requires_secret(client):
 
 def test_scheduler_cron_wrong_secret(client, monkeypatch):
     """X-Cron-Secret inválido retorna 401."""
-    monkeypatch.setattr(
-        "src.core.config.Settings.cron_secret", "my-cron-secret"
-    )
+    from src.core.config import get_settings
+    get_settings.cache_clear()
+    monkeypatch.setenv("CRON_SECRET", "my-cron-secret")
     email = f"cron_wrong_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
 
@@ -1316,9 +1268,9 @@ def test_scheduler_cron_wrong_secret(client, monkeypatch):
 
 def test_scheduler_cron_success(client, monkeypatch):
     """X-Cron-Secret correto executa o scheduler para todos os usuários."""
-    monkeypatch.setattr(
-        "src.core.config.Settings.cron_secret", "my-cron-secret"
-    )
+    from src.core.config import get_settings
+    get_settings.cache_clear()
+    monkeypatch.setenv("CRON_SECRET", "my-cron-secret")
     email = f"cron_ok_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
 
