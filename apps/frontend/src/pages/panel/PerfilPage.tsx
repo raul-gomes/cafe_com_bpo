@@ -6,6 +6,7 @@ import { Button } from '../../components/ui/Button';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { ColorPicker } from '../../components/ui/ColorPicker';
 import { maskCNPJ, maskPhone, unmask } from '../../utils/masks';
+import { useToast } from '../../components/ui/Toast';
 import type { User } from '../../context/AuthContext';
 
 type TabType = 'personal' | 'company' | 'contact' | 'customization';
@@ -47,8 +48,8 @@ export const PerfilPage: React.FC = () => {
   });
   
   const [isSaving, setIsSaving] = useState(false);
-  const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
   const [segmentCustom, setSegmentCustom] = useState('');
+  const toast = useToast();
 
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
@@ -125,7 +126,6 @@ export const PerfilPage: React.FC = () => {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSaving(true);
-    setMessage(null);
 
     try {
       if (avatarFile) {
@@ -150,11 +150,11 @@ export const PerfilPage: React.FC = () => {
       
       setUser(updated as unknown as User);
       
-      setMessage({ type: 'success', text: 'Perfil atualizado com sucesso!' });
+      toast.success('Perfil atualizado com sucesso!');
       setIsSaving(false);
     } catch (err) {
       setIsSaving(false);
-      setMessage({ type: 'error', text: 'Erro ao salvar alterações.' });
+      toast.error('Erro ao salvar alterações.');
     }
   };
 
@@ -472,12 +472,6 @@ export const PerfilPage: React.FC = () => {
                 </div>
               )}
             </>
-          )}
-
-          {message && (
-             <div className={`ds-alert ds-alert-${message.type === 'success' ? 'warning' : 'error'} perfil-form__full`} style={{ marginTop: '8px' }}>
-                {message.text}
-             </div>
           )}
 
           <div className="perfil-form__actions">
