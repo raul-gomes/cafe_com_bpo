@@ -8,6 +8,7 @@ import { getApiUrl } from '../../api/client';
 import { getClients, ClientData } from '../../api/clients';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { MessageSquare } from 'lucide-react';
+import { useToast } from '../../components/ui/Toast';
 
 interface Proposal {
   id: string;
@@ -26,6 +27,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   const [phoneNumber, setPhoneNumber] = useState('+55');
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const { generate: generatePDF } = useGeneratePDF();
 
   const fetchData = useCallback(async () => {
@@ -83,9 +85,9 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
         client_name: proposal.client_name,
         message: `Olá, segue o orçamento detalhado da nossa proposta de serviços BPO.`,
       });
-      alert("E-mail enviado com sucesso!");
+      toast.success('E-mail enviado com sucesso!');
     } catch (err: any) {
-      alert(err.response?.data?.detail || "Erro ao enviar e-mail.");
+      toast.error(err.response?.data?.detail || 'Erro ao enviar e-mail.');
     }
   };
 

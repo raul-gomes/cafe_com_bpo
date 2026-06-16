@@ -5,6 +5,7 @@ import { apiClient } from '../../api/client';
 import { calculatePricing } from '../../lib/pricingEngine';
 import { PricingFormData } from '../../schemas/pricing';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { useToast } from '../../components/ui/Toast';
 
 export const OrcamentoNovoPage: React.FC = () => {
   const { id } = useParams();
@@ -13,6 +14,7 @@ export const OrcamentoNovoPage: React.FC = () => {
   const [clientName, setClientName] = useState('');
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
+  const toast = useToast();
 
   useEffect(() => {
     if (id) {
@@ -23,7 +25,7 @@ export const OrcamentoNovoPage: React.FC = () => {
           setClientName(resp.data.client_name);
         } catch (err) {
           console.error('Erro ao carregar orçamento:', err);
-          alert('Não foi possível carregar o orçamento.');
+          toast.error('Não foi possível carregar o orçamento.');
           navigate('/painel');
         } finally {
           setLoading(false);
@@ -48,14 +50,7 @@ export const OrcamentoNovoPage: React.FC = () => {
       }
       setLoading(false);
     }
-  }, [id, navigate]);
-
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
+  }, [id, navigate, toast]);
 
   const handleSave = async (formData: PricingFormData, name: string) => {
     try {
@@ -80,10 +75,10 @@ export const OrcamentoNovoPage: React.FC = () => {
         await apiClient.post('/proposals/', payload);
       }
 
-      showToast('Orçamento salvo com sucesso!', 'success');
+      toast.success('Orçamento salvo com sucesso!');
     } catch (err) {
       console.error('Erro ao salvar:', err);
-      showToast('Erro ao salvar orçamento. Tente novamente.', 'error');
+      toast.error('Erro ao salvar orçamento. Tente novamente.');
     } finally {
       setSaving(false);
     }
@@ -99,28 +94,6 @@ export const OrcamentoNovoPage: React.FC = () => {
 
   return (
     <div className="orcamento-novo-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
-      {/* Toast Notification */}
-      {toast && (
-        <div className="ds-toast-container">
-          <div className={`ds-toast ds-toast--${toast.type}`}>
-            <div className="ds-toast__icon">
-              {toast.type === 'success' ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ds-primary)' }}>
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#ef4444' }}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-              )}
-            </div>
-            <div className="ds-toast__content">{toast.message}</div>
-          </div>
-        </div>
-      )}
-
       <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: id ? 'Editar Orçamento' : 'Nova Precificação' }]} />
 
       <div className="panel-content__header" style={{ marginBottom: '28px' }}>

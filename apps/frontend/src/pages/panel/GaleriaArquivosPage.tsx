@@ -2,6 +2,8 @@ import React, { useEffect, useState, useRef } from 'react';
 import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useAuth } from '../../context/AuthContext';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../components/ui/Toast';
 
 interface GalleryFile {
   id: string;
@@ -34,18 +36,14 @@ export const GaleriaArquivosPage: React.FC = () => {
   const [uploadDescription, setUploadDescription] = useState('');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
-  const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (tab === 'my') fetchFiles();
     else fetchCommonFiles();
   }, [tab]);
-
-  const showToast = (message: string, type: 'success' | 'error') => {
-    setToast({ message, type });
-    setTimeout(() => setToast(null), 3000);
-  };
 
   const fetchFiles = async () => {
     try {
@@ -164,13 +162,13 @@ export const GaleriaArquivosPage: React.FC = () => {
         },
       });
 
-      showToast('Arquivo enviado com sucesso!', 'success');
+      toast.success('Arquivo enviado com sucesso!');
       resetUploadForm();
       if (tab === 'my') await fetchFiles();
       else await fetchCommonFiles();
     } catch (err: any) {
       console.error('Erro ao enviar arquivo:', err);
-      showToast(err.response?.data?.detail || 'Erro ao enviar arquivo.', 'error');
+      toast.error(err.response?.data?.detail || 'Erro ao enviar arquivo.');
     } finally {
       setUploading(false);
       setUploadProgress(0);
@@ -178,16 +176,22 @@ export const GaleriaArquivosPage: React.FC = () => {
   };
 
   const handleDelete = async (file: GalleryFile) => {
-    if (!window.confirm(`Deseja excluir "${file.file_name}"?`)) return;
+    const ok = await confirm({
+      title: 'Excluir arquivo',
+      message: `Deseja excluir "${file.file_name}"?`,
+      variant: 'danger',
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try {
       const url = tab === 'common' ? `/gallery/common/${file.id}` : `/gallery/${file.id}`;
       await apiClient.delete(url);
-      showToast('Arquivo excluído.', 'success');
+      toast.success('Arquivo excluído.');
       if (tab === 'my') setFiles(prev => prev.filter(f => f.id !== file.id));
       else setCommonFiles(prev => prev.filter(f => f.id !== file.id));
     } catch (err: any) {
       console.error('Erro ao excluir:', err);
-      showToast(err.response?.data?.detail || 'Erro ao excluir arquivo.', 'error');
+      toast.error(err.response?.data?.detail || 'Erro ao excluir arquivo.');
     }
   };
 
@@ -213,27 +217,6 @@ export const GaleriaArquivosPage: React.FC = () => {
   return (
     <div className="gallery-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
       <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Galeria de Arquivos' }]} />
-
-      {toast && (
-        <div className="ds-toast-container">
-          <div className={`ds-toast ds-toast--${toast.type}`}>
-            <div className="ds-toast__icon">
-              {toast.type === 'success' ? (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ds-primary)' }}>
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              ) : (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#ef4444' }}>
-                  <circle cx="12" cy="12" r="10" />
-                  <line x1="15" y1="9" x2="9" y2="15" />
-                  <line x1="9" y1="9" x2="15" y2="15" />
-                </svg>
-              )}
-            </div>
-            <div className="ds-toast__content">{toast.message}</div>
-          </div>
-        </div>
-      )}
 
       <div className="panel-content__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
         <div>

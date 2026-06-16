@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import { getPost, getComments, createComment, deletePost, PostResponse, CommentResponse } from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../components/ui/Toast';
 
 export const NetworkPostPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +18,8 @@ export const NetworkPostPage: React.FC = () => {
   const [newComment, setNewComment] = useState('');
   const [error, setError] = useState('');
   const [showReplyPanel, setShowReplyPanel] = useState(false);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -52,13 +56,19 @@ export const NetworkPostPage: React.FC = () => {
 
   const handleDelete = async () => {
     if (!id) return;
-    if (!window.confirm("Deseja alterar a exclusão do tópico? Só funciona se não existir respostas.")) return;
+    const ok = await confirm({
+      title: 'Excluir tópico',
+      message: 'Deseja excluir este tópico? Só funciona se não existir respostas.',
+      variant: 'danger',
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     
     try {
       await deletePost(id);
       navigate('/painel/forum');
     } catch (e: any) {
-      alert(e.response?.data?.detail || 'Erro ao excluir o post.');
+      toast.error(e.response?.data?.detail || 'Erro ao excluir o post.');
     }
   };
 

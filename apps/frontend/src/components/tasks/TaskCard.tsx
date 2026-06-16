@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { Calendar as CalendarIcon, AlertTriangle, XCircle, Check } from 'lucide-react';
 import { TaskResponse } from '../../schemas/tasks';
+import { useConfirm } from '../ui/ConfirmDialog';
 
 interface TaskCardProps {
   task: TaskResponse;
@@ -44,6 +45,20 @@ export const TaskCard: React.FC<TaskCardProps> = ({
 }) => {
   const status = getTaskStatus(task);
   const overdue = isTaskOverdue(task);
+  const confirm = useConfirm();
+
+  const handleCancel = useCallback(async () => {
+    if (!onCancel) return;
+    const ok = await confirm({
+      title: 'Cancelar tarefa',
+      message: `Tem certeza que deseja cancelar "${task.title}"?`,
+      variant: 'warning',
+      confirmLabel: 'Cancelar',
+    });
+    if (ok) {
+      onCancel(task.id);
+    }
+  }, [onCancel, task.id, task.title, confirm]);
 
   return (
     <div
@@ -70,7 +85,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           style={{
             fontSize: '10px',
             fontWeight: 900,
-            color: client?.color || colColor,
+            color: 'var(--ds-text-muted)',
             marginBottom: '6px',
             textTransform: 'uppercase',
             letterSpacing: '0.05em',
@@ -166,9 +181,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               <button
                 onClick={(e) => {
                   e.stopPropagation();
-                  if (window.confirm(`Tem certeza que deseja cancelar "${task.title}"?`)) {
-                    onCancel(task.id);
-                  }
+                  handleCancel();
                 }}
                 style={{
                   width: '36px',

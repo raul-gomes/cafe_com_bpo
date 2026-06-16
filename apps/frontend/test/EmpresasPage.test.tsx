@@ -1,7 +1,14 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { ToastProvider } from '../src/components/ui/Toast'
+import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
 import { EmpresasPage } from '../src/pages/panel/EmpresasPage'
+
+const queryClient = new QueryClient({
+  defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+})
 
 // Mock API calls
 vi.mock('../src/api/clients', () => ({
@@ -27,9 +34,15 @@ vi.mock('../src/api/hooks/useTasks', () => ({
 describe('EmpresasPage', () => {
   const renderPage = () => {
     return render(
-      <MemoryRouter initialEntries={['/painel/empresas']}>
-        <EmpresasPage />
-      </MemoryRouter>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/painel/empresas']}>
+          <ToastProvider>
+            <ConfirmProvider>
+              <EmpresasPage />
+            </ConfirmProvider>
+          </ToastProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
     )
   }
 

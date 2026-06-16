@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { apiClient } from '../../api/client';
-import { DeleteConfirmModal } from '../../components/panel/DeleteConfirmModal';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { MessageSquare } from 'lucide-react';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../components/ui/Toast';
 
 interface Proposal {
   id: string;
@@ -17,11 +18,13 @@ export const OrcamentosPage: React.FC = () => {
   const [proposals, setProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [proposalToDelete, setProposalToDelete] = useState<Proposal | null>(null);
+
   const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
   const [whatsappPhone, setWhatsappPhone] = useState('+55');
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const navigate = useNavigate();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const fetchProposals = async () => {
     try {
@@ -41,20 +44,20 @@ export const OrcamentosPage: React.FC = () => {
     fetchProposals();
   }, []);
 
-  const handleDeleteClick = (e: React.MouseEvent, proposal: Proposal) => {
+  const handleDeleteClick = async (e: React.MouseEvent, proposal: Proposal) => {
     e.stopPropagation();
-    setProposalToDelete(proposal);
-  };
-
-  const handleConfirmDelete = async () => {
-    if (!proposalToDelete) return;
+    const ok = await confirm({
+      title: 'Excluir orçamento',
+      message: `Tem certeza que deseja excluir o orçamento de "${proposal.client_name}"?`,
+      variant: 'danger',
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try {
-      await apiClient.delete(`/proposals/${proposalToDelete.id}`);
-      setProposals(prev => prev.filter(p => p.id !== proposalToDelete.id));
+      await apiClient.delete(`/proposals/${proposal.id}`);
+      setProposals(prev => prev.filter(p => p.id !== proposal.id));
     } catch {
-      alert('Erro ao excluir orçamento.');
-    } finally {
-      setProposalToDelete(null);
+      toast.error('Erro ao excluir orçamento.');
     }
   };
 
@@ -335,13 +338,6 @@ export const OrcamentosPage: React.FC = () => {
         </div>
       </div>
       )}
-
-      <DeleteConfirmModal
-        isOpen={!!proposalToDelete}
-        itemName={proposalToDelete?.client_name}
-        onClose={() => setProposalToDelete(null)}
-        onConfirm={handleConfirmDelete}
-      />
 
       {whatsappModalOpen && (
         <div className="modal-overlay" onClick={() => setWhatsappModalOpen(false)}>

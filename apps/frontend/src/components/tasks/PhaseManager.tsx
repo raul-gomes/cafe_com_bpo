@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Plus, X, Edit2, Trash2, GripVertical, Settings } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { TaskPhaseResponse } from '../../schemas/tasks';
+import { useConfirm } from '../ui/ConfirmDialog';
+import { useToast } from '../ui/Toast';
 
 interface PhaseManagerProps {
   isOpen: boolean;
@@ -26,6 +28,8 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
   const [newName, setNewName] = useState('');
   const [newColor, setNewColor] = useState('#6b7280');
   const [draggedPhase, setDraggedPhase] = useState<string | null>(null);
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const handleCreate = async () => {
     if (!newName.trim()) return;
@@ -50,10 +54,16 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
 
   const handleDelete = async (phase: TaskPhaseResponse) => {
     if (phase.is_default && (phases?.length || 0) <= 3) {
-      alert('Não é possível excluir fases padrão quando há apenas 3 fases.');
+      toast.error('Não é possível excluir fases padrão quando há apenas 3 fases.');
       return;
     }
-    if (window.confirm(`Excluir a fase "${phase.name}"? As tarefas serão movidas para outra fase.`)) {
+    const ok = await confirm({
+      title: 'Excluir fase',
+      message: `Excluir a fase "${phase.name}"? As tarefas serão movidas para outra fase.`,
+      variant: 'danger',
+      confirmLabel: 'Excluir',
+    });
+    if (ok) {
       await deletePhase.mutateAsync(phase.id);
     }
   };

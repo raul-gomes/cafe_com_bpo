@@ -3,6 +3,7 @@ import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { CreditCard, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../components/ui/Toast';
 
 interface Payment {
   id: string;
@@ -16,6 +17,7 @@ interface Payment {
 
 export const PaymentsPage: React.FC = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -48,7 +50,7 @@ export const PaymentsPage: React.FC = () => {
 
   const handleCreatePayment = async () => {
     if (!form.amount || !form.due_date) {
-      alert('Preencha o valor e a data de vencimento.');
+      toast.error('Preencha o valor e a data de vencimento.');
       return;
     }
     try {
@@ -72,7 +74,7 @@ export const PaymentsPage: React.FC = () => {
       setForm({ amount: '', description: '', payment_method: 'credit_card', due_date: '' });
       fetchPayments();
     } catch (err: any) {
-      alert(err.response?.data?.detail || 'Erro ao criar pagamento.');
+      toast.error(err.response?.data?.detail || 'Erro ao criar pagamento.');
     } finally {
       setCreating(false);
     }

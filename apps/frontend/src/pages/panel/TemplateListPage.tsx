@@ -3,6 +3,7 @@ import { Plus, Settings, X, ChevronRight, ToggleLeft, ToggleRight, FileText, Ale
 import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const RECURRENCE_LABELS: Record<string, string> = {
   once: 'Uma só vez',
@@ -74,6 +75,7 @@ export const TemplateListPage: React.FC = () => {
   const [newWeekdays, setNewWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [showTypeManager, setShowTypeManager] = useState(false);
   const [typeEdit, setTypeEdit] = useState<{ id?: string; name: string; color: string }>({ name: '', color: '#3b82f6' });
+  const confirm = useConfirm();
 
   const toggleWeekday = (day: number) => {
     setNewWeekdays(prev =>
@@ -372,11 +374,15 @@ export const TemplateListPage: React.FC = () => {
                 {tmpl.is_active ? <ToggleRight size={22} /> : <ToggleLeft size={22} />}
               </button>
               <button
-                onClick={(e) => {
+                onClick={async (e) => {
                   e.stopPropagation();
-                  if (window.confirm(`Excluir template "${tmpl.name}"?`)) {
-                    deleteTemplate.mutate(tmpl.id);
-                  }
+                  const ok = await confirm({
+                    title: 'Excluir template',
+                    message: `Excluir template "${tmpl.name}"?`,
+                    variant: 'danger',
+                    confirmLabel: 'Excluir',
+                  });
+                  if (ok) deleteTemplate.mutate(tmpl.id);
                 }}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-error)', padding: '4px' }}
                 title="Excluir"
@@ -493,9 +499,13 @@ export const TemplateListPage: React.FC = () => {
                     </button>
                     <button
                       onClick={async () => {
-                        if (window.confirm(`Excluir tipo "${rt.name}"?`)) {
-                          await deleteRoutineType.mutateAsync(rt.id);
-                        }
+                        const ok = await confirm({
+                          title: 'Excluir tipo',
+                          message: `Excluir tipo "${rt.name}"?`,
+                          variant: 'danger',
+                          confirmLabel: 'Excluir',
+                        });
+                        if (ok) await deleteRoutineType.mutateAsync(rt.id);
                       }}
                       style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-error)', padding: '4px' }}
                       title="Excluir"

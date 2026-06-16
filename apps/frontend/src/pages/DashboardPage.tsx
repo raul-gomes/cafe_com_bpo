@@ -7,6 +7,8 @@ import { useGeneratePDF } from '../lib/useGeneratePDF';
 import logoAsset from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
 import { getClients, ClientData } from '../api/clients';
+import { useConfirm } from '../components/ui/ConfirmDialog';
+import { useToast } from '../components/ui/Toast';
 import '../dashboard.css';
 
 interface Proposal {
@@ -26,6 +28,8 @@ export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { generate: generatePDF } = useGeneratePDF();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const fetchData = async () => {
     try {
@@ -76,13 +80,18 @@ export const DashboardPage: React.FC = () => {
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Tem certeza que deseja excluir esta proposta?')) {
-      try {
-        await apiClient.delete(`/proposals/${id}`);
-        setProposals(prev => prev.filter(p => p.id !== id));
-      } catch (err) {
-        alert('Erro ao excluir proposta.');
-      }
+    const ok = await confirm({
+      title: 'Excluir proposta',
+      message: 'Tem certeza que deseja excluir esta proposta?',
+      variant: 'danger',
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
+    try {
+      await apiClient.delete(`/proposals/${id}`);
+      setProposals(prev => prev.filter(p => p.id !== id));
+    } catch (err) {
+      toast.error('Erro ao excluir proposta.');
     }
   };
 

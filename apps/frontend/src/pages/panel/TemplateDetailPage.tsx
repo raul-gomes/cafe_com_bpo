@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, X, Edit2, GripVertical } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 
 const PROCESS_TYPE_LABELS: Record<string, string> = {
   fiscal: 'Fiscal',
@@ -66,6 +67,7 @@ export const TemplateDetailPage: React.FC = () => {
   const [cfgRecurrence, setCfgRecurrence] = useState('monthly');
   const [cfgProcessType, setCfgProcessType] = useState('');
   const [cfgRoutineTypeId, setCfgRoutineTypeId] = useState('');
+  const confirm = useConfirm();
 
   useEffect(() => {
     if (template) {
@@ -602,7 +604,15 @@ export const TemplateDetailPage: React.FC = () => {
                         <button onClick={() => startEdit(act)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-text-muted)', padding: '4px' }}>
                           <Edit2 size={14} />
                         </button>
-                        <button onClick={() => { if (window.confirm(`Remover "${act.name}"?`)) deleteActivity.mutate({ template_id: id!, id: act.id }); }}
+                        <button onClick={async () => {
+                          const ok = await confirm({
+                            title: 'Remover atividade',
+                            message: `Remover "${act.name}"?`,
+                            variant: 'danger',
+                            confirmLabel: 'Remover',
+                          });
+                          if (ok) deleteActivity.mutate({ template_id: id!, id: act.id });
+                        }}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-error)', padding: '4px' }}>
                           <X size={14} />
                         </button>

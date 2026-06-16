@@ -1,0 +1,534 @@
+/* ═══════════════════════════════════════════════════
+   CAFÉ COM BPO — ORÇAMENTOS / PROPOSTAS
+   ═══════════════════════════════════════════════════ */
+
+/* ─── Orçamentos Grid ─── */
+.orcamentos-grid {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 24px;
+  animation: panelFadeIn 0.5s ease-out 0.1s both;
+}
+
+.orcamentos-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* Orçamento Card (List Item Style) */
+.orcamento-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 16px;
+  padding: 18px 20px;
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.orcamento-card:hover {
+  border-color: rgba(251, 191, 36, 0.1);
+  background: var(--ds-surface-1);
+}
+
+.orcamento-card__info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.orcamento-card__client {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--ds-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.orcamento-card__meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+
+.orcamento-card__meta-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--ds-text-subtle);
+}
+
+.orcamento-card__price {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--ds-primary);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.orcamento-card__actions {
+  display: flex;
+  gap: 6px;
+}
+
+.orcamento-card__action-btn {
+  background: var(--ds-surface-1);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-md);
+  color: var(--ds-text-muted);
+  padding: 6px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+}
+
+.orcamento-card__action-btn:hover {
+  background: var(--ds-surface-2);
+  color: var(--ds-text);
+}
+
+.orcamento-card__action-btn--delete:hover {
+  background: rgba(255, 69, 58, 0.1);
+  color: #ff453a;
+  border-color: rgba(255, 69, 58, 0.2);
+}
+
+/* ─── Sidebar Info Panel (Right) ─── */
+.orcamentos-info {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Info Panel */
+.panel-info-card {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.panel-info-card__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ds-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.panel-info-card__title svg {
+  width: 14px;
+  height: 14px;
+  color: var(--ds-primary);
+}
+
+.panel-info-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.panel-info-row:last-child {
+  border-bottom: none;
+}
+
+.panel-info-row__label {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+}
+
+.panel-info-row__value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-info-row__value--primary {
+  color: var(--ds-primary);
+}
+
+/* ─── Calendar Widget ─── */
+.panel-calendar {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+}
+
+.panel-calendar__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.panel-calendar__title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--ds-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.panel-calendar__nav {
+  display: flex;
+  gap: 4px;
+}
+
+.panel-calendar__nav-btn {
+  background: transparent;
+  border: none;
+  color: var(--ds-text-muted);
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 16px;
+  line-height: 1;
+  transition: background 0.15s ease;
+}
+
+.panel-calendar__nav-btn:hover {
+  background: var(--ds-surface-1);
+}
+
+.panel-calendar__grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 2px;
+}
+
+.panel-calendar__day-label {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--ds-text-subtle);
+  text-align: center;
+  padding: 6px 0;
+  text-transform: uppercase;
+}
+
+.panel-calendar__day {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  text-align: center;
+  padding: 8px 0;
+  border-radius: var(--radius-sm);
+  cursor: default;
+  transition: background 0.15s ease;
+}
+
+.panel-calendar__day:hover {
+  background: var(--ds-surface-1);
+}
+
+.panel-calendar__day--today {
+  background: var(--ds-primary) !important;
+  color: var(--ds-primary-text) !important;
+  font-weight: 700;
+}
+
+.panel-calendar__day--other {
+  opacity: 0.25;
+}
+
+/* ─── Modal Content ─── */
+.modal-content {
+  background: var(--ds-surface);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+  width: 90%;
+  max-width: 440px;
+  border: 1px solid var(--ds-border);
+}
+
+/* ─── Orçamento Detalhado ─── */
+.detalhe-page {
+  animation: panelFadeIn 0.4s ease-out;
+}
+
+.detalhe-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 28px;
+}
+
+.detalhe-header__back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  color: var(--ds-text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  padding: 6px 0;
+  transition: color 0.15s ease;
+}
+
+.detalhe-header__back:hover {
+  color: var(--ds-primary);
+}
+
+.detalhe-header__back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.detalhe-header__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.detalhe-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'Inter', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  border: 1px solid;
+}
+
+.detalhe-action-btn--print {
+  background: var(--ds-surface-1);
+  border-color: var(--ds-border);
+  color: var(--ds-text);
+}
+
+.detalhe-action-btn--print:hover {
+  background: var(--ds-surface-2);
+}
+
+.detalhe-action-btn--email {
+  background: rgba(251, 191, 36, 0.06);
+  border-color: rgba(251, 191, 36, 0.2);
+  color: var(--ds-primary);
+}
+
+.detalhe-action-btn--email:hover {
+  background: rgba(251, 191, 36, 0.12);
+}
+
+.detalhe-action-btn--whatsapp {
+  background: rgba(37, 211, 102, 0.06);
+  border-color: rgba(37, 211, 102, 0.2);
+  color: #25d366;
+}
+
+.detalhe-action-btn--whatsapp:hover {
+  background: rgba(37, 211, 102, 0.12);
+}
+
+.detalhe-action-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.detalhe-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+}
+
+.detalhe-card {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+
+.detalhe-card--full {
+  grid-column: 1 / -1;
+}
+
+.detalhe-card__title {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--ds-text-subtle);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.detalhe-card__value-large {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--ds-primary);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.detalhe-card__value-sub {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  margin-top: 4px;
+}
+
+.detalhe-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.detalhe-breakdown__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 6px 0;
+}
+
+.detalhe-breakdown__label {
+  font-size: 13px;
+  color: var(--ds-text-muted);
+}
+
+.detalhe-breakdown__value {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ds-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.detalhe-breakdown__divider {
+  height: 1px;
+  background: var(--ds-border);
+  margin: 4px 0;
+}
+
+.detalhe-breakdown__row--total {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+  padding: 8px 0;
+}
+
+.detalhe-breakdown__row--total .detalhe-breakdown__label {
+  font-weight: 700;
+  color: var(--ds-text);
+}
+
+.detalhe-breakdown__row--total .detalhe-breakdown__value {
+  font-weight: 800;
+  color: var(--ds-primary);
+  font-size: 24px;
+}
+
+/* ─── Stats Row ─── */
+.panel-stats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+  animation: panelFadeIn 0.4s ease-out 0.05s both;
+}
+
+.panel-stat {
+  background: var(--ds-surface);
+  border: 1px solid var(--ds-border);
+  border-radius: var(--radius-lg);
+  padding: 18px 20px;
+  transition: border-color 0.2s ease;
+}
+
+.panel-stat:hover {
+  border-color: var(--ds-border);
+}
+
+.panel-stat__label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ds-text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 6px;
+}
+
+.panel-stat__value {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--ds-text);
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.panel-stat__value--primary {
+  color: var(--ds-primary);
+}
+
+/* ─── Animations ─── */
+@keyframes panelFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ─── Responsive ─── */
+@media (max-width: 1100px) {
+  .orcamentos-grid {
+    grid-template-columns: 1fr;
+  }
+  .orcamentos-info {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+  }
+}
+
+@media (max-width: 768px) {
+  .orcamentos-info {
+    grid-template-columns: 1fr;
+  }
+
+  .detalhe-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .detalhe-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+  }
+
+  .detalhe-header__actions {
+    width: 100%;
+    flex-wrap: wrap;
+  }
+
+  .detalhe-action-btn {
+    flex: 1;
+    justify-content: center;
+  }
+}

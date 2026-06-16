@@ -6,6 +6,8 @@ import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { TaskResponse } from '../../schemas/tasks';
+import { useConfirm } from '../ui/ConfirmDialog';
+
 
 const taskSchema = z.object({
   title: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
@@ -36,6 +38,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
   const deleteTask = useDeleteTask();
   const updateClient = useUpdateClient();
   const { data: phases } = usePhases();
+  const confirm = useConfirm();
 
   const { data: clients } = useQuery({
     queryKey: ['clients'],
@@ -110,7 +113,14 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
   };
 
   const handleDelete = async () => {
-    if (task && window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
+    if (!task) return;
+    const ok = await confirm({
+      title: 'Excluir tarefa',
+      message: `Tem certeza que deseja excluir "${task.title}"?`,
+      variant: 'danger',
+      confirmLabel: 'Excluir',
+    });
+    if (ok) {
       await deleteTask.mutateAsync(task.id);
       onClose();
     }

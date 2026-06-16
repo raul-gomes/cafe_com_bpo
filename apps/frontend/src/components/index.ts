@@ -42,3 +42,7 @@ export { Navbar } from './ui/Navbar'
 export { RichTextEditor } from './ui/RichTextEditor'
 export { CurrencyInput } from './ui/CurrencyInput'
 export { MaskedCPF, MaskedCNPJ, MaskedPhone, MaskedDate } from './ui/MaskedInput'
+
+// Toast / Confirm (hooks + providers)
+export { ToastProvider, useToast } from './ui/Toast'
+export { ConfirmProvider, useConfirm } from './ui/ConfirmDialog'

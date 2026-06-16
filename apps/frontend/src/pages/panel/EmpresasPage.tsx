@@ -4,6 +4,8 @@ import { MaskedCNPJ, MaskedPhone } from '../../components/ui/MaskedInput';
 import { maskCNPJ, maskPhone } from '../../lib/formatters';
 import { useTasks } from '../../api/hooks/useTasks';
 import { X, Link, Unlink, FileText } from 'lucide-react';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { useToast } from '../../components/ui/Toast';
 
 const BPO_SEGMENTS = [
   'BPO Financeiro',
@@ -33,6 +35,8 @@ export const EmpresasPage: React.FC = () => {
   const { data: currentAssignments, refetch: refetchAssignments } = useClientAssignments(linkClientId || '');
   const assignTemplate = useAssignTemplate();
   const removeAssignment = useRemoveAssignment();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   useEffect(() => {
     loadClients();
@@ -95,18 +99,24 @@ export const EmpresasPage: React.FC = () => {
       await loadClients();
     } catch (e) {
       console.error(e);
-      alert('Erro ao salvar cliente.');
+      toast.error('Erro ao salvar cliente.');
     }
   };
 
   const handleDelete = async (id: string, name: string) => {
-    if (!window.confirm(`Deseja excluir o cliente "${name}"?`)) return;
+    const ok = await confirm({
+      title: 'Excluir cliente',
+      message: `Deseja excluir o cliente "${name}"?`,
+      variant: 'danger',
+      confirmLabel: 'Excluir',
+    });
+    if (!ok) return;
     try {
       setClients(prev => prev.filter(c => c.id !== id));
       await deleteClient(id);
     } catch (e) {
       console.error(e);
-      alert('Erro ao excluir cliente.');
+      toast.error('Erro ao excluir cliente.');
       await loadClients();
     }
   };

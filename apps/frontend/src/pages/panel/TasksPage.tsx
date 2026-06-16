@@ -9,6 +9,7 @@ import { TaskModal } from '../../components/tasks/TaskModal';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { useToast } from '../../components/ui/Toast';
 
 type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_minutes?: number; priority: string; process_type?: string; status: string };
 type ConflictTaskItem = { id: string; title: string; time_estimate_minutes?: number; deadline?: string };
@@ -32,6 +33,7 @@ export const TasksPage: React.FC = () => {
         : 'done';
     const updateTaskStatus = useUpdateTaskStatus();
     const cancelTask = useCancelTask();
+    const toast = useToast();
     const { data: timelineData, isLoading: timelineLoading } = useTimeline();
     const { data: conflictsData } = useConflicts();
     
@@ -107,10 +109,10 @@ export const TasksPage: React.FC = () => {
         if (activeTaskIds.length === 0) return;
         try {
             await apiClient.post('/calendar/sync', { task_ids: activeTaskIds });
-            alert('Tarefas sincronizadas com o Google Agenda!');
+            toast.success('Tarefas sincronizadas com o Google Agenda!');
         } catch (err: any) {
             const detail = err?.response?.data?.detail || 'Erro ao sincronizar';
-            alert(detail);
+            toast.error(detail);
         }
     };
 
@@ -125,10 +127,10 @@ export const TasksPage: React.FC = () => {
             if (data.errors?.length > 0) {
                 parts.push(`${data.errors.length} erro(s)`);
             }
-            alert(`Rotinas executadas!\n\n${parts.join('\n')}`);
+            toast.success(`Rotinas executadas!\n${parts.join('\n')}`);
         } catch (err: any) {
             const detail = err?.response?.data?.detail || 'Erro ao executar rotinas';
-            alert(detail);
+            toast.error(detail);
         }
     };
 
@@ -452,9 +454,11 @@ export const TasksPage: React.FC = () => {
                 .task-card {
                     user-select: none;
                     transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
                 }
                 .task-card:hover {
-                    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+                    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
+                    transform: translateY(-1px);
                 }
                 .task-card--overdue {
                     box-shadow: 0 0 0 2px var(--ds-error), 0 4px 16px rgba(239, 68, 68, 0.15);
@@ -474,8 +478,8 @@ export const TasksPage: React.FC = () => {
                     border-radius: 12px;
                 }
                 .kanban-column {
-                    background: rgba(255,255,255,0.012);
-                    border: 1px solid rgba(255,255,255,0.03);
+                    background: var(--ds-surface);
+                    border: 1px solid var(--ds-border);
                     border-radius: var(--radius-lg);
                     padding: 16px;
                     min-height: calc(100vh - 250px);
@@ -491,7 +495,7 @@ export const TasksPage: React.FC = () => {
                     background: transparent;
                 }
                 .kanban-column::-webkit-scrollbar-thumb {
-                    background: rgba(255,255,255,0.15);
+                    background: var(--ds-border);
                     border-radius: 2px;
                 }
                 .kanban-column--dragging-over {

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail, Paperclip, Send } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
+import { useToast } from '../ui/Toast';
 
 
 interface EmailComposeModalProps {
@@ -22,6 +23,7 @@ export const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
   const [subject, setSubject] = useState(`Entrega: ${taskTitle}`);
   const [body, setBody] = useState(`Olá ${clientName},\n\nSegue em anexo os documentos referentes à tarefa: ${taskTitle}.\n\nAtenciosamente,`);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const toast = useToast();
 
   const toggleAttachment = (id: string) => {
     setSelectedIds(prev =>
@@ -31,7 +33,7 @@ export const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
 
   const handleSend = async () => {
     if (selectedIds.length === 0) {
-      alert('Selecione pelo menos um anexo para enviar.');
+      toast.error('Selecione pelo menos um anexo para enviar.');
       return;
     }
     try {
@@ -41,10 +43,10 @@ export const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
         body,
         attachment_ids: selectedIds,
       });
-      alert('Email enviado com sucesso!');
+      toast.success('Email enviado com sucesso!');
       onClose();
     } catch (err: any) {
-      alert(err?.response?.data?.detail || 'Erro ao enviar email.');
+      toast.error(err?.response?.data?.detail || 'Erro ao enviar email.');
     }
   };
 
