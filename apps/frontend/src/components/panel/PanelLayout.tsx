@@ -2,7 +2,6 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
 import { NotificationBell } from './NotificationBell';
-import { useAuth } from '../../context/AuthContext';
 
 function getInitialTheme(): 'light' | 'dark' {
     try {
@@ -15,7 +14,6 @@ function getInitialTheme(): 'light' | 'dark' {
 }
 
 export const PanelLayout: React.FC = () => {
-  const { user } = useAuth();
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
 
   useEffect(() => {
@@ -31,18 +29,8 @@ export const PanelLayout: React.FC = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
   }, []);
 
-  const primaryColor = user?.company_color_code || '#FBBF24';
-  const secondaryColor = user?.company_color_secondary || '#000000';
-
   return (
-    <div className={`panel-shell${theme === 'light' ? ' light-theme' : ''}`}
-      style={{
-        '--ds-primary': primaryColor,
-        '--ds-primary-low': `${primaryColor}22`,
-        '--ds-primary-text': '#000000',
-        '--ds-secondary': secondaryColor,
-      } as React.CSSProperties}
-    >
+    <div className={`panel-shell${theme === 'light' ? ' light-theme' : ''}`}>
       <PanelSidebar 
         isOpen={false} 
         onClose={() => {}}
