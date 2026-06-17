@@ -31,19 +31,18 @@ export const PanelLayout: React.FC = () => {
   }, []);
 
   return (
-    <div className={`panel-shell${theme === 'light' ? ' light-theme' : ''}`}>
-      <PanelSidebar 
-        isOpen={false} 
-        onClose={() => {}}
-        theme={theme}
-        onToggleTheme={toggleTheme}
-      />
-      <main className="panel-content">
-        <div style={{
-          position: 'fixed', top: 0, right: 0, zIndex: 100,
-          display: 'flex', alignItems: 'center', gap: '8px',
-          padding: '12px 24px',
-        }}>
+    <div className={`grid h-screen w-screen overflow-hidden${theme === 'light' ? ' light-theme' : ''}`}
+      style={{ gridTemplateColumns: '260px 1fr', gridTemplateRows: '1fr' }}>
+      <aside className="col-start-1 row-start-1">
+        <PanelSidebar 
+          isOpen={false} 
+          onClose={() => {}}
+          theme={theme}
+          onToggleTheme={toggleTheme}
+        />
+      </aside>
+      <main className="relative col-start-2 row-start-1 overflow-y-auto bg-background p-7 text-foreground">
+        <div className="fixed right-0 top-0 z-100 flex items-center gap-2 px-6 py-3">
           <NotificationBell />
         </div>
         <Outlet />
