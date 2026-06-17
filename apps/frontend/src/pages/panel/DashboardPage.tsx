@@ -1,14 +1,14 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { 
-  Clock, 
-  MessageSquare, 
-  Bell, 
-  Calendar as CalendarIcon, 
+import {
+  Clock,
+  MessageSquare,
+  Bell,
+  Calendar as CalendarIcon,
   ArrowRight,
   AlertCircle,
   Eye,
-  ChevronDown
+  ChevronDown,
 } from 'lucide-react';
 import { useDashboard } from '../../api/hooks/useDashboard';
 import { useTasks } from '../../api/hooks/useTasks';
@@ -18,6 +18,17 @@ import { ptBR } from 'date-fns/locale';
 import { TaskModal } from '../../components/tasks/TaskModal';
 import { SLAAlerts } from '../../components/dashboard/SLAAlerts';
 import { TaskResponse } from '../../schemas/tasks';
+import { Card } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Skeleton } from '../../components/ui/skeleton';
+import { cn } from '../../lib/utils';
+
+/* ── Dashboard-specific task fields (from summary endpoint) ── */
+interface DashboardTask extends TaskResponse {
+  client_name?: string;
+  is_overdue?: boolean;
+  days_remaining?: number | null;
+}
 
 export const DashboardPage: React.FC = () => {
   const { useDashboardSummary } = useDashboard();
@@ -32,25 +43,18 @@ export const DashboardPage: React.FC = () => {
   const [isModalOpen, setModalOpen] = useState(false);
   const [showStatusMenu, setShowStatusMenu] = useState<string | null>(null);
 
+  /* ── Loading state ── */
   if (isLoading) {
     return (
-      <div className="dashboard-page">
-        <div className="panel-skeleton" style={{ height: '32px', width: '300px', marginBottom: '40px' }} />
-        <div className="panel-skeleton" style={{ height: '200px', marginBottom: '24px' }} />
-        <div className="panel-skeleton" style={{ height: '400px' }} />
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-[300px]" />
+        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[400px] w-full" />
       </div>
     );
   }
 
-  const handleUpdateStatus = (id: string, status: string) => {
-    updateTaskStatus.mutate({ id, status });
-    setShowStatusMenu(null);
-  };
-
-  const handleViewTask = (task: TaskResponse) => {
-    setSelectedTask(task);
-    setModalOpen(true);
-  };
+  /* ── Helpers ── */
 
   const getStatusLabel = (status: string) => {
     switch (status) {
@@ -61,6 +65,16 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  const handleUpdateStatus = (id: string, status: string) => {
+    updateTaskStatus.mutate({ id, status });
+    setShowStatusMenu(null);
+  };
+
+  const handleViewTask = (task: DashboardTask) => {
+    setSelectedTask(task);
+    setModalOpen(true);
+  };
+
   const handleActivityClick = (activity: any) => {
     markAsRead.mutate(activity.id);
     if (activity.post_id) {
@@ -68,134 +82,115 @@ export const DashboardPage: React.FC = () => {
     }
   };
 
+  /* ── Deadline helpers ── */
+  const deadlineText = (task: DashboardTask) => {
+    if (task.is_overdue) return `Atrasado ${Math.abs(task.days_remaining || 1)}d`;
+    if (task.days_remaining !== undefined && task.days_remaining !== null) {
+      if (task.days_remaining === 0) return 'Vence hoje';
+      if (task.days_remaining === 1) return 'Vence amanhã';
+      return `Vence em ${task.days_remaining}d`;
+    }
+    if (task.deadline) return formatDistanceToNow(new Date(task.deadline), { addSuffix: true, locale: ptBR });
+    return 'Sem prazo';
+  };
+
+  const deadlineColor = (task: DashboardTask) => {
+    if (task.is_overdue) return 'text-destructive';
+    if (task.days_remaining !== undefined && task.days_remaining !== null && task.days_remaining <= 1) return 'text-warning';
+    return 'text-muted-foreground';
+  };
+
+  /* ── Render ── */
+
   return (
-    <div className="dashboard-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
-      <div className="panel-content__header" style={{ 
-        marginBottom: '48px',
-        display: 'flex',
-        flexDirection: 'column',
-        gap: '8px'
-      }}>
-        <p style={{ 
-          fontSize: '11px', 
-          fontWeight: 600, 
-          letterSpacing: '0.15em', 
-          textTransform: 'uppercase', 
-          color: 'var(--ds-primary)',
-          opacity: 0.8
-        }}>Bem-vindo de volta</p>
-        <h1 style={{ 
-          fontSize: '32px', 
-          fontWeight: 300, 
-          color: 'var(--ds-text-primary)',
-          letterSpacing: '-0.02em'
-        }}>Olá, {summary?.user_name || 'Usuário'}</h1>
+    <div className="animate-[panelFadeIn_0.4s_ease-out]">
+      {/* Header */}
+      <div className="mb-12 flex flex-col gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-primary/80">
+          Bem-vindo de volta
+        </p>
+        <h1 className="text-[32px] font-light tracking-tight text-foreground">
+          Olá, {summary?.user_name || 'Usuário'}
+        </h1>
       </div>
 
       {/* Urgent Tasks Section */}
-      <section style={{ marginBottom: '40px' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', gap: '8px', alignItems: 'center' }}>
-            <AlertCircle size={16} color="var(--ds-primary)" /> Atenção Imediata
+      <section className="mb-10">
+        <div className="mb-4 flex items-center justify-between">
+          <h2 className="flex items-center gap-2 text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
+            <AlertCircle size={16} className="text-primary" /> Atenção Imediata
           </h2>
-          <Link to="/painel/tarefas" style={{ fontSize: '12px', color: 'var(--ds-primary)', textDecoration: 'none', display: 'flex', gap: '4px', alignItems: 'center' }}>
+          <Link
+            to="/painel/tarefas"
+            className="flex items-center gap-1 text-[12px] text-primary no-underline"
+          >
             Ver todas <ArrowRight size={14} />
           </Link>
         </div>
 
-        <div className="urgent-tasks-rail" style={{ 
-          display: 'flex', 
-          gap: '16px', 
-          overflowX: 'auto', 
-          paddingBottom: '16px',
-          scrollbarWidth: 'none'
-        }}>
+        <div
+          className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden"
+          style={{ scrollbarWidth: 'none' }}
+        >
           {summary?.urgent_tasks && summary.urgent_tasks.length > 0 ? (
-            summary.urgent_tasks.map(task => (
-              <div key={task.id} className="ds-card" style={{ 
-                minWidth: '320px', 
-                padding: '20px', 
-                display: 'flex', 
-                flexDirection: 'column', 
-                justifyContent: 'space-between',
-                borderLeft: '4px solid var(--ds-primary)',
-                position: 'relative'
-              }}>
+            summary.urgent_tasks.map((task) => (
+              <Card
+                key={task.id}
+                className="flex min-w-[320px] flex-col justify-between border-l-4 border-l-primary p-5"
+              >
                 <div>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                    <div style={{ fontSize: '10px', fontWeight: 800, color: 'var(--ds-text-muted)', textTransform: 'uppercase' }}>
+                  <div className="mb-2 flex items-start justify-between">
+                    <span className="text-[10px] font-bold uppercase text-muted-foreground">
                       {task.client_name || 'Cliente'}
-                    </div>
-                    <button 
+                    </span>
+                    <button
                       onClick={() => handleViewTask(task as any)}
-                      style={{ background: 'transparent', border: 'none', color: 'var(--ds-text-subtle)', cursor: 'pointer' }}
+                      className="cursor-pointer border-none bg-transparent text-muted-foreground"
                       title="Ver Detalhes"
                     >
                       <Eye size={16} />
                     </button>
                   </div>
-                  <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '16px', color: 'var(--ds-text)', lineHeight: 1.4 }}>
+                  <div className="mb-4 text-[15px] font-bold leading-tight text-foreground">
                     {task.title}
                   </div>
                 </div>
-                
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 'auto' }}>
-                  <div style={{ 
-                    fontSize: '11px', 
-                    color: task.is_overdue ? 'var(--ds-error)' : task.days_remaining !== undefined && task.days_remaining !== null && task.days_remaining <= 1 ? 'var(--ds-warning)' : 'var(--ds-text-subtle)', 
-                    display: 'flex', 
-                    gap: '4px', 
-                    alignItems: 'center', 
-                    fontWeight: task.is_overdue ? 700 : 600 
-                  }}>
-                    <Clock size={12} /> 
-                    {task.is_overdue 
-                      ? `Atrasado ${Math.abs(task.days_remaining || 1)}d`
-                      : task.days_remaining !== undefined && task.days_remaining !== null
-                        ? task.days_remaining === 0
-                          ? 'Vence hoje'
-                          : task.days_remaining === 1
-                            ? 'Vence amanhã'
-                            : `Vence em ${task.days_remaining}d`
-                        : task.deadline 
-                          ? formatDistanceToNow(new Date(task.deadline), { addSuffix: true, locale: ptBR })
-                          : 'Sem prazo'}
+
+                <div className="mt-auto flex items-center justify-between">
+                  <div
+                    className={cn(
+                      'flex items-center gap-1 text-[11px]',
+                      deadlineColor(task),
+                      task.is_overdue ? 'font-bold' : 'font-semibold'
+                    )}
+                  >
+                    <Clock size={12} />
+                    {deadlineText(task)}
                   </div>
-                  
-                  <div style={{ position: 'relative' }}>
-                    <button 
+
+                  {/* Status dropdown */}
+                  <div className="relative">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="gap-1.5 bg-white/[0.03] px-2.5 py-1 text-[11px]"
                       onClick={() => setShowStatusMenu(showStatusMenu === task.id ? null : task.id)}
-                      className="ds-btn ds-btn-ghost"
-                      style={{ 
-                        padding: '4px 10px', 
-                        fontSize: '11px', 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: '6px',
-                        background: 'rgba(255,255,255,0.03)'
-                      }}
                     >
                       {getStatusLabel(task.status)} <ChevronDown size={12} />
-                    </button>
-                    
+                    </Button>
+
                     {showStatusMenu === task.id && (
-                      <div style={{ 
-                        position: 'absolute', bottom: '100%', right: 0, marginBottom: '8px',
-                        background: 'var(--ds-surface-3)', border: '1px solid rgba(255,255,255,0.1)',
-                        borderRadius: 'var(--radius-md)', padding: '4px', zIndex: 10, width: '140px',
-                        boxShadow: '0 10px 25px rgba(0,0,0,0.5)'
-                      }}>
-                        {['todo', 'doing', 'done'].map(s => (
+                      <div className="absolute bottom-full right-0 z-10 mb-2 w-[140px] rounded-md border border-white/10 bg-card p-1 shadow-xl">
+                        {['todo', 'doing', 'done'].map((s) => (
                           <button
                             key={s}
                             onClick={() => handleUpdateStatus(task.id, s)}
-                            style={{ 
-                              width: '100%', padding: '8px 12px', textAlign: 'left', background: 'transparent',
-                              border: 'none', color: task.status === s ? 'var(--ds-primary)' : 'var(--ds-text)',
-                              fontSize: '12px', cursor: 'pointer', borderRadius: 'var(--radius-sm)',
-                              fontWeight: task.status === s ? 700 : 400
-                            }}
-                            className="status-menu-item"
+                            className={cn(
+                              'w-full rounded-sm px-3 py-2 text-left text-[12px] transition-colors hover:bg-primary/10 hover:text-primary',
+                              task.status === s
+                                ? 'font-bold text-primary'
+                                : 'font-normal text-foreground'
+                            )}
                           >
                             {getStatusLabel(s)}
                           </button>
@@ -204,10 +199,10 @@ export const DashboardPage: React.FC = () => {
                     )}
                   </div>
                 </div>
-              </div>
+              </Card>
             ))
           ) : (
-            <div style={{ color: 'var(--ds-text-muted)', fontSize: '14px', fontStyle: 'italic', padding: '20px 0' }}>
+            <div className="py-5 text-[14px] italic text-muted-foreground">
               Nenhuma tarefa urgente no momento. Bom trabalho!
             </div>
           )}
@@ -215,145 +210,133 @@ export const DashboardPage: React.FC = () => {
       </section>
 
       {/* SLA Alerts Section */}
-      <section style={{ marginBottom: '40px' }}>
-        <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+      <section className="mb-10">
+        <h2 className="mb-4 flex items-center gap-2 text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
           <AlertCircle size={16} /> Alertas de SLA
         </h2>
         <SLAAlerts />
       </section>
 
       {/* Activity Feed and Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 300px', gap: '32px' }}>
+      <div className="grid grid-cols-[1fr_300px] gap-8">
+        {/* Activity Feed */}
         <section>
-          <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px', display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <h2 className="mb-4 flex items-center gap-2 text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
             <MessageSquare size={16} /> Atividade Recente
           </h2>
-          
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+
+          <div className="flex flex-col gap-3">
             {summary?.activities && summary.activities.length > 0 ? (
-              summary.activities.map(activity => (
-                <div 
-                  key={activity.id} 
-                  className="orcamento-card" 
-                  style={{ cursor: 'pointer' }}
+              summary.activities.map((activity) => (
+                <Card
+                  key={activity.id}
+                  className="cursor-pointer p-0"
                   onClick={() => handleActivityClick(activity)}
                 >
-                  <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
-                    <div style={{ 
-                      background: activity.is_read ? 'rgba(255, 255, 255, 0.05)' : 'rgba(251, 191, 36, 0.1)', 
-                      padding: '12px', 
-                      borderRadius: '14px' 
-                    }}>
+                  <div className="flex gap-4 p-4">
+                    <div
+                      className={cn(
+                        'flex size-10 items-center justify-center rounded-xl',
+                        activity.is_read ? 'bg-white/5' : 'bg-primary/10'
+                      )}
+                    >
                       {activity.type === 'comment' ? (
-                        <MessageSquare size={20} color={activity.is_read ? 'var(--ds-text-muted)' : 'var(--ds-primary)'} />
+                        <MessageSquare
+                          size={20}
+                          className={activity.is_read ? 'text-muted-foreground' : 'text-primary'}
+                        />
                       ) : (
-                        <Bell size={20} color="var(--ds-primary)" />
+                        <Bell size={20} className="text-primary" />
                       )}
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: '14px', color: 'var(--ds-text)', lineHeight: 1.5, fontWeight: activity.is_read ? 400 : 600 }}>
+
+                    <div className="flex-1">
+                      <div
+                        className={cn(
+                          'text-[14px] leading-relaxed',
+                          activity.is_read ? 'font-normal text-foreground' : 'font-semibold text-foreground'
+                        )}
+                      >
                         {activity.type === 'comment' ? (
                           <><strong>{activity.triggered_by_name}</strong> respondeu ao seu tópico no fórum</>
                         ) : (
                           <>Notificação do sistema</>
                         )}
                       </div>
-                      
+
                       {activity.message_snippet && (
-                        <div style={{ 
-                          fontSize: '13px', color: 'var(--ds-text-muted)', marginTop: '8px', 
-                          padding: '10px 12px', background: 'rgba(255,255,255,0.03)', borderRadius: 'var(--radius-md)',
-                          borderLeft: '3px solid rgba(255,255,255,0.1)', fontStyle: 'italic'
-                        }}>
-                          "{activity.message_snippet}..."
+                        <div className="mt-2 rounded-md border-l-[3px] border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] italic text-muted-foreground">
+                          &ldquo;{activity.message_snippet}&hellip;&rdquo;
                         </div>
                       )}
-                      
-                      <div style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', marginTop: '8px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+
+                      <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
                         <Clock size={12} /> {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true, locale: ptBR })}
                       </div>
                     </div>
                   </div>
-                </div>
+                </Card>
               ))
             ) : (
-              <div className="orcamento-card" style={{ 
-                padding: '48px 32px', 
-                textAlign: 'center', 
-                color: 'var(--ds-text-muted)',
-                background: 'rgba(255,255,255,0.02)',
-                borderStyle: 'dashed'
-              }}>
-                <div style={{ marginBottom: '16px', opacity: 0.5 }}>
-                  <Bell size={40} style={{ margin: '0 auto' }} />
+              <Card className="border-dashed bg-white/[0.02] p-12 text-center">
+                <div className="mb-4 opacity-50">
+                  <Bell size={40} className="mx-auto" />
                 </div>
-                <div style={{ fontSize: '16px', fontWeight: 600, color: 'var(--ds-text)', marginBottom: '8px' }}>
+                <div className="mb-2 text-[16px] font-semibold text-foreground">
                   Tudo em ordem por aqui!
                 </div>
-                <div style={{ fontSize: '13px' }}>
-                  Você não tem novas notificações no momento. <br/>
+                <div className="text-[13px] text-muted-foreground">
+                  Você não tem novas notificações no momento. <br />
                   Aproveite para focar nas suas tarefas ou dar uma olhada no fórum.
                 </div>
-              </div>
+              </Card>
             )}
           </div>
         </section>
 
+        {/* Sidebar — Quick Summary */}
         <aside>
-          <h2 style={{ fontSize: '14px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '16px' }}>
+          <h2 className="mb-4 text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
             Resumo Rápido
           </h2>
-          <div className="panel-info-card">
-            <div className="panel-info-row">
-              <span className="panel-info-row__label">Tarefas Pendentes</span>
-              <span className="panel-info-row__value">{summary?.stats?.pending_tasks_count || 0}</span>
+
+          <Card className="divide-y divide-border">
+            <div className="flex items-center justify-between px-5 py-4">
+              <span className="text-[13px] text-muted-foreground">Tarefas Pendentes</span>
+              <span className="text-[15px] font-bold text-foreground">
+                {summary?.stats?.pending_tasks_count || 0}
+              </span>
             </div>
-            <div className="panel-info-row">
-              <span className="panel-info-row__label">Notificações</span>
-              <span className="panel-info-row__value" style={{ color: 'var(--ds-primary)' }}>
+            <div className="flex items-center justify-between px-5 py-4">
+              <span className="text-[13px] text-muted-foreground">Notificações</span>
+              <span className="text-[15px] font-bold text-primary">
                 {summary?.stats?.unread_notifications_count || 0} não lidas
               </span>
             </div>
-            <div className="panel-info-row" style={{ border: 'none', marginTop: '16px' }}>
-              <Link to="/painel/orcamentos" className="ds-btn ds-btn-primary" style={{ width: '100%', justifyContent: 'center' }}>
+            <div className="px-5 py-4">
+              <Button variant="default" className="w-full" onClick={() => navigate('/painel/orcamentos')}>
                 Novo Orçamento
-              </Link>
+              </Button>
             </div>
-          </div>
+          </Card>
 
-          <div className="panel-calendar" style={{ marginTop: '24px' }}>
-            <div className="panel-calendar__header">
-              <span className="panel-calendar__title">Calendário</span>
-              <CalendarIcon size={14} color="var(--ds-text-muted)" />
+          <Card className="mt-6">
+            <div className="flex items-center justify-between px-5 py-3">
+              <span className="text-[13px] font-semibold text-foreground">Calendário</span>
+              <CalendarIcon size={14} className="text-muted-foreground" />
             </div>
-            <div style={{ fontSize: '11px', textAlign: 'center', padding: '20px', color: 'var(--ds-text-muted)' }}>
+            <div className="px-5 pb-5 pt-2 text-center text-[11px] text-muted-foreground">
               Integração com calendário em breve.
             </div>
-          </div>
+          </Card>
         </aside>
       </div>
 
-      <TaskModal 
-        isOpen={isModalOpen} 
-        onClose={() => setModalOpen(false)} 
+      <TaskModal
+        isOpen={isModalOpen}
+        onClose={() => setModalOpen(false)}
         task={selectedTask as any}
       />
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .urgent-tasks-rail::-webkit-scrollbar {
-          display: none;
-        }
-        .dashboard-page h1 {
-          font-size: 32px;
-          font-weight: 800;
-          letter-spacing: -0.8px;
-          color: var(--ds-text);
-        }
-        .status-menu-item:hover {
-          background: rgba(251, 191, 36, 0.1) !important;
-          color: var(--ds-primary) !important;
-        }
-      `}} />
     </div>
   );
 };
