@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -45,111 +46,79 @@ describe('EmpresasPage', () => {
 
   it('renders page title as "Meus Clientes"', async () => {
     renderPage()
-
-    // Wait for the page to load and check the title
     const title = await screen.findByRole('heading', { level: 1 })
     expect(title).toHaveTextContent('Meus Clientes')
   })
 
   it('renders breadcrumb with "Meus Clientes"', async () => {
     renderPage()
-
-    // Wait for the page to render with data
     const items = await screen.findAllByText('Meus Clientes')
     expect(items.length).toBeGreaterThanOrEqual(2)
-
-    // Verify at least one is inside panel-breadcrumb
+    // Breadcrumb component renders inside a .panel-breadcrumb div
     const inBreadcrumb = Array.from(items).some(el => el.closest('.panel-breadcrumb'))
     expect(inBreadcrumb).toBe(true)
   })
 
   it('renders "Novo Cliente" button for creating', async () => {
     renderPage()
-
-    // Check the create button text
     const newBtn = await screen.findByText('Novo Cliente')
     expect(newBtn).toBeInTheDocument()
   })
 
   it('shows edit form inline inside the card when clicking a client card', async () => {
     renderPage()
-
-    // Wait for clients to load
-    const clientCard = await screen.findByText('Cliente A')
-    const card = clientCard.closest('.orcamento-card')!
+    const clientText = await screen.findByText('Cliente A')
+    const card = clientText.closest('[data-slot="card"]')!
     expect(card).toBeInTheDocument()
-
-    // Initially, no inline form fields should be visible inside the card
-    expect(card.querySelector('.ds-label')).toBeNull()
-
-    // Click the card to start editing
+    expect(card.querySelector('input[placeholder*="Razão social"]')).toBeNull()
     fireEvent.click(card)
-
-    // The card should now contain form fields (inline editing)
     const nameInput = card.querySelector('input[placeholder*="Razão social"]')
     expect(nameInput).toBeInTheDocument()
     expect(nameInput).toHaveValue('Cliente A')
-
-    // The top "Nova Empresa" form should NOT be visible (only inline editing)
-    // The new client button should still be visible though
     const newBtn = screen.getByText('Novo Cliente')
     expect(newBtn).toBeInTheDocument()
   })
 
   it('saves inline edit and closes the expanded card', async () => {
     renderPage()
-
-    // Wait for clients and click the card
-    const clientCard = await screen.findByText('Cliente A')
-    const card = clientCard.closest('.orcamento-card')!
-    fireEvent.click(card)
-
-    // Find the save button inside the card and click it
-    const salvarBtn = card.querySelector('button')  // first button in the card form
-    expect(salvarBtn).toBeInTheDocument()
-
-    // Actually check for the save button text
-    const saveBtns = Array.from(card.querySelectorAll('button')).filter(b => b.textContent?.includes('Salvar'))
-    expect(saveBtns.length).toBeGreaterThanOrEqual(1)
-
-    fireEvent.click(saveBtns[0])
-
+    const user = userEvent.setup()
+    // Click the client card to expand
+    const clientText = await screen.findByText('Cliente A')
+    const card = clientText.closest('[data-slot="card"]')!
+    await user.click(card)
+    // Verify edit form is visible
+    expect(screen.getByPlaceholderText('Razão social ou nome fantasia')).toBeInTheDocument()
+    // Find and click the save button inside the card
+    const saveBtn = screen.getByRole('button', { name: /Salvar/i })
+    expect(saveBtn).toBeInTheDocument()
+    await user.click(saveBtn)
     // After saving, the card should no longer be expanded
     await waitFor(() => {
-      const nameInput = card.querySelector('input[placeholder*="Razão social"]')
-      expect(nameInput).toBeNull()
+      expect(screen.queryByPlaceholderText('Razão social ou nome fantasia')).not.toBeInTheDocument()
     })
   })
 
   it('cancels inline edit and closes the expanded card without saving', async () => {
     renderPage()
-
-    // Wait for clients and click the card
-    const clientCard = await screen.findByText('Cliente B')
-    const card = clientCard.closest('.orcamento-card')!
-    fireEvent.click(card)
-
+    const user = userEvent.setup()
+    // Click the client card to expand
+    const clientText = await screen.findByText('Cliente B')
+    const card = clientText.closest('[data-slot="card"]')!
+    await user.click(card)
     // Find and click the cancel button inside the card
-    const cancelBtns = Array.from(card.querySelectorAll('button')).filter(b => b.textContent?.includes('Cancelar'))
-    expect(cancelBtns.length).toBeGreaterThanOrEqual(1)
-
-    fireEvent.click(cancelBtns[0])
-
+    const cancelBtn = screen.getByRole('button', { name: /Cancelar/i })
+    expect(cancelBtn).toBeInTheDocument()
+    await user.click(cancelBtn)
     // After cancelling, the card should close
     await waitFor(() => {
-      const nameInput = card.querySelector('input[placeholder*="Razão social"]')
-      expect(nameInput).toBeNull()
+      expect(screen.queryByPlaceholderText('Razão social ou nome fantasia')).not.toBeInTheDocument()
     })
   })
 
   it('does not show inline edit form for new client button', async () => {
     renderPage()
-
-    // Click "Novo Cliente" button
     const newBtn = await screen.findByText('Novo Cliente')
     fireEvent.click(newBtn)
-
-    // Should show the top form (not inline in a card)
     const topFormNameInput = screen.getByPlaceholderText('Razão social ou nome fantasia')
     expect(topFormNameInput).toBeInTheDocument()
   })
