@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from sqlalchemy import desc
 from uuid import UUID
+from datetime import datetime, timezone
 import re
 
 from .models import DiscussionPost, DiscussionComment, Notification
@@ -36,7 +37,7 @@ class NetworkRepository:
     def get_posts(self, limit: int = 10, offset: int = 0):
         # Only active posts
         query = self.session.query(DiscussionPost).filter(
-            DiscussionPost.deleted_at.is_(None)
+            DiscussionPost.is_active == True
         )
         total = query.count()
         items = (
@@ -50,7 +51,7 @@ class NetworkRepository:
     def get_post_by_id(self, post_id: UUID) -> DiscussionPost | None:
         return (
             self.session.query(DiscussionPost)
-            .filter(DiscussionPost.id == post_id, DiscussionPost.deleted_at.is_(None))
+            .filter(DiscussionPost.id == post_id, DiscussionPost.is_active == True)
             .first()
         )
 
@@ -64,8 +65,7 @@ class NetworkRepository:
             raise ValueError("Cannot delete post with active comments")
 
         # Soft delete
-        from datetime import datetime, timezone
-
+        post.is_active = False
         post.deleted_at = datetime.now(timezone.utc)
         self.session.commit()
 
@@ -111,12 +111,48 @@ class NetworkRepository:
 
     def get_comments(self, post_id: UUID):
         query = self.session.query(DiscussionComment).filter(
-            DiscussionComment.post_id == post_id, DiscussionComment.deleted_at.is_(None)
+            DiscussionComment.post_id == post_id, DiscussionComment.is_active == True
         )
         return query.order_by(DiscussionComment.created_at).all()
+
+    def get_comment_by_id(
+        self, comment_id: UUID
+    ) -> DiscussionComment | None:
+        return (
+            self.session.query(DiscussionComment)
+            .filter(
+                DiscussionComment.id == comment_id,
+                DiscussionComment.is_active == True,
+            )
+            .first()
+        )
+
+    def delete_comment(self, comment_id: UUID, user_id: UUID):
+        comment = self.get_comment_by_id(comment_id)
+        if not comment:
+            raise ValueError("Comment not found")
+        if comment.author_id != user_id:
+            raise ValueError("Action Denied: You cannot delete someone else's comment.")
+
+        # Soft delete
+        comment.is_active = False
+        comment.deleted_at = datetime.now(timezone.utc)
+
+        # Decrement post comment count
+        post = comment.post
+        if post and post.comments_count > 0:
+            post.comments_count -= 1
+
+        self.session.commit()
 
     def mark_notification_read(self, user_id: UUID, notification_id: UUID) -> None:
         self.session.query(Notification).filter(
             Notification.user_id == user_id, Notification.id == notification_id
         ).update({"is_read": True})
+        self.session.commit()
+
+    def mark_notifications_read(self, user_id: UUID) -> None:
+        self.session.query(Notification).filter(
+            Notification.user_id == user_id, Notification.is_read == False
+        ).update({"is_read": True, "read_at": datetime.now(timezone.utc)})
         self.session.commit()

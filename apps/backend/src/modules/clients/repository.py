@@ -3,6 +3,8 @@ from uuid import UUID
 from typing import List, Optional
 from .models import Client
 from .schemas import ClientCreate, ClientUpdate
+from src.modules.tasks.models import Task
+from src.modules.proposals.models import PricingScenario
 
 
 class ClientRepository:
@@ -12,14 +14,18 @@ class ClientRepository:
     def get_by_id(self, client_id: UUID, user_id: UUID) -> Optional[Client]:
         return (
             self.session.query(Client)
-            .filter(Client.id == client_id, Client.user_id == user_id)
+            .filter(
+                Client.id == client_id,
+                Client.user_id == user_id,
+                Client.is_active == True,
+            )
             .first()
         )
 
     def get_by_user(self, user_id: UUID) -> List[Client]:
         return (
             self.session.query(Client)
-            .filter(Client.user_id == user_id, Client.deleted_at.is_(None))
+            .filter(Client.user_id == user_id, Client.is_active == True)
             .order_by(Client.name)
             .all()
         )
@@ -59,5 +65,25 @@ class ClientRepository:
     def delete(self, client: Client) -> None:
         from datetime import datetime, timezone
 
-        client.deleted_at = datetime.now(timezone.utc)
+        now = datetime.now(timezone.utc)
+
+        # Soft delete do cliente
+        client.is_active = False
+        client.deleted_at = now
+
+        # Cascade: soft delete de todas as tarefas vinculadas
+        self.session.query(Task).filter(
+            Task.client_id == client.id, Task.is_active == True
+        ).update(
+            {"is_active": False, "deleted_at": now}, synchronize_session="fetch"
+        )
+
+        # Cascade: soft delete de todos os orçamentos vinculados via FK
+        self.session.query(PricingScenario).filter(
+            PricingScenario.client_id == client.id,
+            PricingScenario.is_active == True,
+        ).update(
+            {"is_active": False, "deleted_at": now}, synchronize_session="fetch"
+        )
+
         self.session.commit()

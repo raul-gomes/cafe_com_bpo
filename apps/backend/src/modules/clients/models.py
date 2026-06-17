@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, Text, DateTime, func, UUID, ForeignKey
+from sqlalchemy import Column, String, Text, DateTime, func, UUID, ForeignKey, Boolean
 from src.core.database import Base
 import uuid
 
@@ -34,3 +34,4 @@ class Client(Base):
         nullable=False,
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)

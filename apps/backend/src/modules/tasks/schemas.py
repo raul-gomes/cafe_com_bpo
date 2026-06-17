@@ -16,6 +16,7 @@ class TaskBase(BaseModel):
     notes: Optional[str] = None
     phase_id: Optional[UUID] = None
     cancelled_at: Optional[datetime] = None
+    is_active: bool = True
 
 
 class TaskCreate(TaskBase):

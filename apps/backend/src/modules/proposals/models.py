@@ -1,4 +1,4 @@
-from sqlalchemy import Column, String, DateTime, func, ForeignKey, JSON, UUID
+from sqlalchemy import Column, String, Boolean, DateTime, func, ForeignKey, JSON, UUID
 from src.core.database import Base
 import uuid
 
@@ -16,6 +16,9 @@ class PricingScenario(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     client_name = Column(String(255), nullable=False)
+    client_id = Column(
+        UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True
+    )
     input_payload = Column(JSON(), nullable=False)
     result_payload = Column(JSON(), nullable=False)
     created_at = Column(
@@ -27,3 +30,5 @@ class PricingScenario(Base):
         onupdate=func.now(),
         nullable=False,
     )
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)

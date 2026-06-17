@@ -630,33 +630,32 @@ class TaskService:
                     generated_tasks.append(task)
 
         elif tmpl.recurrence == "daily":
-            # Daily: generate task(s) for today or next business day
+            # Daily: only generate on weekdays (same logic as scheduler's
+            # _should_generate_today), using the same deadline calculation
             now = datetime.now(timezone.utc)
-            today_deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-            # If past 18:00 UTC, use tomorrow (next business day)
-            if today_deadline < now:
-                today_deadline += timedelta(days=1)
-            daily_deadline = next_business_day(today_deadline)
+            if now.weekday() < 5:
+                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
+                daily_deadline = next_business_day(deadline)
 
-            for act in activities:
-                if self.repository.has_pending_task_for_deadline(assignment.id, daily_deadline):
-                    continue
-                task_data = TaskCreate(
-                    title=act.name,
-                    description=act.description,
-                    client_id=assignment_in.client_id,
-                    status="todo",
-                    priority="medium",
-                    process_type=tmpl.process_type,
-                    deadline=daily_deadline,
-                    time_estimate_minutes=act.estimated_minutes,
-                    template_id=assignment_in.template_id,
-                    assignment_id=assignment.id,
-                )
-                task = self.repository.create(task_data, user_id)
-                if first_phase:
-                    task.phase_id = first_phase.id
-                generated_tasks.append(task)
+                for act in activities:
+                    if self.repository.has_pending_task_for_deadline(assignment.id, daily_deadline):
+                        continue
+                    task_data = TaskCreate(
+                        title=act.name,
+                        description=act.description,
+                        client_id=assignment_in.client_id,
+                        status="todo",
+                        priority="medium",
+                        process_type=tmpl.process_type,
+                        deadline=daily_deadline,
+                        time_estimate_minutes=act.estimated_minutes,
+                        template_id=assignment_in.template_id,
+                        assignment_id=assignment.id,
+                    )
+                    task = self.repository.create(task_data, user_id)
+                    if first_phase:
+                        task.phase_id = first_phase.id
+                    generated_tasks.append(task)
 
         else:
             # Default: one task per activity at the calculated deadline

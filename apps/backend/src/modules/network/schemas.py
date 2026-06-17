@@ -29,6 +29,7 @@ class PostResponse(BaseModel):
     last_activity_at: datetime
     created_at: datetime
     updated_at: datetime
+    is_active: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -51,6 +52,7 @@ class CommentResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    is_active: bool = True
 
     model_config = ConfigDict(from_attributes=True)
 

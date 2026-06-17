@@ -33,7 +33,10 @@ class PricingScenarioRepository:
     def list_scenarios_by_user(self, user_id: uuid.UUID) -> List[PricingScenario]:
         return (
             self.session.query(PricingScenario)
-            .filter(PricingScenario.user_id == user_id)
+            .filter(
+                PricingScenario.user_id == user_id,
+                PricingScenario.is_active == True,
+            )
             .all()
         )
 
@@ -43,7 +46,9 @@ class PricingScenarioRepository:
         return (
             self.session.query(PricingScenario)
             .filter(
-                PricingScenario.id == scenario_id, PricingScenario.user_id == user_id
+                PricingScenario.id == scenario_id,
+                PricingScenario.user_id == user_id,
+                PricingScenario.is_active == True,
             )
             .first()
         )
@@ -68,9 +73,12 @@ class PricingScenarioRepository:
         return scenario
 
     def delete_scenario(self, user_id: uuid.UUID, scenario_id: uuid.UUID) -> bool:
+        from datetime import datetime, timezone
+
         scenario = self.get_scenario_by_id(user_id=user_id, scenario_id=scenario_id)
         if scenario:
-            self.session.delete(scenario)
+            scenario.is_active = False
+            scenario.deleted_at = datetime.now(timezone.utc)
             self.session.flush()
             return True
         return False
@@ -88,7 +96,8 @@ class ProposalRepository:
         self, user_id: uuid.UUID, status_filter: Optional[str] = None
     ) -> List[PricingScenario]:
         query = self.session.query(PricingScenario).filter(
-            PricingScenario.user_id == user_id
+            PricingScenario.user_id == user_id,
+            PricingScenario.is_active == True,
         )
         return query.all()
 
@@ -98,7 +107,9 @@ class ProposalRepository:
         return (
             self.session.query(PricingScenario)
             .filter(
-                PricingScenario.id == proposal_id, PricingScenario.user_id == user_id
+                PricingScenario.id == proposal_id,
+                PricingScenario.user_id == user_id,
+                PricingScenario.is_active == True,
             )
             .first()
         )
@@ -129,5 +140,8 @@ class ProposalRepository:
         return scenario
 
     def delete(self, scenario: PricingScenario) -> None:
-        self.session.delete(scenario)
+        from datetime import datetime, timezone
+
+        scenario.is_active = False
+        scenario.deleted_at = datetime.now(timezone.utc)
         self.session.flush()

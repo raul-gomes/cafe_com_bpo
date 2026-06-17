@@ -849,23 +849,32 @@ def test_scheduler_daily_generates_on_weekday(client):
         headers=auth,
     )
 
-    # Vincular ao cliente
+    # Vincular ao cliente — auto‑generation já cria a tarefa do período
     assign_resp = client.post(
         "/tasks/client-templates/",
         json={"client_id": cli["id"], "template_id": tmpl_id},
         headers=auth,
     )
     assert assign_resp.status_code == 201
+    assign_data = assign_resp.json()
 
-    # Executar scheduler
+    if is_weekday:
+        assert assign_data["tasks_generated"] >= 1, (
+            f"Dia útil ({now.weekday()}) deveria gerar via auto‑generation"
+        )
+    else:
+        assert assign_data["tasks_generated"] == 0, (
+            f"Fim de semana ({now.weekday()}) não deve gerar no assignment"
+        )
+
+    # Executar scheduler — task já existe, deve pular
     resp = client.post("/tasks/scheduler/run", headers=auth)
     assert resp.status_code == 200
     data = resp.json()
 
     if is_weekday:
-        assert data["tasks_generated"] >= 1, (
-            f"Dia útil ({now.weekday()}) deveria gerar tasks"
-        )
+        assert data["tasks_generated"] == 0, "Task já foi gerada pelo assignment"
+        assert data["tasks_skipped"] >= 1, "Deveria ter detectado tarefa existente"
     else:
         assert data["tasks_generated"] == 0, (
             f"Fim de semana ({now.weekday()}) não deve gerar tasks"
@@ -893,17 +902,20 @@ def test_scheduler_does_not_duplicate(client):
         json={"name": "Task Dedup", "due_day": 1},
         headers=auth,
     )
-    client.post(
+    assign_resp = client.post(
         "/tasks/client-templates/",
         json={"client_id": cli["id"], "template_id": tmpl_id},
         headers=auth,
     )
+    assert assign_resp.status_code == 201
+    assert assign_resp.json()["tasks_generated"] >= 1, "Auto‑generation deve criar tarefa"
 
-    # Primeira execução
+    # Primeira execução — task já existe, scheduler deve pular
     r1 = client.post("/tasks/scheduler/run", headers=auth).json()
-    assert r1["tasks_generated"] >= 1
+    assert r1["tasks_generated"] == 0, "Task já existe, não deve gerar nova"
+    assert r1["tasks_skipped"] >= 1, "Deveria ter detectado tarefa existente"
 
-    # Segunda execução — não deve duplicar
+    # Segunda execução — ainda não deve duplicar
     r2 = client.post("/tasks/scheduler/run", headers=auth).json()
     assert r2["tasks_generated"] == 0
     assert r2["tasks_skipped"] >= 1
@@ -1170,17 +1182,20 @@ def test_scheduler_isolation(client):
         json={"name": "Task Iso", "due_day": 1},
         headers=auth_a,
     )
-    client.post(
+    assign_resp = client.post(
         "/tasks/client-templates/",
         json={"client_id": cli_a["id"], "template_id": tmpl_id},
         headers=auth_a,
     )
+    assert assign_resp.status_code == 201
+    assert assign_resp.json()["tasks_generated"] >= 1, "Auto‑generation deve criar tarefa"
 
-    # Executar scheduler
+    # Executar scheduler — task já existe, deve pular
     resp = client.post("/tasks/scheduler/run", headers=auth_a)
     assert resp.status_code == 200
     data = resp.json()
-    assert data["tasks_generated"] >= 1
+    assert data["tasks_generated"] == 0, "Task já existe via auto‑generation"
+    assert data["tasks_skipped"] >= 1, "Deveria ter detectado tarefa existente"
 
     # Usuário B não vê tasks de A
     tasks_b = client.get("/tasks/", headers=auth_b).json()

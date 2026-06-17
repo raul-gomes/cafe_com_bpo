@@ -36,7 +36,11 @@ class TaskRepository:
     def get_by_id(self, task_id: UUID, user_id: UUID) -> Optional[Task]:
         return (
             self.session.query(Task)
-            .filter(Task.id == task_id, Task.user_id == user_id)
+            .filter(
+                Task.id == task_id,
+                Task.user_id == user_id,
+                Task.is_active == True,
+            )
             .first()
         )
 
@@ -51,7 +55,7 @@ class TaskRepository:
         from datetime import datetime, timezone, timedelta
 
         query = self.session.query(Task).filter(
-            Task.user_id == user_id, Task.deleted_at.is_(None)
+            Task.user_id == user_id, Task.is_active == True
         )
         if status_filter:
             query = query.filter(Task.status == status_filter)
@@ -96,6 +100,7 @@ class TaskRepository:
         return task
 
     def delete(self, task: Task) -> None:
+        task.is_active = False
         task.deleted_at = datetime.now(timezone.utc)
         self.session.commit()
 
@@ -181,7 +186,7 @@ class TaskRepository:
             .filter(
                 Task.phase_id == phase_id,
                 Task.user_id == user_id,
-                Task.deleted_at.is_(None),
+                Task.is_active == True,
             )
             .order_by(Task.deadline.asc().nullslast())
             .all()
@@ -206,7 +211,7 @@ class TaskRepository:
             self.session.query(Task)
             .filter(
                 Task.user_id == user_id,
-                Task.deleted_at.is_(None),
+                Task.is_active == True,
                 Task.deadline >= start_date,
                 Task.deadline <= end_date,
             )
@@ -220,7 +225,7 @@ class TaskRepository:
             self.session.query(Task)
             .filter(
                 Task.user_id == user_id,
-                Task.deleted_at.is_(None),
+                Task.is_active == True,
                 Task.deadline.isnot(None),
             )
             .order_by(Task.deadline.asc())
@@ -383,7 +388,7 @@ class TaskRepository:
                 Task.assignment_id == assignment_id,
                 Task.deadline >= deadline_start,
                 Task.deadline <= deadline_end,
-                Task.deleted_at.is_(None),
+                Task.is_active == True,
             )
             .all()
         )
@@ -402,7 +407,7 @@ class TaskRepository:
                 TaskModel.assignment_id == assignment_id,
                 TaskModel.deadline >= deadline_start,
                 TaskModel.deadline <= deadline_end,
-                TaskModel.deleted_at.is_(None),
+                TaskModel.is_active == True,
                 TaskModel.status.notin_(["done", "cancelled"]),
             )
             .first()
@@ -529,7 +534,7 @@ class TaskRepository:
         done_ids = self._get_done_phase_ids(user_id)
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
-            Task.deleted_at.is_(None),
+            Task.is_active == True,
             Task.cancelled_at.is_(None),
             Task.deadline.isnot(None),
             Task.deadline < datetime.now(timezone.utc),
@@ -547,7 +552,7 @@ class TaskRepository:
         cutoff = now + timedelta(days=days_ahead)
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
-            Task.deleted_at.is_(None),
+            Task.is_active == True,
             Task.cancelled_at.is_(None),
             Task.deadline.isnot(None),
             Task.deadline >= now,
@@ -565,7 +570,7 @@ class TaskRepository:
             self.session.query(Task)
             .filter(
                 Task.client_id == client_id,
-                Task.deleted_at.is_(None),
+                Task.is_active == True,
                 Task.deadline >= start_date,
                 Task.deadline <= end_date,
             )

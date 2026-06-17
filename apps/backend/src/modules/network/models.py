@@ -43,6 +43,7 @@ class DiscussionPost(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     author = relationship("User")
@@ -72,6 +73,7 @@ class DiscussionComment(Base):
         default=lambda: datetime.now(timezone.utc),
         onupdate=lambda: datetime.now(timezone.utc),
     )
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
     deleted_at = Column(DateTime(timezone=True), nullable=True)
 
     post = relationship("DiscussionPost", back_populates="comments")

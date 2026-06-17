@@ -84,6 +84,21 @@ def create_comment(
         raise HTTPException(status_code=404, detail=str(e))
 
 
+@router.delete(
+    "/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT
+)
+def delete_comment(
+    comment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        repo.delete_comment(comment_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
 @router.get("/posts/{post_id}/comments", response_model=list[CommentResponse])
 def get_post_comments(
     post_id: UUID,
