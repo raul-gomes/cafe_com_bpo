@@ -4,7 +4,7 @@ import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { MessageSquare } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { useToast } from '../../components/ui/Toast';
+import { toast } from 'sonner';
 
 interface Proposal {
   id: string;
@@ -24,8 +24,6 @@ export const OrcamentosPage: React.FC = () => {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const toast = useToast();
-
   const fetchProposals = async () => {
     try {
       setLoading(true);

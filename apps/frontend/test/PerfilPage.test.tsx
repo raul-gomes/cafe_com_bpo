@@ -28,6 +28,10 @@ vi.mock('../src/api/client', async () => {
 
 // Mock api/clients helpers used by PerfilPage
 const mockUpdateProfile = vi.hoisted(() => vi.fn().mockResolvedValue({}))
+// Ensure sonner toast doesn't require DOM rendering
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}))
 vi.mock('../src/api/clients', () => ({
   uploadAvatar: vi.fn().mockResolvedValue({ avatar_url: 'https://example.com/avatar.png' }),
   updateProfile: mockUpdateProfile,
@@ -148,6 +152,7 @@ describe('PerfilPage', () => {
 
   it('shows success message after saving', async () => {
     mockUser(BASE_USER)
+    const { toast } = await import('sonner')
 
     renderPage()
 
@@ -157,7 +162,7 @@ describe('PerfilPage', () => {
     fireEvent.click(saveBtn)
 
     await waitFor(() => {
-      expect(screen.getByText('Perfil atualizado com sucesso!')).toBeInTheDocument()
+      expect(toast.success).toHaveBeenCalledWith('Perfil atualizado com sucesso!')
     })
   })
 

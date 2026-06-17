@@ -3,7 +3,7 @@ import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { CreditCard, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../../components/ui/Toast';
+import { toast } from 'sonner';
 
 interface Payment {
   id: string;
@@ -17,7 +17,6 @@ interface Payment {
 
 export const PaymentsPage: React.FC = () => {
   const { user } = useAuth();
-  const toast = useToast();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);

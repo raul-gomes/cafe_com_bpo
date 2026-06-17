@@ -6,7 +6,7 @@ import { Button } from '../../components/ui/button';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { ColorPicker } from '../../components/ui/ColorPicker';
 import { maskCNPJ, maskPhone, unmask } from '../../utils/masks';
-import { useToast } from '../../components/ui/Toast';
+import { toast } from 'sonner';
 import type { User } from '../../context/AuthContext';
 
 type TabType = 'personal' | 'company' | 'contact' | 'customization';
@@ -49,8 +49,6 @@ export const PerfilPage: React.FC = () => {
   
   const [isSaving, setIsSaving] = useState(false);
   const [segmentCustom, setSegmentCustom] = useState('');
-  const toast = useToast();
-
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     user?.avatar_url ? (user.avatar_url.startsWith('http') ? user.avatar_url : `${getApiUrl()}${user.avatar_url}`) : null

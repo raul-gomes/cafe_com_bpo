@@ -5,7 +5,7 @@ import { apiClient } from '../../api/client';
 import { calculatePricing } from '../../lib/pricingEngine';
 import { PricingFormData } from '../../schemas/pricing';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
-import { useToast } from '../../components/ui/Toast';
+import { toast } from 'sonner';
 
 export const OrcamentoNovoPage: React.FC = () => {
   const { id } = useParams();
@@ -14,8 +14,6 @@ export const OrcamentoNovoPage: React.FC = () => {
   const [clientName, setClientName] = useState('');
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
-  const toast = useToast();
-
   useEffect(() => {
     if (id) {
       const fetchProposal = async () => {

@@ -9,7 +9,7 @@ import { TaskModal } from '../../components/tasks/TaskModal';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
-import { useToast } from '../../components/ui/Toast';
+import { toast } from 'sonner';
 
 type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_minutes?: number; priority: string; process_type?: string; status: string };
 type ConflictTaskItem = { id: string; title: string; time_estimate_minutes?: number; deadline?: string };
@@ -33,7 +33,6 @@ export const TasksPage: React.FC = () => {
         : 'done';
     const updateTaskStatus = useUpdateTaskStatus();
     const cancelTask = useCancelTask();
-    const toast = useToast();
     const { data: timelineData, isLoading: timelineLoading } = useTimeline();
     const { data: conflictsData } = useConflicts();
     

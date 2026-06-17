@@ -9,7 +9,7 @@ import { useGeneratePDF } from '../../lib/useGeneratePDF';
 import logoAsset from '../../assets/logo.png';
 import { getClients, createClient, ClientData } from '../../api/clients';
 import { useAuth } from '../../context/AuthContext';
-import { useToast } from '../ui/Toast';
+import { toast } from 'sonner';
 import { maskCNPJ, maskPhone } from '../../lib/formatters';
 
 // ─── Catálogo de Serviços Inicial (Metodologia BPO v4) ─────────────────────────
@@ -53,7 +53,6 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const toast = useToast();
   const { generate: generatePDF, isGenerating } = useGeneratePDF();
   const [clientName, setClientName] = useState(initialClientName);
 

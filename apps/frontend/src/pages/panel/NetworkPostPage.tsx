@@ -5,7 +5,7 @@ import { getPost, getComments, createComment, deletePost, PostResponse, CommentR
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { useToast } from '../../components/ui/Toast';
+import { toast } from 'sonner';
 
 export const NetworkPostPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -19,8 +19,6 @@ export const NetworkPostPage: React.FC = () => {
   const [error, setError] = useState('');
   const [showReplyPanel, setShowReplyPanel] = useState(false);
   const confirm = useConfirm();
-  const toast = useToast();
-
   const loadData = useCallback(async () => {
     if (!id) return;
     setLoading(true);

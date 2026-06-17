@@ -5,7 +5,7 @@ import { maskCNPJ, maskPhone } from '../../lib/formatters';
 import { useTasks } from '../../api/hooks/useTasks';
 import { X, Link, Unlink, FileText } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { useToast } from '../../components/ui/Toast';
+import { toast } from 'sonner';
 
 const BPO_SEGMENTS = [
   'BPO Financeiro',
@@ -36,8 +36,6 @@ export const EmpresasPage: React.FC = () => {
   const assignTemplate = useAssignTemplate();
   const removeAssignment = useRemoveAssignment();
   const confirm = useConfirm();
-  const toast = useToast();
-
   useEffect(() => {
     loadClients();
   }, []);

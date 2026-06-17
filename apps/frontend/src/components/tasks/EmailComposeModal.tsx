@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { X, Mail, Paperclip, Send } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
-import { useToast } from '../ui/Toast';
+import { toast } from 'sonner';
 
 
 interface EmailComposeModalProps {
@@ -23,8 +23,6 @@ export const EmailComposeModal: React.FC<EmailComposeModalProps> = ({
   const [subject, setSubject] = useState(`Entrega: ${taskTitle}`);
   const [body, setBody] = useState(`Olá ${clientName},\n\nSegue em anexo os documentos referentes à tarefa: ${taskTitle}.\n\nAtenciosamente,`);
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const toast = useToast();
-
   const toggleAttachment = (id: string) => {
     setSelectedIds(prev =>
       prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]

@@ -3,7 +3,7 @@ import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { useToast } from '../../components/ui/Toast';
+import { toast } from 'sonner';
 
 interface GalleryFile {
   id: string;
@@ -37,7 +37,6 @@ export const GaleriaArquivosPage: React.FC = () => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragOver, setDragOver] = useState(false);
   const confirm = useConfirm();
-  const toast = useToast();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {

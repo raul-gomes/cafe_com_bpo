@@ -8,7 +8,7 @@ import logoAsset from '../assets/logo.png';
 import { useAuth } from '../context/AuthContext';
 import { getClients, ClientData } from '../api/clients';
 import { useConfirm } from '../components/ui/ConfirmDialog';
-import { useToast } from '../components/ui/Toast';
+import { toast } from 'sonner';
 import '../dashboard.css';
 
 interface Proposal {
@@ -29,8 +29,6 @@ export const DashboardPage: React.FC = () => {
   const { user } = useAuth();
   const { generate: generatePDF } = useGeneratePDF();
   const confirm = useConfirm();
-  const toast = useToast();
-
   const fetchData = async () => {
     try {
       setLoading(true);

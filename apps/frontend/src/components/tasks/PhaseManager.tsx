@@ -3,7 +3,7 @@ import { Plus, X, Edit2, Trash2, GripVertical, Settings } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { TaskPhaseResponse } from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
-import { useToast } from '../ui/Toast';
+import { toast } from 'sonner';
 
 interface PhaseManagerProps {
   isOpen: boolean;
@@ -29,8 +29,6 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
   const [newColor, setNewColor] = useState('#6b7280');
   const [draggedPhase, setDraggedPhase] = useState<string | null>(null);
   const confirm = useConfirm();
-  const toast = useToast();
-
   const handleCreate = async () => {
     if (!newName.trim()) return;
     await createPhase.mutateAsync({

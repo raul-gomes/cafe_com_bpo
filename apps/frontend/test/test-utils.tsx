@@ -2,7 +2,6 @@ import React from 'react'
 import { render, RenderOptions } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { ToastProvider } from '../src/components/ui/Toast'
 import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
 
 const queryClient = new QueryClient({
@@ -23,11 +22,9 @@ function createWrapper(options: WrapperOptions = {}) {
     return (
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={initialEntries}>
-          <ToastProvider>
             <ConfirmProvider>
               {children}
             </ConfirmProvider>
-          </ToastProvider>
         </MemoryRouter>
       </QueryClientProvider>
     )
