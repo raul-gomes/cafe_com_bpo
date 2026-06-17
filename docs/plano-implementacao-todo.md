@@ -319,7 +319,7 @@ Cada tarefa segue este ciclo:
 
 ### Tarefa 7.2 — Frontend: Filtros por período e fase
 
-- **Arquivo:** `apps/frontend/src/pages/panel/TasksPage.tsx`
+- **Arquivo:** `apps/frontend/src/pages/panel/![/a](image-1.png)TasksPage.tsx`
 - **Alteração:** Adicionar barra de filtros: input date range + dropdown de fase
 - **Testes:** Selecionar filtro reduz lista de tasks
 - **Commit:** `feat(panel): add date range and phase filters to task manager`

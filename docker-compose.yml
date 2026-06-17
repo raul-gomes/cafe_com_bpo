@@ -43,6 +43,10 @@ services:
     # Ports are now managed by Nginx gateway
     expose:
       - "8000"
+    volumes:
+      - ./apps/backend/src:/app/src
+      - ./apps/backend/tests:/app/tests
+      - ./apps/backend/alembic:/app/alembic
     depends_on:
       db:
         condition: service_healthy
@@ -50,15 +54,23 @@ services:
   web:
     build:
       context: ./apps/frontend
-      target: runner
+      target: development
     # Ports are now managed by Nginx gateway
     expose:
-      - "80"
+      - "3000"
+    volumes:
+      - ./apps/frontend/src:/app/src
+      - ./apps/frontend/index.html:/app/index.html
+      - ./apps/frontend/vite.config.ts:/app/vite.config.ts
+      - ./apps/frontend/tsconfig.json:/app/tsconfig.json
+      - ./apps/frontend/postcss.config.js:/app/postcss.config.js
+      - ./apps/frontend/tailwind.config.js:/app/tailwind.config.js
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:80/"]
-      interval: 30s
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000/"]
+      interval: 15s
       timeout: 5s
-      retries: 3
+      retries: 10
+      start_period: 30s
 
   pgadmin:
     image: dpage/pgadmin4
