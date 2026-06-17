@@ -1,7 +1,7 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MemoryRouter } from 'react-router-dom'
 import { PanelSidebar } from '../src/components/panel/PanelSidebar'
+import { renderWithProviders } from './test-utils'
 
 // Mock getClients to avoid API calls
 vi.mock('../src/api/clients', () => ({
@@ -37,14 +37,13 @@ describe('PanelSidebar', () => {
   })
 
   const renderSidebar = (isOpen = true) => {
-    return render(
-      <MemoryRouter initialEntries={['/painel']}>
-        <PanelSidebar isOpen={isOpen} onClose={vi.fn()} />
-      </MemoryRouter>
+    return renderWithProviders(
+      <PanelSidebar isOpen={isOpen} onClose={vi.fn()} />,
+      { initialEntries: ['/painel'] }
     )
   }
 
-  it('renders Nos Ajude button above the divider line', () => {
+  it('renders Nos Ajude button in the donate section', () => {
     renderSidebar()
 
     // Get the "Nos Ajude" button
@@ -55,13 +54,13 @@ describe('PanelSidebar', () => {
     const logoutBtn = screen.getByText('Sair da conta')
     expect(logoutBtn).toBeInTheDocument()
 
-    // "Nos Ajude" should be in panel-sidebar__section (above footer)
-    const section = donateBtn.closest('.panel-sidebar__section')
-    expect(section).toBeTruthy()
+    // "Nos Ajude" should be in panel-sidebar__donate-section (inside the footer)
+    const donateSection = donateBtn.closest('.panel-sidebar__donate-section')
+    expect(donateSection).toBeTruthy()
 
-    // "Sair da conta" should be in panel-sidebar__footer (below divider)
-    const footer = logoutBtn.closest('.panel-sidebar__footer')
-    expect(footer).toBeTruthy()
+    // "Sair da conta" should be in panel-sidebar__footer-bottom (below divider)
+    const footerBottom = logoutBtn.closest('.panel-sidebar__footer-bottom')
+    expect(footerBottom).toBeTruthy()
   })
 
   it('does not redirect to external page when clicking Nos Ajude', () => {
@@ -96,16 +95,16 @@ describe('PanelSidebar', () => {
     expect(screen.getByText(/cafe@cafecombpo.com.br/)).toBeInTheDocument()
   })
 
-  it('renders only Sair da conta below the divider in footer', () => {
+  it('renders only Sair da conta below the divider in footer-bottom', () => {
     renderSidebar()
     
-    const footer = document.querySelector('.panel-sidebar__footer')
-    expect(footer).toBeInTheDocument()
+    const footerBottom = document.querySelector('.panel-sidebar__footer-bottom')
+    expect(footerBottom).toBeInTheDocument()
 
-    // Footer should contain Sair da conta
-    expect(footer?.textContent).toContain('Sair da conta')
+    // Footer-bottom should contain Sair da conta
+    expect(footerBottom?.textContent).toContain('Sair da conta')
     
-    // Footer should NOT contain Nos Ajude
-    expect(footer?.textContent).not.toContain('Nos Ajude')
+    // Footer-bottom should NOT contain Nos Ajude (it's in the donate section above)
+    expect(footerBottom?.textContent).not.toContain('Nos Ajude')
   })
 })

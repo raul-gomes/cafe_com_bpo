@@ -712,7 +712,7 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                                     draggableProps={provided.draggableProps}
                                                     dragHandleProps={provided.dragHandleProps}
                                                     isDragging={snapshot.isDragging}
-                                                    style={provided.draggableProps.style}
+                                                    style={provided.draggableProps.style as React.CSSProperties}
                                                 />
                                             )}
                                         </Draggable>

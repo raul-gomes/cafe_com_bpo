@@ -161,6 +161,19 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
 
         <div className="panel-sidebar__footer">
           <div className="panel-sidebar__donate-section">
+            {user?.role === 'admin' && (
+              <button
+                className="panel-sidebar__donate-btn"
+                onClick={() => handleNav('/painel/design-system')}
+                title="Design System"
+              >
+                <svg className="panel-sidebar__nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 20h9" />
+                  <path d="M16.376 3.622a1 1 0 013.002 3.002L7.368 18.635a2 2 0 01-.855.506l-2.872.838a.5.5 0 01-.62-.62l.838-2.872a2 2 0 01.506-.854z" />
+                </svg>
+                Design System
+              </button>
+            )}
             <button
               className="panel-sidebar__donate-btn"
               onClick={onToggleTheme}

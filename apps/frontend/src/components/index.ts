@@ -36,7 +36,7 @@ export { ProposalDocument } from './pdf/ProposalDocument'
 export { ProposalListCard } from './dashboard/ProposalListCard'
 
 // UI components
-export { Button } from './ui/Button'
+export { Button } from './ui/button'
 export { FadeIn } from './ui/FadeIn'
 export { Navbar } from './ui/Navbar'
 export { RichTextEditor } from './ui/RichTextEditor'

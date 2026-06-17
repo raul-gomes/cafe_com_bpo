@@ -1,8 +1,8 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { screen, fireEvent, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { MemoryRouter } from 'react-router-dom'
 import { AuthProvider } from '../src/context/AuthContext'
 import { PerfilPage } from '../src/pages/panel/PerfilPage'
+import { renderWithProviders } from './test-utils'
 
 // Mock api/client to avoid real HTTP calls and provide controlled responses
 vi.mock('../src/api/client', async () => {
@@ -40,12 +40,11 @@ function mockUser(userData: Record<string, any>) {
 }
 
 const renderPage = () => {
-  return render(
-    <MemoryRouter initialEntries={['/painel/perfil']}>
-      <AuthProvider>
-        <PerfilPage />
-      </AuthProvider>
-    </MemoryRouter>
+  return renderWithProviders(
+    <AuthProvider>
+      <PerfilPage />
+    </AuthProvider>,
+    { initialEntries: ['/painel/perfil'] }
   )
 }
 

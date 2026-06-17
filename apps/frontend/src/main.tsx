@@ -2,7 +2,8 @@ import React from 'react'
 import ReactDOM from 'react-dom/client'
 import App from './App.tsx'
 import { AppProviders } from './providers/AppProviders'
-/* ─── Design Tokens (must be first) ─── */
+/* ─── Tailwind + Design Tokens (must be first) ─── */
+import './styles/globals.css'
 import './tokens.css'
 
 /* ─── Design System Components ─── */

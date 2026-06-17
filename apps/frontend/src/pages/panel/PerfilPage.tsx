@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { uploadAvatar, uploadCompanyLogo, updateProfile } from '../../api/clients';
 import { getApiUrl } from '../../api/client';
-import { Button } from '../../components/ui/Button';
+import { Button } from '../../components/ui/button';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { ColorPicker } from '../../components/ui/ColorPicker';
 import { maskCNPJ, maskPhone, unmask } from '../../utils/masks';
@@ -182,9 +182,9 @@ export const PerfilPage: React.FC = () => {
     <div className="perfil-page">
       <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Meu Perfil' }]} />
 
-      <div className="perfil-card" style={{ maxWidth: '750px' }}>
+      <div className="perfil-card">
         <div style={{ marginBottom: '16px' }}>
-          <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ds-white)' }}>Meu perfil</h2>
+          <h2 style={{ fontSize: '20px', fontWeight: 600, color: 'var(--ds-text)' }}>Meu perfil</h2>
           <p style={{ color: 'var(--ds-text-muted)', fontSize: '13px', marginTop: '2px' }}>Gerencie suas informações pessoais e da empresa.</p>
         </div>
 
@@ -475,11 +475,9 @@ export const PerfilPage: React.FC = () => {
           )}
 
           <div className="perfil-form__actions">
-            <Button 
-              type="submit" 
-              label="Salvar Alterações" 
-              isLoading={isSaving} 
-            />
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? "Salvando..." : "Salvar Alterações"}
+            </Button>
           </div>
         </form>
       </div>

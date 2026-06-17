@@ -4,7 +4,6 @@
 
 /* ─── Perfil Page ─── */
 .perfil-page {
-  max-width: 1200px;
   animation: panelFadeIn 0.4s ease-out;
 }
 
@@ -54,6 +53,7 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
+  max-width: 960px;
 }
 
 .perfil-form__full {

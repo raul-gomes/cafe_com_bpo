@@ -1,6 +1,6 @@
 import React from 'react';
 import { Navbar } from '../components/ui/Navbar';
-import { Button } from '../components/ui/Button';
+import { Button } from '../components/ui/button';
 import { FadeIn } from '../components/ui/FadeIn';
 import { Link } from 'react-router-dom';
 
@@ -23,7 +23,7 @@ const UnderConstructionPage: React.FC = () => {
             </FadeIn>
             <FadeIn delay={3}>
               <Link to="/">
-                <Button variant="outline" size="md">
+                <Button variant="outline" size="default">
                   Voltar para a base
                 </Button>
               </Link>

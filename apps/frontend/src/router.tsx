@@ -11,6 +11,7 @@ import { ResetPasswordPage } from './pages/ResetPasswordPage'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PanelLayout } from './components/panel/PanelLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
+import { AdminRoute } from './components/auth/AdminRoute'
 import { DashboardPage } from './pages/panel/DashboardPage'
 import { OrcamentosPage } from './pages/panel/OrcamentosPage'
 import { OrcamentoNovoPage } from './pages/panel/OrcamentoNovoPage'
@@ -24,6 +25,7 @@ import { EmpresasPage } from './pages/panel/EmpresasPage'
 import { PaymentsPage } from './pages/panel/PaymentsPage'
 import { TemplateListPage } from './pages/panel/TemplateListPage'
 import { TemplateDetailPage } from './pages/panel/TemplateDetailPage'
+import DesignSystemPage from './pages/panel/DesignSystemPage'
 
 export function buildRouter() {
   return createBrowserRouter([
@@ -130,6 +132,13 @@ export function buildRouter() {
             {
               path: 'templates-atividades/:id',
               element: <TemplateDetailPage />,
+            },
+            {
+              path: 'design-system',
+              element: <AdminRoute />,
+              children: [
+                { path: '', element: <DesignSystemPage /> },
+              ],
             },
           ]
         }

@@ -105,15 +105,16 @@ export const EmpresasPage: React.FC = () => {
 
   const handleDelete = async (id: string, name: string) => {
     const ok = await confirm({
-      title: 'Excluir cliente',
-      message: `Deseja excluir o cliente "${name}"?`,
+      title: 'Excluir cliente permanentemente?',
+      message: `Tem certeza que deseja excluir "${name}"? Esta ação é irreversível e **todas as tarefas e orçamentos vinculados** a este cliente também serão permanentemente removidos do sistema.`,
       variant: 'danger',
-      confirmLabel: 'Excluir',
+      confirmLabel: 'Sim, excluir tudo',
     });
     if (!ok) return;
     try {
       setClients(prev => prev.filter(c => c.id !== id));
       await deleteClient(id);
+      toast.success(`Cliente "${name}" e todos os dados associados foram excluídos.`);
     } catch (e) {
       console.error(e);
       toast.error('Erro ao excluir cliente.');
