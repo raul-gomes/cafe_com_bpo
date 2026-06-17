@@ -1,9 +1,36 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Card } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Textarea } from '../../components/ui/textarea';
+import { Skeleton } from '../../components/ui/skeleton';
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from '../../components/ui/tabs';
+import {
+  Table,
+  TableHeader,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+} from '../../components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '../../components/ui/dialog';
 import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { toast } from 'sonner';
+import { cn } from '../../lib/utils';
 
 interface GalleryFile {
   id: string;
@@ -52,7 +79,9 @@ export const GaleriaArquivosPage: React.FC = () => {
       setFiles(resp.data);
     } catch (err) {
       console.error('Erro ao carregar arquivos:', err);
-      setError('Não foi possível carregar os arquivos. Verifique sua conexão e tente novamente.');
+      setError(
+        'Não foi possível carregar os arquivos. Verifique sua conexão e tente novamente.'
+      );
     } finally {
       setLoading(false);
     }
@@ -156,7 +185,9 @@ export const GaleriaArquivosPage: React.FC = () => {
       await apiClient.post(url, formData, {
         headers: { 'Content-Type': 'multipart/form-data' },
         onUploadProgress: (progressEvent: any) => {
-          const percent = Math.round((progressEvent.loaded * 100) / (progressEvent.total || 1));
+          const percent = Math.round(
+            (progressEvent.loaded * 100) / (progressEvent.total || 1)
+          );
           setUploadProgress(percent);
         },
       });
@@ -183,10 +214,12 @@ export const GaleriaArquivosPage: React.FC = () => {
     });
     if (!ok) return;
     try {
-      const url = tab === 'common' ? `/gallery/common/${file.id}` : `/gallery/${file.id}`;
+      const url =
+        tab === 'common' ? `/gallery/common/${file.id}` : `/gallery/${file.id}`;
       await apiClient.delete(url);
       toast.success('Arquivo excluído.');
-      if (tab === 'my') setFiles(prev => prev.filter(f => f.id !== file.id));
+      if (tab === 'my')
+        setFiles(prev => prev.filter(f => f.id !== file.id));
       else setCommonFiles(prev => prev.filter(f => f.id !== file.id));
     } catch (err: any) {
       console.error('Erro ao excluir:', err);
@@ -203,289 +236,386 @@ export const GaleriaArquivosPage: React.FC = () => {
   };
 
   const handleDownload = (file: GalleryFile) => {
-    const downloadUrl = `${BASE_URL}${file.file_path}`;
-    window.open(downloadUrl, '_blank');
+    window.open(`${BASE_URL}${file.file_path}`, '_blank');
   };
 
   const currentFiles = tab === 'my' ? files : commonFiles;
-  const filteredFiles = currentFiles.filter(f => 
-    f.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (f.title && f.title.toLowerCase().includes(searchTerm.toLowerCase()))
+  const filteredFiles = currentFiles.filter(
+    f =>
+      f.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (f.title && f.title.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
-    <div className="gallery-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
-      <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Galeria de Arquivos' }]} />
+    <div className="animate-[panelFadeIn_0.4s_ease-out]">
+      <Breadcrumb
+        items={[
+          { label: 'Painel', to: '/painel' },
+          { label: 'Galeria de Arquivos' },
+        ]}
+      />
 
-      <div className="panel-content__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '28px' }}>
+      {/* Header */}
+      <div className="mb-7 flex items-start justify-between">
         <div>
-          <h1>Galeria de Arquivos</h1>
-          <p>Armazene modelos, documentos e arquivos importantes da sua operação.</p>
+          <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">
+            Galeria de Arquivos
+          </h1>
+          <p className="text-[14px] text-muted-foreground">
+            Armazene modelos, documentos e arquivos importantes da sua operação.
+          </p>
         </div>
-        <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
-          <div className="panel-navbar__search" style={{ width: '300px' }}>
-            <input 
-              type="text" 
-              className="panel-navbar__search-input" 
-              placeholder="Buscar arquivos..." 
-              style={{ width: '100%' }}
+        <div className="flex items-center gap-4">
+          {/* Search */}
+          <div className="relative w-[300px]">
+            <Input
+              type="text"
+              placeholder="Buscar arquivos..."
               value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
+              onChange={e => setSearchTerm(e.target.value)}
+              className="w-full pl-9"
             />
-            <svg className="panel-navbar__search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <svg
+              className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
               <circle cx="11" cy="11" r="8" />
               <line x1="21" y1="21" x2="16.65" y2="16.65" />
             </svg>
           </div>
           {(tab === 'my' || isAdmin) && (
-            <button className="ds-btn ds-btn-primary" onClick={() => setShowUploadForm(true)} style={{ gap: '8px' }}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+            <Button variant="default" onClick={() => setShowUploadForm(true)}>
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                 <polyline points="17 8 12 3 7 8" />
                 <line x1="12" y1="3" x2="12" y2="15" />
               </svg>
               Enviar Arquivo
-            </button>
+            </Button>
           )}
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '24px', background: 'var(--ds-surface-2)', padding: '4px', borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)', width: 'fit-content' }}>
-        <button
-          onClick={() => setTab('my')}
-          style={{
-            padding: '8px 20px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 700, transition: 'all 0.2s',
-            background: tab === 'my' ? 'var(--ds-surface)' : 'transparent',
-            color: tab === 'my' ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
-          }}
-        >
-          Meus Arquivos
-        </button>
-        <button
-          onClick={() => setTab('common')}
-          style={{
-            padding: '8px 20px', borderRadius: 'var(--radius-sm)', border: 'none', cursor: 'pointer',
-            fontSize: '13px', fontWeight: 700, transition: 'all 0.2s',
-            background: tab === 'common' ? 'var(--ds-surface)' : 'transparent',
-            color: tab === 'common' ? 'var(--ds-primary)' : 'var(--ds-text-muted)',
-          }}
-        >
-          Comunitários
-        </button>
-      </div>
+      <Tabs value={tab} onValueChange={(val) => setTab(val as 'my' | 'common')}>
+        <TabsList className="mb-6">
+          <TabsTrigger value="my">Meus Arquivos</TabsTrigger>
+          <TabsTrigger value="common">Comunitários</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
-      {showUploadForm && (
-        <div style={{ backgroundColor: 'var(--ds-surface)', padding: '24px', borderRadius: '12px', border: '1px solid var(--ds-border)', marginBottom: '24px' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 600, marginBottom: '16px' }}>Enviar Arquivo</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="ds-input-group">
-              <label className="ds-label">Arquivo *</label>
-              <div
-                onDragOver={handleDragOver}
-                onDragLeave={handleDragLeave}
-                onDrop={handleDrop}
-                onClick={() => fileInputRef.current?.click()}
-                style={{
-                  border: `2px dashed ${dragOver ? 'var(--ds-primary)' : 'var(--ds-border)'}`,
-                  borderRadius: '8px',
-                  padding: '32px',
-                  textAlign: 'center',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                  backgroundColor: dragOver ? 'rgba(59, 130, 246, 0.05)' : 'transparent',
-                }}
+      {/* Upload Dialog */}
+      <Dialog
+        open={showUploadForm}
+        onOpenChange={(open) => {
+          if (!open) resetUploadForm();
+        }}
+      >
+        <DialogContent className="sm:max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Enviar Arquivo</DialogTitle>
+            <DialogDescription>
+              Selecione ou arraste um arquivo para enviar para a galeria.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 px-6">
+            {/* Drop zone */}
+            <div
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+              onClick={() => fileInputRef.current?.click()}
+              className={cn(
+                'cursor-pointer rounded-lg border-2 border-dashed p-8 text-center transition-all',
+                dragOver
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-muted-foreground/30'
+              )}
+            >
+              <input
+                type="file"
+                ref={fileInputRef}
+                onChange={e => setSelectedFile(e.target.files?.[0] || null)}
+                accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.ppt,.pptx,.txt,.csv"
+                className="hidden"
+              />
+              <svg
+                width="40"
+                height="40"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke={dragOver ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="mx-auto mb-3"
               >
-                <input
-                  type="file"
-                  ref={fileInputRef}
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                  accept=".pdf,.doc,.docx,.xls,.xlsx,.png,.jpg,.jpeg,.webp,.ppt,.pptx,.txt,.csv"
-                  style={{ display: 'none' }}
-                />
-                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke={dragOver ? 'var(--ds-primary)' : 'var(--ds-text-subtle)'} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 12px' }}>
-                  <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
-                  <polyline points="17 8 12 3 7 8" />
-                  <line x1="12" y1="3" x2="12" y2="15" />
-                </svg>
-                {selectedFile ? (
-                  <p style={{ fontSize: '14px', fontWeight: 600, color: 'var(--ds-text)' }}>{selectedFile.name}</p>
-                ) : (
-                  <>
-                    <p style={{ fontSize: '14px', color: 'var(--ds-text)' }}>Arraste o arquivo aqui ou clique para selecionar</p>
-                    <p style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', marginTop: '4px' }}>PDF, DOC, XLS, PNG, JPG, etc. Máximo 10MB.</p>
-                  </>
-                )}
-              </div>
+                <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
+                <polyline points="17 8 12 3 7 8" />
+                <line x1="12" y1="3" x2="12" y2="15" />
+              </svg>
+              {selectedFile ? (
+                <p className="text-[14px] font-semibold text-foreground">
+                  {selectedFile.name}
+                </p>
+              ) : (
+                <>
+                  <p className="text-[14px] text-foreground">
+                    Arraste o arquivo aqui ou clique para selecionar
+                  </p>
+                  <p className="mt-1 text-[11px] text-muted-foreground/70">
+                    PDF, DOC, XLS, PNG, JPG, etc. Máximo 10MB.
+                  </p>
+                </>
+              )}
               {uploading && (
-                <div style={{ marginTop: '12px' }}>
-                  <div style={{ height: '4px', backgroundColor: 'var(--ds-border)', borderRadius: '2px', overflow: 'hidden' }}>
+                <div className="mt-3">
+                  <div className="h-1 overflow-hidden rounded-full bg-border">
                     <div
-                      style={{
-                        height: '100%',
-                        width: `${uploadProgress}%`,
-                        backgroundColor: 'var(--ds-primary)',
-                        transition: 'width 0.3s ease',
-                      }}
+                      className="h-full rounded-full bg-primary transition-all duration-300"
+                      style={{ width: `${uploadProgress}%` }}
                     />
                   </div>
-                  <p style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', marginTop: '4px', textAlign: 'center' }}>
+                  <p className="mt-1 text-[11px] text-muted-foreground/70">
                     {uploadProgress}% enviado
                   </p>
                 </div>
               )}
             </div>
-            <div className="ds-input-group">
-              <label className="ds-label">Título</label>
-              <input type="text" className="ds-input" value={uploadTitle} onChange={e => setUploadTitle(e.target.value)} placeholder="Nome descritivo" />
-            </div>
-            <div className="ds-input-group" style={{ gridColumn: '1 / -1' }}>
-              <label className="ds-label">Descrição</label>
-              <textarea className="ds-input" value={uploadDescription} onChange={e => setUploadDescription(e.target.value)} placeholder="Descreva o conteúdo do arquivo..." rows={2} style={{ resize: 'vertical', minHeight: '60px' }} />
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '8px', marginTop: '16px', justifyContent: 'flex-end' }}>
-            <button className="ds-btn ds-btn-ghost" onClick={resetUploadForm} disabled={uploading}>Cancelar</button>
-            <button className="ds-btn ds-btn-primary" onClick={handleUpload} disabled={!selectedFile || uploading}>
-              {uploading ? `Enviando... ${uploadProgress}%` : 'Enviar'}
-            </button>
-          </div>
-        </div>
-      )}
 
-      <div className="panel-card" style={{ padding: '0', overflow: 'hidden' }}>
-        <table className="ds-table" style={{ width: '100%', borderCollapse: 'collapse' }}>
-          <thead>
-            <tr style={{ textAlign: 'left', borderBottom: '1px solid rgba(255,255,255,0.06)', background: 'rgba(255,255,255,0.02)' }}>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase' }}>Arquivo</th>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase' }}>Tipo</th>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase' }}>Tamanho</th>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase' }}>Data</th>
-              <th style={{ padding: '16px 24px', fontSize: '12px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', textAlign: 'right' }}>Ações</th>
-            </tr>
-          </thead>
-          <tbody>
+            <div className="flex flex-col gap-2">
+              <label className="text-[13px] font-medium text-foreground/80">
+                Título
+              </label>
+              <Input
+                type="text"
+                value={uploadTitle}
+                onChange={e => setUploadTitle(e.target.value)}
+                placeholder="Nome descritivo"
+              />
+            </div>
+
+            <div className="flex flex-col gap-2">
+              <label className="text-[13px] font-medium text-foreground/80">
+                Descrição
+              </label>
+              <Textarea
+                value={uploadDescription}
+                onChange={e => setUploadDescription(e.target.value)}
+                placeholder="Descreva o conteúdo do arquivo..."
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter showCloseButton={false}>
+            <Button variant="ghost" onClick={resetUploadForm} disabled={uploading}>
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleUpload}
+              disabled={!selectedFile || uploading}
+            >
+              {uploading ? `Enviando... ${uploadProgress}%` : 'Enviar'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Table */}
+      <Card className="overflow-hidden p-0">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead className="px-6 py-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">
+                Arquivo
+              </TableHead>
+              <TableHead className="px-6 py-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">
+                Tipo
+              </TableHead>
+              <TableHead className="px-6 py-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">
+                Tamanho
+              </TableHead>
+              <TableHead className="px-6 py-4 text-[12px] font-bold uppercase tracking-wider text-muted-foreground">
+                Data
+              </TableHead>
+              <TableHead className="px-6 py-4 text-right text-[12px] font-bold uppercase tracking-wider text-muted-foreground">
+                Ações
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
             {error ? (
-              <tr>
-                <td colSpan={5} style={{ padding: '60px 24px', textAlign: 'center' }}>
-                  <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ds-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 16px', opacity: 0.5 }}>
+              <TableRow>
+                <TableCell
+                  colSpan={5}
+                  className="px-6 py-16 text-center"
+                >
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="hsl(var(--destructive))"
+                    strokeWidth="1.5"
+                    className="mx-auto mb-4 opacity-50"
+                  >
                     <circle cx="12" cy="12" r="10" />
                     <line x1="12" y1="8" x2="12" y2="12" />
                     <line x1="12" y1="16" x2="12.01" y2="16" />
                   </svg>
-                  <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>Erro ao carregar</h3>
-                  <p style={{ color: 'var(--ds-text-muted)', marginBottom: '20px' }}>{error}</p>
-                  <button className="ds-btn ds-btn-primary" onClick={fetchFiles}>Tentar Novamente</button>
-                </td>
-              </tr>
+                  <h3 className="mb-2 text-[16px] font-bold text-foreground">
+                    Erro ao carregar
+                  </h3>
+                  <p className="mb-5 text-[14px] text-muted-foreground">{error}</p>
+                  <Button variant="default" onClick={tab === 'my' ? fetchFiles : fetchCommonFiles}>
+                    Tentar Novamente
+                  </Button>
+                </TableCell>
+              </TableRow>
             ) : loading ? (
               Array.from({ length: 5 }).map((_, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
-                  <td style={{ padding: '16px 24px' }}><div className="panel-skeleton" style={{ width: '200px', height: '16px' }} /></td>
-                  <td style={{ padding: '16px 24px' }}><div className="panel-skeleton" style={{ width: '60px', height: '16px' }} /></td>
-                  <td style={{ padding: '16px 24px' }}><div className="panel-skeleton" style={{ width: '40px', height: '16px' }} /></td>
-                  <td style={{ padding: '16px 24px' }}><div className="panel-skeleton" style={{ width: '80px', height: '16px' }} /></td>
-                  <td style={{ padding: '16px 24px', textAlign: 'right' }}><div className="panel-skeleton" style={{ width: '32px', height: '32px', marginLeft: 'auto', borderRadius: '4px' }} /></td>
-                </tr>
+                <TableRow key={i}>
+                  <TableCell className="px-6 py-4">
+                    <Skeleton className="h-4 w-[200px]" />
+                  </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <Skeleton className="h-4 w-[60px]" />
+                  </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <Skeleton className="h-4 w-[40px]" />
+                  </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <Skeleton className="h-4 w-[80px]" />
+                  </TableCell>
+                  <TableCell className="px-6 py-4 text-right">
+                    <Skeleton className="ml-auto h-8 w-8 rounded" />
+                  </TableCell>
+                </TableRow>
               ))
             ) : filteredFiles.length === 0 ? (
-              <tr>
-                <td colSpan={5} style={{ padding: '60px 24px', textAlign: 'center' }}>
-                  <div className="panel-empty" style={{ margin: '0' }}>
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.3, marginBottom: '16px' }}>
-                      <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
-                    </svg>
-                    <p style={{ color: 'var(--ds-text-muted)' }}>{searchTerm ? 'Nenhum arquivo encontrado para esta busca.' : 'Nenhum arquivo enviado. Comece enviando seus documentos.'}</p>
-                  </div>
-                </td>
-              </tr>
+              <TableRow>
+                <TableCell colSpan={5} className="px-6 py-16 text-center">
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1"
+                    className="mx-auto mb-4 opacity-30"
+                  >
+                    <path d="M22 19a2 2 0 01-2 2H4a2 2 0 01-2-2V5a2 2 0 012-2h5l2 3h9a2 2 0 012 2z" />
+                  </svg>
+                  <p className="text-[14px] text-muted-foreground">
+                    {searchTerm
+                      ? 'Nenhum arquivo encontrado para esta busca.'
+                      : 'Nenhum arquivo enviado. Comece enviando seus documentos.'}
+                  </p>
+                </TableCell>
+              </TableRow>
             ) : (
-              filteredFiles.map((file) => {
+              filteredFiles.map(file => {
                 const ext = file.file_name.split('.').pop() || '';
                 return (
-                  <tr key={file.id} className="ds-table-row" style={{ borderBottom: '1px solid rgba(255,255,255,0.04)', transition: 'background 0.2s ease' }}>
-                    <td style={{ padding: '16px 24px' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                  <TableRow key={file.id}>
+                    <TableCell className="px-6 py-4">
+                      <div className="flex items-center gap-3">
                         {getFileIcon(file.file_name)}
                         <div>
-                          <span 
-                            style={{ 
-                              fontWeight: 600, 
-                              color: 'var(--ds-text)', 
-                              cursor: 'pointer',
-                              transition: 'color 0.2s ease'
-                            }}
-                            className="file-name-link"
+                          <span
+                            className="cursor-pointer font-semibold text-foreground transition-colors hover:text-primary hover:underline"
                             onClick={() => handleDownload(file)}
                           >
                             {file.title || file.file_name}
                           </span>
                           {file.description && (
-                            <p style={{ fontSize: '11px', color: 'var(--ds-text-subtle)', marginTop: '2px', maxWidth: '300px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                            <p className="max-w-[300px] truncate text-[11px] text-muted-foreground/70">
                               {file.description}
                             </p>
                           )}
                         </div>
                       </div>
-                    </td>
-                    <td style={{ padding: '16px 24px' }}>
-                      <span style={{ fontSize: '11px', fontWeight: 700, color: 'var(--ds-text-subtle)', textTransform: 'uppercase' }}>
+                    </TableCell>
+                    <TableCell className="px-6 py-4">
+                      <span className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground/70">
                         {ext || 'Arquivo'}
                       </span>
-                    </td>
-                    <td style={{ padding: '16px 24px', color: 'var(--ds-text-muted)', fontSize: '13px' }}>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-[13px] text-muted-foreground">
                       {formatSize(file.file_size)}
-                    </td>
-                    <td style={{ padding: '16px 24px', color: 'var(--ds-text-muted)', fontSize: '13px' }}>
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-[13px] text-muted-foreground">
                       {new Date(file.created_at).toLocaleDateString('pt-BR')}
-                    </td>
-                    <td style={{ padding: '16px 24px', textAlign: 'right' }}>
-                      <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
-                        <button 
-                          className="ds-btn ds-btn-ghost ds-btn-sm" 
+                    </TableCell>
+                    <TableCell className="px-6 py-4 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => handleDownload(file)}
                           title="Baixar"
-                          style={{ padding: '8px' }}
                         >
-                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--ds-primary)" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                          <svg
+                            width="18"
+                            height="18"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            stroke="hsl(var(--primary))"
+                            strokeWidth="2.5"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
                             <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4" />
                             <polyline points="7 10 12 15 17 10" />
                             <line x1="12" y1="15" x2="12" y2="3" />
                           </svg>
-                        </button>
+                        </Button>
                         {(tab === 'my' || isAdmin) && (
-                          <button 
-                            className="ds-btn ds-btn-ghost ds-btn-sm" 
+                          <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => handleDelete(file)}
                             title="Excluir"
-                            style={{ padding: '8px' }}
                           >
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#ef4444" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <svg
+                              width="16"
+                              height="16"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              stroke="#ef4444"
+                              strokeWidth="2"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                            >
                               <polyline points="3 6 5 6 21 6" />
                               <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                             </svg>
-                          </button>
+                          </Button>
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })
             )}
-          </tbody>
-        </table>
-      </div>
-
-      <style dangerouslySetInnerHTML={{ __html: `
-        .ds-table-row:hover {
-          background: rgba(255, 255, 255, 0.02);
-        }
-        .file-name-link:hover {
-          color: var(--ds-primary) !important;
-          text-decoration: underline;
-        }
-      `}} />
+          </TableBody>
+        </Table>
+      </Card>
     </div>
   );
 };

@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Card } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Input } from '../../components/ui/input';
+import { Skeleton } from '../../components/ui/skeleton';
 import { CreditCard, CheckCircle, AlertCircle, Clock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
@@ -37,7 +41,9 @@ export const PaymentsPage: React.FC = () => {
       setPayments(data);
     } catch (err) {
       console.error('Erro ao carregar pagamentos:', err);
-      setError('Não foi possível carregar os pagamentos. Verifique sua conexão e tente novamente.');
+      setError(
+        'Não foi possível carregar os pagamentos. Verifique sua conexão e tente novamente.'
+      );
     } finally {
       setLoading(false);
     }
@@ -54,7 +60,9 @@ export const PaymentsPage: React.FC = () => {
     }
     try {
       setCreating(true);
-      const amount = parseFloat(form.amount.replace(/[^\d,]/g, '').replace(',', '.'));
+      const amount = parseFloat(
+        form.amount.replace(/[^\d,]/g, '').replace(',', '.')
+      );
       await apiClient.post('/payments/create', {
         payment: {
           amount,
@@ -70,7 +78,12 @@ export const PaymentsPage: React.FC = () => {
         },
       });
       setShowForm(false);
-      setForm({ amount: '', description: '', payment_method: 'credit_card', due_date: '' });
+      setForm({
+        amount: '',
+        description: '',
+        payment_method: 'credit_card',
+        due_date: '',
+      });
       fetchPayments();
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Erro ao criar pagamento.');
@@ -83,11 +96,11 @@ export const PaymentsPage: React.FC = () => {
     switch (status) {
       case 'received':
       case 'confirmed':
-        return <CheckCircle size={16} color="var(--ds-success)" />;
+        return <CheckCircle size={16} className="text-emerald-500" />;
       case 'overdue':
-        return <AlertCircle size={16} color="var(--ds-error)" />;
+        return <AlertCircle size={16} className="text-destructive" />;
       default:
-        return <Clock size={16} color="var(--ds-warning)" />;
+        return <Clock size={16} className="text-amber-500" />;
     }
   };
 
@@ -106,109 +119,201 @@ export const PaymentsPage: React.FC = () => {
   };
 
   const formatPrice = (value: number) =>
-    new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
+    new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL',
+    }).format(value);
 
   return (
-    <>
-      <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Pagamentos' }]} />
+    <div className="animate-[panelFadeIn_0.4s_ease-out]">
+      <Breadcrumb
+        items={[
+          { label: 'Painel', to: '/painel' },
+          { label: 'Pagamentos' },
+        ]}
+      />
 
-      <div className="panel-content__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1>Pagamentos</h1>
-          <p>Gerencie seus pagamentos via Asaas.</p>
+          <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">
+            Pagamentos
+          </h1>
+          <p className="text-[14px] text-muted-foreground">
+            Gerencie seus pagamentos via Asaas.
+          </p>
         </div>
-        <button className="ds-btn ds-btn-primary" onClick={() => setShowForm(!showForm)} style={{ gap: '8px' }}>
+        <Button variant="default" onClick={() => setShowForm(!showForm)}>
           <CreditCard size={18} /> Novo Pagamento
-        </button>
+        </Button>
       </div>
 
+      {/* Create Payment Form */}
       {showForm && (
-        <div className="ds-card" style={{ padding: '24px', marginBottom: '24px', animation: 'panelFadeIn 0.3s ease-out' }}>
-          <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '20px' }}>Novo Pagamento</h3>
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-            <div className="ds-input-group">
-              <label className="ds-label">Valor (R$) *</label>
-              <input className="ds-input" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} placeholder="R$ 0,00" />
+        <Card className="mb-6 animate-[panelFadeIn_0.3s_ease-out] p-6">
+          <h3 className="mb-5 text-[16px] font-bold text-foreground">
+            Novo Pagamento
+          </h3>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-medium text-foreground/80">
+                Valor (R$) *
+              </label>
+              <Input
+                value={form.amount}
+                onChange={e =>
+                  setForm(p => ({ ...p, amount: e.target.value }))
+                }
+                placeholder="R$ 0,00"
+              />
             </div>
-            <div className="ds-input-group">
-              <label className="ds-label">Data de Vencimento *</label>
-              <input className="ds-input" type="date" value={form.due_date} onChange={e => setForm(p => ({ ...p, due_date: e.target.value }))} />
+            <div className="flex flex-col gap-1.5">
+              <label className="text-[13px] font-medium text-foreground/80">
+                Data de Vencimento *
+              </label>
+              <Input
+                type="date"
+                value={form.due_date}
+                onChange={e =>
+                  setForm(p => ({ ...p, due_date: e.target.value }))
+                }
+              />
             </div>
           </div>
-          <div className="ds-input-group">
-            <label className="ds-label">Descrição</label>
-            <input className="ds-input" value={form.description} onChange={e => setForm(p => ({ ...p, description: e.target.value }))} placeholder="Ex: Mensalidade Plano Premium" />
+          <div className="mt-4 flex flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-foreground/80">
+              Descrição
+            </label>
+            <Input
+              value={form.description}
+              onChange={e =>
+                setForm(p => ({ ...p, description: e.target.value }))
+              }
+              placeholder="Ex: Mensalidade Plano Premium"
+            />
           </div>
-          <div className="ds-input-group">
-            <label className="ds-label">Método de Pagamento</label>
-            <select className="ds-input" value={form.payment_method} onChange={e => setForm(p => ({ ...p, payment_method: e.target.value }))}>
+          <div className="mt-4 flex flex-col gap-1.5">
+            <label className="text-[13px] font-medium text-foreground/80">
+              Método de Pagamento
+            </label>
+            <select
+              value={form.payment_method}
+              onChange={e =>
+                setForm(p => ({ ...p, payment_method: e.target.value }))
+              }
+              className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
+            >
               <option value="credit_card">Cartão de Crédito</option>
               <option value="boleto">Boleto Bancário</option>
               <option value="pix">PIX</option>
             </select>
           </div>
-          <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '16px' }}>
-            <button className="ds-btn" onClick={() => setShowForm(false)}>Cancelar</button>
-            <button className="ds-btn ds-btn-primary" onClick={handleCreatePayment} disabled={creating}>
+          <div className="mt-5 flex justify-end gap-3">
+            <Button variant="ghost" onClick={() => setShowForm(false)}>
+              Cancelar
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleCreatePayment}
+              disabled={creating}
+            >
               {creating ? 'Criando...' : 'Criar Pagamento'}
-            </button>
+            </Button>
           </div>
-        </div>
+        </Card>
       )}
 
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+      {/* Payments List */}
+      <div className="flex flex-col gap-3">
         {error ? (
-          <div className="ds-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
-            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--ds-error)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ margin: '0 auto 16px', opacity: 0.5 }}>
+          <Card className="p-12 text-center">
+            <svg
+              width="48"
+              height="48"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="hsl(var(--destructive))"
+              strokeWidth="1.5"
+              className="mx-auto mb-4 opacity-50"
+            >
               <circle cx="12" cy="12" r="10" />
               <line x1="12" y1="8" x2="12" y2="12" />
               <line x1="12" y1="16" x2="12.01" y2="16" />
             </svg>
-            <h3 style={{ fontSize: '16px', fontWeight: 700, marginBottom: '8px' }}>Erro ao carregar</h3>
-            <p style={{ color: 'var(--ds-text-muted)', marginBottom: '20px', maxWidth: '400px', margin: '0 auto 20px' }}>{error}</p>
-            <button className="ds-btn ds-btn-primary" onClick={fetchPayments}>Tentar Novamente</button>
-          </div>
+            <h3 className="mb-2 text-[16px] font-bold text-foreground">
+              Erro ao carregar
+            </h3>
+            <p className="mx-auto mb-5 max-w-[400px] text-[14px] text-muted-foreground">
+              {error}
+            </p>
+            <Button variant="default" onClick={fetchPayments}>
+              Tentar Novamente
+            </Button>
+          </Card>
         ) : loading ? (
           Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="ds-card" style={{ padding: '20px' }}>
-              <div className="panel-skeleton" style={{ height: '16px', width: '40%', marginBottom: '8px' }} />
-              <div className="panel-skeleton" style={{ height: '12px', width: '30%' }} />
-            </div>
+            <Card key={i} className="p-5">
+              <Skeleton className="mb-2 h-4 w-[40%]" />
+              <Skeleton className="h-3 w-[30%]" />
+            </Card>
           ))
         ) : payments.length === 0 ? (
-          <div className="panel-empty">
-            <CreditCard size={48} style={{ margin: '0 auto 16px', opacity: 0.3 }} />
-            <h3>Nenhum pagamento encontrado</h3>
-            <p>Crie um pagamento para começar.</p>
-          </div>
+          <Card className="p-12 text-center">
+            <CreditCard className="mx-auto mb-4 opacity-30" size={48} />
+            <h3 className="mb-2 text-[16px] font-bold text-foreground">
+              Nenhum pagamento encontrado
+            </h3>
+            <p className="text-[14px] text-muted-foreground">
+              Crie um pagamento para começar.
+            </p>
+          </Card>
         ) : (
           payments.map(payment => (
-            <div key={payment.id} className="ds-card" style={{ padding: '20px', display: 'grid', gridTemplateColumns: '1fr auto', alignItems: 'center', gap: '16px' }}>
+            <Card
+              key={payment.id}
+              className="grid grid-cols-[1fr_auto] items-center gap-4 p-5"
+            >
               <div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                <div className="mb-1 flex items-center gap-2">
                   {getStatusIcon(payment.status)}
-                  <span style={{ fontSize: '15px', fontWeight: 700 }}>{payment.description || 'Pagamento'}</span>
+                  <span className="text-[15px] font-bold text-foreground">
+                    {payment.description || 'Pagamento'}
+                  </span>
                 </div>
-                <div style={{ fontSize: '12px', color: 'var(--ds-text-muted)', display: 'flex', gap: '12px' }}>
-                  <span>Vencimento: {new Date(payment.due_date).toLocaleDateString('pt-BR')}</span>
+                <div className="flex gap-3 text-[12px] text-muted-foreground">
+                  <span>
+                    Vencimento:{' '}
+                    {new Date(payment.due_date).toLocaleDateString('pt-BR')}
+                  </span>
                   <span>•</span>
-                  <span style={{ textTransform: 'uppercase' }}>
-                    {payment.payment_method === 'credit_card' ? 'Cartão' : payment.payment_method === 'boleto' ? 'Boleto' : 'PIX'}
+                  <span className="uppercase">
+                    {payment.payment_method === 'credit_card'
+                      ? 'Cartão'
+                      : payment.payment_method === 'boleto'
+                        ? 'Boleto'
+                        : 'PIX'}
                   </span>
                 </div>
               </div>
-              <div style={{ textAlign: 'right' }}>
-                <div style={{ fontSize: '20px', fontWeight: 800, color: 'var(--ds-primary)' }}>
+              <div className="text-right">
+                <div className="text-[20px] font-extrabold text-primary">
                   {formatPrice(payment.amount)}
                 </div>
-                <div style={{ fontSize: '11px', fontWeight: 600, color: payment.status === 'confirmed' || payment.status === 'received' ? 'var(--ds-success)' : 'var(--ds-warning)' }}>
+                <div
+                  className={
+                    payment.status === 'confirmed' ||
+                    payment.status === 'received'
+                      ? 'text-[11px] font-semibold text-emerald-500'
+                      : 'text-[11px] font-semibold text-amber-500'
+                  }
+                >
                   {getStatusLabel(payment.status)}
                 </div>
               </div>
-            </div>
+            </Card>
           ))
         )}
       </div>
-    </>
+    </div>
   );
 };

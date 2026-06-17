@@ -1,9 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getPost, getComments, createComment, deletePost, PostResponse, CommentResponse } from '../../api/network';
+import {
+  getPost,
+  getComments,
+  createComment,
+  deletePost,
+  PostResponse,
+  CommentResponse,
+} from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Card } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Skeleton } from '../../components/ui/skeleton';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 
@@ -11,7 +21,7 @@ export const NetworkPostPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  
+
   const [post, setPost] = useState<PostResponse | null>(null);
   const [comments, setComments] = useState<CommentResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -19,6 +29,7 @@ export const NetworkPostPage: React.FC = () => {
   const [error, setError] = useState('');
   const [showReplyPanel, setShowReplyPanel] = useState(false);
   const confirm = useConfirm();
+
   const loadData = useCallback(async () => {
     if (!id) return;
     setLoading(true);
@@ -27,7 +38,7 @@ export const NetworkPostPage: React.FC = () => {
       setPost(parent);
       const thr = await getComments(id);
       setComments(thr);
-    } catch (e: any) {
+    } catch {
       setError('Tópico não encontrado ou erro de conexão.');
     } finally {
       setLoading(false);
@@ -47,7 +58,7 @@ export const NetworkPostPage: React.FC = () => {
       setNewComment('');
       setShowReplyPanel(false);
       loadData();
-    } catch (e: any) {
+    } catch {
       setError('Erro ao enviar a resposta.');
     }
   };
@@ -56,12 +67,13 @@ export const NetworkPostPage: React.FC = () => {
     if (!id) return;
     const ok = await confirm({
       title: 'Excluir tópico',
-      message: 'Deseja excluir este tópico? Só funciona se não existir respostas.',
+      message:
+        'Deseja excluir este tópico? Só funciona se não existir respostas.',
       variant: 'danger',
       confirmLabel: 'Excluir',
     });
     if (!ok) return;
-    
+
     try {
       await deletePost(id);
       navigate('/painel/forum');
@@ -70,115 +82,167 @@ export const NetworkPostPage: React.FC = () => {
     }
   };
 
-  if (loading) return (
-    <div className="orcamentos-list">
-      <div className="panel-skeleton" style={{ width: '100%', height: '200px' }} />
-    </div>
-  );
-  
-  if (!post) return <div className="panel-empty" style={{ marginTop: '40px' }}>{error || '404 - Post offline'}</div>;
+  if (loading)
+    return (
+      <div className="animate-[panelFadeIn_0.4s_ease-out]">
+        <Breadcrumb
+          items={[
+            { label: 'Painel', to: '/painel' },
+            { label: 'Comunidade', to: '/painel/forum' },
+            { label: 'Tópico' },
+          ]}
+        />
+        <Skeleton className="h-[200px] w-full rounded-xl" />
+      </div>
+    );
+
+  if (!post)
+    return (
+      <div className="animate-[panelFadeIn_0.4s_ease-out]">
+        <Breadcrumb
+          items={[
+            { label: 'Painel', to: '/painel' },
+            { label: 'Comunidade', to: '/painel/forum' },
+            { label: 'Tópico' },
+          ]}
+        />
+        <Card className="mt-10 p-12 text-center">
+          <p className="text-[14px] text-muted-foreground">
+            {error || '404 — Post offline'}
+          </p>
+        </Card>
+      </div>
+    );
 
   return (
-    <>
-      <Breadcrumb items={[
-        { label: 'Painel', to: '/painel' },
-        { label: 'Comunidade', to: '/painel/forum' },
-        { label: post?.title || 'Tópico' }
-      ]} />
+    <div className="animate-[panelFadeIn_0.4s_ease-out]">
+      <Breadcrumb
+        items={[
+          { label: 'Painel', to: '/painel' },
+          { label: 'Comunidade', to: '/painel/forum' },
+          { label: post?.title || 'Tópico' },
+        ]}
+      />
 
-      <div className="panel-content__header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '24px' }}>
+      {/* Header */}
+      <div className="mb-6 flex items-start justify-between">
         <div>
-          <h1 style={{ marginBottom: '8px' }}>{post.title}</h1>
-          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+          <h1 className="mb-2 text-[28px] font-extrabold tracking-tight text-foreground">
+            {post.title}
+          </h1>
+          <div className="flex flex-wrap gap-2">
             {post.tags.map(tag => (
-              <span key={tag} style={{ background: 'rgba(255,191,0,0.1)', color: 'var(--ds-primary)', padding: '2px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 'bold' }}>
+              <span
+                key={tag}
+                className="rounded bg-primary/10 px-2 py-0.5 text-[12px] font-bold text-primary"
+              >
                 #{tag}
               </span>
             ))}
           </div>
         </div>
         {post.author_id === user?.id && post.comments_count === 0 && (
-          <button onClick={handleDelete} className="ds-btn ds-btn-danger">
+          <Button variant="destructive" onClick={handleDelete}>
             Excluir Tópico
-          </button>
+          </Button>
         )}
       </div>
 
-      <div className="panel-info-card" style={{ padding: '0', display: 'flex', flexDirection: 'column' }}>
-         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '24px', borderBottom: '1px solid var(--border-color)' }}>
-            <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: 'rgba(255,255,255,0.05)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '14px', border: '1px solid var(--border-color)' }}>
-              {post.author.name?.slice(0, 2).toUpperCase() || 'U'}
+      {/* Post Card */}
+      <Card className="flex flex-col p-0">
+        <div className="flex items-center gap-3 border-b border-border px-6 py-5">
+          <div className="flex size-10 items-center justify-center rounded-full border border-border bg-muted text-[14px] font-bold text-foreground">
+            {post.author.name?.slice(0, 2).toUpperCase() || 'U'}
+          </div>
+          <div>
+            <div className="text-[14px] font-bold text-foreground">
+              {post.author.name || post.author.email || 'Usuário'}
             </div>
-            <div>
-              <div style={{ fontWeight: 'bold', fontSize: '14px' }}>{post.author.name || post.author.email || 'Usuário'}</div>
-              <div style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
-                Publicado em {new Date(post.created_at).toLocaleDateString('pt-BR')} às {new Date(post.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            <div className="text-[12px] text-muted-foreground">
+              Publicado em{' '}
+              {new Date(post.created_at).toLocaleDateString('pt-BR')} às{' '}
+              {new Date(post.created_at).toLocaleTimeString('pt-BR', {
+                hour: '2-digit',
+                minute: '2-digit',
+              })}
+            </div>
+          </div>
+        </div>
+        <div
+          className="px-6 py-5 text-[15px] leading-relaxed text-foreground rich-text-content"
+          dangerouslySetInnerHTML={{ __html: post.message }}
+        />
+      </Card>
+
+      {/* Comments */}
+      <div className="mt-4 flex flex-col gap-4">
+        {comments.map(c => (
+          <Card
+            key={c.id}
+            className="flex flex-col p-0"
+            style={{ marginLeft: post.author_id === c.author_id ? 0 : 32 }}
+          >
+            <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+              <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-[12px] font-bold text-primary">
+                {c.author.name?.slice(0, 2).toUpperCase() || 'U'}
+              </div>
+              <div>
+                <div className="text-[13px] font-bold text-foreground">
+                  {c.author.name || 'Usuário'}
+                </div>
+                <div className="text-[11px] text-muted-foreground">
+                  {new Date(c.created_at).toLocaleDateString('pt-BR')} às{' '}
+                  {new Date(c.created_at).toLocaleTimeString('pt-BR', {
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })}
+                </div>
               </div>
             </div>
-         </div>
-         <div 
-           style={{ padding: '24px', fontSize: '15px', lineHeight: '1.6', color: 'var(--ds-text)' }} 
-           dangerouslySetInnerHTML={{ __html: post.message }} 
-           className="rich-text-content" 
-         />
-      </div>
-
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '16px' }}>
-        {comments.map(c => (
-          <div key={c.id} className="panel-info-card" style={{ marginLeft: post.author_id === c.author_id ? '0' : '32px', padding: 0 }}>
-             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '16px 24px', borderBottom: '1px solid var(--border-color)' }}>
-                <div style={{ width: '32px', height: '32px', borderRadius: '50%', background: 'rgba(255,191,0,0.1)', color: 'var(--ds-primary)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold', fontSize: '12px' }}>
-                  {c.author.name?.slice(0, 2).toUpperCase() || 'U'}
-                </div>
-                <div>
-                  <div style={{ fontWeight: 'bold', fontSize: '13px' }}>{c.author.name || 'Usuário'}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
-                    {new Date(c.created_at).toLocaleDateString('pt-BR')} às {new Date(c.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
-                  </div>
-                </div>
-             </div>
-             <div 
-               style={{ padding: '20px 24px', fontSize: '14px', lineHeight: '1.6', color: 'var(--ds-text)' }} 
-               dangerouslySetInnerHTML={{ __html: c.message }} 
-               className="rich-text-content" 
-             />
-          </div>
+            <div
+              className="px-6 py-5 text-[14px] leading-relaxed text-foreground rich-text-content"
+              dangerouslySetInnerHTML={{ __html: c.message }}
+            />
+          </Card>
         ))}
       </div>
 
-      <div style={{ marginTop: '24px', display: 'flex', justifyContent: 'flex-end' }}>
-        <button 
-          className="ds-btn ds-btn-primary" 
+      {/* Reply Button */}
+      <div className="mt-6 flex justify-end">
+        <Button
+          variant="default"
           onClick={() => setShowReplyPanel(!showReplyPanel)}
         >
           {showReplyPanel ? 'Cancelar Resposta' : 'Responder ao Tópico'}
-        </button>
+        </Button>
       </div>
 
+      {/* Reply Form */}
       {showReplyPanel && (
-        <div className="panel-card" style={{ marginTop: '16px', background: 'var(--ds-surface)', border: '1px solid rgba(255,255,255,0.07)' }}>
-          <div className="ds-card-header">
-            <h4 style={{ margin: 0, fontSize: '16px' }}>Escrever Resposta</h4>
+        <Card className="mt-4 p-0">
+          <div className="border-b border-border px-6 py-4">
+            <h4 className="m-0 text-[16px] font-semibold text-foreground">
+              Escrever Resposta
+            </h4>
           </div>
-          <div className="ds-card-body">
-            <form onSubmit={handleReply}>
-              <div className="ds-input-group" style={{ marginBottom: '16px' }}>
-                <div style={{ background: 'var(--ds-surface-2)', borderRadius: 'var(--radius-md)' }}>
-                   <RichTextEditor 
-                     value={newComment} 
-                     onChange={setNewComment} 
-                     placeholder="Sua contribuição é muito importante..."
-                   />
-                </div>
+          <form onSubmit={handleReply}>
+            <div className="p-6">
+              <div className="rounded-lg bg-muted/30">
+                <RichTextEditor
+                  value={newComment}
+                  onChange={setNewComment}
+                  placeholder="Sua contribuição é muito importante..."
+                />
               </div>
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                 <button type="submit" className="ds-btn ds-btn-primary">Enviar Resposta</button>
-              </div>
-            </form>
-          </div>
-        </div>
+            </div>
+            <div className="flex justify-end border-t border-border px-6 py-4">
+              <Button type="submit" variant="default">
+                Enviar Resposta
+              </Button>
+            </div>
+          </form>
+        </Card>
       )}
-    </>
+    </div>
   );
 };
-
