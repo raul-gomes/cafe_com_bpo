@@ -9,6 +9,10 @@ import { TaskModal } from '../../components/tasks/TaskModal';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { TaskCard } from '../../components/tasks/TaskCard';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Card } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
+import { Skeleton } from '../../components/ui/skeleton';
+import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
 
 type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_minutes?: number; priority: string; process_type?: string; status: string };
@@ -35,7 +39,7 @@ export const TasksPage: React.FC = () => {
     const cancelTask = useCancelTask();
     const { data: timelineData, isLoading: timelineLoading } = useTimeline();
     const { data: conflictsData } = useConflicts();
-    
+
     const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
 
@@ -81,8 +85,6 @@ export const TasksPage: React.FC = () => {
         if (!result.destination) return;
         const { draggableId, destination } = result;
         if (destination.droppableId === result.source.droppableId) return;
-        
-        // Use phase_id for phase-based Kanban
         updateTaskStatus.mutate({ id: draggableId, phase_id: destination.droppableId });
     };
 
@@ -140,9 +142,9 @@ export const TasksPage: React.FC = () => {
 
     if (isLoading) {
         return (
-            <div className="tasks-page">
-                <div className="panel-skeleton" style={{ height: '32px', width: '200px', marginBottom: '40px' }} />
-                <div className="panel-skeleton" style={{ height: '500px' }} />
+            <div className="space-y-6">
+                <Skeleton className="h-8 w-[200px]" />
+                <Skeleton className="h-[500px] w-full" />
             </div>
         );
     }
@@ -156,13 +158,8 @@ export const TasksPage: React.FC = () => {
     const isOverdue = (t: TaskResponse) => t.deadline && new Date(t.deadline) < todayStart;
 
     const filteredTasks = tasksList.filter(t => {
-        // Hide cancelled tasks by default
         if (t.status === 'cancelled' || t.cancelled_at) return false;
-
-        // Overdue tasks always appear regardless of filter
         if (isOverdue(t)) return true;
-
-        // Filter mode
         if (filterMode === 'today') {
             if (!t.deadline?.startsWith(todayStr)) return false;
         }
@@ -185,95 +182,86 @@ export const TasksPage: React.FC = () => {
             if (!t.deadline) return false;
             if (new Date(t.deadline) >= todayStart) return false;
         }
-        // Date range filter (from datepicker)
         const deadlineDate = t.deadline?.split('T')[0];
         if (dateFrom && deadlineDate && deadlineDate < dateFrom) return false;
         if (dateTo && deadlineDate && deadlineDate > dateTo) return false;
         return true;
     });
 
+    const openTasksCount = tasksList.filter(t => t.status !== 'done' && t.status !== 'cancelled' && !t.cancelled_at).length;
+    const overdueCount = tasksList.filter(t => {
+        if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
+        if (!t.deadline) return false;
+        return new Date(t.deadline) < todayStart;
+    }).length;
+
     return (
-        <div className="tasks-page" style={{ animation: 'panelFadeIn 0.4s ease-out', position: 'relative' }}>
+        <div className="animate-[panelFadeIn_0.4s_ease-out]">
             <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Gestão de Tarefas' }]} />
 
-            <div className="panel-content__header" style={{ marginBottom: '32px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+            {/* Header */}
+            <div className="mb-8 flex items-end justify-between">
                 <div>
-                    <h1>Gestão de Tarefas</h1>
-                    <p style={{ marginBottom: '8px' }}>Controle operacional e prazos por empresa.</p>
-                    <div style={{ display: 'flex', gap: '16px', fontSize: '12px', color: 'var(--ds-text-muted)' }}>
-                        <span style={{ fontWeight: 700, color: 'var(--ds-text)' }}>
-                            {tasksList.filter(t => t.status !== 'done' && t.status !== 'cancelled' && !t.cancelled_at).length}
-                        </span> tarefas abertas
-                        <span style={{ opacity: 0.3 }}>|</span>
-                        <span style={{ fontWeight: 700, color: 'var(--ds-primary)' }}>
-                            {tasksList.filter(t => {
-                                if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
-                                if (!t.deadline) return false;
-                                const todayStart = new Date();
-                                todayStart.setHours(0, 0, 0, 0);
-                                return new Date(t.deadline) < todayStart;
-                            }).length}
-                        </span> em atraso
+                    <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Gestão de Tarefas</h1>
+                    <p className="mb-2 text-[14px] text-muted-foreground">Controle operacional e prazos por empresa.</p>
+                    <div className="flex gap-4 text-[12px] text-muted-foreground">
+                        <span className="font-bold text-foreground">{openTasksCount}</span> tarefas abertas
+                        <span className="opacity-30">|</span>
+                        <span className="font-bold text-primary">{overdueCount}</span> em atraso
                     </div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+                <div className="flex items-center gap-3">
                     {view === 'kanban' && (
-                        <button 
-                            className="ds-btn ds-btn-ghost" 
-                            onClick={() => setShowPhaseManager(true)}
-                            style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px' }}
-                        >
+                        <Button variant="ghost" size="sm" onClick={() => setShowPhaseManager(true)}>
                             <Settings size={16} /> Fases
-                        </button>
+                        </Button>
                     )}
                     {view === 'kanban' && (
-                        <button 
-                            className="ds-btn ds-btn-ghost" 
+                        <Button
+                            variant="ghost"
+                            size="sm"
                             onClick={() => setShowMacroCalendar(!showMacroCalendar)}
-                            style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: showMacroCalendar ? 'var(--ds-primary)' : 'var(--ds-text-muted)' }}
+                            className={showMacroCalendar ? 'text-primary' : ''}
                         >
                             <Eye size={16} /> {showMacroCalendar ? 'Ocultar Calendário' : 'Visão Macro'}
-                        </button>
+                        </Button>
                     )}
-                    <button 
-                        className="ds-btn ds-btn-ghost" 
-                        onClick={handleSyncCalendar}
-                        style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}
-                        title="Sincronizar tarefas ativas com Google Agenda"
-                    >
+                    <Button variant="ghost" size="sm" onClick={handleSyncCalendar} title="Sincronizar tarefas ativas com Google Agenda">
                         <CalendarIcon size={16} /> Sincronizar
-                    </button>
-                    <button 
-                        className="ds-btn ds-btn-ghost" 
-                        onClick={handleRunScheduler}
-                        style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px', color: 'var(--ds-text-muted)' }}
-                        title="Executar rotinas — gerar tarefas pendentes com base na recorrência"
-                    >
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={handleRunScheduler} title="Executar rotinas — gerar tarefas pendentes com base na recorrência">
                         <RefreshCw size={16} /> Executar Rotinas
-                    </button>
-                    <div className="view-toggle" style={{ 
-                        display: 'flex', background: 'var(--ds-surface-2)', padding: '4px', 
-                        borderRadius: 'var(--radius-md)', border: '1px solid rgba(255,255,255,0.05)'
-                    }}>
-                        <button onClick={() => setView('kanban')} className={`vt-btn ${view === 'kanban' ? 'active' : ''}`}>
-                            <LayoutGrid size={16} /> Kanban
-                        </button>
-                        <button onClick={() => setView('timeline')} className={`vt-btn ${view === 'timeline' ? 'active' : ''}`}>
-                            <Clock size={16} /> Timeline
-                        </button>
-                        <button onClick={() => setView('calendar')} className={`vt-btn ${view === 'calendar' ? 'active' : ''}`}>
-                            <CalendarIcon size={16} /> Calendário
-                        </button>
+                    </Button>
+
+                    {/* View toggle */}
+                    <div className="flex rounded-lg border border-border bg-muted p-[3px]">
+                        {([{ key: 'kanban', icon: LayoutGrid, label: 'Kanban' },
+                          { key: 'timeline', icon: Clock, label: 'Timeline' },
+                          { key: 'calendar', icon: CalendarIcon, label: 'Calendário' }] as const).map(v => (
+                            <button
+                                key={v.key}
+                                onClick={() => setView(v.key)}
+                                className={cn(
+                                    'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-[13px] font-semibold transition-all',
+                                    view === v.key
+                                        ? 'bg-background text-foreground shadow-sm'
+                                        : 'text-muted-foreground hover:text-foreground'
+                                )}
+                            >
+                                <v.icon size={16} /> {v.label}
+                            </button>
+                        ))}
                     </div>
-                    <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
+
+                    <Button variant="default" size="sm" onClick={handleOpenNewTask}>
                         <Plus size={18} /> Nova Tarefa
-                    </button>
+                    </Button>
                 </div>
             </div>
 
-            {/* Unified filter bar */}
+            {/* Filter bar */}
             {view === 'kanban' && (
-                <div style={{ display: 'flex', gap: '6px', marginBottom: '20px', alignItems: 'center', flexWrap: 'wrap' }}>
+                <div className="mb-5 flex flex-wrap items-center gap-1.5">
                     {([
                         { key: 'today', label: 'Hoje' },
                         { key: 'week', label: 'Semana' },
@@ -284,283 +272,170 @@ export const TasksPage: React.FC = () => {
                         <button
                             key={f.key}
                             onClick={() => { setFilterMode(f.key); setDateFrom(''); setDateTo(''); }}
-                            style={{
-                                padding: '5px 12px', fontSize: '12px', fontWeight: 700,
-                                fontFamily: 'inherit', cursor: 'pointer',
-                                background: filterMode === f.key ? 'var(--ds-primary)' : 'var(--ds-surface-2)',
-                                color: filterMode === f.key ? 'var(--ds-primary-text)' : 'var(--ds-text-muted)',
-                                border: filterMode === f.key ? '1px solid var(--ds-primary)' : '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: 'var(--radius-sm)',
-                                transition: 'all 0.15s ease',
-                            }}
+                            className={cn(
+                                'rounded-sm px-3 py-1 text-[12px] font-bold font-sans transition-all',
+                                filterMode === f.key
+                                    ? 'border border-primary bg-primary text-primary-foreground'
+                                    : 'border border-white/10 bg-muted text-muted-foreground'
+                            )}
                         >
                             {f.label}
-                            {f.key === 'overdue' && (
-                                <span style={{ marginLeft: '6px', fontSize: '10px', fontWeight: 700, background: 'rgba(255,255,255,0.15)', padding: '0 6px', borderRadius: '10px' }}>
-                                    {tasksList.filter(t => {
-                                        if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
-                                        if (!t.deadline) return false;
-                                        return new Date(t.deadline) < todayStart;
-                                    }).length}
+                            {f.key === 'overdue' && overdueCount > 0 && (
+                                <span className="ml-1.5 rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-bold">
+                                    {overdueCount}
                                 </span>
                             )}
                         </button>
                     ))}
-                    <div style={{ width: '1px', height: '20px', background: 'rgba(255,255,255,0.08)' }} />
-                    {/* Datepicker icon */}
-                    <div style={{ position: 'relative' }}>
+                    <div className="mx-1 h-5 w-px bg-white/10" />
+
+                    {/* Datepicker */}
+                    <div className="relative">
                         <button
                             onClick={() => setShowDatePicker(!showDatePicker)}
-                            style={{
-                                padding: '5px 10px', fontSize: '12px', cursor: 'pointer',
-                                background: showDatePicker || dateFrom ? 'var(--ds-primary)' : 'var(--ds-surface-2)',
-                                color: showDatePicker || dateFrom ? 'var(--ds-primary-text)' : 'var(--ds-text-muted)',
-                                border: '1px solid rgba(255,255,255,0.08)',
-                                borderRadius: 'var(--radius-sm)',
-                                display: 'flex', alignItems: 'center', gap: '4px',
-                                fontFamily: 'inherit', fontWeight: 700,
-                                transition: 'all 0.15s ease',
-                            }}
+                            className={cn(
+                                'flex items-center gap-1 rounded-sm px-2.5 py-1 text-[12px] font-bold font-sans transition-all',
+                                showDatePicker || dateFrom
+                                    ? 'border border-primary bg-primary text-primary-foreground'
+                                    : 'border border-white/10 bg-muted text-muted-foreground'
+                            )}
                             title="Filtrar por intervalo de datas"
                         >
                             <CalendarIcon size={14} />
                             {dateFrom ? `${dateFrom.split('-').slice(1).join('/')} - ${dateTo?.split('-').slice(1).join('/')}` : 'Período'}
                         </button>
                         {showDatePicker && (
-                            <div style={{
-                                position: 'absolute', top: '100%', left: 0, marginTop: '4px',
-                                padding: '12px', background: 'var(--ds-surface)', borderRadius: 'var(--radius-md)',
-                                border: '1px solid var(--ds-border)', boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-                                zIndex: 100, display: 'flex', flexDirection: 'column', gap: '8px', minWidth: '220px',
-                            }}>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)' }}>De</label>
+                            <div className="absolute left-0 top-full z-[100] mt-1 flex min-w-[220px] flex-col gap-2 rounded-md border border-border bg-card p-3 shadow-lg">
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground">De</label>
                                     <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setFilterMode('all'); }}
-                                        style={{ padding: '4px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface-2)', color: 'var(--ds-text)' }} />
+                                        className="filter-date-input w-full rounded-sm border border-border bg-muted px-2 py-1 text-[12px] text-foreground outline-none focus:border-primary" />
                                 </div>
-                                <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <label style={{ fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-subtle)' }}>Até</label>
+                                <div className="flex items-center gap-2">
+                                    <label className="text-[10px] font-bold text-muted-foreground">Até</label>
                                     <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setFilterMode('all'); }}
-                                        style={{ padding: '4px 8px', fontSize: '12px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)', background: 'var(--ds-surface-2)', color: 'var(--ds-text)' }} />
+                                        className="filter-date-input w-full rounded-sm border border-border bg-muted px-2 py-1 text-[12px] text-foreground outline-none focus:border-primary" />
                                 </div>
-                                <div style={{ display: 'flex', gap: '4px', justifyContent: 'flex-end' }}>
+                                <div className="flex justify-end gap-1">
                                     <button onClick={() => { setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
-                                        style={{ padding: '4px 10px', fontSize: '11px', background: 'none', border: '1px solid var(--ds-border)', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--ds-text-muted)' }}>
+                                        className="cursor-pointer rounded-sm border border-border bg-transparent px-2.5 py-1 text-[11px] text-muted-foreground">
                                         Limpar
                                     </button>
                                     <button onClick={() => setShowDatePicker(false)}
-                                        style={{ padding: '4px 10px', fontSize: '11px', background: 'var(--ds-primary)', border: 'none', borderRadius: 'var(--radius-sm)', cursor: 'pointer', color: 'var(--ds-primary-text)', fontWeight: 700 }}>
+                                        className="cursor-pointer rounded-sm border-none bg-primary px-2.5 py-1 text-[11px] font-bold text-primary-foreground">
                                         OK
                                     </button>
                                 </div>
                             </div>
                         )}
                     </div>
+
                     {/* Clear all filters */}
                     {(filterMode !== 'all' || dateFrom) && (
                         <button onClick={() => { setFilterMode('all'); setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
-                            style={{ fontSize: '10px', color: 'var(--ds-primary)', background: 'none', border: 'none', cursor: 'pointer', fontWeight: 700, fontFamily: 'inherit', textDecoration: 'underline', textUnderlineOffset: '2px' }}>
+                            className="cursor-pointer border-none bg-transparent text-[10px] font-bold text-primary underline underline-offset-2">
                             Limpar
                         </button>
                     )}
                 </div>
             )}
 
-            <div className="tasks-content" style={{ display: 'flex', gap: '24px', alignItems: 'flex-start', position: 'relative' }}>
-                <div style={{ flex: 1, minWidth: 0 }}>
+            {/* Main content area */}
+            <div className="flex items-start gap-6">
+                <div className="min-w-0 flex-1">
                     {view === 'kanban' ? (
                         filteredTasks.length === 0 ? (
-                            <div className="panel-card" style={{ padding: '60px 24px', textAlign: 'center' }}>
-                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ color: 'var(--ds-text-muted)', marginBottom: '16px', opacity: 0.3 }}>
+                            <Card className="p-12 text-center">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-4 opacity-30 text-muted-foreground">
                                     <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
                                 </svg>
-                                <h3 style={{ fontSize: '18px', fontWeight: 700, marginBottom: '8px', color: 'var(--ds-text)' }}>
+                                <h3 className="mb-2 text-[18px] font-bold text-foreground">
                                     {filterMode !== 'all' ? 'Nenhuma tarefa encontrada' : 'Nenhuma tarefa criada'}
                                 </h3>
-                                <p style={{ color: 'var(--ds-text-muted)', fontSize: '14px', marginBottom: '20px' }}>
+                                <p className="mb-5 text-[14px] text-muted-foreground">
                                     {filterMode !== 'all' ? 'Tente alterar o filtro ou criar uma nova tarefa.' : 'Comece organizando suas tarefas operacionais por empresa e fase.'}
                                 </p>
-                                <button className="ds-btn ds-btn-primary" onClick={handleOpenNewTask}>
+                                <Button variant="default" onClick={handleOpenNewTask}>
                                     <Plus size={18} /> Criar Primeira Tarefa
-                                </button>
-                            </div>
+                                </Button>
+                            </Card>
                         ) : (
                             <DragDropContext onDragEnd={handleDragEnd}>
-                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask} getTaskStatus={getTaskStatus} columnSearch={columnSearch} setColumnSearch={setColumnSearch} onFinalize={(id) => {
-                                    if (phases && phases.length > 0) {
-                                        updateTaskStatus.mutate({ id, phase_id: doneColumnId, status: 'done' });
-                                    } else {
-                                        updateTaskStatus.mutate({ id, status: 'done' });
-                                    }
-                                }} onCancel={(id) => cancelTask.mutate(id)} handleBulkComplete={handleBulkComplete} handleBulkCancel={handleBulkCancel} bulkLoading={bulkLoading} />
+                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask}
+                                    getTaskStatus={getTaskStatus} columnSearch={columnSearch} setColumnSearch={setColumnSearch}
+                                    onFinalize={(id) => {
+                                        if (phases && phases.length > 0) {
+                                            updateTaskStatus.mutate({ id, phase_id: doneColumnId, status: 'done' });
+                                        } else {
+                                            updateTaskStatus.mutate({ id, status: 'done' });
+                                        }
+                                    }} onCancel={(id) => cancelTask.mutate(id)}
+                                    handleBulkComplete={handleBulkComplete} handleBulkCancel={handleBulkCancel} bulkLoading={bulkLoading} />
                             </DragDropContext>
                         )
                     ) : view === 'timeline' ? (
-                        <div className="panel-card" style={{ padding: '24px' }}>
-                            <TaskTimeline 
-                                timeline={timelineData?.timeline || []} 
+                        <Card className="p-6">
+                            <TaskTimeline
+                                timeline={timelineData?.timeline || []}
                                 conflicts={conflictsData?.conflicts || []}
-                                clients={clients || []} 
+                                clients={clients || []}
                                 isLoading={timelineLoading}
-                                onEdit={handleEditTask} 
+                                onEdit={handleEditTask}
                             />
-                        </div>
+                        </Card>
                     ) : (
-                        <div className="panel-card" style={{ padding: '24px' }}>
+                        <Card className="p-6">
                             <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={false} />
-                        </div>
-                    )}
-                </div>
-                
-                {view === 'kanban' && showMacroCalendar && (
-                    <div className="macro-calendar-overlay ds-card" style={{ 
-                        width: '320px', padding: '20px', position: 'sticky', top: '20px', height: 'fit-content',
-                        animation: 'slideInRight 0.3s ease-out', border: '1px solid var(--ds-primary-low)'
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-                            <h3 style={{ fontSize: '14px', fontWeight: 700 }}>Visão Mensal</h3>
-                            <button onClick={() => setShowMacroCalendar(false)} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
-                                <X size={14} />
-                                </button>
-                            </div>
-                            <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={true} />
-                        </div>
+                        </Card>
                     )}
                 </div>
 
-            <TaskModal 
-                isOpen={isTaskModalOpen} 
-                onClose={() => setTaskModalOpen(false)} 
+                {/* Macro calendar sidebar */}
+                {view === 'kanban' && showMacroCalendar && (
+                    <Card className="sticky top-5 h-fit w-[320px] animate-[slideInRight_0.3s_ease-out] border border-primary/20 p-5">
+                        <div className="mb-4 flex items-center justify-between">
+                            <h3 className="text-[14px] font-bold text-foreground">Visão Mensal</h3>
+                            <button onClick={() => setShowMacroCalendar(false)} className="cursor-pointer border-none bg-transparent text-muted-foreground">
+                                <X size={14} />
+                            </button>
+                        </div>
+                        <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={true} />
+                    </Card>
+                )}
+            </div>
+
+            <TaskModal
+                isOpen={isTaskModalOpen}
+                onClose={() => setTaskModalOpen(false)}
                 task={selectedTask}
             />
 
-            <PhaseManager 
-                isOpen={showPhaseManager} 
-                onClose={() => setShowPhaseManager(false)} 
+            <PhaseManager
+                isOpen={showPhaseManager}
+                onClose={() => setShowPhaseManager(false)}
             />
-
-            <style dangerouslySetInnerHTML={{ __html: `
-                .vt-btn {
-                    display: flex; alignItems: center; gap: 8px; 
-                    padding: 6px 12px; borderRadius: var(--radius-sm);
-                    background: transparent; color: var(--ds-text-muted);
-                    border: none; cursor: pointer; fontSize: 13px; fontWeight: 600;
-                    transition: all 0.2s;
-                }
-                .vt-btn.active {
-                    background: var(--ds-surface); color: var(--ds-primary);
-                }
-                .task-card {
-                    user-select: none;
-                    transition: transform 0.2s cubic-bezier(0.2, 0, 0, 1), box-shadow 0.2s ease;
-                    box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-                }
-                .task-card:hover {
-                    box-shadow: 0 4px 16px rgba(0,0,0,0.18);
-                    transform: translateY(-1px);
-                }
-                .task-card--overdue {
-                    box-shadow: 0 0 0 2px var(--ds-error), 0 4px 16px rgba(239, 68, 68, 0.15);
-                }
-                .task-card--overdue:hover {
-                    box-shadow: 0 0 0 2px var(--ds-error), 0 8px 24px rgba(239, 68, 68, 0.25);
-                }
-                .overdue-badge {
-                    display: inline-flex;
-                    align-items: center;
-                    gap: 4px;
-                    font-size: 10px;
-                    font-weight: 700;
-                    color: var(--ds-error);
-                    background: rgba(239, 68, 68, 0.12);
-                    padding: 2px 8px;
-                    border-radius: 12px;
-                }
-                .kanban-column {
-                    background: var(--ds-surface);
-                    border: 1px solid var(--ds-border);
-                    border-radius: var(--radius-lg);
-                    padding: 16px;
-                    min-height: calc(100vh - 250px);
-                    max-height: calc(100vh - 200px);
-                    overflow-y: auto;
-                    transition: background 0.2s;
-                    display: flex; flex-direction: column;
-                }
-                .kanban-column::-webkit-scrollbar {
-                    width: 4px;
-                }
-                .kanban-column::-webkit-scrollbar-track {
-                    background: transparent;
-                }
-                .kanban-column::-webkit-scrollbar-thumb {
-                    background: var(--ds-border);
-                    border-radius: 2px;
-                }
-                .kanban-column--dragging-over {
-                    background: rgba(255,255,255,0.04);
-                }
-                .kanban-grid {
-                    display: grid;
-                    grid-template-columns: repeat(var(--kanban-cols), 1fr);
-                    gap: 24px;
-                    align-items: start;
-                }
-                @media (max-width: 1200px) {
-                    .kanban-grid {
-                        grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-                    }
-                }
-                @media (max-width: 768px) {
-                    .kanban-grid {
-                        grid-template-columns: 1fr;
-                        overflow-x: auto;
-                    }
-                }
-                .filter-date-input {
-                    background: var(--ds-surface-2);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: var(--radius-sm);
-                    padding: 4px 8px;
-                    color: var(--ds-text);
-                    font-size: 12px;
-                    font-family: inherit;
-                    outline: none;
-                    transition: border-color 0.15s ease;
-                    color-scheme: dark;
-                }
-                .filter-date-input:focus {
-                    border-color: var(--ds-primary);
-                }
-                .filter-select {
-                    background: var(--ds-surface-2);
-                    border: 1px solid rgba(255,255,255,0.08);
-                    border-radius: var(--radius-sm);
-                    padding: 4px 8px;
-                    color: var(--ds-text);
-                    font-size: 12px;
-                    font-family: inherit;
-                    outline: none;
-                    cursor: pointer;
-                    transition: border-color 0.15s ease;
-                }
-                .filter-select:focus {
-                    border-color: var(--ds-primary);
-                }
-                .filter-select option {
-                    background: var(--ds-surface);
-                    color: var(--ds-text);
-                }
-                @keyframes slideInRight {
-                    from { transform: translateX(20px); opacity: 0; }
-                    to { transform: translateX(0); opacity: 1; }
-                }
-            `}} />
         </div>
     );
 };
 
-const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[], clients: any[], onEdit: (t: TaskResponse) => void, getTaskStatus: (t: TaskResponse) => string, onFinalize?: (id: string) => void, onCancel?: (id: string) => void, columnSearch: Record<string, string>, setColumnSearch: React.Dispatch<React.SetStateAction<Record<string, string>>>, handleBulkComplete: (colId: string) => void, handleBulkCancel: (colId: string) => void, bulkLoading: Record<string, 'completing' | 'cancelling' | null> }> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize, onCancel, columnSearch, setColumnSearch, handleBulkComplete, handleBulkCancel, bulkLoading }) => {
+/* ════════════════════════════════════════
+   TaskKanban — DnD Kanban Board
+   ════════════════════════════════════════ */
+
+const TaskKanban: React.FC<{
+    tasks: TaskResponse[],
+    phases: TaskPhaseResponse[],
+    clients: any[],
+    onEdit: (t: TaskResponse) => void,
+    getTaskStatus: (t: TaskResponse) => string,
+    onFinalize?: (id: string) => void,
+    onCancel?: (id: string) => void,
+    columnSearch: Record<string, string>,
+    setColumnSearch: React.Dispatch<React.SetStateAction<Record<string, string>>>,
+    handleBulkComplete: (colId: string) => void,
+    handleBulkCancel: (colId: string) => void,
+    bulkLoading: Record<string, 'completing' | 'cancelling' | null>
+}> = ({ tasks, phases, clients, onEdit, getTaskStatus, onFinalize, onCancel, columnSearch, setColumnSearch, handleBulkComplete, handleBulkCancel, bulkLoading }) => {
     const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
     const columns = sortedPhases.length > 0 ? sortedPhases.map(p => ({
         id: p.id,
@@ -596,17 +471,12 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
     const sortTasksByUrgency = (tasksToSort: TaskResponse[]): TaskResponse[] => {
         const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
         return [...tasksToSort].sort((a, b) => {
-            // 1. Overdue tasks first
             const aOver = isTaskOverdue(a);
             const bOver = isTaskOverdue(b);
             if (aOver !== bOver) return aOver ? -1 : 1;
-
-            // 2. High priority next
             const aPrio = priorityOrder[a.priority] ?? 1;
             const bPrio = priorityOrder[b.priority] ?? 1;
             if (aPrio !== bPrio) return aPrio - bPrio;
-
-            // 3. Sort by deadline (ascending)
             if (a.deadline && b.deadline) {
                 return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
             }
@@ -623,30 +493,33 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
             {columns.map(col => (
                 <Droppable key={col.id} droppableId={col.id}>
                     {(provided, snapshot) => (
-                        <div 
+                        <div
                             {...provided.droppableProps}
                             ref={provided.innerRef}
-                            className={`kanban-column ${snapshot.isDraggingOver ? 'kanban-column--dragging-over' : ''}`}
+                            className={cn(
+                                'kanban-column flex min-h-[calc(100vh-250px)] max-h-[calc(100vh-200px)] flex-col overflow-y-auto rounded-lg border border-border bg-card p-4 transition-colors',
+                                snapshot.isDraggingOver && 'bg-white/[0.04]'
+                            )}
                         >
-                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px', alignItems: 'center' }}>
-                                <h3 style={{ fontSize: '11px', fontWeight: 800, color: 'var(--ds-text-subtle)', textTransform: 'uppercase', letterSpacing: '0.1em', display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: col.color }} />
+                            {/* Column header */}
+                            <div className="mb-3 flex items-center justify-between">
+                                <h3 className="flex items-center gap-2 text-[11px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                                    <span className="size-2.5 rounded-full" style={{ background: col.color }} />
                                     {col.title}
                                 </h3>
-                                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                                <div className="flex items-center gap-1">
                                     {tasks.filter(t => getTaskStatus(t) === col.id).length > 0 && (
                                         <>
                                             <button
                                                 onClick={() => handleBulkComplete(col.id)}
                                                 disabled={bulkLoading[col.id] === 'completing'}
                                                 title="Concluir todos"
-                                                style={{
-                                                    padding: '2px 6px', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
-                                                    background: bulkLoading[col.id] === 'completing' ? 'var(--ds-surface-2)' : 'rgba(34,197,94,0.15)',
-                                                    color: '#22c55e', border: '1px solid rgba(34,197,94,0.2)',
-                                                    borderRadius: 'var(--radius-sm)', fontFamily: 'inherit',
-                                                    transition: 'all 0.15s ease', lineHeight: '1',
-                                                }}
+                                                className={cn(
+                                                    'cursor-pointer rounded-sm border px-1.5 py-0.5 text-[10px] font-bold font-sans leading-none transition-all',
+                                                    bulkLoading[col.id] === 'completing'
+                                                        ? 'border-white/10 bg-muted text-muted-foreground'
+                                                        : 'border-green-500/20 bg-green-500/15 text-green-500'
+                                                )}
                                             >
                                                 {bulkLoading[col.id] === 'completing' ? '...' : '✓'}
                                             </button>
@@ -654,39 +527,39 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
                                                 onClick={() => handleBulkCancel(col.id)}
                                                 disabled={bulkLoading[col.id] === 'cancelling'}
                                                 title="Cancelar todos"
-                                                style={{
-                                                    padding: '2px 6px', fontSize: '10px', fontWeight: 700, cursor: 'pointer',
-                                                    background: bulkLoading[col.id] === 'cancelling' ? 'var(--ds-surface-2)' : 'rgba(239,68,68,0.15)',
-                                                    color: '#ef4444', border: '1px solid rgba(239,68,68,0.2)',
-                                                    borderRadius: 'var(--radius-sm)', fontFamily: 'inherit',
-                                                    transition: 'all 0.15s ease', lineHeight: '1',
-                                                }}
+                                                className={cn(
+                                                    'cursor-pointer rounded-sm border px-1.5 py-0.5 text-[10px] font-bold font-sans leading-none transition-all',
+                                                    bulkLoading[col.id] === 'cancelling'
+                                                        ? 'border-white/10 bg-muted text-muted-foreground'
+                                                        : 'border-red-500/20 bg-red-500/15 text-red-500'
+                                                )}
                                             >
                                                 {bulkLoading[col.id] === 'cancelling' ? '...' : '✕'}
                                             </button>
                                         </>
                                     )}
-                                    <span style={{ marginLeft: tasks.filter(t => getTaskStatus(t) === col.id).length > 0 ? '8px' : '0', fontSize: '10px', fontWeight: 700, color: 'var(--ds-text-muted)', background: 'var(--ds-surface-2)', padding: '2px 8px', borderRadius: '12px' }}>
+                                    <span className={cn(
+                                        'rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground',
+                                        tasks.filter(t => getTaskStatus(t) === col.id).length > 0 && 'ml-2'
+                                    )}>
                                         {tasks.filter(t => getTaskStatus(t) === col.id).length}
                                     </span>
                                 </div>
                             </div>
+
                             {/* Column search */}
-                            <div style={{ marginBottom: '12px' }}>
+                            <div className="mb-3">
                                 <input
                                     type="text"
                                     value={columnSearch[col.id] || ''}
                                     onChange={e => setColumnSearch(prev => ({ ...prev, [col.id]: e.target.value }))}
                                     placeholder="Filtrar cards..."
-                                    style={{
-                                        width: '100%', padding: '6px 10px', fontSize: '12px',
-                                        borderRadius: 'var(--radius-sm)', border: '1px solid var(--ds-border)',
-                                        background: 'var(--ds-surface-2)', color: 'var(--ds-text)',
-                                        fontFamily: 'inherit', boxSizing: 'border-box',
-                                    }}
+                                    className="w-full rounded-sm border border-border bg-muted px-2.5 py-1.5 text-[12px] text-foreground outline-none transition-colors focus:border-primary"
                                 />
                             </div>
-                            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', flex: 1 }}>
+
+                            {/* Cards */}
+                            <div className="flex flex-1 flex-col gap-3">
                                 {sortTasksByUrgency(tasks.filter(t => getTaskStatus(t) === col.id).filter(t => {
                                     const q = (columnSearch[col.id] || '').toLowerCase();
                                     if (!q) return true;
@@ -727,7 +600,16 @@ const TaskKanban: React.FC<{ tasks: TaskResponse[], phases: TaskPhaseResponse[],
     );
 };
 
-const TaskCalendar: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t: TaskResponse) => void, isMacro?: boolean }> = ({ tasks, clients, onEdit, isMacro }) => {
+/* ════════════════════════════════════════
+   TaskCalendar — Monthly Calendar View
+   ════════════════════════════════════════ */
+
+const TaskCalendar: React.FC<{
+    tasks: TaskResponse[],
+    clients: any[],
+    onEdit: (t: TaskResponse) => void,
+    isMacro?: boolean
+}> = ({ tasks, clients, onEdit, isMacro }) => {
     const today = new Date();
     const currMonth = today.getMonth();
     const currYear = today.getFullYear();
@@ -737,77 +619,76 @@ const TaskCalendar: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t
     const blanks = Array.from({ length: firstDay }, (_, i) => i);
     const getClient = (id: string) => clients.find(c => c.id === id);
 
+    const dayAbbrs = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+
     return (
-        <div className={isMacro ? 'macro-calendar' : ''}>
+        <div>
             {!isMacro && (
-                <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
-                    <h2 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--ds-text)', textTransform: 'capitalize' }}>
+                <div className="mb-6 flex justify-center">
+                    <h2 className="text-[18px] font-bold capitalize text-foreground">
                         {today.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' })}
                     </h2>
                 </div>
             )}
-            <div style={{ 
-                display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: '1px', 
-                background: 'rgba(255,255,255,0.08)', borderRadius: 'var(--radius-md)', overflow: 'hidden' 
-            }}>
-                {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((d, idx) => (
-                    <div key={`header-${idx}`} style={{ 
-                        padding: isMacro ? '4px' : '12px', textAlign: 'center', fontSize: '9px', fontWeight: 800, 
-                        color: 'var(--ds-text-muted)', background: 'var(--ds-surface-2)', textTransform: 'uppercase' 
-                    }}>
+            <div className="grid grid-cols-7 gap-px overflow-hidden rounded-md" style={{ background: 'rgba(255,255,255,0.08)' }}>
+                {dayAbbrs.map((d, idx) => (
+                    <div key={`h-${idx}`} className={cn(
+                        'text-center font-extrabold uppercase text-muted-foreground',
+                        isMacro ? 'bg-muted p-1 text-[9px]' : 'bg-muted p-3 text-[9px]'
+                    )}>
                         {d}
                     </div>
                 ))}
-                {blanks.map(i => <div key={`b-${i}`} style={{ minHeight: isMacro ? '40px' : '110px', background: 'transparent' }} />)}
+                {blanks.map(i => (
+                    <div key={`b-${i}`} className="bg-transparent" style={{ minHeight: isMacro ? '40px' : '110px' }} />
+                ))}
                 {days.map(day => {
                     const dateStr = new Date(currYear, currMonth, day).toISOString().split('T')[0];
                     const dayTasks = tasks.filter(t => t.deadline && t.deadline.startsWith(dateStr));
                     const isToday = day === today.getDate();
-                    
+
                     return (
-                        <div key={`day-${day}`} style={{ 
-                            minHeight: isMacro ? '40px' : '110px', background: 'transparent', padding: isMacro ? '2px' : '8px', 
-                            border: '1px solid rgba(255,255,255,0.02)',
-                            display: 'flex', flexDirection: 'column', gap: '2px'
-                        }}>
-                            <div style={{ 
-                                fontSize: isMacro ? '10px' : '12px', fontWeight: 800, 
-                                color: isToday ? 'var(--ds-primary)' : 'var(--ds-text-muted)', 
-                                textAlign: 'right', marginBottom: '2px' 
-                            }}>
+                        <div
+                            key={`d-${day}`}
+                            className="flex flex-col gap-0.5 border border-white/[0.02] bg-transparent"
+                            style={{ minHeight: isMacro ? '40px' : '110px', padding: isMacro ? '2px' : '8px' }}
+                        >
+                            <div className={cn(
+                                'mb-0.5 text-right font-extrabold',
+                                isMacro ? 'text-[10px]' : 'text-[12px]',
+                                isToday ? 'text-primary' : 'text-muted-foreground'
+                            )}>
                                 {day}
                             </div>
                             {dayTasks.map(task => {
                                 const client = getClient(task.client_id);
                                 return (
-                                    <div 
-                                        key={task.id} 
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onEdit(task);
-                                        }}
-                                        title={`${client?.name}: ${task.title}`}
-                                        style={{ 
-                                            fontSize: isMacro ? '0' : '10px', 
-                                            padding: isMacro ? '0' : '3px 6px', borderRadius: '2px', 
+                                    <div
+                                        key={task.id}
+                                        onClick={(e) => { e.stopPropagation(); onEdit(task); }}
+                                        title={`${client?.name || ''}: ${task.title}`}
+                                        className={cn(
+                                            'cursor-pointer overflow-hidden text-ellipsis whitespace-nowrap',
+                                            isMacro
+                                                ? 'h-1.5 rounded-sm'
+                                                : 'flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-[10px] font-extrabold text-black'
+                                        )}
+                                        style={{
                                             background: client?.color || 'var(--ds-primary)',
-                                            color: '#000', fontWeight: 800, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
-                                            cursor: 'pointer', height: isMacro ? '6px' : 'auto',
-                                            display: 'flex', alignItems: 'center', gap: '4px',
-                                            borderLeft: isMacro ? 'none' : `3px solid ${task.priority === 'high' ? 'rgba(0,0,0,0.5)' : 'transparent'}`
+                                            height: isMacro ? '6px' : 'auto',
+                                            borderLeft: !isMacro && task.priority === 'high' ? '3px solid rgba(0,0,0,0.5)' : 'none',
                                         }}
                                     >
                                         {!isMacro && (
-                                            <div style={{ 
-                                                width: '6px', height: '6px', borderRadius: '50%', 
-                                                background: task.priority === 'high' ? 'var(--ds-error)' : task.priority === 'medium' ? 'var(--ds-warning)' : 'var(--ds-success)',
-                                                flexShrink: 0
-                                            }} />
+                                            <span
+                                                className="inline-block size-1.5 shrink-0 rounded-full"
+                                                style={{
+                                                    background: task.priority === 'high' ? 'var(--ds-error)' : task.priority === 'medium' ? 'var(--ds-warning)' : 'var(--ds-success)',
+                                                }}
+                                            />
                                         )}
                                         {!isMacro && task.status === 'doing' && (
-                                            <span style={{ fontSize: '7px', fontWeight: 800, background: '#3b82f6', color: '#fff', padding: '1px 3px', borderRadius: '2px', lineHeight: '1' }}>
-                                                EM AND
-                                            </span>
+                                            <span className="rounded-sm bg-blue-500 px-0.5 text-[7px] font-extrabold leading-none text-white">EM AND</span>
                                         )}
                                         {!isMacro && task.title}
                                     </div>
@@ -821,92 +702,101 @@ const TaskCalendar: React.FC<{ tasks: TaskResponse[], clients: any[], onEdit: (t
     );
 };
 
-const TaskTimeline: React.FC<{ 
-    timeline: { date: string; tasks: TimelineTaskItem[]; total_hours: number }[]; 
+/* ════════════════════════════════════════
+   TaskTimeline — Gantt-like Timeline View
+   ════════════════════════════════════════ */
+
+const TaskTimeline: React.FC<{
+    timeline: { date: string; tasks: TimelineTaskItem[]; total_hours: number }[];
     conflicts: { date: string; tasks: ConflictTaskItem[]; total_hours: number }[];
-    clients: any[]; 
+    clients: any[];
     isLoading: boolean;
-    onEdit: (t: TaskResponse) => void 
+    onEdit: (t: TaskResponse) => void
 }> = ({ timeline, conflicts, clients, isLoading, onEdit }) => {
     const getClient = (id: string) => clients.find(c => c.id === id);
     const conflictDates = new Set(conflicts.map(c => c.date));
 
-    if (isLoading) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--ds-text-muted)' }}>Carregando timeline...</div>;
-    if (timeline.length === 0) return <div style={{ textAlign: 'center', padding: '40px', color: 'var(--ds-text-muted)' }}>Nenhuma tarefa com prazo encontrada.</div>;
+    if (isLoading) return <div className="py-10 text-center text-muted-foreground">Carregando timeline...</div>;
+    if (timeline.length === 0) return <div className="py-10 text-center text-muted-foreground">Nenhuma tarefa com prazo encontrada.</div>;
 
     const maxHours = Math.max(...timeline.map(d => d.total_hours), 8);
 
     return (
         <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
-                <h2 style={{ fontSize: '18px', fontWeight: 700 }}>Timeline de Tarefas</h2>
+            <div className="mb-6 flex items-center justify-between">
+                <h2 className="text-[18px] font-bold text-foreground">Timeline de Tarefas</h2>
                 {conflicts.length > 0 && (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', color: 'var(--ds-warning)', background: 'rgba(245,158,11,0.1)', padding: '6px 12px', borderRadius: '8px' }}>
+                    <div className="flex items-center gap-1.5 rounded-lg bg-warning/10 px-3 py-1.5 text-[12px] text-warning">
                         <AlertTriangle size={14} /> {conflicts.length} conflito(s) de sobrecarga detectado(s)
                     </div>
                 )}
             </div>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {timeline.map(day => (
-                    <div key={day.date} style={{ 
-                        padding: '16px', 
-                        background: conflictDates.has(day.date) ? 'rgba(245,158,11,0.05)' : 'var(--ds-surface-2)',
-                        border: `1px solid ${conflictDates.has(day.date) ? 'rgba(245,158,11,0.3)' : 'rgba(255,255,255,0.06)'}`,
-                        borderRadius: 'var(--radius-lg)',
-                        opacity: new Date(day.date + 'T00:00:00') < new Date(new Date().toISOString().split('T')[0]) ? 0.6 : 1
-                    }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                            <span style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ds-text)' }}>
-                                {new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
-                            </span>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                <div style={{ width: '100px', height: '6px', background: 'rgba(255,255,255,0.1)', borderRadius: '3px', overflow: 'hidden' }}>
-                                    <div style={{ 
-                                        width: `${Math.min((day.total_hours / maxHours) * 100, 100)}%`, 
-                                        height: '100%', 
-                                        background: day.total_hours > 8 ? 'var(--ds-error)' : 'var(--ds-primary)',
-                                        borderRadius: '3px'
-                                    }} />
-                                </div>
-                                <span style={{ fontSize: '11px', fontWeight: 700, color: day.total_hours > 8 ? 'var(--ds-error)' : 'var(--ds-text-muted)' }}>
-                                    {day.total_hours.toFixed(1)}h
+            <div className="flex flex-col gap-3">
+                {timeline.map(day => {
+                    const isPast = new Date(day.date + 'T00:00:00') < new Date(new Date().toISOString().split('T')[0]);
+                    const isConflict = conflictDates.has(day.date);
+                    return (
+                        <div
+                            key={day.date}
+                            className={cn(
+                                'rounded-lg border p-4',
+                                isConflict
+                                    ? 'border-warning/30 bg-warning/5'
+                                    : 'border-white/[0.06] bg-muted',
+                                isPast && 'opacity-60'
+                            )}
+                        >
+                            <div className="mb-2.5 flex items-center justify-between">
+                                <span className="text-[13px] font-bold text-foreground">
+                                    {new Date(day.date + 'T00:00:00').toLocaleDateString('pt-BR', { weekday: 'short', day: '2-digit', month: 'short' })}
                                 </span>
+                                <div className="flex items-center gap-2">
+                                    <div className="h-1.5 w-[100px] overflow-hidden rounded-full bg-white/10">
+                                        <div
+                                            className="h-full rounded-full transition-all"
+                                            style={{
+                                                width: `${Math.min((day.total_hours / maxHours) * 100, 100)}%`,
+                                                background: day.total_hours > 8 ? 'var(--ds-error)' : 'var(--ds-primary)',
+                                            }}
+                                        />
+                                    </div>
+                                    <span className={cn('text-[11px] font-bold', day.total_hours > 8 ? 'text-destructive' : 'text-muted-foreground')}>
+                                        {day.total_hours.toFixed(1)}h
+                                    </span>
+                                </div>
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                {day.tasks.map(task => {
+                                    const client = getClient(task.client_id);
+                                    return (
+                                        <div
+                                            key={task.id}
+                                            onClick={() => onEdit(task as TaskResponse)}
+                                            className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] text-foreground transition-colors hover:brightness-110"
+                                            style={{
+                                                background: (client?.color || 'var(--ds-primary)') + '22',
+                                                borderLeft: `3px solid ${client?.color || 'var(--ds-primary)'}`,
+                                            }}
+                                        >
+                                            <span className="text-[10px] font-bold uppercase tracking-wide" style={{ color: client?.color || 'var(--ds-text-muted)' }}>
+                                                {client?.name || 'Cliente'}
+                                            </span>
+                                            <span className="font-semibold">{task.title}</span>
+                                            {task.status === 'doing' && (
+                                                <span className="rounded-sm bg-blue-500 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
+                                                    Em andamento
+                                                </span>
+                                            )}
+                                            {task.time_estimate_minutes && (
+                                                <span className="text-[10px] font-bold text-muted-foreground">{task.time_estimate_minutes}min</span>
+                                            )}
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                            {day.tasks.map(task => {
-                                const client = getClient(task.client_id);
-                                return (
-                                    <div 
-                                        key={task.id}
-                                        onClick={() => onEdit(task as TaskResponse)}
-                                        style={{ 
-                                            display: 'flex', alignItems: 'center', gap: '6px',
-                                            padding: '6px 10px', borderRadius: '6px',
-                                            background: (client?.color || 'var(--ds-primary)') + '22',
-                                            borderLeft: `3px solid ${client?.color || 'var(--ds-primary)'}`,
-                                            cursor: 'pointer', fontSize: '12px', color: 'var(--ds-text)',
-                                            transition: 'background 0.2s'
-                                        }}
-                                    >
-                                        <span style={{ fontSize: '10px', fontWeight: 700, color: client?.color || 'var(--ds-text-muted)', marginRight: '4px', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
-                                            {client?.name || 'Cliente'}
-                                        </span>
-                                        <span style={{ fontWeight: 600 }}>{task.title}</span>
-                                        {task.status === 'doing' && (
-                                            <span style={{ fontSize: '9px', fontWeight: 700, background: '#3b82f6', color: '#fff', padding: '2px 6px', borderRadius: '4px', lineHeight: '1' }}>
-                                                Em andamento
-                                            </span>
-                                        )}
-                                        {task.time_estimate_minutes && (
-                                            <span style={{ fontSize: '10px', color: 'var(--ds-text-muted)', fontWeight: 700 }}>{task.time_estimate_minutes}min</span>
-                                        )}
-                                    </div>
-                                );
-                            })}
-                        </div>
-                    </div>
-                ))}
+                    );
+                })}
             </div>
         </div>
     );
