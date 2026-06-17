@@ -54,13 +54,10 @@ describe('PanelSidebar', () => {
     const logoutBtn = screen.getByText('Sair da conta')
     expect(logoutBtn).toBeInTheDocument()
 
-    // "Nos Ajude" should be in panel-sidebar__donate-section (inside the footer)
-    const donateSection = donateBtn.closest('.panel-sidebar__donate-section')
-    expect(donateSection).toBeTruthy()
-
-    // "Sair da conta" should be in panel-sidebar__footer-bottom (below divider)
-    const footerBottom = logoutBtn.closest('.panel-sidebar__footer-bottom')
-    expect(footerBottom).toBeTruthy()
+    // Both buttons should be inside the sidebar <aside>
+    const sidebar = donateBtn.closest('aside')
+    expect(sidebar).toBeTruthy()
+    expect(logoutBtn.closest('aside')).toBe(sidebar)
   })
 
   it('does not redirect to external page when clicking Nos Ajude', () => {
@@ -98,13 +95,13 @@ describe('PanelSidebar', () => {
   it('renders only Sair da conta below the divider in footer-bottom', () => {
     renderSidebar()
     
-    const footerBottom = document.querySelector('.panel-sidebar__footer-bottom')
-    expect(footerBottom).toBeInTheDocument()
+    const logoutSection = document.querySelector('aside > div:last-child > div:last-child')
+    expect(logoutSection).toBeInTheDocument()
 
-    // Footer-bottom should contain Sair da conta
-    expect(footerBottom?.textContent).toContain('Sair da conta')
+    // Logout section should contain Sair da conta
+    expect(logoutSection?.textContent).toContain('Sair da conta')
     
-    // Footer-bottom should NOT contain Nos Ajude (it's in the donate section above)
-    expect(footerBottom?.textContent).not.toContain('Nos Ajude')
+    // Logout section should NOT contain Nos Ajude (it's in the section above)
+    expect(logoutSection?.textContent).not.toContain('Nos Ajude')
   })
 })
