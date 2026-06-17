@@ -1,9 +1,14 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useCallback } from 'react';
 import { maskCPF, maskCNPJ, maskPhone, onlyNumbers } from '../../lib/formatters';
+import { cn } from '../../lib/utils';
 
-interface MaskedInputProps {
-  value: string;
-  onChange: (rawValue: string) => void;
+/* ── Shared types ── */
+
+type TipoMask = 'cpf' | 'cnpj' | 'phone' | 'date';
+
+interface MaskedInputBaseProps {
+  value?: string;
+  onChange?: (rawValue: string) => void;
   placeholder?: string;
   className?: string;
   disabled?: boolean;
@@ -12,178 +17,99 @@ interface MaskedInputProps {
   name?: string;
 }
 
-const maskDate = (value: string): string => {
-  return value
+/* ── Date mask helper ── */
+
+const maskDate = (value: string): string =>
+  value
     .replace(/\D/g, '')
     .replace(/^(\d{2})(\d)/, '$1/$2')
     .replace(/^(\d{2})\/(\d{2})(\d)/, '$1/$2/$3')
     .slice(0, 10);
+
+/* ── Tipo → mask function + metadata ── */
+
+const MASK_CONFIG: Record<
+  TipoMask,
+  { mask: (v: string) => string; placeholder: string; maxLength: number }
+> = {
+  cpf: { mask: maskCPF, placeholder: '000.000.000-00', maxLength: 14 },
+  cnpj: { mask: maskCNPJ, placeholder: '00.000.000/0000-00', maxLength: 18 },
+  phone: { mask: maskPhone, placeholder: '(00) 00000-0000', maxLength: 15 },
+  date: { mask: maskDate, placeholder: 'DD/MM/AAAA', maxLength: 10 },
 };
 
-export const MaskedCPF: React.FC<MaskedInputProps> = ({
-  value,
-  onChange,
-  placeholder = '000.000.000-00',
+/* ── Unified MaskedInput ── */
+
+interface MaskedInputProps extends MaskedInputBaseProps {
+  tipo: TipoMask;
+}
+
+export const MaskedInput: React.FC<MaskedInputProps> = ({
+  tipo,
+  value: externalValue,
+  onChange: externalOnChange,
+  placeholder,
   className,
   disabled,
   required,
   id,
   name,
 }) => {
-  const [displayValue, setDisplayValue] = useState('');
+  const config = MASK_CONFIG[tipo];
+  const isControlled = externalValue !== undefined;
+  const [internalValue, setInternalValue] = useState('');
 
-  useEffect(() => {
-    setDisplayValue(value ? maskCPF(value) : '');
-  }, [value]);
+  const displayValue = isControlled
+    ? (externalValue ? config.mask(externalValue) : '')
+    : internalValue;
 
   const handleChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const raw = onlyNumbers(e.target.value);
-      setDisplayValue(maskCPF(raw));
-      onChange(raw);
+      const masked = config.mask(raw);
+      if (!isControlled) {
+        setInternalValue(masked);
+      }
+      externalOnChange?.(raw);
     },
-    [onChange]
+    [externalOnChange, config, isControlled]
   );
 
   return (
     <input
       type="text"
       inputMode="numeric"
+      data-slot="input-group-control"
       value={displayValue}
       onChange={handleChange}
-      placeholder={placeholder}
-      className={className}
+      placeholder={placeholder ?? config.placeholder}
+      className={cn(
+        'flex-1 rounded-none border-0 bg-transparent shadow-none ring-0 focus-visible:ring-0 disabled:bg-transparent aria-invalid:ring-0 dark:bg-transparent dark:disabled:bg-transparent',
+        className
+      )}
       disabled={disabled}
       required={required}
       id={id}
       name={name}
-      maxLength={14}
+      maxLength={config.maxLength}
     />
   );
 };
 
-export const MaskedCNPJ: React.FC<MaskedInputProps> = ({
-  value,
-  onChange,
-  placeholder = '00.000.000/0000-00',
-  className,
-  disabled,
-  required,
-  id,
-  name,
-}) => {
-  const [displayValue, setDisplayValue] = useState('');
+/* ── Individual named exports (backwards-compat) ── */
 
-  useEffect(() => {
-    setDisplayValue(value ? maskCNPJ(value) : '');
-  }, [value]);
+export const MaskedCPF: React.FC<MaskedInputBaseProps> = (props) => (
+  <MaskedInput tipo="cpf" {...props} />
+);
 
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = onlyNumbers(e.target.value);
-      setDisplayValue(maskCNPJ(raw));
-      onChange(raw);
-    },
-    [onChange]
-  );
+export const MaskedCNPJ: React.FC<MaskedInputBaseProps> = (props) => (
+  <MaskedInput tipo="cnpj" {...props} />
+);
 
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      value={displayValue}
-      onChange={handleChange}
-      placeholder={placeholder}
-      className={className}
-      disabled={disabled}
-      required={required}
-      id={id}
-      name={name}
-      maxLength={18}
-    />
-  );
-};
+export const MaskedPhone: React.FC<MaskedInputBaseProps> = (props) => (
+  <MaskedInput tipo="phone" {...props} />
+);
 
-export const MaskedPhone: React.FC<MaskedInputProps> = ({
-  value,
-  onChange,
-  placeholder = '(00) 00000-0000',
-  className,
-  disabled,
-  required,
-  id,
-  name,
-}) => {
-  const [displayValue, setDisplayValue] = useState('');
-
-  useEffect(() => {
-    setDisplayValue(value ? maskPhone(value) : '');
-  }, [value]);
-
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = onlyNumbers(e.target.value);
-      setDisplayValue(maskPhone(raw));
-      onChange(raw);
-    },
-    [onChange]
-  );
-
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      value={displayValue}
-      onChange={handleChange}
-      placeholder={placeholder}
-      className={className}
-      disabled={disabled}
-      required={required}
-      id={id}
-      name={name}
-      maxLength={15}
-    />
-  );
-};
-
-export const MaskedDate: React.FC<MaskedInputProps> = ({
-  value,
-  onChange,
-  placeholder = 'DD/MM/YYYY',
-  className,
-  disabled,
-  required,
-  id,
-  name,
-}) => {
-  const [displayValue, setDisplayValue] = useState('');
-
-  useEffect(() => {
-    setDisplayValue(value ? maskDate(value) : '');
-  }, [value]);
-
-  const handleChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      const raw = onlyNumbers(e.target.value);
-      setDisplayValue(maskDate(raw));
-      onChange(raw);
-    },
-    [onChange]
-  );
-
-  return (
-    <input
-      type="text"
-      inputMode="numeric"
-      value={displayValue}
-      onChange={handleChange}
-      placeholder={placeholder}
-      className={className}
-      disabled={disabled}
-      required={required}
-      id={id}
-      name={name}
-      maxLength={10}
-    />
-  );
-};
+export const MaskedDate: React.FC<MaskedInputBaseProps> = (props) => (
+  <MaskedInput tipo="date" {...props} />
+);
