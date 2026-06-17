@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Navbar } from '../components/ui/Navbar';
+import { Button } from '../components/ui/button';
 import { ProposalPreview } from '../components/proposal/ProposalPreview';
 
 import { SESSION_KEY, ProposalSession } from '../schemas/proposalSession';
@@ -38,24 +39,21 @@ export default function ProposalPreviewPage() {
 
   if (notFound) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--ds-black)', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '16px', color: 'var(--ds-text-muted)' }}>
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 text-muted-foreground">
         <Navbar />
-        <p style={{ fontSize: '16px' }}>Nenhuma proposta encontrada.</p>
-        <button
-          onClick={() => navigate('/simulador')}
-          style={{ color: 'var(--ds-primary)', background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px' }}
-        >
+        <p className="text-base">Nenhuma proposta encontrada.</p>
+        <Button variant="link" onClick={() => navigate('/simulador')}>
           ← Voltar ao simulador
-        </button>
+        </Button>
       </div>
     );
   }
 
   if (!proposal) {
     return (
-      <div style={{ minHeight: '100vh', background: 'var(--ds-black)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <Navbar />
-        <span style={{ color: 'var(--ds-text-muted)' }}>Carregando proposta...</span>
+        <span className="text-muted-foreground">Carregando proposta...</span>
       </div>
     );
   }
@@ -72,4 +70,3 @@ export default function ProposalPreviewPage() {
     </div>
   );
 }
-

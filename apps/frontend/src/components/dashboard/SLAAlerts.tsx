@@ -2,6 +2,9 @@ import React from 'react';
 import { AlertTriangle, XCircle, RefreshCw } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from '../ui/card';
+import { Skeleton } from '../ui/skeleton';
+import { Button } from '../ui/button';
 
 export const SLAAlerts: React.FC = () => {
   const { useSLAAlerts } = useTasks();
@@ -10,81 +13,69 @@ export const SLAAlerts: React.FC = () => {
 
   if (isLoading) {
     return (
-      <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-        <div className="panel-skeleton" style={{ height: '50px' }} />
-        <div className="panel-skeleton" style={{ height: '50px' }} />
+      <div className="flex flex-col gap-2">
+        <Skeleton className="h-[50px]" />
+        <Skeleton className="h-[50px]" />
       </div>
     );
   }
 
   if (!alerts || (alerts.total_overdue === 0 && alerts.total_warning === 0)) {
     return (
-      <div className="ds-card" style={{ padding: '20px', textAlign: 'center' }}>
-        <div style={{ fontSize: '24px', marginBottom: '8px' }}>✅</div>
-        <p style={{ fontSize: '14px', color: 'var(--ds-text-muted)' }}>Nenhum alerta de SLA. Todas as tarefas estão em dia!</p>
-      </div>
+      <Card className="p-0">
+        <CardContent className="flex flex-col items-center py-5">
+          <div className="text-2xl mb-2">✅</div>
+          <p className="text-sm text-muted-foreground">Nenhum alerta de SLA. Todas as tarefas estão em dia!</p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px' }}>
-        <h3 style={{ fontSize: '14px', fontWeight: 700 }}>🚨 Alertas de SLA</h3>
-        <button
-          onClick={() => refetch()}
-          style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}
-          title="Atualizar"
-        >
+    <div className="flex flex-col gap-2">
+      <div className="flex justify-between items-center mb-1">
+        <h3 className="text-sm font-bold">🚨 Alertas de SLA</h3>
+        <Button variant="ghost" size="icon-xs" onClick={() => refetch()} title="Atualizar">
           <RefreshCw size={14} />
-        </button>
+        </Button>
       </div>
 
       {/* Overdue alerts */}
-      {alerts.overdue.map((alert, idx) => (
-        <div
+      {alerts.overdue.map((alert: { message: string; tasks: { title: string }[] }, idx: number) => (
+        <Card
           key={`overdue-${idx}`}
-          className="ds-card"
-          style={{
-            padding: '12px 16px', cursor: 'pointer',
-            background: 'rgba(239,68,68,0.05)', border: '1px solid rgba(239,68,68,0.15)',
-            transition: 'all 0.2s',
-          }}
+          className="p-3 cursor-pointer transition-all bg-red-500/5 border-red-500/15 hover:bg-red-500/10"
           onClick={() => navigate('/painel/tarefas')}
         >
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <XCircle size={18} style={{ color: '#ef4444', flexShrink: 0, marginTop: '2px' }} />
+          <CardContent className="p-0 flex gap-2.5 items-start">
+            <XCircle size={18} className="text-red-500 shrink-0 mt-0.5" />
             <div>
-              <div style={{ fontWeight: 700, fontSize: '13px', color: '#ef4444' }}>{alert.message}</div>
-              <div style={{ fontSize: '11px', color: 'var(--ds-text-muted)', marginTop: '4px' }}>
+              <div className="font-bold text-[13px] text-red-500">{alert.message}</div>
+              <div className="text-[11px] text-muted-foreground mt-1">
                 {alert.tasks.map(t => t.title).join(', ')}
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
 
       {/* Warning alerts */}
-      {alerts.warning.map((alert, idx) => (
-        <div
+      {alerts.warning.map((alert: { message: string; tasks: { title: string }[] }, idx: number) => (
+        <Card
           key={`warning-${idx}`}
-          className="ds-card"
-          style={{
-            padding: '12px 16px', cursor: 'pointer',
-            background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.15)',
-            transition: 'all 0.2s',
-          }}
+          className="p-3 cursor-pointer transition-all bg-amber-500/5 border-amber-500/15 hover:bg-amber-500/10"
           onClick={() => navigate('/painel/tarefas')}
         >
-          <div style={{ display: 'flex', gap: '10px', alignItems: 'flex-start' }}>
-            <AlertTriangle size={18} style={{ color: '#f59e0b', flexShrink: 0, marginTop: '2px' }} />
+          <CardContent className="p-0 flex gap-2.5 items-start">
+            <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
             <div>
-              <div style={{ fontWeight: 700, fontSize: '13px', color: '#f59e0b' }}>{alert.message}</div>
-              <div style={{ fontSize: '11px', color: 'var(--ds-text-muted)', marginTop: '4px' }}>
+              <div className="font-bold text-[13px] text-amber-500">{alert.message}</div>
+              <div className="text-[11px] text-muted-foreground mt-1">
                 {alert.tasks.map(t => t.title).join(', ')}
               </div>
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       ))}
     </div>
   );

@@ -5,6 +5,7 @@ import { apiClient } from '../../api/client';
 import { calculatePricing } from '../../lib/pricingEngine';
 import { PricingFormData } from '../../schemas/pricing';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Skeleton } from '../../components/ui/skeleton';
 import { toast } from 'sonner';
 
 export const OrcamentoNovoPage: React.FC = () => {
@@ -39,8 +40,6 @@ export const OrcamentoNovoPage: React.FC = () => {
           if (saved.form) {
             setInitialData(saved.form);
             setClientName(saved.clientName || '');
-            // Opcional: remover da sessão após carregar? 
-            // Melhor manter para evitar perda em refresh antes de salvar.
           }
         } catch (e) {
           console.error('Erro ao carregar simulação pendente:', e);
@@ -84,24 +83,24 @@ export const OrcamentoNovoPage: React.FC = () => {
 
   if (loading) {
     return (
-      <div className="panel-loading">
-        <div className="panel-skeleton" style={{ width: '100%', height: '400px' }} />
+      <div>
+        <Skeleton className="w-full h-[400px]" />
       </div>
     );
   }
 
   return (
-    <div className="orcamento-novo-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
+    <div className="orcamento-novo-page animate-[panelFadeIn_0.4s_ease-out]">
       <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: id ? 'Editar Orçamento' : 'Nova Precificação' }]} />
 
-      <div className="panel-content__header" style={{ marginBottom: '28px' }}>
+      <div className="flex justify-between items-end mb-7">
         <div>
           <h1>{id ? 'Editar Orçamento' : 'Nova Precificação'}</h1>
           <p>{id ? `Editando orçamento de ${clientName}` : 'Preencha os dados abaixo para gerar um novo orçamento detalhado.'}</p>
         </div>
       </div>
 
-      <div className="panel-card" style={{ padding: '0', background: 'transparent', border: 'none' }}>
+      <div>
         <PricingCalculatorLayout 
           initialData={initialData}
           initialClientName={clientName}

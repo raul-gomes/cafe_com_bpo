@@ -5,8 +5,11 @@ import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
+import { Card, CardContent } from '../../components/ui/card';
+import { Button } from '../../components/ui/button';
 import { ClientTimelineTask } from '../../schemas/tasks';
 import { EmailComposeModal } from '../../components/tasks/EmailComposeModal';
+import { cn } from '../../lib/utils';
 
 const SLA_COLORS: Record<string, { bg: string; text: string; icon: any }> = {
   on_time: { bg: 'rgba(34,197,94,0.1)', text: '#22c55e', icon: CheckCircle },
@@ -64,26 +67,26 @@ export const ClientTimelinePage: React.FC = () => {
   };
 
   return (
-    <div className="tasks-page" style={{ animation: 'panelFadeIn 0.4s ease-out' }}>
+    <div className="tasks-page animate-[panelFadeIn_0.4s_ease-out]">
       <Breadcrumb items={[
         { label: 'Painel', to: '/painel' },
         { label: 'Empresas', to: '/painel/empresas' },
         { label: client?.name || 'Timeline' },
       ]} />
 
-      <div style={{ marginBottom: '16px' }}>
-        <button className="ds-btn ds-btn-ghost" onClick={() => navigate('/painel/empresas')} style={{ display: 'flex', gap: '8px', alignItems: 'center', fontSize: '13px' }}>
+      <div className="mb-4">
+        <Button variant="ghost" size="sm" onClick={() => navigate('/painel/empresas')} className="gap-2 text-[13px]">
           <ArrowLeft size={16} /> Voltar
-        </button>
+        </Button>
       </div>
 
       {/* Client header */}
-      <div className="panel-content__header" style={{ marginBottom: '24px', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+      <div className="flex justify-between items-end mb-6">
         <div>
           <h1>{client?.name || 'Carregando...'}</h1>
-          <p style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
+          <p className="flex gap-2 items-center">
             <Calendar size={14} /> Timeline de Entregas
-            {client?.email && <span style={{ color: 'var(--ds-text-muted)' }}>• {client.email}</span>}
+            {client?.email && <span className="text-muted-foreground">• {client.email}</span>}
           </p>
         </div>
       </div>
@@ -91,30 +94,30 @@ export const ClientTimelinePage: React.FC = () => {
       {timeline && (
         <>
           {/* Stats */}
-          <div style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
-            <div style={{ flex: 1, padding: '14px', background: 'var(--ds-surface-2)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#22c55e' }}>{timeline.stats.on_time}</div>
-              <div style={{ fontSize: '11px', color: 'var(--ds-text-muted)' }}>No prazo</div>
+          <div className="flex gap-3 mb-6">
+            <div className="flex-1 p-3.5 bg-card rounded-lg text-center">
+              <div className="text-2xl font-extrabold text-green-500">{timeline.stats.on_time}</div>
+              <div className="text-[11px] text-muted-foreground">No prazo</div>
             </div>
-            <div style={{ flex: 1, padding: '14px', background: 'var(--ds-surface-2)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#f59e0b' }}>{timeline.stats.warning}</div>
-              <div style={{ fontSize: '11px', color: 'var(--ds-text-muted)' }}>⚠️ Próximas</div>
+            <div className="flex-1 p-3.5 bg-card rounded-lg text-center">
+              <div className="text-2xl font-extrabold text-amber-500">{timeline.stats.warning}</div>
+              <div className="text-[11px] text-muted-foreground">⚠️ Próximas</div>
             </div>
-            <div style={{ flex: 1, padding: '14px', background: 'var(--ds-surface-2)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: '#ef4444' }}>{timeline.stats.overdue}</div>
-              <div style={{ fontSize: '11px', color: 'var(--ds-text-muted)' }}>🔴 Atrasadas</div>
+            <div className="flex-1 p-3.5 bg-card rounded-lg text-center">
+              <div className="text-2xl font-extrabold text-red-500">{timeline.stats.overdue}</div>
+              <div className="text-[11px] text-muted-foreground">🔴 Atrasadas</div>
             </div>
-            <div style={{ flex: 1, padding: '14px', background: 'var(--ds-surface-2)', borderRadius: 'var(--radius-md)', textAlign: 'center' }}>
-              <div style={{ fontSize: '24px', fontWeight: 800, color: 'var(--ds-primary)' }}>{timeline.stats.in_progress}</div>
-              <div style={{ fontSize: '11px', color: 'var(--ds-text-muted)' }}>Em andamento</div>
+            <div className="flex-1 p-3.5 bg-card rounded-lg text-center">
+              <div className="text-2xl font-extrabold text-primary">{timeline.stats.in_progress}</div>
+              <div className="text-[11px] text-muted-foreground">Em andamento</div>
             </div>
           </div>
 
           {/* SLA configs */}
           {timeline.slas.length > 0 && (
-            <div style={{ display: 'flex', gap: '8px', marginBottom: '16px', flexWrap: 'wrap' }}>
-              {timeline.slas.map((sla, idx) => (
-                <span key={idx} style={{ padding: '4px 12px', borderRadius: '6px', background: 'rgba(59,130,246,0.08)', color: 'var(--ds-primary)', fontSize: '12px', fontWeight: 700 }}>
+            <div className="flex gap-2 mb-4 flex-wrap">
+              {timeline.slas.map((sla: { process_type: string; sla_days: number }, idx: number) => (
+                <span key={idx} className="px-3 py-1 rounded-[6px] bg-primary/10 text-primary text-xs font-bold">
                   SLA: {sla.process_type} — {sla.sla_days}d
                 </span>
               ))}
@@ -122,78 +125,78 @@ export const ClientTimelinePage: React.FC = () => {
           )}
 
           {/* Month navigation */}
-          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '16px', marginBottom: '20px' }}>
-            <button onClick={goPrevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-text-muted)' }}>
+          <div className="flex items-center justify-center gap-4 mb-5">
+            <button onClick={goPrevMonth} className="bg-transparent border-none cursor-pointer text-muted-foreground hover:text-foreground">
               <ChevronLeft size={20} />
             </button>
-            <span style={{ fontSize: '16px', fontWeight: 700, textTransform: 'capitalize', color: 'var(--ds-text)' }}>
+            <span className="text-base font-bold capitalize text-foreground">
               {formatMonth(currentMonth)}
             </span>
-            <button onClick={goNextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--ds-text-muted)' }}>
+            <button onClick={goNextMonth} className="bg-transparent border-none cursor-pointer text-muted-foreground hover:text-foreground">
               <ChevronRight size={20} />
             </button>
           </div>
 
           {/* Tasks */}
           {timeline.tasks.length === 0 ? (
-            <div className="panel-card" style={{ padding: '40px 24px', textAlign: 'center' }}>
-              <Calendar size={40} style={{ color: 'var(--ds-text-muted)', opacity: 0.3, marginBottom: '12px' }} />
-              <p style={{ color: 'var(--ds-text-muted)' }}>Nenhuma tarefa para este mês.</p>
-            </div>
+            <Card className="p-0">
+              <CardContent className="flex flex-col items-center py-10">
+                <Calendar size={40} className="text-muted-foreground/30 mb-3" />
+                <p className="text-muted-foreground">Nenhuma tarefa para este mês.</p>
+              </CardContent>
+            </Card>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              {timeline.tasks.map(task => {
+            <div className="flex flex-col gap-2">
+              {timeline.tasks.map((task: ClientTimelineTask) => {
                 const slaColor = SLA_COLORS[task.sla_status] || SLA_COLORS.on_time;
                 const SLAIcon = slaColor.icon;
                 return (
-                  <div
+                  <Card
                     key={task.id}
-                    className="ds-card"
-                    style={{
-                      padding: '14px 18px', display: 'flex', alignItems: 'center', gap: '12px',
-                      borderLeft: `4px solid ${slaColor.text}`,
-                      background: task.sla_status === 'overdue' ? 'rgba(239,68,68,0.03)' : 'var(--ds-surface)',
-                      cursor: 'pointer',
-                    }}
+                    className={cn(
+                      "p-3.5 flex items-center gap-3 cursor-pointer transition-all hover:bg-muted/50",
+                      task.sla_status === 'overdue' && "bg-red-500/[0.03]"
+                    )}
+                    style={{ borderLeft: `4px solid ${slaColor.text}` }}
                     onClick={() => navigate(`/painel/tarefas`, { state: { taskId: task.id } })}
                   >
-                    <SLAIcon size={18} style={{ color: slaColor.text, flexShrink: 0 }} />
+                    <SLAIcon size={18} className="shrink-0" style={{ color: slaColor.text }} />
                     
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>{task.title}</div>
-                      <div style={{ display: 'flex', gap: '8px', fontSize: '12px', color: 'var(--ds-text-muted)' }}>
+                    <div className="flex-1">
+                      <div className="font-semibold text-sm mb-0.5">{task.title}</div>
+                      <div className="flex gap-2 text-xs text-muted-foreground">
                         {task.deadline && (
                           <span>📅 {new Date(task.deadline).toLocaleDateString('pt-BR')}</span>
                         )}
                         {task.process_type && (
-                          <span style={{ padding: '1px 6px', borderRadius: '4px', background: 'rgba(59,130,246,0.08)', color: 'var(--ds-primary)', fontWeight: 600 }}>{task.process_type}</span>
+                          <span className="px-1.5 py-0.5 rounded-[4px] bg-primary/10 text-primary font-semibold">{task.process_type}</span>
                         )}
                         {task.time_estimate_minutes && <span>⏱ {task.time_estimate_minutes}min</span>}
                       </div>
                     </div>
 
-                    <span style={{
-                      fontSize: '11px', fontWeight: 700, padding: '3px 10px', borderRadius: '12px',
-                      background: slaColor.bg, color: slaColor.text, whiteSpace: 'nowrap',
-                    }}>
+                    <span
+                      className="text-[11px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap"
+                      style={{ background: slaColor.bg, color: slaColor.text }}
+                    >
                       {SLA_LABELS[task.sla_status] || task.sla_status}
                     </span>
 
                     {task.attachment_count > 0 && (
-                      <span style={{ fontSize: '12px', color: 'var(--ds-text-muted)', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <span className="text-xs text-muted-foreground flex items-center gap-1">
                         <Paperclip size={14} /> {task.attachment_count}
                       </span>
                     )}
 
-                    <button
+                    <Button
+                      variant="ghost"
+                      size="sm"
                       onClick={(e) => { e.stopPropagation(); handleEmailTask(task); }}
-                      className="ds-btn ds-btn-ghost ds-btn-sm"
-                      title="Enviar por email"
-                      style={{ fontSize: '12px' }}
+                      className="text-xs"
                     >
                       <Mail size={14} /> Email
-                    </button>
-                  </div>
+                    </Button>
+                  </Card>
                 );
               })}
             </div>

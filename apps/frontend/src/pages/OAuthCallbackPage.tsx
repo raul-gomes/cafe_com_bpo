@@ -40,25 +40,9 @@ export const OAuthCallbackPage = () => {
   }, [searchParams, navigate, login]);
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      background: 'var(--ds-bg)',
-      color: 'var(--ds-text)',
-      fontSize: '16px',
-    }}>
-      <div style={{ textAlign: 'center' }}>
-        <div style={{
-          width: '32px',
-          height: '32px',
-          border: '3px solid var(--ds-border)',
-          borderTopColor: 'var(--ds-primary)',
-          borderRadius: '50%',
-          animation: 'spin 0.8s linear infinite',
-          margin: '0 auto 16px',
-        }} />
+    <div className="flex items-center justify-center min-h-screen bg-background text-foreground text-base">
+      <div className="text-center">
+        <div className="size-8 rounded-full border-[3px] border-border border-t-primary animate-spin mx-auto mb-4" />
         <p>Autenticando...</p>
       </div>
     </div>
