@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
 import { NotificationBell } from './NotificationBell';
+import { Toaster } from '../ui/sonner';
 
 function getInitialTheme(): 'light' | 'dark' {
     try {
@@ -46,6 +47,7 @@ export const PanelLayout: React.FC = () => {
           <NotificationBell />
         </div>
         <Outlet />
+        <Toaster />
       </main>
     </div>
   );

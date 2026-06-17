@@ -1,0 +1,98 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Dark theme (default) ── */
+    --background: 0 0% 7%;
+    --foreground: 0 0% 100%;
+    --card: 0 0% 10%;
+    --card-foreground: 0 0% 100%;
+    --popover: 0 0% 13%;
+    --popover-foreground: 0 0% 100%;
+    --primary: 43 87% 56%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 16%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 0 0% 13%;
+    --muted-foreground: 0 0% 55%;
+    --accent: 43 87% 56%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 100% / 0.08;
+    --input: 0 0% 100% / 0.08;
+    --ring: 43 87% 56%;
+    --radius: 0.25rem;
+    --chart-1: 43 87% 56%;
+    --chart-2: 0 0% 55%;
+    --chart-3: 0 0% 35%;
+    --chart-4: 0 0% 20%;
+    --chart-5: 0 0% 13%;
+    --sidebar: 0 0% 10%;
+    --sidebar-foreground: 0 0% 100%;
+    --sidebar-primary: 43 87% 56%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 16%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 0 0% 100% / 0.08;
+    --sidebar-ring: 43 87% 56%;
+
+    /* Typography scale */
+    --font-heading: 'Inter', sans-serif;
+    --font-sans: 'Inter', sans-serif;
+  }
+
+  .light-theme {
+    /* ── Light theme ── */
+    --background: 0 0% 96%;
+    --foreground: 240 4% 12%;
+    --card: 0 0% 93%;
+    --card-foreground: 240 4% 12%;
+    --popover: 0 0% 88%;
+    --popover-foreground: 240 4% 12%;
+    --primary: 43 87% 56%;
+    --primary-foreground: 0 0% 0%;
+    --secondary: 0 0% 84%;
+    --secondary-foreground: 240 4% 12%;
+    --muted: 0 0% 88%;
+    --muted-foreground: 0 0% 45%;
+    --accent: 43 87% 56%;
+    --accent-foreground: 0 0% 0%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 0 0% 0% / 0.08;
+    --input: 0 0% 0% / 0.08;
+    --ring: 43 87% 56%;
+    --chart-1: 43 87% 56%;
+    --chart-2: 0 0% 55%;
+    --chart-3: 0 0% 75%;
+    --chart-4: 0 0% 85%;
+    --chart-5: 0 0% 92%;
+    --sidebar: 0 0% 93%;
+    --sidebar-foreground: 240 4% 12%;
+    --sidebar-primary: 43 87% 56%;
+    --sidebar-primary-foreground: 0 0% 0%;
+    --sidebar-accent: 0 0% 84%;
+    --sidebar-accent-foreground: 240 4% 12%;
+    --sidebar-border: 0 0% 0% / 0.08;
+    --sidebar-ring: 43 87% 56%;
+  }
+
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

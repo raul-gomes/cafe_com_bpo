@@ -1,0 +1,313 @@
+/* ═══════════════════════════════════════════════════════════════════════
+   Design System Page — Café com BPO
+   Uses tokens.css variables + shadcn globals.css
+   Direction: clean editorial / documentation-style
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* ─── Page layout ──────────────────────────────────────────────────── */
+
+.ds-page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 32px 100px;
+}
+
+/* ─── Header ───────────────────────────────────────────────────────── */
+
+.ds-header {
+  margin-bottom: 56px;
+  text-align: center;
+}
+
+.ds-header h1 {
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--ds-text);
+  margin: 0 0 10px;
+  letter-spacing: -0.03em;
+  line-height: 1.2;
+}
+
+.ds-header p {
+  color: var(--ds-text-muted);
+  margin: 0 0 28px;
+  font-size: 15px;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  line-height: 1.7;
+}
+
+/* Decorative line */
+.ds-header::after {
+  content: '';
+  display: block;
+  width: 40px;
+  height: 3px;
+  background: var(--ds-primary);
+  border-radius: 3px;
+  margin: 0 auto;
+}
+
+/* ─── Navigation pills ─────────────────────────────────────────────── */
+
+.ds-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 28px;
+}
+
+.ds-nav a {
+  font-size: 13px;
+  font-weight: 500;
+  text-decoration: none;
+  padding: 7px 18px;
+  border-radius: 20px;
+  background: var(--ds-surface-1);
+  border: 1px solid var(--ds-border);
+  color: var(--ds-text-muted);
+  transition: all 0.2s ease;
+  letter-spacing: -0.01em;
+}
+
+.ds-nav a:hover {
+  color: var(--ds-primary);
+  background: color-mix(in srgb, var(--ds-primary) 8%, transparent);
+  border-color: color-mix(in srgb, var(--ds-primary) 20%, transparent);
+}
+
+/* ─── Section ──────────────────────────────────────────────────────── */
+
+.ds-section {
+  margin-bottom: 64px;
+}
+
+.ds-section-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 28px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--ds-border);
+}
+
+.ds-section-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--ds-primary) 10%, transparent);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.ds-section h2 {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--ds-text);
+  margin: 0;
+  letter-spacing: -0.02em;
+}
+
+/* ─── Component Grid ───────────────────────────────────────────────── */
+
+.ds-section-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 24px;
+}
+
+@media (min-width: 768px) {
+  .ds-section-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (min-width: 1024px) {
+  .ds-section-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ─── Component card ────────────────────────────────────────────────── */
+
+.ds-card {
+  border: 1px solid var(--ds-border);
+  border-radius: 12px;
+  background: var(--ds-surface);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.ds-card:hover {
+  border-color: color-mix(in srgb, var(--ds-primary) 15%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--ds-primary) 8%, transparent);
+}
+
+/* Card header: name badge + description */
+.ds-card-header {
+  padding: 18px 20px 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ds-card-name {
+  font-size: 11px;
+  font-weight: 650;
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  color: var(--ds-primary);
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+  background: color-mix(in srgb, var(--ds-primary) 8%, transparent);
+  padding: 3px 10px;
+  border-radius: 5px;
+  display: inline-block;
+  width: fit-content;
+}
+
+.ds-card-desc {
+  font-size: 12.5px;
+  color: var(--ds-text-muted);
+  margin: 0;
+  line-height: 1.55;
+}
+
+/* Card body: component preview area */
+.ds-card-body {
+  padding: 18px 20px;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 60px;
+}
+
+/* Card footer: code example section */
+.ds-card-footer {
+  border-top: 1px solid var(--ds-border);
+  padding: 14px 20px;
+  background: var(--ds-surface-1);
+}
+
+.ds-card-footer details {
+  width: 100%;
+}
+
+.ds-card-footer summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ds-text-muted);
+  user-select: none;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: color 0.15s;
+  list-style: none;
+}
+
+.ds-card-footer summary::-webkit-details-marker {
+  display: none;
+}
+
+.ds-card-footer summary::before {
+  content: '';
+  display: inline-block;
+  width: 0;
+  height: 0;
+  border-left: 5px solid var(--ds-text-muted);
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  transition: transform 0.2s;
+}
+
+.ds-card-footer details[open] summary::before {
+  transform: rotate(90deg);
+}
+
+.ds-card-footer summary:hover {
+  color: var(--ds-text);
+}
+
+.ds-code-block {
+  background: var(--ds-surface-2);
+  border: 1px solid var(--ds-border);
+  border-radius: 8px;
+  padding: 16px;
+  font-size: 12px;
+  line-height: 1.65;
+  overflow-x: auto;
+  white-space: pre;
+  margin: 12px 0 0;
+  color: var(--ds-text);
+  font-family: 'SF Mono', 'Fira Code', 'Cascadia Code', 'JetBrains Mono', monospace;
+  tab-size: 2;
+}
+
+/* ─── Preview area helpers ──────────────────────────────────────────── */
+
+.ds-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+
+.ds-col {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: 100%;
+}
+
+.ds-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: var(--ds-text);
+  cursor: pointer;
+  user-select: none;
+}
+
+.ds-text-sm {
+  font-size: 13px;
+  color: var(--ds-text-muted);
+  margin: 0;
+  line-height: 1.5;
+}
+
+.ds-tab-demo {
+  padding: 14px 4px;
+  color: var(--ds-text-muted);
+  font-size: 13px;
+}
+
+.ds-note {
+  font-size: 12px;
+  color: var(--ds-text-muted);
+  margin: 8px 0 0;
+  line-height: 1.5;
+}
+
+.ds-note code {
+  background: var(--ds-surface-2);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 11px;
+  color: var(--ds-primary);
+}
+
+.ds-command-box {
+  border: 1px solid var(--ds-border);
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--ds-surface);
+}
