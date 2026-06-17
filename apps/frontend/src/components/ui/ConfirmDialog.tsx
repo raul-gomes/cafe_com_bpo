@@ -1,5 +1,14 @@
 import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import { AlertTriangle, Trash2 } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from './dialog';
+import { Button } from './button';
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -13,16 +22,6 @@ interface ConfirmOptions {
   variant?: ConfirmVariant;
 }
 
-interface ConfirmState {
-  isOpen: boolean;
-  title: string;
-  message: string;
-  confirmLabel: string;
-  cancelLabel: string;
-  variant: ConfirmVariant;
-  resolve: ((value: boolean) => void) | null;
-}
-
 interface ConfirmContextType {
   confirm: (options: ConfirmOptions) => Promise<boolean>;
 }
@@ -34,29 +33,23 @@ const ConfirmContext = createContext<ConfirmContextType | null>(null);
 // ─── Provider ───────────────────────────────────────────────────
 
 export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [state, setState] = useState<ConfirmState>({
-    isOpen: false,
-    title: 'Confirmar',
-    message: '',
-    confirmLabel: 'Confirmar',
-    cancelLabel: 'Cancelar',
-    variant: 'danger',
-    resolve: null,
-  });
+  const [isOpen, setIsOpen] = useState(false);
+  const [title, setTitle] = useState('Confirmar');
+  const [message, setMessage] = useState('');
+  const [confirmLabel, setConfirmLabel] = useState('Confirmar');
+  const [cancelLabel, setCancelLabel] = useState('Cancelar');
+  const [variant, setVariant] = useState<ConfirmVariant>('danger');
   const resolveRef = useRef<((value: boolean) => void) | null>(null);
 
   const confirm = useCallback((options: ConfirmOptions): Promise<boolean> => {
     return new Promise((resolve) => {
       resolveRef.current = resolve;
-      setState({
-        isOpen: true,
-        title: options.title ?? 'Confirmar',
-        message: options.message,
-        confirmLabel: options.confirmLabel ?? (options.variant === 'danger' ? 'Excluir' : 'Confirmar'),
-        cancelLabel: options.cancelLabel ?? 'Cancelar',
-        variant: options.variant ?? 'danger',
-        resolve,
-      });
+      setTitle(options.title ?? 'Confirmar');
+      setMessage(options.message);
+      setConfirmLabel(options.confirmLabel ?? (options.variant === 'danger' ? 'Excluir' : 'Confirmar'));
+      setCancelLabel(options.cancelLabel ?? 'Cancelar');
+      setVariant(options.variant ?? 'danger');
+      setIsOpen(true);
     });
   }, []);
 
@@ -66,7 +59,7 @@ export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({ child
       resolve(true);
       resolveRef.current = null;
     }
-    setState((prev) => ({ ...prev, isOpen: false }));
+    setIsOpen(false);
   }, []);
 
   const handleCancel = useCallback(() => {
@@ -75,55 +68,46 @@ export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({ child
       resolve(false);
       resolveRef.current = null;
     }
-    setState((prev) => ({ ...prev, isOpen: false }));
   }, []);
 
-  const handleOverlayClick = useCallback((e: React.MouseEvent) => {
-    if (e.target === e.currentTarget) {
-      handleCancel();
+  const handleOpenChange = useCallback((open: boolean) => {
+    if (!open) {
+      const resolve = resolveRef.current;
+      if (resolve) {
+        resolve(false);
+        resolveRef.current = null;
+      }
+      setIsOpen(false);
     }
-  }, [handleCancel]);
+  }, []);
+
+  const confirmButtonVariant = variant === 'danger' ? 'destructive' : 'default';
 
   return (
     <ConfirmContext.Provider value={{ confirm }}>
       {children}
 
-      {state.isOpen && (
-        <div className="panel-modal-overlay" onClick={handleOverlayClick}>
-          <div className="panel-modal" style={{ maxWidth: '400px' }}>
-            <div className="panel-modal__header">
-              <div className={`panel-modal__icon panel-modal__icon--${state.variant === 'danger' ? 'danger' : 'warning'}`}>
-                {state.variant === 'danger' ? (
-                  <Trash2 size={24} />
-                ) : (
-                  <AlertTriangle size={24} />
-                )}
-              </div>
-              <h2 className="panel-modal__title">{state.title}</h2>
+      <Dialog open={isOpen} onOpenChange={handleOpenChange}>
+        <DialogContent className="sm:max-w-[400px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <span className={variant === 'danger' ? 'text-destructive' : 'text-primary'}>
+                {variant === 'danger' ? <Trash2 size={24} /> : <AlertTriangle size={24} />}
+              </span>
+              <DialogTitle>{title}</DialogTitle>
             </div>
-
-            <div className="panel-modal__body">
-              <p>{state.message}</p>
-            </div>
-
-            <div className="panel-modal__footer">
-              <button className="ds-btn ds-btn-ghost" onClick={handleCancel}>
-                {state.cancelLabel}
-              </button>
-              <button
-                className="ds-btn"
-                style={{
-                  background: state.variant === 'danger' ? 'var(--ds-error)' : 'var(--ds-primary)',
-                  color: state.variant === 'danger' ? 'white' : 'var(--ds-primary-text)',
-                }}
-                onClick={handleConfirm}
-              >
-                {state.confirmLabel}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+            <DialogDescription className="pt-2">{message}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={handleCancel}>
+              {cancelLabel}
+            </Button>
+            <Button variant={confirmButtonVariant} onClick={handleConfirm}>
+              {confirmLabel}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </ConfirmContext.Provider>
   );
 };
