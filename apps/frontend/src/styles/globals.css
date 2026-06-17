@@ -44,6 +44,31 @@
     --sidebar-border: 0 0% 100% / 0.08;
     --sidebar-ring: 43 87% 56%;
 
+    /* ── Legacy --ds-* aliases (for backward compat during migration) ── */
+    --ds-black:        hsl(var(--background));
+    --ds-surface:      hsl(var(--card));
+    --ds-surface-1:    #1a1a1a;
+    --ds-surface-2:    #222222;
+    --ds-surface-3:    #2a2a2a;
+    --ds-primary:      hsl(var(--primary));
+    --ds-primary-dark: #d4a017;
+    --ds-primary-text: hsl(var(--primary-foreground));
+    --ds-border:       hsl(var(--border));
+    --ds-text:         hsl(var(--foreground));
+    --ds-text-muted:   hsl(var(--muted-foreground));
+    --ds-text-subtle:  rgba(255,255,255,0.35);
+    --ds-error:        hsl(var(--destructive));
+    --ds-success:      #22c55e;
+    --ds-warning:      hsl(var(--primary));
+    --ds-info:         #3b82f6;
+    --ds-overlay:      rgba(0, 0, 0, 0.75);
+    --radius-sm:       2px;
+    --radius-md:       4px;
+    --radius-lg:       8px;
+    --ds-primary-btn-text:      #fbbf24;
+    --ds-primary-btn-border:    rgba(251, 191, 36, 0.2);
+    --ds-primary-btn-hover-bg:  rgba(251, 191, 36, 0.1);
+
     /* Typography scale */
     --font-heading: 'Inter', sans-serif;
     --font-sans: 'Inter', sans-serif;
@@ -83,6 +108,28 @@
     --sidebar-accent-foreground: 240 4% 12%;
     --sidebar-border: 0 0% 0% / 0.08;
     --sidebar-ring: 43 87% 56%;
+
+    /* ── Legacy --ds-* aliases (light theme) ── */
+    --ds-black:         #e8e8e8;
+    --ds-surface:       #f5f5f5;
+    --ds-surface-1:     #ececec;
+    --ds-surface-2:     #e0e0e0;
+    --ds-surface-3:     #d5d5d5;
+    --ds-text:          #1d1d1f;
+    --ds-text-muted:    rgba(0,0,0,0.55);
+    --ds-text-subtle:   rgba(0,0,0,0.35);
+    --ds-primary:       hsl(var(--primary));
+    --ds-primary-dark:  #d4a017;
+    --ds-primary-text:  #000000;
+    --ds-border:        rgba(0,0,0,0.08);
+    --ds-error:         #ef4444;
+    --ds-success:       #22c55e;
+    --ds-warning:       hsl(var(--primary));
+    --ds-info:          #3b82f6;
+    --ds-overlay:      rgba(0, 0, 0, 0.6);
+    --ds-primary-btn-text:      #c49000;
+    --ds-primary-btn-border:    rgba(196, 144, 0, 0.3);
+    --ds-primary-btn-hover-bg:  rgba(196, 144, 0, 0.1);
   }
 
   * {
