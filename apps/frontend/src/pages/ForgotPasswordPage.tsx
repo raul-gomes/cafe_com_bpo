@@ -4,6 +4,10 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, ArrowLeft, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 import { apiClient } from '../api/client';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { Alert } from '../components/ui/alert';
 import logo from '../assets/logo.png';
 
 const forgotPasswordSchema = z.object({
@@ -31,103 +35,75 @@ export const ForgotPasswordPage: React.FC = () => {
 
   if (submitted) {
     return (
-      <div style={{
-        width: '100%', maxWidth: '420px', margin: '0 auto',
-        background: 'var(--ds-surface)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '36px',
-        textAlign: 'center',
-      }}>
-        <img src={logo} alt="Café com BPO" style={{ height: '40px', margin: '0 auto 16px' }} />
-        <CheckCircle size={48} style={{ color: 'var(--ds-success)', margin: '0 auto 16px' }} />
-        <h2 style={{ font: 'var(--text-h2)', color: 'var(--ds-text)', marginBottom: '8px' }}>
-          Verifique seu e-mail
-        </h2>
-        <p style={{ font: 'var(--text-body)', color: 'var(--ds-text-muted)', marginBottom: '24px' }}>
-          Enviamos instruções para redefinir sua senha.
-        </p>
-        <a href="/login" style={{
-          color: 'var(--ds-primary)',
-          textDecoration: 'none',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '14px',
-        }}>
-          <ArrowLeft size={16} />
-          Voltar ao login
-        </a>
-      </div>
+      <Card className="mx-auto max-w-[420px] text-center">
+        <CardContent className="pt-9">
+          <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
+          <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-2">
+            Verifique seu e-mail
+          </h2>
+          <p className="text-sm text-muted-foreground mb-6">
+            Enviamos instruções para redefinir sua senha.
+          </p>
+          <a href="/login" className="text-primary no-underline inline-flex items-center gap-2 text-sm">
+            <ArrowLeft size={16} />
+            Voltar ao login
+          </a>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div style={{
-      width: '100%', maxWidth: '420px', margin: '0 auto',
-      background: 'var(--ds-surface)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '36px',
-    }}>
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-        <img src={logo} alt="Café com BPO" style={{ height: '40px', margin: '0 auto 16px' }} />
-        <h2 style={{ font: 'var(--text-h2)', color: 'var(--ds-text)', marginBottom: '4px' }}>
-          Esqueceu a senha?
-        </h2>
-        <p style={{ font: 'var(--text-body)', color: 'var(--ds-text-muted)' }}>
-          Informe seu e-mail para receber instruções
-        </p>
-      </div>
-
-      {serverError && (
-        <div className="ds-alert ds-alert-error" style={{ marginBottom: '20px' }}>
-          <span>{serverError}</span>
+    <Card className="mx-auto max-w-[420px]">
+      <CardContent className="pt-9">
+        <div className="text-center mb-7">
+          <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-1">
+            Esqueceu a senha?
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Informe seu e-mail para receber instruções
+          </p>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div className="ds-input-group">
-          <label className="ds-label" htmlFor="email">E-mail</label>
-          <div style={{ position: 'relative' }}>
-            <Mail size={15} style={{
-              position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--ds-text-subtle)', pointerEvents: 'none'
-            }} />
-            <input
-              id="email" type="email"
-              {...register('email')}
-              className={`ds-input ${errors.email ? 'error' : ''}`}
-              style={{ paddingLeft: '36px' }}
-              placeholder="seu@email.com"
-            />
+        {serverError && (
+          <Alert variant="destructive" className="mb-5">
+            <span>{serverError}</span>
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="ds-input-group">
+            <label className="ds-label" htmlFor="email">E-mail</label>
+            <div className="relative">
+              <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                id="email" type="email"
+                {...register('email')}
+                className="pl-9"
+                placeholder="seu@email.com"
+              />
+            </div>
+            {errors.email && <p className="ds-error-text">{errors.email.message}</p>}
           </div>
-          {errors.email && <p className="ds-error-text">{errors.email.message}</p>}
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full mt-1"
+          >
+            {isSubmitting ? 'Enviando...' : 'Enviar instruções'}
+          </Button>
+        </form>
+
+        <div className="text-center mt-5">
+          <a href="/login" className="text-primary no-underline inline-flex items-center gap-2 text-sm">
+            <ArrowLeft size={16} />
+            Voltar ao login
+          </a>
         </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="ds-btn ds-btn-primary"
-          style={{ width: '100%', marginTop: '4px', padding: '12px', fontSize: '14px', borderRadius: 'var(--radius-md)' }}
-        >
-          {isSubmitting ? 'Enviando...' : 'Enviar instruções'}
-        </button>
-      </form>
-
-      <div style={{ textAlign: 'center', marginTop: '20px' }}>
-        <a href="/login" style={{
-          color: 'var(--ds-primary)',
-          textDecoration: 'none',
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: '8px',
-          fontSize: '14px',
-        }}>
-          <ArrowLeft size={16} />
-          Voltar ao login
-        </a>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

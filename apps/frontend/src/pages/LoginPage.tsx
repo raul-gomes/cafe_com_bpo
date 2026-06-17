@@ -3,6 +3,7 @@ import { LoginForm } from '../components/auth/LoginForm';
 import { useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { Alert } from '../components/ui/alert';
 
 const ERROR_MESSAGES: Record<string, string> = {
   state_invalid: 'Sessão expirada. Tente fazer login novamente.',
@@ -33,19 +34,19 @@ export default function LoginPage() {
 
       <div className="login-content">
         {errorParam && (
-          <div className="ds-alert ds-alert-error" style={{ marginBottom: '20px' }}>
+          <Alert variant="destructive" className="mb-5">
             <span>{ERROR_MESSAGES[errorParam] || 'Ocorreu um erro. Tente novamente.'}</span>
-          </div>
+          </Alert>
         )}
         {sessionStorage.getItem('cafe_bpo_proposal') && (
-          <div className="ds-alert ds-alert-warning" style={{ marginBottom: '20px', textAlign: 'center' }}>
+          <Alert className="mb-5 text-center">
             <strong>Quase lá!</strong> Faça login ou cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
-          </div>
+          </Alert>
         )}
         <LoginForm />
-        <div style={{ textAlign: 'center', marginTop: '20px', fontSize: '13px', color: 'var(--ds-text-subtle)' }}>
+        <div className="text-center mt-5 text-[13px] text-muted-foreground">
           Não possui conta?{' '}
-          <a href="/cadastro" style={{ color: 'var(--ds-primary)', textDecoration: 'none', fontWeight: 500 }}>
+          <a href="/cadastro" className="text-primary no-underline font-medium">
             Cadastre-se
           </a>
         </div>

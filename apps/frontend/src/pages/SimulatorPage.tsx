@@ -5,14 +5,14 @@ import { PublicPricingSimulator } from '../components/pricing/PublicPricingSimul
 
 const SimulatorPage: React.FC = () => {
   return (
-    <div className="simulator-landing-page" style={{ paddingBottom: '100px', background: 'var(--bg)' }}>
+    <div className="simulator-landing-page pb-[100px] bg-[var(--bg)]">
       <Navbar />
 
-      <main style={{ paddingTop: '100px' }}>
+      <main className="pt-[100px]">
         <FadeIn delay={1}>
-          <div className="app-header" style={{ marginBottom: '40px', border: 'none', background: 'transparent' }}>
-            <h1 style={{ fontSize: '2.5rem', fontWeight: 800 }}>Simulador de Precificação BPO</h1>
-            <p style={{ fontSize: '1.1rem', maxWidth: '600px', margin: '12px auto' }}>
+          <div className="app-header mb-10 border-none bg-transparent">
+            <h1 className="text-4xl font-extrabold">Simulador de Precificação BPO</h1>
+            <p className="text-lg max-w-[600px] mx-auto mt-3">
               Descubra o valor justo gerado dinamicamente para sua operação com a metodologia Café com BPO.
             </p>
           </div>

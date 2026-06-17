@@ -161,7 +161,7 @@ const HomePage: React.FC = () => {
         <div className="movimento-bg-circle"></div>
         <div className="movimento-inner reveal">
           <div className="movimento-glass">
-            <p className="section-label" style={{ justifyContent: 'center', color: 'rgba(255,255,255,0.25)' }}>O que é isso</p>
+            <p className="section-label !justify-center !text-white/25">O que é isso</p>
             <h2 className="movimento-headline">
               Um movimento.<br />
               Uma comunidade.<br />
@@ -223,7 +223,7 @@ const HomePage: React.FC = () => {
               <img 
                 src="/ghuto_cesar.jpeg" 
                 alt="Ghuto César" 
-                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                className="w-full h-full object-cover"
               />
               <div className="ghuto-photo-overlay"></div>
               <span className="ghuto-photo-name">Ghuto César</span>
@@ -276,7 +276,7 @@ const HomePage: React.FC = () => {
         <div className="donate-orb donate-orb-2"></div>
         <div className="donate-inner reveal">
           <div className="donate-glass">
-            <p className="section-label" style={{ justifyContent: 'center', color: 'rgba(255,255,255,0.25)' }}>Nos ajude</p>
+            <p className="section-label !justify-center !text-white/25">Nos ajude</p>
             <h2 className="donate-headline">
               Ajude o Café com BPO<br />
               a <em>continuar crescendo.</em>
@@ -356,11 +356,11 @@ const HomePage: React.FC = () => {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ background: 'var(--black)', borderTop: '1px solid rgba(255,255,255,0.05)', padding: '40px 48px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '12px', color: 'rgba(255,255,255,0.25)', textTransform: 'uppercase', letterSpacing: '0.1em' }}>
-          CAFÉ COM BPO <div className="nav-dot" style={{ width: '4px', height: '4px', opacity: 0.3 }}></div>
+      <footer className="bg-[var(--black)] border-t border-white/[0.05] px-12 py-10 flex justify-between items-center">
+        <div className="flex items-center gap-2 text-xs text-white/25 uppercase tracking-[0.1em]">
+          CAFÉ COM BPO <span className="nav-dot !w-1 !h-1 !opacity-30 inline-block"></span>
         </div>
-        <p style={{ fontSize: '11px', color: 'rgba(255,255,255,0.15)' }}>© 2025 Café com BPO. Todos os direitos reservados.</p>
+        <p className="text-[11px] text-white/15">© 2025 Café com BPO. Todos os direitos reservados.</p>
       </footer>
     </div>
   );

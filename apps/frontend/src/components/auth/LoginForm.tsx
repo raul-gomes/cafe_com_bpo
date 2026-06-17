@@ -6,6 +6,10 @@ import { useNavigate } from 'react-router-dom';
 import { loginSchema, LoginFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
+import { Card, CardContent } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Button } from '../../components/ui/button';
+import { Alert } from '../../components/ui/alert';
 import logo from '../../assets/logo.png';
 
 export const LoginForm: React.FC = () => {
@@ -47,119 +51,98 @@ export const LoginForm: React.FC = () => {
   };
 
   return (
-    <div style={{
-      width: '100%', maxWidth: '420px', margin: '0 auto',
-      background: 'var(--ds-surface)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '36px',
-    }}>
-      {/* Brand */}
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-        <img src={logo} alt="Café com BPO" style={{ height: '40px', margin: '0 auto 16px' }} />
-        <h2 style={{ font: 'var(--text-h2)', color: 'var(--ds-text)', marginBottom: '4px' }}>
-          Bem-vindo
-        </h2>
-        <p style={{ font: 'var(--text-body)', color: 'var(--ds-text-muted)' }}>
-          Entre com sua conta BPO
-        </p>
-      </div>
+    <Card className="mx-auto max-w-[420px]">
+      <CardContent className="pt-9">
+        {/* Brand */}
+        <div className="text-center mb-7">
+          <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-1">
+            Bem-vindo
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Entre com sua conta BPO
+          </p>
+        </div>
 
         {sessionStorage.getItem('cafe_bpo_proposal') && (
-          <div className="ds-alert ds-alert-warning" style={{ marginBottom: '20px', textAlign: 'center' }}>
+          <Alert className="mb-5 text-center">
             <strong>Quase lá!</strong> Faça login ou cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
-          </div>
+          </Alert>
         )}
 
-      {genericError && (
-        <div className="ds-alert ds-alert-error" style={{ marginBottom: '20px' }}>
-          <AlertCircle size={16} style={{ flexShrink: 0 }} />
-          <span>{genericError}</span>
-        </div>
-      )}
+        {genericError && (
+          <Alert variant="destructive" className="mb-5">
+            <AlertCircle size={16} className="shrink-0" />
+            <span>{genericError}</span>
+          </Alert>
+        )}
 
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div className="ds-input-group">
-          <label className="ds-label" htmlFor="email">E-mail</label>
-          <div style={{ position: 'relative' }}>
-            <Mail size={15} style={{
-              position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--ds-text-subtle)', pointerEvents: 'none'
-            }} />
-            <input
-              id="email" type="email"
-              {...register('email')}
-              className={`ds-input ${errors.email ? 'error' : ''}`}
-              style={{ paddingLeft: '36px' }}
-              placeholder="seu@email.com"
-            />
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="ds-input-group">
+            <label className="ds-label" htmlFor="email">E-mail</label>
+            <div className="relative">
+              <Mail size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                id="email" type="email"
+                {...register('email')}
+                className="pl-9"
+                placeholder="seu@email.com"
+              />
+            </div>
+            {errors.email && <p className="ds-error-text">{errors.email.message}</p>}
           </div>
-          {errors.email && <p className="ds-error-text">{errors.email.message}</p>}
-        </div>
 
-        <div className="ds-input-group">
-          <label className="ds-label" htmlFor="password">Senha</label>
-          <div style={{ position: 'relative' }}>
-            <Lock size={15} style={{
-              position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--ds-text-subtle)', pointerEvents: 'none'
-            }} />
-            <input
-              id="password" type="password"
-              {...register('password')}
-              className={`ds-input ${errors.password ? 'error' : ''}`}
-              style={{ paddingLeft: '36px' }}
-              placeholder="••••••••"
-            />
+          <div className="ds-input-group">
+            <label className="ds-label" htmlFor="password">Senha</label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                id="password" type="password"
+                {...register('password')}
+                className="pl-9"
+                placeholder="••••••••"
+              />
+            </div>
+            {errors.password && <p className="ds-error-text">{errors.password.message}</p>}
           </div>
-          {errors.password && <p className="ds-error-text">{errors.password.message}</p>}
+
+          <div className="text-right -mt-2">
+            <a href="/esqueci-minha-senha" className="text-muted-foreground no-underline text-[13px] hover:text-foreground">
+              Esqueceu a senha?
+            </a>
+          </div>
+
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full mt-1"
+          >
+            {isSubmitting
+              ? 'Entrando...'
+              : <><span>Entrar</span><LogIn size={15} /></>
+            }
+          </Button>
+        </form>
+
+        {/* Divider */}
+        <div className="flex items-center gap-3 my-6 text-muted-foreground text-xs">
+          <div className="flex-1 h-px bg-border" />
+          <span>ou continue com</span>
+          <div className="flex-1 h-px bg-border" />
         </div>
 
-        <div style={{ textAlign: 'right', marginTop: '-8px' }}>
-          <a href="/esqueci-minha-senha" style={{
-            color: 'var(--ds-text-subtle)',
-            textDecoration: 'none',
-            fontSize: '13px',
-          }}>
-            Esqueceu a senha?
-          </a>
+        {/* OAuth */}
+        <div className="max-w-[200px] mx-auto">
+          <Button
+            variant="ghost"
+            onClick={() => handleOAuthLogin('google')}
+            className="w-full py-2.5 h-auto text-xs"
+          >
+            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" className="size-4" />
+            Google
+          </Button>
         </div>
-
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="ds-btn ds-btn-primary"
-          style={{ width: '100%', marginTop: '4px', padding: '12px', fontSize: '14px', borderRadius: 'var(--radius-md)' }}
-        >
-          {isSubmitting
-            ? 'Entrando...'
-            : <><span>Entrar</span><LogIn size={15} /></>
-          }
-        </button>
-      </form>
-
-      {/* Divider */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: '12px',
-        margin: '24px 0', color: 'var(--ds-text-subtle)', fontSize: '12px'
-      }}>
-        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-        <span>ou continue com</span>
-        <div style={{ flex: 1, height: '1px', background: 'rgba(255,255,255,0.08)' }} />
-      </div>
-
-      {/* OAuth */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '10px', maxWidth: '200px', margin: '0 auto' }}>
-        <button
-          type="button"
-          onClick={() => handleOAuthLogin('google')}
-          className="ds-btn ds-btn-ghost"
-          style={{ padding: '10px', borderRadius: 'var(--radius-md)', fontSize: '13px' }}
-        >
-          <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" style={{ width: '16px', height: '16px' }} />
-          Google
-        </button>
-      </div>
-    </div>
+      </CardContent>
+    </Card>
   );
 };

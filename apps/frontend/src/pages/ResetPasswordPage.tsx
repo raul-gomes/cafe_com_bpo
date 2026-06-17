@@ -5,6 +5,10 @@ import { Lock, CheckCircle } from 'lucide-react';
 import { z } from 'zod';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { apiClient } from '../api/client';
+import { Card, CardContent } from '../components/ui/card';
+import { Input } from '../components/ui/input';
+import { Button } from '../components/ui/button';
+import { Alert } from '../components/ui/alert';
 import logo from '../assets/logo.png';
 
 const resetPasswordSchema = z.object({
@@ -48,114 +52,91 @@ export const ResetPasswordPage: React.FC = () => {
 
   if (!token) {
     return (
-      <div style={{
-        width: '100%', maxWidth: '420px', margin: '0 auto',
-        background: 'var(--ds-surface)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '36px',
-        textAlign: 'center',
-      }}>
-        <p style={{ color: 'var(--ds-text-muted)' }}>Token de redefinição ausente. Solicite um novo link.</p>
-        <a href="/esqueci-minha-senha" style={{ color: 'var(--ds-primary)', textDecoration: 'none', fontSize: '14px' }}>
-          Solicitar novo link
-        </a>
-      </div>
+      <Card className="mx-auto max-w-[420px] text-center">
+        <CardContent className="pt-9">
+          <p className="text-muted-foreground">Token de redefinição ausente. Solicite um novo link.</p>
+          <a href="/esqueci-minha-senha" className="text-primary no-underline text-sm">
+            Solicitar novo link
+          </a>
+        </CardContent>
+      </Card>
     );
   }
 
   if (success) {
     return (
-      <div style={{
-        width: '100%', maxWidth: '420px', margin: '0 auto',
-        background: 'var(--ds-surface)',
-        border: '1px solid rgba(255,255,255,0.08)',
-        borderRadius: 'var(--radius-lg)',
-        padding: '36px',
-        textAlign: 'center',
-      }}>
-        <img src={logo} alt="Café com BPO" style={{ height: '40px', margin: '0 auto 16px' }} />
-        <CheckCircle size={48} style={{ color: 'var(--ds-success)', margin: '0 auto 16px' }} />
-        <h2 style={{ font: 'var(--text-h2)', color: 'var(--ds-text)', marginBottom: '8px' }}>
-          Senha redefinida!
-        </h2>
-        <p style={{ font: 'var(--text-body)', color: 'var(--ds-text-muted)' }}>
-          Redirecionando para o login...
-        </p>
-      </div>
+      <Card className="mx-auto max-w-[420px] text-center">
+        <CardContent className="pt-9">
+          <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
+          <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-2">
+            Senha redefinida!
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Redirecionando para o login...
+          </p>
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <div style={{
-      width: '100%', maxWidth: '420px', margin: '0 auto',
-      background: 'var(--ds-surface)',
-      border: '1px solid rgba(255,255,255,0.08)',
-      borderRadius: 'var(--radius-lg)',
-      padding: '36px',
-    }}>
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-        <img src={logo} alt="Café com BPO" style={{ height: '40px', margin: '0 auto 16px' }} />
-        <h2 style={{ font: 'var(--text-h2)', color: 'var(--ds-text)', marginBottom: '4px' }}>
-          Nova senha
-        </h2>
-        <p style={{ font: 'var(--text-body)', color: 'var(--ds-text-muted)' }}>
-          Defina sua nova senha
-        </p>
-      </div>
-
-      {serverError && (
-        <div className="ds-alert ds-alert-error" style={{ marginBottom: '20px' }}>
-          <span>{serverError}</span>
+    <Card className="mx-auto max-w-[420px]">
+      <CardContent className="pt-9">
+        <div className="text-center mb-7">
+          <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-1">
+            Nova senha
+          </h2>
+          <p className="text-sm text-muted-foreground">
+            Defina sua nova senha
+          </p>
         </div>
-      )}
 
-      <form onSubmit={handleSubmit(onSubmit)} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-        <div className="ds-input-group">
-          <label className="ds-label" htmlFor="password">Nova senha</label>
-          <div style={{ position: 'relative' }}>
-            <Lock size={15} style={{
-              position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--ds-text-subtle)', pointerEvents: 'none'
-            }} />
-            <input
-              id="password" type="password"
-              {...register('password')}
-              className={`ds-input ${errors.password ? 'error' : ''}`}
-              style={{ paddingLeft: '36px' }}
-              placeholder="Mínimo 8 caracteres"
-            />
+        {serverError && (
+          <Alert variant="destructive" className="mb-5">
+            <span>{serverError}</span>
+          </Alert>
+        )}
+
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="ds-input-group">
+            <label className="ds-label" htmlFor="password">Nova senha</label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                id="password" type="password"
+                {...register('password')}
+                className="pl-9"
+                placeholder="Mínimo 8 caracteres"
+              />
+            </div>
+            {errors.password && <p className="ds-error-text">{errors.password.message}</p>}
           </div>
-          {errors.password && <p className="ds-error-text">{errors.password.message}</p>}
-        </div>
 
-        <div className="ds-input-group">
-          <label className="ds-label" htmlFor="confirmPassword">Confirmar senha</label>
-          <div style={{ position: 'relative' }}>
-            <Lock size={15} style={{
-              position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)',
-              color: 'var(--ds-text-subtle)', pointerEvents: 'none'
-            }} />
-            <input
-              id="confirmPassword" type="password"
-              {...register('confirmPassword')}
-              className={`ds-input ${errors.confirmPassword ? 'error' : ''}`}
-              style={{ paddingLeft: '36px' }}
-              placeholder="Repita a senha"
-            />
+          <div className="ds-input-group">
+            <label className="ds-label" htmlFor="confirmPassword">Confirmar senha</label>
+            <div className="relative">
+              <Lock size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
+              <Input
+                id="confirmPassword" type="password"
+                {...register('confirmPassword')}
+                className="pl-9"
+                placeholder="Repita a senha"
+              />
+            </div>
+            {errors.confirmPassword && <p className="ds-error-text">{errors.confirmPassword.message}</p>}
           </div>
-          {errors.confirmPassword && <p className="ds-error-text">{errors.confirmPassword.message}</p>}
-        </div>
 
-        <button
-          type="submit"
-          disabled={isSubmitting}
-          className="ds-btn ds-btn-primary"
-          style={{ width: '100%', marginTop: '4px', padding: '12px', fontSize: '14px', borderRadius: 'var(--radius-md)' }}
-        >
-          {isSubmitting ? 'Redefinindo...' : 'Redefinir senha'}
-        </button>
-      </form>
-    </div>
+          <Button
+            type="submit"
+            disabled={isSubmitting}
+            className="w-full mt-1"
+          >
+            {isSubmitting ? 'Redefinindo...' : 'Redefinir senha'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 };

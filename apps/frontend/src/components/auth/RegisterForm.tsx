@@ -4,8 +4,12 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
-import logo from '../../assets/logo.png';
+import { Card, CardContent } from '../../components/ui/card';
+import { Input } from '../../components/ui/input';
+import { Button } from '../../components/ui/button';
+import { Alert } from '../../components/ui/alert';
 import { AlertCircle } from 'lucide-react';
+import logo from '../../assets/logo.png';
 
 export const RegisterForm: React.FC = () => {
   const { register: authRegister } = useAuth();
@@ -36,61 +40,65 @@ export const RegisterForm: React.FC = () => {
   };
 
   return (
-    <div style={{
-      width: '100%', maxWidth: '420px', margin: '0 auto', background: 'var(--ds-surface)', border: '1px solid rgba(255,255,255,0.08)', borderRadius: 'var(--radius-lg)', padding: '36px',
-    }}>
-      <div style={{ textAlign: 'center', marginBottom: '28px' }}>
-        <img src={logo} alt="Café com BPO" style={{ height: '40px', margin: '0 auto 16px' }} />
-        <h2 style={{ font: 'var(--text-h2)', color: 'var(--ds-text)', marginBottom: '4px' }}>Crie sua conta</h2>
-        <p style={{ font: 'var(--text-body)', color: 'var(--ds-text-muted)' }}>Preencha os dados abaixo</p>
-      </div>
-
-      {serverError && (
-        <div className="ds-alert ds-alert-error" style={{ marginBottom: '20px' }}>
-          <AlertCircle size={16} style={{ flexShrink: 0 }} /><span>{serverError}</span>
-        </div>
-      )}
-
-      <form onSubmit={handleSubmit(onSubmit)} style={{ gap: '16px', display: 'flex', flexDirection: 'column' }}>
-        <div className="ds-input-group">
-          <label className="ds-label">Nome completo *</label>
-          <input type="text" className={`ds-input ${errors.name ? 'error' : ''}`} placeholder="Ex: João Silva" {...register('name')} />
-          {errors.name && <p className="ds-error-text">{errors.name.message}</p>}
+    <Card className="mx-auto max-w-[420px]">
+      <CardContent className="pt-9">
+        <div className="text-center mb-7">
+          <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
+          <h2 className="text-xl font-bold text-foreground mb-1">Crie sua conta</h2>
+          <p className="text-sm text-muted-foreground">Preencha os dados abaixo</p>
         </div>
 
-        <div className="ds-input-group">
-          <label className="ds-label">E-mail *</label>
-          <input type="email" className={`ds-input ${errors.email ? 'error' : ''}`} placeholder="seu@email.com" {...register('email')} />
-          {errors.email && <p className="ds-error-text">{errors.email.message}</p>}
-        </div>
+        {serverError && (
+          <Alert variant="destructive" className="mb-5">
+            <AlertCircle size={16} className="shrink-0" /><span>{serverError}</span>
+          </Alert>
+        )}
 
-        <div className="ds-input-group">
-          <label className="ds-label">Empresa (opcional)</label>
-          <input type="text" className="ds-input" placeholder="Nome da empresa" {...register('company')} />
-        </div>
-
-        <div className="ds-input-group">
-          <label className="ds-label">Senha *</label>
-          <div style={{ position: 'relative' }}>
-            <input type={showPw ? 'text' : 'password'} className={`ds-input ${errors.password ? 'error' : ''}`} placeholder="Mínimo 8 caracteres" {...register('password')} />
-            <button type="button" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#888', cursor: 'pointer' }} onClick={() => setShowPw(v => !v)}>{showPw ? '🙈' : '👁'}</button>
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+          <div className="ds-input-group">
+            <label className="ds-label">Nome completo *</label>
+            <Input type="text" placeholder="Ex: João Silva" {...register('name')} />
+            {errors.name && <p className="ds-error-text">{errors.name.message}</p>}
           </div>
-          {errors.password && <p className="ds-error-text">{errors.password.message}</p>}
-        </div>
 
-        <div className="ds-input-group">
-          <label className="ds-label">Confirmar senha *</label>
-          <div style={{ position: 'relative' }}>
-            <input type={showCPw ? 'text' : 'password'} className={`ds-input ${errors.confirmPassword ? 'error' : ''}`} placeholder="Repita a senha" {...register('confirmPassword')} />
-            <button type="button" style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#888', cursor: 'pointer' }} onClick={() => setShowCPw(v => !v)}>{showCPw ? '🙈' : '👁'}</button>
+          <div className="ds-input-group">
+            <label className="ds-label">E-mail *</label>
+            <Input type="email" placeholder="seu@email.com" {...register('email')} />
+            {errors.email && <p className="ds-error-text">{errors.email.message}</p>}
           </div>
-          {errors.confirmPassword && <p className="ds-error-text">{errors.confirmPassword.message}</p>}
-        </div>
 
-        <button type="submit" disabled={isSubmitting} className="ds-btn ds-btn-primary" style={{ width: '100%', marginTop: '16px', padding: '12px', fontSize: '14px', borderRadius: 'var(--radius-md)' }}>
-          {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
-        </button>
-      </form>
-    </div>
+          <div className="ds-input-group">
+            <label className="ds-label">Empresa (opcional)</label>
+            <Input type="text" placeholder="Nome da empresa" {...register('company')} />
+          </div>
+
+          <div className="ds-input-group">
+            <label className="ds-label">Senha *</label>
+            <div className="relative">
+              <Input type={showPw ? 'text' : 'password'} placeholder="Mínimo 8 caracteres" {...register('password')} />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none text-muted-foreground cursor-pointer text-sm" onClick={() => setShowPw(v => !v)}>
+                {showPw ? '🙈' : '👁'}
+              </button>
+            </div>
+            {errors.password && <p className="ds-error-text">{errors.password.message}</p>}
+          </div>
+
+          <div className="ds-input-group">
+            <label className="ds-label">Confirmar senha *</label>
+            <div className="relative">
+              <Input type={showCPw ? 'text' : 'password'} placeholder="Repita a senha" {...register('confirmPassword')} />
+              <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 bg-transparent border-none text-muted-foreground cursor-pointer text-sm" onClick={() => setShowCPw(v => !v)}>
+                {showCPw ? '🙈' : '👁'}
+              </button>
+            </div>
+            {errors.confirmPassword && <p className="ds-error-text">{errors.confirmPassword.message}</p>}
+          </div>
+
+          <Button type="submit" disabled={isSubmitting} className="w-full mt-4">
+            {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
+          </Button>
+        </form>
+      </CardContent>
+    </Card>
   );
 };
