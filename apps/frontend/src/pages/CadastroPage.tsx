@@ -16,33 +16,35 @@ export default function CadastroPage() {
   }, [isAuthenticated, isLoading, navigate]);
 
   return (
-    <div className="login-page">
+    <div className="min-h-screen bg-black flex flex-col">
       <Navbar />
 
       <div className="login-glow-top" />
       <div className="login-glow-bottom" />
       <span className="login-bpo-watermark">BPO</span>
 
-      <div className="login-content" style={{ marginTop: '80px', marginBottom: '80px' }}>
-        {sessionStorage.getItem('cafe_bpo_proposal') && (
-          <Alert className="mb-5 text-center mx-auto max-w-[420px]">
-            <strong>Quase lá!</strong> Cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
-          </Alert>
-        )}
-        
-        <RegisterForm />
-        
-        <div className="text-center mt-6 text-[13px] text-muted-foreground">
-          Já possui conta?{' '}
-          <a href="/login" className="text-primary no-underline font-medium">
-            Fazer login
-          </a>
+      <main className="flex-1 flex items-center justify-center px-6 pt-14 pb-14">
+        <div className="w-full max-w-[420px]">
+          {sessionStorage.getItem('cafe_bpo_proposal') && (
+            <Alert className="mb-5 text-center">
+              <strong>Quase lá!</strong> Cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
+            </Alert>
+          )}
+          
+          <RegisterForm />
+          
+          <div className="text-center mt-6 text-[13px] text-muted-foreground">
+            Já possui conta?{' '}
+            <a href="/login" className="text-primary no-underline font-medium">
+              Fazer login
+            </a>
+          </div>
+          
+          <p className="login-footer-note" style={{ marginTop: '32px' }}>
+            Café com BPO © {new Date().getFullYear()}
+          </p>
         </div>
-        
-        <p className="login-footer-note" style={{ marginTop: '32px' }}>
-          Café com BPO © {new Date().getFullYear()}
-        </p>
-      </div>
+      </main>
     </div>
   );
 }

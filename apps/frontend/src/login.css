@@ -5,10 +5,6 @@
    ═══════════════════════════════════════════════════════ */
 
 :root {
-  /* Login page layout */
-  --login-padding-top:    calc(var(--nav-height) + 40px);
-  --login-padding-sides:  24px;
-
   /* BPO watermark */
   --login-bpo-size:          clamp(180px, 38vw, 420px);
   --login-bpo-letter-spacing: -12px;
@@ -24,20 +20,6 @@
 
   /* Footer note */
   --login-footer-size: 12px;
-}
-
-/* ── PAGE WRAPPER ── */
-.login-page {
-  min-height: 100vh;
-  background: var(--ds-black);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: var(--login-padding-sides);
-  padding-top: var(--login-padding-top);
-  position: relative;
-  overflow: hidden;
 }
 
 /* ── GLOW BLOBS ── */
@@ -65,21 +47,8 @@
   z-index: 0;
 }
 
-/* ── CONTENT STACK (form + footer note) ── */
-/* Wrapper tem a mesma largura do card para podermos ancorar
-   o BPO watermark na borda direita deste container.          */
-.login-content {
-  position: relative;
-  z-index: 1;
-  width: 100%;
-  max-width: 420px;  /* igual ao max-width do LoginForm card */
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-
 /* ── BPO WATERMARK ── */
-/* Ancorado no rodapé da página (.login-page é o pai relativo).
+/* Ancorado no rodapé da página (pai relativo é o container da página).
    right negativo faz o texto ultrapassar a borda direita.    */
 .login-bpo-watermark {
   position: absolute;
