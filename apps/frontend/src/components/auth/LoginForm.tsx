@@ -12,7 +12,11 @@ import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
 import logo from '../../assets/logo.png';
 
-export const LoginForm: React.FC = () => {
+interface LoginFormProps {
+  onForgotPassword?: () => void;
+}
+
+export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
     resolver: zodResolver(loginSchema),
   });
@@ -52,7 +56,7 @@ export const LoginForm: React.FC = () => {
 
   return (
     <Card className="mx-auto max-w-[420px]">
-      <CardContent className="pt-9 px-6">
+      <CardContent className="pt-9 px-8 pb-8">
         {/* Brand */}
         <div className="text-center mb-7">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
@@ -107,9 +111,9 @@ export const LoginForm: React.FC = () => {
           </div>
 
           <div className="text-right -mt-2">
-            <a href="/esqueci-minha-senha" className="text-muted-foreground no-underline text-[13px] hover:text-foreground">
+            <button type="button" onClick={onForgotPassword} className="bg-transparent border-none cursor-pointer text-muted-foreground text-[13px] hover:text-foreground">
               Esqueceu a senha?
-            </a>
+            </button>
           </div>
 
           <Button

@@ -36,7 +36,7 @@ export const ForgotPasswordPage: React.FC = () => {
   if (submitted) {
     return (
       <Card className="mx-auto max-w-[420px] text-center">
-        <CardContent className="pt-9">
+        <CardContent className="pt-9 px-8 pb-8">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
           <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-2">
@@ -56,8 +56,8 @@ export const ForgotPasswordPage: React.FC = () => {
 
   return (
     <Card className="mx-auto max-w-[420px]">
-      <CardContent className="pt-9">
-        <div className="text-center mb-7">
+        <CardContent className="pt-9 px-8 pb-8">
+          <div className="text-center mb-7">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-1">
             Esqueceu a senha?

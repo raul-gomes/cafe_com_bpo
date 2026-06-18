@@ -41,7 +41,7 @@ export const RegisterForm: React.FC = () => {
 
   return (
     <Card className="mx-auto max-w-[420px]">
-      <CardContent className="pt-9 px-6">
+      <CardContent className="pt-9 px-8 pb-8">
         <div className="text-center mb-7">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-1">Crie sua conta</h2>
