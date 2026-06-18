@@ -53,7 +53,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       title: 'Cancelar tarefa',
       message: `Tem certeza que deseja cancelar "${task.title}"?`,
       variant: 'warning',
-      confirmLabel: 'Cancelar',
+      confirmLabel: 'Sim, cancelar',
     });
     if (ok) {
       onCancel(task.id);

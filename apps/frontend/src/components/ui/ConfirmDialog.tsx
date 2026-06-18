@@ -68,6 +68,7 @@ export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({ child
       resolve(false);
       resolveRef.current = null;
     }
+    setIsOpen(false);
   }, []);
 
   const handleOpenChange = useCallback((open: boolean) => {
