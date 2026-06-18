@@ -52,7 +52,7 @@ export const LoginForm: React.FC = () => {
 
   return (
     <Card className="mx-auto max-w-[420px]">
-      <CardContent className="pt-9">
+      <CardContent className="pt-9 px-6">
         {/* Brand */}
         <div className="text-center mb-7">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />

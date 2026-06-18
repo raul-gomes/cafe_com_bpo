@@ -489,7 +489,7 @@ const TaskKanban: React.FC<{
     const getClient = (id: string) => clients.find(c => c.id === id);
 
     return (
-        <div className="kanban-grid" style={{ '--kanban-cols': columns.length } as React.CSSProperties}>
+        <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(280px, 1fr))` } as React.CSSProperties}>
             {columns.map(col => (
                 <Droppable key={col.id} droppableId={col.id}>
                     {(provided, snapshot) => (
