@@ -4,6 +4,7 @@ import { useTasks } from '../../api/hooks/useTasks';
 import { TaskPhaseResponse } from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { toast } from 'sonner';
+import { cn } from '../../lib/utils';
 
 interface PhaseManagerProps {
   isOpen: boolean;
@@ -29,6 +30,7 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
   const [newColor, setNewColor] = useState('#6b7280');
   const [draggedPhase, setDraggedPhase] = useState<string | null>(null);
   const confirm = useConfirm();
+
   const handleCreate = async () => {
     if (!newName.trim()) return;
     await createPhase.mutateAsync({
@@ -78,45 +80,35 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
 
   return (
     <div
-      style={{
-        position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(0,0,0,0.6)', zIndex: 1000,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}
+      className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/60"
       onClick={onClose}
     >
       <div
-        className="ds-card"
-        style={{
-          width: '480px', maxHeight: '80vh', overflow: 'auto',
-          background: 'var(--ds-surface)', border: '1px solid var(--ds-border)',
-        }}
+        className="w-[480px] overflow-auto rounded-lg border border-border bg-card shadow-2xl"
+        style={{ maxHeight: '80vh' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div style={{
-          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-          padding: '20px 24px', borderBottom: '1px solid var(--ds-border)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <Settings size={20} color="var(--ds-primary)" />
-            <h2 style={{ fontSize: '18px', fontWeight: 700, margin: 0 }}>Gerenciar Fases</h2>
+        <div className="flex items-center justify-between border-b border-border px-6 py-5">
+          <div className="flex items-center gap-3">
+            <Settings size={20} className="text-primary" />
+            <h2 className="m-0 text-[18px] font-bold text-foreground">Gerenciar Fases</h2>
           </div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
+          <button onClick={onClose} className="cursor-pointer border-none bg-transparent text-muted-foreground hover:text-foreground">
             <X size={20} />
           </button>
         </div>
 
-        <div style={{ padding: '24px' }}>
-          <p style={{ fontSize: '13px', color: 'var(--ds-text-muted)', marginBottom: '20px' }}>
+        <div className="p-6">
+          <p className="mb-5 text-[13px] text-muted-foreground">
             Personalize as colunas do seu Kanban. Arraste para reordenar.
           </p>
 
           {isLoading ? (
-            <div style={{ textAlign: 'center', padding: '40px', color: 'var(--ds-text-muted)' }}>
+            <div className="py-10 text-center text-muted-foreground">
               Carregando fases...
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '20px' }}>
+            <div className="mb-5 flex flex-col gap-2">
               {sortedPhases.map((phase) => (
                 <div
                   key={phase.id}
@@ -136,50 +128,36 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
                     }
                     setDraggedPhase(null);
                   }}
-                  style={{
-                    display: 'flex', alignItems: 'center', gap: '12px',
-                    padding: '12px 16px', borderRadius: 'var(--radius-md)',
-                    background: editingPhase?.id === phase.id ? 'var(--ds-surface-2)' : 'var(--ds-surface-1)',
-                    border: '1px solid var(--ds-border)',
-                    opacity: draggedPhase === phase.id ? 0.5 : 1,
-                    cursor: phase.is_default ? 'default' : 'grab',
-                  }}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border border-border px-4 py-3 transition-all',
+                    editingPhase?.id === phase.id ? 'bg-muted' : 'bg-card',
+                    draggedPhase === phase.id && 'opacity-50',
+                    phase.is_default ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                  )}
                 >
-                  {!phase.is_default && <GripVertical size={16} color="var(--ds-text-muted)" />}
-                  {phase.is_default && <div style={{ width: 16 }} />}
-                  <div
-                    style={{
-                      width: 24, height: 24, borderRadius: '50%',
-                      background: phase.color, flexShrink: 0,
-                    }}
-                  />
-                  <span style={{ flex: 1, fontSize: '14px', fontWeight: 600 }}>{phase.name}</span>
+                  {!phase.is_default ? (
+                    <GripVertical size={16} className="text-muted-foreground" />
+                  ) : (
+                    <div className="w-4" />
+                  )}
+                  <div className="size-6 shrink-0 rounded-full" style={{ background: phase.color }} />
+                  <span className="flex-1 text-[14px] font-semibold text-foreground">{phase.name}</span>
                   {phase.is_default && (
-                    <span style={{
-                      fontSize: '10px', fontWeight: 600, padding: '2px 8px',
-                      borderRadius: '12px', background: 'rgba(59,130,246,0.1)',
-                      color: 'var(--ds-primary)',
-                    }}>
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
                       Padrão
                     </span>
                   )}
-                  <div style={{ display: 'flex', gap: '4px' }}>
+                  <div className="flex gap-1">
                     <button
                       onClick={() => openEdit(phase)}
-                      style={{
-                        background: 'none', border: 'none', cursor: 'pointer',
-                        color: 'var(--ds-text-muted)', padding: '4px',
-                      }}
+                      className="cursor-pointer border-none bg-transparent p-1 text-muted-foreground hover:text-foreground"
                     >
                       <Edit2 size={14} />
                     </button>
                     {!phase.is_default && (
                       <button
                         onClick={() => handleDelete(phase)}
-                        style={{
-                          background: 'none', border: 'none', cursor: 'pointer',
-                          color: 'var(--ds-error)', padding: '4px',
-                        }}
+                        className="cursor-pointer border-none bg-transparent p-1 text-destructive hover:opacity-80"
                       >
                         <Trash2 size={14} />
                       </button>
@@ -191,51 +169,43 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
           )}
 
           {showCreate || editingPhase ? (
-            <div style={{
-              padding: '16px', borderRadius: 'var(--radius-md)',
-              background: 'var(--ds-surface-2)', border: '1px solid var(--ds-border)',
-              marginBottom: '16px',
-            }}>
+            <div className="mb-4 rounded-lg border border-border bg-muted p-4">
               <input
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Nome da fase"
-                style={{
-                  width: '100%', padding: '10px 14px', borderRadius: 'var(--radius-sm)',
-                  border: '1px solid var(--ds-border)', background: 'var(--ds-surface)',
-                  color: 'var(--ds-text)', fontSize: '14px', marginBottom: '12px',
-                }}
+                className="mb-3 w-full rounded-sm border border-border bg-card px-3.5 py-2.5 text-[14px] text-foreground outline-none transition-colors focus:border-primary"
                 autoFocus
               />
-              <div style={{ marginBottom: '12px' }}>
-                <label style={{ fontSize: '12px', fontWeight: 600, color: 'var(--ds-text-muted)', display: 'block', marginBottom: '8px' }}>
+              <div className="mb-3">
+                <label className="mb-2 block text-[12px] font-semibold text-muted-foreground">
                   Cor
                 </label>
-                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                <div className="flex flex-wrap gap-2">
                   {DEFAULT_COLORS.map(color => (
                     <button
                       key={color}
                       onClick={() => setNewColor(color)}
+                      className="size-7 cursor-pointer rounded-full border-2 transition-all hover:scale-110"
                       style={{
-                        width: 28, height: 28, borderRadius: '50%',
-                        background: color, border: newColor === color ? '3px solid white' : '2px solid transparent',
-                        cursor: 'pointer', transition: 'all 0.15s',
+                        background: color,
+                        borderColor: newColor === color ? '#fff' : 'transparent',
                       }}
                     />
                   ))}
                 </div>
               </div>
-              <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+              <div className="flex justify-end gap-2">
                 <button
                   onClick={() => { setShowCreate(false); setEditingPhase(null); setNewName(''); }}
-                  className="ds-btn ds-btn-ghost ds-btn-sm"
+                  className="rounded-lg border border-border bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"
                 >
                   Cancelar
                 </button>
                 <button
                   onClick={editingPhase ? handleUpdate : handleCreate}
-                  className="ds-btn ds-btn-primary ds-btn-sm"
+                  className="rounded-lg bg-primary px-3 py-1.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
                   disabled={!newName.trim() || createPhase.isPending || updatePhase.isPending}
                 >
                   {editingPhase ? 'Salvar' : 'Criar'}
@@ -245,8 +215,7 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
           ) : (
             <button
               onClick={() => { setShowCreate(true); setNewName(''); setNewColor('#6b7280'); }}
-              className="ds-btn ds-btn-ghost"
-              style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginBottom: '16px' }}
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted/80"
             >
               <Plus size={16} /> Nova Fase
             </button>

@@ -1,7 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
-import { apiClient, authStorage } from '../api/client';
+import { apiClient, tokenStorage } from '../api/client';
+import axios from 'axios';
 
 const SESSION_KEY = 'cafe_bpo_proposal';
+const REFRESH_ENDPOINT = '/auth/refresh';
 
 function isTokenExpired(token: string): boolean {
   try {
@@ -49,7 +51,7 @@ interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
-  login: (token: string, refreshToken?: string) => Promise<{ syncedProposalId?: string } | void>;
+  login: (token: string) => Promise<{ syncedProposalId?: string } | void>;
   logout: () => void;
   register: (payload: RegisterPayload) => Promise<{ syncedProposalId?: string } | void>;
   setUser: (user: User | null) => void;
@@ -64,18 +66,39 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [sessionExpired, setSessionExpired] = useState<boolean>(false);
   const isChecking = useRef(false);
 
+  // On mount, attempt to restore session via refresh_token cookie
   const checkToken = useCallback(async () => {
     if (isChecking.current) return;
     isChecking.current = true;
 
-    const token = authStorage.getToken();
-    if (!token) {
+    try {
+      const token = tokenStorage.getToken();
+      if (token) {
+        // We have a token in memory — validate it
+        await fetchUser(token);
+        return;
+      }
+
+      // No token in memory — try to refresh using httpOnly cookie
+      const apiUrl = import.meta.env.VITE_API_URL || '/api';
+      const { data } = await axios.post(
+        `${apiUrl}${REFRESH_ENDPOINT}`,
+        {},
+        { withCredentials: true },
+      );
+      tokenStorage.setToken(data.access_token);
+      await fetchUser(data.access_token);
+    } catch {
+      // No valid refresh cookie — user is not logged in
+      tokenStorage.clearToken();
+      setUser(null);
+    } finally {
       setIsLoading(false);
       isChecking.current = false;
-      return;
     }
+  }, []);
 
-    const maxRetries = 2;
+  const fetchUser = async (_token: string, retries = 2): Promise<void> => {
     let attempts = 0;
 
     const tryFetch = async (): Promise<void> => {
@@ -88,42 +111,41 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (status === 401) {
           setSessionExpired(true);
           setTimeout(() => setSessionExpired(false), 5000);
-          authStorage.clearToken();
+          tokenStorage.clearToken();
           setUser(null);
-        } else if (status >= 500 && attempts < maxRetries) {
+        } else if (status && status >= 500 && attempts < retries) {
           attempts++;
           await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
           return tryFetch();
         } else {
-          authStorage.clearToken();
+          tokenStorage.clearToken();
           setUser(null);
         }
-      } finally {
-        setIsLoading(false);
-        isChecking.current = false;
       }
     };
 
     await tryFetch();
-  }, []);
+  };
 
   useEffect(() => {
     checkToken();
   }, [checkToken]);
 
-  const login = async (token: string, refreshToken?: string) => {
-    authStorage.setToken(token);
-    if (refreshToken) {
-      authStorage.setRefreshToken(refreshToken);
-    }
+  const login = async (token: string) => {
+    tokenStorage.setToken(token);
     setSessionExpired(false);
     await checkToken();
     const proposalId = await syncPendingProposal();
     return { syncedProposalId: proposalId };
   };
 
-  const logout = () => {
-    authStorage.clearToken();
+  const logout = async () => {
+    try {
+      await apiClient.post('/auth/logout', {}, { withCredentials: true });
+    } catch {
+      // Logout server call is best-effort
+    }
+    tokenStorage.clearToken();
     setUser(null);
     setSessionExpired(false);
   };
@@ -158,10 +180,10 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     formData.append('username', payload.email);
     formData.append('password', payload.password);
 
-    const loginResp = await apiClient.post<{ access_token: string; refresh_token: string }>('/auth/login', formData, {
+    const loginResp = await apiClient.post<{ access_token: string }>('/auth/login', formData, {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     });
-    return await login(loginResp.data.access_token, loginResp.data.refresh_token);
+    return await login(loginResp.data.access_token);
   };
 
   const value: AuthContextType = {

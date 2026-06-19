@@ -27,24 +27,7 @@ class AuthService:
                 company=payload.company,
             )
             self.user_repo.session.commit()
-            return UserResponse(
-                id=user.id,
-                email=user.email,
-                name=user.name,
-                company=user.company,
-                avatar_url=user.avatar_file.read_url
-                if user.avatar_file
-                else user.avatar_url,
-                whatsapp=user.whatsapp,
-                company_razao_social=user.company_razao_social,
-                company_nome_fantasia=user.company_nome_fantasia,
-                company_cnpj=user.company_cnpj,
-                company_address=user.company_address,
-                company_professional_email=user.company_professional_email,
-                company_commercial_phone=user.company_commercial_phone,
-                company_logo_url=user.company_logo_url,
-                company_color_code=user.company_color_code,
-            )
+            return UserResponse.from_user(user)
         except IntegrityError:
             self.user_repo.session.rollback()
             raise ValueError("Este E-mail já está em uso na base.")
@@ -69,29 +52,7 @@ class AuthService:
         user = self.user_repo.get_user_by_id(user_id)
         if not user:
             return None
-        return UserResponse(
-            id=user.id,
-            email=user.email,
-            name=user.name,
-            company=user.company,
-            company_name=user.company_name,
-            company_segment=user.company_segment,
-            company_description=user.company_description,
-            avatar_url=user.avatar_file.read_url
-            if user.avatar_file
-            else user.avatar_url,
-            role=user.role,
-            whatsapp=user.whatsapp,
-            company_razao_social=user.company_razao_social,
-            company_nome_fantasia=user.company_nome_fantasia,
-            company_cnpj=user.company_cnpj,
-            company_address=user.company_address,
-            company_professional_email=user.company_professional_email,
-            company_commercial_phone=user.company_commercial_phone,
-            company_logo_url=user.company_logo_url,
-            company_color_code=user.company_color_code,
-            company_color_secondary=user.company_color_secondary,
-        )
+        return UserResponse.from_user(user)
 
     def update_user_profile(
         self, user_id: uuid.UUID, **kwargs
@@ -100,29 +61,7 @@ class AuthService:
         if not user:
             return None
         self.user_repo.session.commit()
-        return UserResponse(
-            id=user.id,
-            email=user.email,
-            name=user.name,
-            company=user.company,
-            company_name=user.company_name,
-            company_segment=user.company_segment,
-            company_description=user.company_description,
-            avatar_url=user.avatar_file.read_url
-            if user.avatar_file
-            else user.avatar_url,
-            role=user.role,
-            whatsapp=user.whatsapp,
-            company_razao_social=user.company_razao_social,
-            company_nome_fantasia=user.company_nome_fantasia,
-            company_cnpj=user.company_cnpj,
-            company_address=user.company_address,
-            company_professional_email=user.company_professional_email,
-            company_commercial_phone=user.company_commercial_phone,
-            company_logo_url=user.company_logo_url,
-            company_color_code=user.company_color_code,
-            company_color_secondary=user.company_color_secondary,
-        )
+        return UserResponse.from_user(user)
 
     def authenticate_oauth_user(self, email: str, provider: str) -> dict:
         user = self.user_repo.get_user_by_email(email)
@@ -174,7 +113,7 @@ class AuthService:
 
         return token
 
-    def reset_password(self, token: str, new_password: str) -> bool:
+    def reset_password(self, token: str, new_password: str, email: str | None = None) -> bool:
         reset_token = (
             self.user_repo.session.query(PasswordResetToken)
             .filter_by(token=token, used=False)
@@ -194,6 +133,10 @@ class AuthService:
 
         user = self.user_repo.get_user_by_id(reset_token.user_id)
         if not user:
+            return False
+
+        # If email was provided, verify it matches the token owner
+        if email is not None and user.email != email:
             return False
 
         hashed_pw = PasswordService.hash_password(new_password)
@@ -221,26 +164,7 @@ def get_current_user(
     if user is None:
         raise HTTPException(status_code=401, detail="Usuário não encontrado")
 
-    return UserResponse(
-        id=user.id,
-        email=user.email,
-        name=user.name,
-        company=user.company,
-        company_name=user.company_name,
-        company_segment=user.company_segment,
-        company_description=user.company_description,
-        avatar_url=user.avatar_file.read_url if user.avatar_file else user.avatar_url,
-        role=user.role,
-        whatsapp=user.whatsapp,
-        company_razao_social=user.company_razao_social,
-        company_nome_fantasia=user.company_nome_fantasia,
-        company_cnpj=user.company_cnpj,
-        company_address=user.company_address,
-        company_professional_email=user.company_professional_email,
-        company_commercial_phone=user.company_commercial_phone,
-        company_logo_url=user.company_logo_url,
-        company_color_code=user.company_color_code,
-    )
+    return UserResponse.from_user(user)
 
 
 async def require_admin(

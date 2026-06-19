@@ -16,11 +16,9 @@ vi.mock('../src/api/client', async () => {
       defaults: { headers: { common: {} } },
       interceptors: { request: { use: vi.fn() }, response: { use: vi.fn() } },
     },
-    authStorage: {
+    tokenStorage: {
       getToken: vi.fn().mockReturnValue('fake-token'),
       setToken: vi.fn(),
-      getRefreshToken: vi.fn(),
-      setRefreshToken: vi.fn(),
       clearToken: vi.fn(),
     },
   }

@@ -99,8 +99,10 @@ class TestAuth:
         assert resp.status_code == 200
         data = resp.json()
         assert "access_token" in data
-        assert "refresh_token" in data
         assert data["token_type"] == "bearer"
+        # refresh_token is set as httpOnly cookie
+        assert "refresh_token" in resp.cookies
+        assert resp.cookies["refresh_token"]
 
     def test_login_wrong_password(self, client):
         email = f"wrong_{_unique()}@cafe.com"
@@ -116,15 +118,21 @@ class TestAuth:
 
     def test_refresh_token(self, client):
         email = f"refresh_{_unique()}@cafe.com"
-        auth_data = _register_and_login(client, email)
-        refresh_token = auth_data["refresh_token"]
-        assert refresh_token, "No refresh_token returned"
-        resp = client.post(
-            "/auth/refresh",
-            json={
-                "refresh_token": refresh_token,
-            },
+        client.post("/auth/register", json=_make_user(email))
+        # Login sets refresh_token as httpOnly cookie
+        login_resp = client.post(
+            "/auth/login",
+            data={"username": email, "password": "StrongPassword123!"},
         )
+        assert login_resp.status_code == 200
+        # Extract refresh_token from the Set-Cookie header
+        cookies = login_resp.cookies
+        refresh_token = cookies.get("refresh_token")
+        assert refresh_token, "No refresh_token cookie set"
+
+        # Use the cookie to call refresh
+        client.cookies.set("refresh_token", refresh_token)
+        resp = client.post("/auth/refresh", json={})
         assert resp.status_code == 200
         data = resp.json()
         assert "access_token" in data

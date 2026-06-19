@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { Calendar as CalendarIcon, AlertTriangle, XCircle, Check } from 'lucide-react';
 import { TaskResponse } from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
+import { cn } from '../../lib/utils';
 
 interface TaskCardProps {
   task: TaskResponse;
@@ -14,15 +15,10 @@ interface TaskCardProps {
   getTaskStatus: (task: TaskResponse) => string;
   isTaskOverdue: (task: TaskResponse) => boolean;
   getOverdueDays: (task: TaskResponse) => number;
-  /** Ref from Draggable provided.innerRef */
   innerRef?: React.Ref<HTMLDivElement>;
-  /** Spread props from Draggable provided.draggableProps */
   draggableProps?: Record<string, any>;
-  /** Spread props from Draggable provided.dragHandleProps */
   dragHandleProps?: Record<string, any> | null;
-  /** Whether this card is currently being dragged */
   isDragging?: boolean;
-  /** Extra style from Draggable provided.draggableProps.style */
   style?: React.CSSProperties;
 }
 
@@ -60,222 +56,120 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     }
   }, [onCancel, task.id, task.title, confirm]);
 
+  const priorityColor =
+    task.priority === 'high'
+      ? 'var(--ds-error)'
+      : task.priority === 'medium'
+        ? 'var(--ds-warning)'
+        : 'var(--ds-success)';
+
   return (
     <div
       ref={innerRef}
       {...(draggableProps || {})}
       {...(dragHandleProps || {})}
-      className={`task-card ds-card ${overdue ? 'task-card--overdue' : ''}`}
+      className={cn(
+        'flex cursor-pointer flex-col rounded-lg border border-border/40 p-4 transition-all',
+        overdue && 'border-warning/30',
+        isDragging
+          ? 'z-[999] bg-card shadow-2xl'
+          : 'z-[1] bg-muted hover:border-border/80'
+      )}
       onClick={() => onEdit(task)}
       style={{
         ...(style || {}),
-        padding: '16px',
         borderLeft: `4px solid ${client?.color || colColor}`,
-        cursor: 'pointer',
-        backgroundColor: isDragging ? 'var(--ds-surface-3)' : 'var(--ds-surface-2)',
-        zIndex: isDragging ? 999 : 1,
         transform: isDragging
           ? `${style?.transform || ''} rotate(2deg) scale(1.02)`
           : style?.transform,
       }}
     >
-      {/* Line 1: Client name + Priority dot */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-        <div
-          style={{
-            fontSize: '10px',
-            fontWeight: 900,
-            color: 'var(--ds-text-muted)',
-            marginBottom: '6px',
-            textTransform: 'uppercase',
-            letterSpacing: '0.05em',
-          }}
-        >
+      {/* Line 1: Client name + Template badge + Priority dot */}
+      <div className="mb-1.5 flex items-start justify-between">
+        <div className="text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">
           {client?.name || 'Cliente'}
         </div>
-        {/* Template badge */}
-        {task.template_name && (
-          <div
-            style={{
-              fontSize: '9px',
-              fontWeight: 700,
-              color: 'var(--ds-primary)',
-              background: 'rgba(59, 130, 246, 0.1)',
-              padding: '2px 6px',
-              borderRadius: '4px',
-              marginBottom: '4px',
-              display: 'inline-block',
-            }}
-          >
-            {task.template_name}
-          </div>
-        )}
-        <div
-          style={{
-            width: '6px',
-            height: '6px',
-            borderRadius: '50%',
-            background:
-              task.priority === 'high'
-                ? 'var(--ds-error)'
-                : task.priority === 'medium'
-                  ? 'var(--ds-warning)'
-                  : 'var(--ds-success)',
-          }}
-        />
+        <div className="flex items-center gap-2">
+          {task.template_name && (
+            <div className="inline-block rounded px-1.5 py-0.5 text-[9px] font-bold text-primary"
+              style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
+              {task.template_name}
+            </div>
+          )}
+          <div className="size-1.5 shrink-0 rounded-full" style={{ background: priorityColor }} />
+        </div>
       </div>
 
-      {/* Line 2: Title + Action buttons on same row */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          gap: '8px',
-          marginBottom: '12px',
-        }}
-      >
-        <div
-          style={{
-            fontWeight: 600,
-            fontSize: '14px',
-            lineHeight: 1.4,
-            color: 'var(--ds-text)',
-            flex: 1,
-            minWidth: 0,
-          }}
-        >
+      {/* Line 2: Title + Action buttons */}
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1 text-[14px] font-semibold leading-[1.4] text-foreground">
           {task.title}
         </div>
-        <div style={{ display: 'flex', gap: '4px', flexShrink: 0 }}>
+        <div className="flex shrink-0 gap-1">
           {onFinalize && status !== doneColumnId && (
             <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onFinalize(task.id);
-              }}
-              style={{
-                width: '36px',
-                height: '36px',
-                background: 'rgba(34,197,94,0.12)',
-                border: 'none',
-                borderRadius: 'var(--radius-sm)',
-                color: '#22c55e',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                transition: 'all 0.15s ease',
-              }}
-              className="finalize-btn"
+              onClick={(e) => { e.stopPropagation(); onFinalize(task.id); }}
+              className="flex size-9 items-center justify-center rounded-sm border-none text-green-500 transition-all hover:brightness-110"
+              style={{ background: 'rgba(34,197,94,0.12)' }}
               title="Mover para Concluído"
               aria-label="Finalizar tarefa"
             >
               <Check size={18} />
             </button>
           )}
-          {onCancel &&
-            status !== doneColumnId &&
-            task.status !== 'cancelled' &&
-            !task.cancelled_at && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleCancel();
-                }}
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  background: 'rgba(239,68,68,0.12)',
-                  border: 'none',
-                  borderRadius: 'var(--radius-sm)',
-                  color: '#ef4444',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  transition: 'all 0.15s ease',
-                }}
-                className="cancel-btn"
-                title="Cancelar tarefa"
-                aria-label="Cancelar tarefa"
-              >
-                <XCircle size={18} />
-              </button>
-            )}
+          {onCancel && status !== doneColumnId && task.status !== 'cancelled' && !task.cancelled_at && (
+            <button
+              onClick={(e) => { e.stopPropagation(); handleCancel(); }}
+              className="flex size-9 items-center justify-center rounded-sm border-none text-red-500 transition-all hover:brightness-110"
+              style={{ background: 'rgba(239,68,68,0.12)' }}
+              title="Cancelar tarefa"
+              aria-label="Cancelar tarefa"
+            >
+              <XCircle size={18} />
+            </button>
+          )}
         </div>
       </div>
 
-      {/* Description */}
+      {/* Description (clamped to 2 lines) */}
       {task.description && (
-        <div style={{
-          fontSize: '12px',
-          color: 'var(--ds-text-muted)',
-          lineHeight: 1.4,
-          marginBottom: '8px',
-          display: '-webkit-box',
-          WebkitLineClamp: 2,
-          WebkitBoxOrient: 'vertical',
-          overflow: 'hidden',
-          textOverflow: 'ellipsis',
-          whiteSpace: 'pre-wrap',
-        }}>
+        <div className="mb-2 overflow-hidden text-ellipsis whitespace-pre-wrap text-[12px] leading-[1.4] text-muted-foreground line-clamp-2">
           {task.description}
         </div>
       )}
 
       {/* Line 3: Overdue badge + Deadline */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <div className="flex items-center justify-between">
         <div>
           {overdue && (
-            <span className="overdue-badge">
+            <span className="inline-flex items-center gap-1 rounded-sm bg-warning/15 px-1.5 py-0.5 text-[10px] font-bold text-warning">
               <AlertTriangle size={10} /> Atrasado {getOverdueDays(task)}d
             </span>
           )}
         </div>
         {task.deadline && (
-          <div
-            style={{
-              fontSize: '11px',
-              color: 'var(--ds-text-subtle)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '4px',
-            }}
-          >
-            <CalendarIcon size={12} />{' '}
+          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
+            <CalendarIcon size={12} />
             {new Date(task.deadline).toLocaleDateString('pt-BR', {
-              day: '2-digit',
-              month: '2-digit',
+              day: '2-digit', month: '2-digit',
             })}
           </div>
         )}
       </div>
 
       {/* Line 4: Creation / Completion metadata */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          marginTop: '8px',
-          fontSize: '10px',
-          color: 'var(--ds-text-muted)',
-          opacity: 0.7,
-        }}
-      >
+      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground opacity-70">
         <span>
           Criada em{' '}
           {new Date(task.created_at).toLocaleDateString('pt-BR', {
-            day: '2-digit',
-            month: '2-digit',
+            day: '2-digit', month: '2-digit',
           })}
         </span>
         {status === doneColumnId && (
           <span>
             Finalizada em{' '}
             {new Date(task.updated_at).toLocaleDateString('pt-BR', {
-              day: '2-digit',
-              month: '2-digit',
+              day: '2-digit', month: '2-digit',
             })}
           </span>
         )}

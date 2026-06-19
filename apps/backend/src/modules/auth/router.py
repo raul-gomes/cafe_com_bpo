@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
+from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Response
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
@@ -22,6 +22,7 @@ from .service import AuthService, get_current_user
 from .oauth.service import OAuthStateService, GoogleOAuthProvider
 from .models import UserFile
 from .storage_service import CloudinaryService
+from src.core.rate_limit import limiter, AUTH_LOGIN_LIMIT, AUTH_REGISTER_LIMIT, AUTH_FORGOT_PASSWORD_LIMIT, AUTH_REFRESH_LIMIT
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -39,7 +40,8 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-def register(user_data: UserCreate, service: AuthServiceDep):
+@limiter.limit(AUTH_REGISTER_LIMIT)
+def register(user_data: UserCreate, service: AuthServiceDep, request: Request):
     try:
         new_user = service.register_user(user_data)
         log.info(
@@ -52,29 +54,58 @@ def register(user_data: UserCreate, service: AuthServiceDep):
 
 
 @router.post("/login", response_model=TokenResponse)
+@limiter.limit(AUTH_LOGIN_LIMIT)
 def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], service: AuthServiceDep
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], service: AuthServiceDep,
+    request: Request, response: Response
 ):
     tokens = service.authenticate_user(form_data.username, form_data.password)
     if not tokens:
         log.warning(f"🚫 Tentativa de login inválida: {form_data.username}")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
+    response.set_cookie(
+        key="refresh_token",
+        value=tokens["refresh_token"],
+        httponly=True,
+        samesite="strict",
+        max_age=7 * 24 * 60 * 60,  # 7 days
+        path="/auth/refresh",
+        secure=False,  # Set to True in production
+    )
+
     log.info(f"🔑 Usuário logado com sucesso: {form_data.username}")
     return {
         "access_token": tokens["access_token"],
-        "refresh_token": tokens["refresh_token"],
         "token_type": "bearer",
     }
 
 
 @router.post("/refresh", response_model=TokenResponse)
-def refresh_token(data: RefreshTokenRequest, service: AuthServiceDep):
+@limiter.limit(AUTH_REFRESH_LIMIT)
+def refresh_token(data: RefreshTokenRequest, service: AuthServiceDep,
+                  request: Request, response: Response):
     try:
-        tokens = service.refresh_access_token(data.refresh_token)
+        # Try httpOnly cookie first, then fall back to request body
+        refresh_token = request.cookies.get("refresh_token") or data.refresh_token
+        if not refresh_token:
+            raise HTTPException(status_code=401, detail="Refresh token ausente")
+
+        tokens = service.refresh_access_token(refresh_token)
+
+        # Rotate the refresh cookie
+        response.set_cookie(
+            key="refresh_token",
+            value=tokens["refresh_token"],
+            httponly=True,
+            samesite="strict",
+            max_age=7 * 24 * 60 * 60,
+            path="/auth/refresh",
+            secure=False,
+        )
+
         return {
             "access_token": tokens["access_token"],
-            "refresh_token": tokens["refresh_token"],
             "token_type": "bearer",
         }
     except ValueError as e:
@@ -105,7 +136,8 @@ def update_me(updates: ProfileUpdate, user: CurrentUserDep, service: AuthService
 
 
 @router.post("/forgot-password", status_code=200)
-def forgot_password(data: ForgotPasswordRequest, service: AuthServiceDep):
+@limiter.limit(AUTH_FORGOT_PASSWORD_LIMIT)
+def forgot_password(data: ForgotPasswordRequest, service: AuthServiceDep, request: Request):
     user = service.user_repo.get_user_by_email(data.email)
     if not user:
         raise HTTPException(
@@ -126,7 +158,7 @@ def forgot_password(data: ForgotPasswordRequest, service: AuthServiceDep):
 
 @router.post("/reset-password", status_code=200)
 def reset_password(data: ResetPasswordRequest, service: AuthServiceDep):
-    success = service.reset_password(data.token, data.new_password)
+    success = service.reset_password(data.token, data.new_password, data.email)
     if not success:
         raise HTTPException(status_code=400, detail="Token inválido ou expirado.")
     log.info("🔑 Senha redefinida com sucesso.")
@@ -199,26 +231,10 @@ async def upload_avatar(
             status_code=500, detail="Falha ao processar upload no storage remoto."
         )
 
-    return UserResponse(
-        id=db_user.id,
-        email=db_user.email,
-        name=db_user.name,
-        company=db_user.company,
-        company_name=db_user.company_name,
-        company_segment=db_user.company_segment,
-        company_description=db_user.company_description,
-        avatar_url=read_url,
-        whatsapp=db_user.whatsapp,
-        company_razao_social=db_user.company_razao_social,
-        company_nome_fantasia=db_user.company_nome_fantasia,
-        company_cnpj=db_user.company_cnpj,
-        company_address=db_user.company_address,
-        company_professional_email=db_user.company_professional_email,
-        company_commercial_phone=db_user.company_commercial_phone,
-        company_logo_url=db_user.company_logo_url,
-        company_color_code=db_user.company_color_code,
-        company_color_secondary=db_user.company_color_secondary,
-    )
+    # Manually set avatar_url to the new read_url for the response
+    resp = UserResponse.from_user(db_user)
+    resp.avatar_url = read_url
+    return resp
 
 
 @router.post("/me/company-logo", response_model=UserResponse)
@@ -262,26 +278,21 @@ async def upload_company_logo(
             status_code=500, detail="Falha ao processar upload no storage remoto."
         )
 
-    return UserResponse(
-        id=db_user.id,
-        email=db_user.email,
-        name=db_user.name,
-        company=db_user.company,
-        company_name=db_user.company_name,
-        company_segment=db_user.company_segment,
-        company_description=db_user.company_description,
-        avatar_url=db_user.avatar_url,
-        whatsapp=db_user.whatsapp,
-        company_razao_social=db_user.company_razao_social,
-        company_nome_fantasia=db_user.company_nome_fantasia,
-        company_cnpj=db_user.company_cnpj,
-        company_address=db_user.company_address,
-        company_professional_email=db_user.company_professional_email,
-        company_commercial_phone=db_user.company_commercial_phone,
-        company_logo_url=read_url,
-        company_color_code=db_user.company_color_code,
-        company_color_secondary=db_user.company_color_secondary,
+    resp = UserResponse.from_user(db_user)
+    resp.company_logo_url = read_url
+    return resp
+
+
+@router.post("/logout", status_code=200)
+def logout(response: Response):
+    """Clears the refresh_token httpOnly cookie."""
+    response.delete_cookie(
+        key="refresh_token",
+        path="/auth/refresh",
+        httponly=True,
+        samesite="strict",
     )
+    return {"message": "Sessão encerrada."}
 
 
 @router.get("/{provider}/login")
@@ -321,9 +332,19 @@ def oauth_callback(
         log.info(f"🌐 Login OAuth ({provider}) bem-sucedido: {email}")
 
         frontend_url = settings.cors_origins.split(",")[0]
-        return RedirectResponse(
-            url=f"{frontend_url}/auth/callback?token={tokens['access_token']}&refresh_token={tokens['refresh_token']}"
+        redirect = RedirectResponse(
+            url=f"{frontend_url}/auth/callback?token={tokens['access_token']}"
         )
+        redirect.set_cookie(
+            key="refresh_token",
+            value=tokens["refresh_token"],
+            httponly=True,
+            samesite="strict",
+            max_age=7 * 24 * 60 * 60,
+            path="/auth/refresh",
+            secure=False,
+        )
+        return redirect
     except Exception as e:
         log.error(f"❌ Erro crítico no fluxo OAuth ({provider}): {str(e)}")
         frontend_url = settings.cors_origins.split(",")[0]

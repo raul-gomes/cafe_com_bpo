@@ -52,11 +52,13 @@ def test_google_callback_creates_user_on_first_login(
             follow_redirects=False,
         )
 
-        # It should redirect to frontend with tokens
+        # It should redirect to frontend with access_token (refresh_token is httpOnly cookie)
         assert response.status_code == 307
         location = response.headers.get("location", "")
         assert "/auth/callback?token=" in location, f"Unexpected redirect: {location}"
-        assert "refresh_token=" in location
+        # refresh_token is set as httpOnly cookie, not in URL
+        assert "refresh_token" in response.cookies
+        assert response.cookies["refresh_token"]
 
         # Check if user was created in the database
         user = db_session.query(User).filter_by(email=email).first()

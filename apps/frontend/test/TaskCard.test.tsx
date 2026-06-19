@@ -174,7 +174,7 @@ describe('TaskCard', () => {
   it('calls onEdit when card is clicked', () => {
     const onEdit = vi.fn()
     renderCard(<TaskCard {...defaultProps} onEdit={onEdit} />)
-    fireEvent.click(screen.getByText('Test Task').closest('.task-card')!)
+    fireEvent.click(screen.getByText('Test Task'))
     expect(onEdit).toHaveBeenCalledWith(baseTask)
   })
 

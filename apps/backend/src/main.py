@@ -5,6 +5,9 @@ import os
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import time
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from src.core.rate_limit import limiter
 
 from src.core.config import get_settings
 from src.core.logger import setup_logging, log
@@ -32,6 +35,9 @@ def create_app() -> FastAPI:
         description="API de Precificação e Gestão de Propostas BPO (Arquitetura Modular)",
         version="1.1.0",
     )
+
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
     settings = get_settings()
 

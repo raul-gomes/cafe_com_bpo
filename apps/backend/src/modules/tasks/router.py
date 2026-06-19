@@ -588,6 +588,33 @@ def get_client_timeline(
 # ================================================================
 
 
+ALLOWED_MIME_TYPES = {
+    # Documents
+    "application/pdf",
+    "application/msword",
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "application/vnd.ms-excel",
+    "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "text/plain",
+    "text/csv",
+    # Images
+    "image/png",
+    "image/jpeg",
+    "image/webp",
+    # Presentations
+    "application/vnd.ms-powerpoint",
+    "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+}
+
+ALLOWED_EXTENSIONS = {
+    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
+    ".txt", ".csv",
+    ".png", ".jpg", ".jpeg", ".webp",
+}
+
+FILE_UPLOAD_MAX_SIZE = 20 * 1024 * 1024  # 20 MB
+
+
 @router.post(
     "/{task_id}/attachments/",
     response_model=TaskAttachmentResponse,
@@ -602,6 +629,30 @@ async def upload_attachment(
     """Faz upload de arquivo como anexo de tarefa."""
     import os
 
+    # ── Validate file extension ───────────────────────────────────
+    ext = os.path.splitext(file.filename or "file")[1].lower() if file.filename else ""
+    if ext not in ALLOWED_EXTENSIONS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Formato de arquivo não permitido: {ext}. "
+                   f"Use: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+        )
+
+    # ── Validate MIME type ────────────────────────────────────────
+    if file.content_type and file.content_type not in ALLOWED_MIME_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Tipo de arquivo não permitido: {file.content_type}.",
+        )
+
+    # ── Validate file size ───────────────────────────────────────
+    content = await file.read()
+    if len(content) > FILE_UPLOAD_MAX_SIZE:
+        raise HTTPException(
+            status_code=413,
+            detail=f"Arquivo muito grande. Limite de {FILE_UPLOAD_MAX_SIZE // (1024 * 1024)}MB.",
+        )
+
     # Ensure storage directory exists
     storage_dir = "storage/tasks"
     os.makedirs(storage_dir, exist_ok=True)
@@ -613,11 +664,10 @@ async def upload_attachment(
     safe_name = f"{uuid_gen.uuid4().hex}{ext}"
     file_path = os.path.join(storage_dir, safe_name)
 
-    # Save file synchronously inside async def via thread
+    # Save file (content already read during validation above)
     file_size = 0
     try:
         with open(file_path, "wb") as f:
-            content = await file.read()
             f.write(content)
             file_size = len(content)
     except Exception:

@@ -1,69 +1,88 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
-import HomePage from './pages/HomePage'
-import LoginPage from './pages/LoginPage'
-import CadastroPage from './pages/CadastroPage'
-import SimulatorPage from './pages/SimulatorPage'
-import UnderConstructionPage from './pages/UnderConstructionPage'
-import ProposalPreviewPage from './pages/ProposalPreviewPage'
-import { OAuthCallbackPage } from './pages/OAuthCallbackPage'
-import { ForgotPasswordPage } from './pages/ForgotPasswordPage'
-import { ResetPasswordPage } from './pages/ResetPasswordPage'
+import React, { Suspense } from 'react'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PanelLayout } from './components/panel/PanelLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AdminRoute } from './components/auth/AdminRoute'
-import { DashboardPage } from './pages/panel/DashboardPage'
-import { OrcamentosPage } from './pages/panel/OrcamentosPage'
-import { OrcamentoNovoPage } from './pages/panel/OrcamentoNovoPage'
-import { OrcamentoDetalhadoPage } from './pages/panel/OrcamentoDetalhadoPage'
-import { PerfilPage } from './pages/panel/PerfilPage'
-import { GaleriaArquivosPage } from './pages/panel/GaleriaArquivosPage'
-import { NetworkPage } from './pages/panel/NetworkPage'
-import { NetworkPostPage } from './pages/panel/NetworkPostPage'
-import { TasksPage } from './pages/panel/TasksPage'
-import { EmpresasPage } from './pages/panel/EmpresasPage'
-import { PaymentsPage } from './pages/panel/PaymentsPage'
-import { TemplateListPage } from './pages/panel/TemplateListPage'
-import { TemplateDetailPage } from './pages/panel/TemplateDetailPage'
-import DesignSystemPage from './pages/panel/DesignSystemPage'
 
-export function buildRouter() {
+// ── Lazy-loaded pages (default exports — use React.lazy) ─────────
+const HomePage = React.lazy(() => import('./pages/HomePage'))
+const LoginPage = React.lazy(() => import('./pages/LoginPage'))
+const CadastroPage = React.lazy(() => import('./pages/CadastroPage'))
+const SimulatorPage = React.lazy(() => import('./pages/SimulatorPage'))
+const UnderConstructionPage = React.lazy(() => import('./pages/UnderConstructionPage'))
+const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage'))
+const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
+
+// ── Suspense wrapper ─────────────────────────────────────────────
+function SuspenseWrapper({ children }: { children: React.ReactNode }) {
+  return (
+    <Suspense fallback={
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="size-8 rounded-full border-[3px] border-border border-t-primary animate-spin" />
+      </div>
+    }>
+      {children}
+    </Suspense>
+  )
+}
+
+// ── Router definition ────────────────────────────────────────────
+export async function buildRouter() {
+  // Named-export pages are loaded dynamically inside the async function
+  const { OAuthCallbackPage } = await import('./pages/OAuthCallbackPage')
+  const { ForgotPasswordPage } = await import('./pages/ForgotPasswordPage')
+  const { ResetPasswordPage } = await import('./pages/ResetPasswordPage')
+  const { DashboardPage } = await import('./pages/panel/DashboardPage')
+  const { OrcamentosPage } = await import('./pages/panel/OrcamentosPage')
+  const { OrcamentoNovoPage } = await import('./pages/panel/OrcamentoNovoPage')
+  const { OrcamentoDetalhadoPage } = await import('./pages/panel/OrcamentoDetalhadoPage')
+  const { PerfilPage } = await import('./pages/panel/PerfilPage')
+  const { GaleriaArquivosPage } = await import('./pages/panel/GaleriaArquivosPage')
+  const { NetworkPage } = await import('./pages/panel/NetworkPage')
+  const { NetworkPostPage } = await import('./pages/panel/NetworkPostPage')
+  const { TasksPage } = await import('./pages/panel/TasksPage')
+  const { EmpresasPage } = await import('./pages/panel/EmpresasPage')
+  const { PaymentsPage } = await import('./pages/panel/PaymentsPage')
+  const { TemplateListPage } = await import('./pages/panel/TemplateListPage')
+  const { TemplateDetailPage } = await import('./pages/panel/TemplateDetailPage')
+
   return createBrowserRouter([
     {
       path: '/',
-      element: <HomePage />,
+      element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
     },
     {
       path: '/login',
-      element: <LoginPage />,
+      element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
     },
     {
       path: '/cadastro',
-      element: <CadastroPage />,
+      element: <SuspenseWrapper><CadastroPage /></SuspenseWrapper>,
     },
     {
       path: '/auth/callback',
-      element: <OAuthCallbackPage />,
+      element: <SuspenseWrapper><OAuthCallbackPage /></SuspenseWrapper>,
     },
     {
       path: '/esqueci-minha-senha',
-      element: <ForgotPasswordPage />,
+      element: <SuspenseWrapper><ForgotPasswordPage /></SuspenseWrapper>,
     },
     {
       path: '/redefinir-senha',
-      element: <ResetPasswordPage />,
+      element: <SuspenseWrapper><ResetPasswordPage /></SuspenseWrapper>,
     },
     {
       path: '/simulador',
-      element: <SimulatorPage />,
+      element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
     },
     {
       path: '/proposta',
-      element: <ProposalPreviewPage />,
+      element: <SuspenseWrapper><ProposalPreviewPage /></SuspenseWrapper>,
     },
     {
       path: '/em-construcao',
-      element: <UnderConstructionPage />,
+      element: <SuspenseWrapper><UnderConstructionPage /></SuspenseWrapper>,
     },
     {
       path: '/dashboard',
@@ -79,65 +98,65 @@ export function buildRouter() {
           children: [
             {
               path: '',
-              element: <DashboardPage />,
+              element: <SuspenseWrapper><DashboardPage /></SuspenseWrapper>,
             },
             {
               path: 'orcamentos',
-              element: <OrcamentosPage />,
+              element: <SuspenseWrapper><OrcamentosPage /></SuspenseWrapper>,
             },
             {
               path: 'novo-orcamento',
-              element: <OrcamentoNovoPage />,
+              element: <SuspenseWrapper><OrcamentoNovoPage /></SuspenseWrapper>,
             },
             {
               path: 'editar-orcamento/:id',
-              element: <OrcamentoNovoPage />,
+              element: <SuspenseWrapper><OrcamentoNovoPage /></SuspenseWrapper>,
             },
             {
               path: 'orcamento/:id',
-              element: <OrcamentoDetalhadoPage />,
+              element: <SuspenseWrapper><OrcamentoDetalhadoPage /></SuspenseWrapper>,
             },
             {
               path: 'perfil',
-              element: <PerfilPage />,
+              element: <SuspenseWrapper><PerfilPage /></SuspenseWrapper>,
             },
             {
               path: 'galeria',
-              element: <GaleriaArquivosPage />,
+              element: <SuspenseWrapper><GaleriaArquivosPage /></SuspenseWrapper>,
             },
             {
               path: 'forum',
-              element: <NetworkPage />,
+              element: <SuspenseWrapper><NetworkPage /></SuspenseWrapper>,
             },
             {
               path: 'forum/:id',
-              element: <NetworkPostPage />,
+              element: <SuspenseWrapper><NetworkPostPage /></SuspenseWrapper>,
             },
             {
               path: 'tarefas',
-              element: <TasksPage />,
+              element: <SuspenseWrapper><TasksPage /></SuspenseWrapper>,
             },
             {
               path: 'empresas',
-              element: <EmpresasPage />,
+              element: <SuspenseWrapper><EmpresasPage /></SuspenseWrapper>,
             },
             {
               path: 'pagamentos',
-              element: <PaymentsPage />,
+              element: <SuspenseWrapper><PaymentsPage /></SuspenseWrapper>,
             },
             {
               path: 'templates-atividades',
-              element: <TemplateListPage />,
+              element: <SuspenseWrapper><TemplateListPage /></SuspenseWrapper>,
             },
             {
               path: 'templates-atividades/:id',
-              element: <TemplateDetailPage />,
+              element: <SuspenseWrapper><TemplateDetailPage /></SuspenseWrapper>,
             },
             {
               path: 'design-system',
               element: <AdminRoute />,
               children: [
-                { path: '', element: <DesignSystemPage /> },
+                { path: '', element: <SuspenseWrapper><DesignSystemPage /></SuspenseWrapper> },
               ],
             },
           ]

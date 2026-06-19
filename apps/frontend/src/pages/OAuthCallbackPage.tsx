@@ -13,7 +13,6 @@ export const OAuthCallbackPage = () => {
     hasProcessed.current = true;
 
     const token = searchParams.get('token');
-    const refreshToken = searchParams.get('refresh_token');
     const error = searchParams.get('error');
 
     if (error) {
@@ -26,7 +25,7 @@ export const OAuthCallbackPage = () => {
       return;
     }
 
-    login(token, refreshToken || undefined)
+    login(token)
       .then((result: { syncedProposalId?: string } | void) => {
         if (result && (result as any).syncedProposalId) {
           navigate(`/painel/orcamento/${(result as any).syncedProposalId}`);

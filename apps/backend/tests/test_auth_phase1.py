@@ -92,7 +92,9 @@ def test_login_with_correct_credentials(client):
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-    assert "refresh_token" in data
+    # refresh_token now set as httpOnly cookie, not in body
+    assert "refresh_token" in response.cookies
+    assert response.cookies["refresh_token"]
 
 
 def test_login_with_incorrect_credentials(client):
@@ -123,15 +125,17 @@ def test_token_refresh_flow(client):
         "/auth/login", data={"username": email, "password": password}
     )
 
-    refresh_token = login_response.json()["refresh_token"]
+    # refresh_token is set as httpOnly cookie — extract it
+    refresh_token = login_response.cookies.get("refresh_token")
+    assert refresh_token, "No refresh_token cookie set"
 
     # Use refresh token to get new access token
-    response = client.post("/auth/refresh", json={"refresh_token": refresh_token})
+    client.cookies.set("refresh_token", refresh_token)
+    response = client.post("/auth/refresh", json={})
 
     assert response.status_code == 200
     data = response.json()
     assert "access_token" in data
-    assert "refresh_token" in data
 
 
 def test_expired_token_rejection(client):

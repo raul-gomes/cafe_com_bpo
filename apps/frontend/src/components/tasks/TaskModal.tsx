@@ -8,7 +8,6 @@ import { apiClient } from '../../api/client';
 import { TaskResponse } from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 
-
 const taskSchema = z.object({
   title: z.string().min(3, 'Título deve ter pelo menos 3 caracteres'),
   description: z.string().optional(),
@@ -131,24 +130,23 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
   const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
 
   return (
-    <div className="ds-modal-overlay" style={{ 
-        position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.8)', 
-        display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000,
-        backdropFilter: 'blur(4px)'
-    }}>
-      <div className="ds-modal ds-card" style={{ width: '100%', maxWidth: '540px', padding: '32px', position: 'relative', maxHeight: '90vh', overflow: 'auto' }}>
-        <button onClick={onClose} style={{ position: 'absolute', top: '24px', right: '24px', background: 'none', border: 'none', color: 'var(--ds-text-muted)', cursor: 'pointer' }}>
+    <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm">
+      <div className="relative w-full max-w-[540px] overflow-auto rounded-lg border border-border bg-card p-8 shadow-2xl" style={{ maxHeight: '90vh' }}>
+        <button
+          onClick={onClose}
+          className="absolute right-6 top-6 cursor-pointer border-none bg-transparent text-muted-foreground hover:text-foreground"
+        >
           <X size={24} />
         </button>
 
-        <h2 style={{ fontSize: '24px', fontWeight: 700, marginBottom: '8px' }}>
+        <h2 className="mb-2 text-[24px] font-bold text-foreground">
           {task ? 'Editar Tarefa' : 'Nova Tarefa'}
         </h2>
-        <p style={{ color: 'var(--ds-text-muted)', marginBottom: '24px', fontSize: '14px' }}>
+        <p className="mb-6 text-[14px] text-muted-foreground">
           {task ? 'Atualize os detalhes da tarefa operacional.' : 'Organize o fluxo operacional para um de seus clientes.'}
         </p>
 
-        <form onSubmit={handleSubmit(onSubmit as any)} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+        <form onSubmit={handleSubmit(onSubmit as any)} className="flex flex-col gap-5">
           <div className="ds-form-group">
             <label className="ds-label">
               <span>Título da Tarefa</span>
@@ -161,7 +159,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
             {errors.title && <span className="ds-error-msg">{errors.title.message}</span>}
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: '16px' }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: '1.2fr 1fr' }}>
             <div className="ds-form-group">
               <label className="ds-label">Empresa</label>
               <select {...register('client_id')} className="ds-input">
@@ -175,23 +173,23 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
 
             {selectedClientId && (
               <div className="ds-form-group">
-                <label className="ds-label" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-                    <Palette size={14} /> Cor da Empresa
+                <label className="ds-label flex items-center gap-1.5">
+                  <Palette size={14} /> Cor da Empresa
                 </label>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px', marginTop: '4px' }}>
-                    {CONTRAST_PALETTE.map(color => (
-                        <button
-                            key={color}
-                            type="button"
-                            onClick={() => handleUpdateClientColor(color)}
-                            style={{
-                                width: '24px', height: '24px', borderRadius: '50%',
-                                background: color, border: selectedClient?.color === color ? '2px solid #fff' : '2px solid transparent',
-                                cursor: 'pointer', outline: 'none', transition: 'transform 0.1s'
-                            }}
-                            title="Alterar cor da empresa"
-                        />
-                    ))}
+                <div className="mt-1 grid gap-1.5" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
+                  {CONTRAST_PALETTE.map(color => (
+                    <button
+                      key={color}
+                      type="button"
+                      onClick={() => handleUpdateClientColor(color)}
+                      className="size-6 cursor-pointer rounded-full border-2 outline-none transition-transform hover:scale-110"
+                      style={{
+                        background: color,
+                        borderColor: selectedClient?.color === color ? '#fff' : 'transparent',
+                      }}
+                      title="Alterar cor da empresa"
+                    />
+                  ))}
                 </div>
               </div>
             )}
@@ -201,9 +199,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
             <label className="ds-label">Descrição (Opcional)</label>
             <textarea 
               {...register('description')} 
-              className="ds-input" 
+              className="ds-input resize-none" 
               rows={2} 
-              style={{ resize: 'none' }}
               placeholder="Detalhes sobre o que deve ser feito..."
             />
           </div>
@@ -212,9 +209,8 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
             <label className="ds-label">Notas (Opcional)</label>
             <textarea 
               {...register('notes')} 
-              className="ds-input" 
+              className="ds-input resize-none" 
               rows={2} 
-              style={{ resize: 'none' }}
               placeholder="Observações internas, lembretes, etc."
             />
           </div>
@@ -231,16 +227,16 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
             </div>
           )}
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+          <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
             <div className="ds-form-group">
-                <label className="ds-label">Data Limite</label>
-                <input 
-                    {...register('deadline')} 
-                    type="date"
-                    className="ds-input" 
-                />
+              <label className="ds-label">Data Limite</label>
+              <input 
+                {...register('deadline')} 
+                type="date"
+                className="ds-input" 
+              />
             </div>
-            
+
             <div className="ds-form-group">
               <label className="ds-label">Prioridade</label>
               <select {...register('priority')} className="ds-input">
@@ -263,23 +259,22 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
             </div>
           </div>
 
-          <div className="ds-modal-footer" style={{ marginTop: '12px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div className="mt-3 flex items-center justify-between">
             {task ? (
               <button 
                 type="button" 
                 onClick={handleDelete} 
-                className="ds-btn ds-btn-ghost" 
-                style={{ color: 'var(--ds-error)', padding: '0', display: 'flex', gap: '8px', alignItems: 'center' }}
+                className="flex items-center gap-2 border-none bg-transparent p-0 text-destructive hover:underline"
               >
                 <Trash2 size={18} /> Excluir
               </button>
             ) : <div />}
-            
-            <div style={{ display: 'flex', gap: '12px' }}>
-              <button type="button" onClick={onClose} className="ds-btn" style={{ background: 'var(--ds-surface-2)' }}>
+
+            <div className="flex gap-3">
+              <button type="button" onClick={onClose} className="rounded-lg border border-border bg-muted px-4 py-2 text-[14px] font-semibold text-foreground transition-colors hover:bg-muted/80">
                 Cancelar
               </button>
-              <button type="submit" className="ds-btn ds-btn-primary" disabled={createTask.isPending || updateTask.isPending}>
+              <button type="submit" className="rounded-lg bg-primary px-4 py-2 text-[14px] font-semibold text-primary-foreground transition-opacity hover:opacity-90 disabled:opacity-50" disabled={createTask.isPending || updateTask.isPending}>
                 {createTask.isPending || updateTask.isPending ? 'Salvando...' : task ? 'Salvar Alterações' : 'Criar Tarefa'}
               </button>
             </div>

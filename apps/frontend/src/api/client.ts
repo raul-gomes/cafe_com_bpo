@@ -1,8 +1,11 @@
 /// <reference types="vite/client" />
 import axios from 'axios';
 
-const LOCAL_STORAGE_KEY = '@cafe_bpo:token_v1';
-const REFRESH_KEY = '@cafe_bpo:refresh_v1';
+// In-memory token storage — not persisted to localStorage (XSS-safe)
+let accessToken: string | null = null;
+
+const REFRESH_ENDPOINT = '/auth/refresh';
+const LOGOUT_ENDPOINT = '/auth/logout';
 
 export const getApiUrl = () => import.meta.env.VITE_API_URL || '/api';
 
@@ -11,10 +14,22 @@ export const apiClient = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true, // Send cookies (refresh_token) with requests
 });
 
+// ── In-memory token management ──────────────────────────────────
+export const tokenStorage = {
+  getToken: (): string | null => accessToken,
+  setToken: (token: string | null) => { accessToken = token; },
+  clearToken: () => { accessToken = null; },
+};
+
+// ── Queue for concurrent refresh attempts ───────────────────────
 let isRefreshing = false;
-let failedQueue: Array<{ resolve: (value?: unknown) => void; reject: (reason?: unknown) => void }> = [];
+let failedQueue: Array<{
+  resolve: (value?: unknown) => void;
+  reject: (reason?: unknown) => void;
+}> = [];
 
 const processQueue = (error: unknown | null) => {
   failedQueue.forEach(promise => {
@@ -24,21 +39,31 @@ const processQueue = (error: unknown | null) => {
   failedQueue = [];
 };
 
+// ── Interceptors ────────────────────────────────────────────────
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem(LOCAL_STORAGE_KEY);
+    const token = tokenStorage.getToken();
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 apiClient.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config;
+
+    // Don't retry refresh or logout endpoints
+    if (
+      originalRequest.url?.includes(REFRESH_ENDPOINT) ||
+      originalRequest.url?.includes(LOGOUT_ENDPOINT)
+    ) {
+      return Promise.reject(error);
+    }
+
     if (error.response?.status === 401 && !originalRequest._retry) {
       if (isRefreshing) {
         return new Promise((resolve, reject) => {
@@ -49,29 +74,20 @@ apiClient.interceptors.response.use(
       originalRequest._retry = true;
       isRefreshing = true;
 
-      const refreshToken = localStorage.getItem(REFRESH_KEY);
-      if (!refreshToken) {
-        const currentPath = window.location.pathname;
-        if (currentPath !== '/login' && !currentPath.startsWith('/auth/')) {
-          localStorage.removeItem(LOCAL_STORAGE_KEY);
-          localStorage.removeItem(REFRESH_KEY);
-          window.location.href = `/login?session_expired=true&return_to=${encodeURIComponent(currentPath)}`;
-        }
-        isRefreshing = false;
-        return Promise.reject(error);
-      }
-
       try {
-        const { data } = await axios.post(`${getApiUrl()}/auth/refresh`, { refresh_token: refreshToken });
-        localStorage.setItem(LOCAL_STORAGE_KEY, data.access_token);
-        localStorage.setItem(REFRESH_KEY, data.refresh_token);
+        // The refresh_token cookie is sent automatically (httpOnly)
+        const { data } = await axios.post(
+          `${getApiUrl()}${REFRESH_ENDPOINT}`,
+          {},
+          { withCredentials: true },
+        );
+        tokenStorage.setToken(data.access_token);
         apiClient.defaults.headers.common['Authorization'] = `Bearer ${data.access_token}`;
         processQueue(null);
         return apiClient(originalRequest);
       } catch (refreshError) {
         processQueue(refreshError);
-        localStorage.removeItem(LOCAL_STORAGE_KEY);
-        localStorage.removeItem(REFRESH_KEY);
+        tokenStorage.clearToken();
         const currentPath = window.location.pathname;
         if (currentPath !== '/login' && !currentPath.startsWith('/auth/')) {
           window.location.href = `/login?session_expired=true&return_to=${encodeURIComponent(currentPath)}`;
@@ -82,16 +98,5 @@ apiClient.interceptors.response.use(
       }
     }
     return Promise.reject(error);
-  }
-);
-
-export const authStorage = {
-  getToken: () => localStorage.getItem(LOCAL_STORAGE_KEY),
-  setToken: (token: string) => localStorage.setItem(LOCAL_STORAGE_KEY, token),
-  getRefreshToken: () => localStorage.getItem(REFRESH_KEY),
-  setRefreshToken: (token: string) => localStorage.setItem(REFRESH_KEY, token),
-  clearToken: () => {
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    localStorage.removeItem(REFRESH_KEY);
   },
-};
+);
