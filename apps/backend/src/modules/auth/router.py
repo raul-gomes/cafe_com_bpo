@@ -70,7 +70,7 @@ def login(
         httponly=True,
         samesite="strict",
         max_age=7 * 24 * 60 * 60,  # 7 days
-        path="/auth/refresh",
+        path="/",
         secure=False,  # Set to True in production
     )
 
@@ -100,7 +100,7 @@ def refresh_token(data: RefreshTokenRequest, service: AuthServiceDep,
             httponly=True,
             samesite="strict",
             max_age=7 * 24 * 60 * 60,
-            path="/auth/refresh",
+            path="/",
             secure=False,
         )
 
@@ -288,7 +288,7 @@ def logout(response: Response):
     """Clears the refresh_token httpOnly cookie."""
     response.delete_cookie(
         key="refresh_token",
-        path="/auth/refresh",
+        path="/",
         httponly=True,
         samesite="strict",
     )
@@ -341,7 +341,7 @@ def oauth_callback(
             httponly=True,
             samesite="strict",
             max_age=7 * 24 * 60 * 60,
-            path="/auth/refresh",
+            path="/",
             secure=False,
         )
         return redirect

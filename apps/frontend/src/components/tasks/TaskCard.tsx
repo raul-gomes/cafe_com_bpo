@@ -91,8 +91,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
         </div>
         <div className="flex items-center gap-2">
           {task.template_name && (
-            <div className="inline-block rounded px-1.5 py-0.5 text-[9px] font-bold text-primary"
-              style={{ background: 'rgba(59, 130, 246, 0.1)' }}>
+            <div className="inline-block rounded-md bg-card px-2 py-0.5 text-[10px] font-bold text-foreground shadow-sm">
               {task.template_name}
             </div>
           )}
@@ -109,23 +108,23 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           {onFinalize && status !== doneColumnId && (
             <button
               onClick={(e) => { e.stopPropagation(); onFinalize(task.id); }}
-              className="flex size-9 items-center justify-center rounded-sm border-none text-green-500 transition-all hover:brightness-110"
+              className="flex size-6 items-center justify-center rounded-sm border-none text-green-500 transition-all hover:brightness-110"
               style={{ background: 'rgba(34,197,94,0.12)' }}
               title="Mover para Concluído"
               aria-label="Finalizar tarefa"
             >
-              <Check size={18} />
+              <Check size={14} />
             </button>
           )}
           {onCancel && status !== doneColumnId && task.status !== 'cancelled' && !task.cancelled_at && (
             <button
               onClick={(e) => { e.stopPropagation(); handleCancel(); }}
-              className="flex size-9 items-center justify-center rounded-sm border-none text-red-500 transition-all hover:brightness-110"
+              className="flex size-6 items-center justify-center rounded-sm border-none text-red-500 transition-all hover:brightness-110"
               style={{ background: 'rgba(239,68,68,0.12)' }}
               title="Cancelar tarefa"
               aria-label="Cancelar tarefa"
             >
-              <XCircle size={18} />
+              <XCircle size={14} />
             </button>
           )}
         </div>
@@ -148,8 +147,8 @@ export const TaskCard: React.FC<TaskCardProps> = ({
           )}
         </div>
         {task.deadline && (
-          <div className="flex items-center gap-1 text-[11px] text-muted-foreground">
-            <CalendarIcon size={12} />
+          <div className="flex items-center gap-1.5 text-[13px] font-medium text-muted-foreground">
+            <CalendarIcon size={14} />
             {new Date(task.deadline).toLocaleDateString('pt-BR', {
               day: '2-digit', month: '2-digit',
             })}

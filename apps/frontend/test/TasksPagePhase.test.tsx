@@ -70,6 +70,19 @@ vi.mock('../src/api/hooks/useTasks', () => {
   return { useTasks: () => mockData }
 })
 
+vi.mock('../src/context/AuthContext', () => ({
+  useAuth: () => ({
+    user: { role: 'admin', id: 'u1', email: 'admin@test.com', name: 'Admin' },
+    isAuthenticated: true,
+    isLoading: false,
+    login: vi.fn(),
+    logout: vi.fn(),
+    register: vi.fn(),
+    setUser: vi.fn(),
+    sessionExpired: false,
+  }),
+}))
+
 vi.mock('../src/api/client', () => ({
   apiClient: {
     get: vi.fn().mockResolvedValue({ data: [] }),

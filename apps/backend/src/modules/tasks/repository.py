@@ -393,25 +393,34 @@ class TaskRepository:
             .all()
         )
 
-    def has_pending_task_for_deadline(
-        self, assignment_id: UUID, deadline: datetime
+    def has_pending_task(
+        self,
+        assignment_id: UUID,
+        title: str,
+        deadline: Optional[datetime] = None,
     ) -> bool:
-        """Check if there is a pending (not done/cancelled) task for this assignment on a given deadline."""
+        """Check if there is a pending (not done/cancelled) task for this assignment
+        with the given title, optionally filtered by deadline.
+
+        Uses title to distinguish between multiple activities within the same template,
+        ensuring each activity gets its own task card.
+        """
         from src.modules.tasks.models import Task as TaskModel
 
-        deadline_start = deadline.replace(hour=0, minute=0, second=0, microsecond=0)
-        deadline_end = deadline.replace(hour=23, minute=59, second=59, microsecond=999999)
-        existing = (
-            self.session.query(TaskModel.id)
-            .filter(
-                TaskModel.assignment_id == assignment_id,
+        query = self.session.query(TaskModel.id).filter(
+            TaskModel.assignment_id == assignment_id,
+            TaskModel.title == title,
+            TaskModel.is_active == True,
+            TaskModel.status.notin_(["done", "cancelled"]),
+        )
+        if deadline is not None:
+            deadline_start = deadline.replace(hour=0, minute=0, second=0, microsecond=0)
+            deadline_end = deadline.replace(hour=23, minute=59, second=59, microsecond=999999)
+            query = query.filter(
                 TaskModel.deadline >= deadline_start,
                 TaskModel.deadline <= deadline_end,
-                TaskModel.is_active == True,
-                TaskModel.status.notin_(["done", "cancelled"]),
             )
-            .first()
-        )
+        existing = query.first()
         return existing is not None
 
     def update_assignment_last_generated(

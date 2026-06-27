@@ -7,7 +7,7 @@ type TimelineTaskItem = { id: string; title: string; client_id: string; deadline
 type ConflictTaskItem = { id: string; title: string; time_estimate_minutes?: number; deadline?: string };
 
 type Props = {
-  timeline: { date: string; tasks: TimelineTaskItem[]; total_hours: number }[];
+  timeline: { date: string; tasks: TimelineTaskItem[]; total_minutes: number }[];
   conflicts: { date: string; tasks: ConflictTaskItem[]; total_hours: number }[];
   clients: any[];
   isLoading: boolean;
@@ -21,7 +21,7 @@ const TaskTimelineInner: React.FC<Props> = ({ timeline, conflicts, clients, isLo
   if (isLoading) return <div className="py-10 text-center text-muted-foreground">Carregando timeline...</div>;
   if (timeline.length === 0) return <div className="py-10 text-center text-muted-foreground">Nenhuma tarefa com prazo encontrada.</div>;
 
-  const maxHours = Math.max(...timeline.map(d => d.total_hours), 8);
+  const maxMinutes = Math.max(...timeline.map(d => d.total_minutes), 480);
 
   return (
     <div>
@@ -57,13 +57,13 @@ const TaskTimelineInner: React.FC<Props> = ({ timeline, conflicts, clients, isLo
                     <div
                       className="h-full rounded-full transition-all"
                       style={{
-                        width: `${Math.min((day.total_hours / maxHours) * 100, 100)}%`,
-                        background: day.total_hours > 8 ? 'var(--ds-error)' : 'var(--ds-primary)',
+                        width: `${Math.min((day.total_minutes / maxMinutes) * 100, 100)}%`,
+                        background: day.total_minutes > 480 ? 'var(--ds-error)' : 'var(--ds-primary)',
                       }}
                     />
                   </div>
-                  <span className={cn('text-[11px] font-bold', day.total_hours > 8 ? 'text-destructive' : 'text-muted-foreground')}>
-                    {day.total_hours.toFixed(1)}h
+                  <span className={cn('text-[11px] font-bold', day.total_minutes > 480 ? 'text-destructive' : 'text-muted-foreground')}>
+                    {(day.total_minutes / 60).toFixed(1)}h
                   </span>
                 </div>
               </div>

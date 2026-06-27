@@ -82,7 +82,7 @@ export interface TimelineTask {
 export interface TimelineDay {
   date: string;
   tasks: TimelineTask[];
-  total_hours: number;
+  total_minutes: number;
 }
 
 export interface TimelineResponse {

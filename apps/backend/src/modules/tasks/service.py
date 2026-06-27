@@ -610,7 +610,7 @@ class TaskService:
             for act in activities:
                 weekly_deadlines = self._get_weekly_deadlines_for_month(tmpl)
                 for deadline in weekly_deadlines:
-                    if self.repository.has_pending_task_for_deadline(assignment.id, deadline):
+                    if self.repository.has_pending_task(assignment.id, act.name, deadline):
                         continue
                     task_data = TaskCreate(
                         title=act.name,
@@ -638,7 +638,7 @@ class TaskService:
                 daily_deadline = next_business_day(deadline)
 
                 for act in activities:
-                    if self.repository.has_pending_task_for_deadline(assignment.id, daily_deadline):
+                    if self.repository.has_pending_task(assignment.id, act.name, daily_deadline):
                         continue
                     task_data = TaskCreate(
                         title=act.name,
@@ -979,9 +979,14 @@ class TaskService:
                     if deadline is None:
                         continue
 
-                    # Check if there's already a pending task for this deadline
-                    if self.repository.has_pending_task_for_deadline(
-                        assignment.id, deadline
+                    # ── Check per-activity: skip if a pending task with the same title exists ──
+                    if tmpl.recurrence == "daily":
+                        # Daily: check any deadline (if overdue, don't create new)
+                        if self.repository.has_pending_task(assignment.id, act.name):
+                            total_skipped += 1
+                            continue
+                    elif self.repository.has_pending_task(
+                        assignment.id, act.name, deadline
                     ):
                         total_skipped += 1
                         continue
@@ -1015,6 +1020,18 @@ class TaskService:
                     f"Scheduler error for assignment {assignment.id}: {e}"
                 )
                 errors.append({"assignment_id": str(assignment.id), "error": str(e)})
+
+        # ── Auto pre-generate next month when within 3 days of month end ──
+        now = datetime.now(timezone.utc)
+        days_in_month = calendar.monthrange(now.year, now.month)[1]
+        days_remaining = days_in_month - now.day
+        if 0 <= days_remaining <= 3:
+            pre_result = self.run_pre_generate_for_next_month()
+            total_generated += pre_result.get("tasks_generated", 0)
+            total_skipped += pre_result.get("tasks_skipped", 0)
+            assignments_processed += pre_result.get("assignments_processed", 0)
+            for e in pre_result.get("errors", []):
+                errors.append(e)
 
         log.info(
             f"Scheduler run complete: {assignments_processed} assignments, "
@@ -1111,8 +1128,8 @@ class TaskService:
 
                 for act in activities:
                     for deadline in deadlines:
-                        if self.repository.has_pending_task_for_deadline(
-                            assignment.id, deadline
+                        if self.repository.has_pending_task(
+                            assignment.id, act.name, deadline
                         ):
                             total_skipped += 1
                             continue

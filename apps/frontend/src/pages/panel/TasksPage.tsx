@@ -16,8 +16,10 @@ import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
+import { useAuth } from '../../context/AuthContext';
 
 export const TasksPage: React.FC = () => {
+    const { user } = useAuth();
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
     const [filterMode, setFilterMode] = useState<'all' | 'today' | 'week' | 'month' | 'overdue'>('today');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
@@ -156,43 +158,94 @@ export const TasksPage: React.FC = () => {
 
     const isOverdue = (t: TaskResponse) => t.deadline && new Date(t.deadline) < todayStart;
 
+    const firstPhaseId = sortedPhases.length > 0 ? sortedPhases[0].id : 'todo';
+    const lastPhaseId = sortedPhases.length > 0 ? sortedPhases[sortedPhases.length - 1].id : 'done';
+
+    // ── Helper: count active tasks for a given filter mode (excludes completed) ──
+    const countForFilter = (mode: typeof filterMode): number => {
+        return tasksList.filter(t => {
+            if (t.status === 'cancelled' || t.cancelled_at) return false;
+            const taskStatus = getTaskStatus(t);
+            // Exclude completed tasks from filter counts (shown only in their column)
+            if (taskStatus === lastPhaseId || t.status === 'done') return false;
+            const deadlineDate = t.deadline?.split('T')[0];
+            // Overdue and in-progress always count
+            if (isOverdue(t)) return true;
+            if (taskStatus !== firstPhaseId && taskStatus !== lastPhaseId && taskStatus !== 'cancelled') return true;
+            // Filter modes for remaining (todo) tasks
+            if (mode === 'today') return !!deadlineDate && deadlineDate.startsWith(todayStr);
+            if (mode === 'week') {
+                const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1);
+                const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
+                const weekStart = mon.toISOString().split('T')[0];
+                const weekEnd = sun.toISOString().split('T')[0];
+                return !!deadlineDate && deadlineDate >= weekStart && deadlineDate <= weekEnd;
+            }
+            if (mode === 'month') {
+                const now = new Date();
+                const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+                const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+                return !!deadlineDate && deadlineDate >= first && deadlineDate <= last;
+            }
+            if (mode === 'overdue') return false; // already caught above
+            return true; // 'all'
+        }).length;
+    };
+
+    const filterCounts = {
+        today: countForFilter('today'),
+        week: countForFilter('week'),
+        month: countForFilter('month'),
+        all: countForFilter('all'),
+        overdue: countForFilter('overdue'),
+    };
+
     const filteredTasks = tasksList.filter(t => {
+        // Always exclude cancelled
         if (t.status === 'cancelled' || t.cancelled_at) return false;
+
+        const taskStatus = getTaskStatus(t);
+        const deadlineDate = t.deadline?.split('T')[0];
+
+        // 1. Overdue tasks → always visible (regardless of filter)
         if (isOverdue(t)) return true;
+
+        // 2. In-progress tasks (any phase except first/todo and last/done) → always visible
+        if (taskStatus !== firstPhaseId && taskStatus !== lastPhaseId && taskStatus !== 'cancelled') return true;
+
+        // 3. Completed tasks → only on the day they were completed
+        if (taskStatus === lastPhaseId || t.status === 'done') {
+            return t.updated_at?.startsWith(todayStr) ?? false;
+        }
+
+        // 4. Filter modes for remaining (todo / a fazer, non-overdue) tasks
         if (filterMode === 'today') {
-            if (!t.deadline?.startsWith(todayStr)) return false;
+            if (!deadlineDate || !deadlineDate.startsWith(todayStr)) return false;
         }
         if (filterMode === 'week') {
             const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1);
             const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
             const weekStart = mon.toISOString().split('T')[0];
             const weekEnd = sun.toISOString().split('T')[0];
-            const deadlineDate = t.deadline?.split('T')[0];
             if (!deadlineDate || deadlineDate < weekStart || deadlineDate > weekEnd) return false;
         }
         if (filterMode === 'month') {
             const now = new Date();
             const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
             const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-            const deadlineDate = t.deadline?.split('T')[0];
             if (!deadlineDate || deadlineDate < first || deadlineDate > last) return false;
         }
         if (filterMode === 'overdue') {
-            if (!t.deadline) return false;
-            if (new Date(t.deadline) >= todayStart) return false;
+            // Overdue already caught above; any task reaching here is NOT overdue
+            return false;
         }
-        const deadlineDate = t.deadline?.split('T')[0];
+
+        // Custom date range
         if (dateFrom && deadlineDate && deadlineDate < dateFrom) return false;
         if (dateTo && deadlineDate && deadlineDate > dateTo) return false;
+
         return true;
     });
-
-    const openTasksCount = tasksList.filter(t => t.status !== 'done' && t.status !== 'cancelled' && !t.cancelled_at).length;
-    const overdueCount = tasksList.filter(t => {
-        if (t.status === 'done' || t.status === 'cancelled' || t.cancelled_at) return false;
-        if (!t.deadline) return false;
-        return new Date(t.deadline) < todayStart;
-    }).length;
 
     return (
         <div className="animate-[panelFadeIn_0.4s_ease-out]">
@@ -203,11 +256,6 @@ export const TasksPage: React.FC = () => {
                 <div>
                     <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Gestão de Tarefas</h1>
                     <p className="mb-2 text-[14px] text-muted-foreground">Controle operacional e prazos por empresa.</p>
-                    <div className="flex gap-4 text-[12px] text-muted-foreground">
-                        <span className="font-bold text-foreground">{openTasksCount}</span> tarefas abertas
-                        <span className="opacity-30">|</span>
-                        <span className="font-bold text-primary">{overdueCount}</span> em atraso
-                    </div>
                 </div>
                 <div className="flex items-center gap-3">
                     {view === 'kanban' && (
@@ -228,9 +276,11 @@ export const TasksPage: React.FC = () => {
                     <Button variant="ghost" size="sm" onClick={handleSyncCalendar} title="Sincronizar tarefas ativas com Google Agenda">
                         <CalendarIcon size={16} /> Sincronizar
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={handleRunScheduler} title="Executar rotinas — gerar tarefas pendentes com base na recorrência">
-                        <RefreshCw size={16} /> Executar Rotinas
-                    </Button>
+                    {user?.role === 'admin' && (
+                        <Button variant="ghost" size="sm" onClick={handleRunScheduler} title="Executar rotinas — gerar tarefas pendentes com base na recorrência">
+                            <RefreshCw size={16} /> Executar Rotinas
+                        </Button>
+                    )}
 
                     {/* View toggle */}
                     <div className="flex rounded-lg border border-border bg-muted p-[3px]">
@@ -267,25 +317,33 @@ export const TasksPage: React.FC = () => {
                         { key: 'month', label: 'Mês' },
                         { key: 'all', label: 'Todas' },
                         { key: 'overdue', label: 'Atrasadas' },
-                    ] as const).map(f => (
-                        <button
-                            key={f.key}
-                            onClick={() => { setFilterMode(f.key); setDateFrom(''); setDateTo(''); }}
-                            className={cn(
-                                'rounded-sm px-3 py-1 text-[12px] font-bold font-sans transition-all',
-                                filterMode === f.key
-                                    ? 'border border-primary bg-primary text-primary-foreground'
-                                    : 'border border-white/10 bg-muted text-muted-foreground'
-                            )}
-                        >
-                            {f.label}
-                            {f.key === 'overdue' && overdueCount > 0 && (
-                                <span className="ml-1.5 rounded-full bg-white/15 px-1.5 py-0.5 text-[10px] font-bold">
-                                    {overdueCount}
-                                </span>
-                            )}
-                        </button>
-                    ))}
+                    ] as const).map(f => {
+                        const count = filterCounts[f.key];
+                        return (
+                            <button
+                                key={f.key}
+                                onClick={() => { setFilterMode(f.key); setDateFrom(''); setDateTo(''); }}
+                                className={cn(
+                                    'rounded-sm px-3 py-1 text-[12px] font-bold font-sans transition-all',
+                                    filterMode === f.key
+                                        ? 'border border-primary bg-primary text-primary-foreground'
+                                        : 'border border-white/10 bg-muted text-muted-foreground'
+                                )}
+                            >
+                                {f.label}
+                                {count > 0 && (
+                                    <span className={cn(
+                                        'ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
+                                        filterMode === f.key
+                                            ? 'bg-primary-foreground/20 text-primary-foreground'
+                                            : 'bg-white/15 text-muted-foreground'
+                                    )}>
+                                        {count}
+                                    </span>
+                                )}
+                            </button>
+                        );
+                    })}
                     <div className="mx-1 h-5 w-px bg-white/10" />
 
                     {/* Datepicker */}
