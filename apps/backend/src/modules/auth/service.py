@@ -19,6 +19,8 @@ class AuthService:
 
     def register_user(self, payload: UserCreate) -> UserResponse:
         try:
+            # Normalize email (belt-and-suspenders — schema already normalizes)
+            payload.email = payload.email.lower().strip()
             hashed_pw = PasswordService.hash_password(payload.password)
             user = self.user_repo.create_user(
                 email=payload.email,
@@ -36,6 +38,7 @@ class AuthService:
             raise e
 
     def authenticate_user(self, email: str, password: str) -> Optional[dict]:
+        email = email.lower().strip()
         user = self.user_repo.get_user_by_email(email)
         if not user:
             return None
@@ -64,6 +67,7 @@ class AuthService:
         return UserResponse.from_user(user)
 
     def authenticate_oauth_user(self, email: str, provider: str) -> dict:
+        email = email.lower().strip()
         user = self.user_repo.get_user_by_email(email)
         if not user:
             user = self.user_repo.create_user(
@@ -92,6 +96,7 @@ class AuthService:
         }
 
     def create_reset_token(self, email: str) -> str:
+        email = email.lower().strip()
         user = self.user_repo.get_user_by_email(email)
         if not user:
             return None

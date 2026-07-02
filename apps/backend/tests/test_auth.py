@@ -265,3 +265,40 @@ def test_upload_company_logo_invalid_extension(client):
     )
     assert response.status_code == 400
     assert "Formato de imagem inválido" in response.text
+
+
+def test_login_email_case_insensitive(client):
+    """Register with mixed-case email, login with different case — must succeed."""
+    email_mixed = f"CaseTest_{uuid4()}@Example.COM"
+    email_lower = email_mixed.lower()
+    payload = {"email": email_mixed, "password": "StrongPassword123!"}
+    register_resp = client.post("/auth/register", json=payload)
+    assert register_resp.status_code == 201
+    # Email stored as lowercase
+    assert register_resp.json()["email"] == email_lower
+
+    # Login with different case works
+    login_resp = client.post(
+        "/auth/login",
+        data={"username": email_mixed.upper(), "password": "StrongPassword123!"},
+    )
+    assert login_resp.status_code == 200
+    assert "access_token" in login_resp.json()
+
+
+def test_register_rejects_case_insensitive_duplicate(client):
+    """Registering with same email but different case must be rejected."""
+    unique = uuid4().hex[:6]
+    email1 = f"DupCase_{unique}@cafe.com"
+    email2 = email1.upper()
+
+    resp1 = client.post(
+        "/auth/register", json={"email": email1, "password": "StrongPassword123!"}
+    )
+    assert resp1.status_code == 201
+
+    resp2 = client.post(
+        "/auth/register", json={"email": email2, "password": "StrongPassword123!"}
+    )
+    assert resp2.status_code == 400
+    assert "uso" in resp2.text

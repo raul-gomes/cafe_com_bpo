@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, EmailStr
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional, TYPE_CHECKING
 from uuid import UUID
 
@@ -15,6 +15,11 @@ class UserCreate(BaseModel):
     company: Optional[str] = Field(
         default=None, max_length=150, description="Empresa do usuário."
     )
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
 
 
 class UserResponse(BaseModel):
@@ -97,6 +102,11 @@ class RefreshTokenRequest(BaseModel):
 class ForgotPasswordRequest(BaseModel):
     email: EmailStr = Field(..., description="E-mail da conta.")
 
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
+
 
 class ResetPasswordRequest(BaseModel):
     token: str = Field(..., description="Token de redefinição.")
@@ -105,3 +115,10 @@ class ResetPasswordRequest(BaseModel):
         default=None,
         description="E-mail da conta (opcional — verifica se o token pertence ao dono do e-mail).",
     )
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        return v.lower().strip()

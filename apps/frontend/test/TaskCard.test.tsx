@@ -154,21 +154,40 @@ describe('TaskCard', () => {
     expect(deadlineContainers.length).toBe(1)
   })
 
-  it('shows creation date', () => {
+  it('shows creation date in metadata', () => {
     renderCard(<TaskCard {...defaultProps} />)
-    expect(screen.getByText(/Criada em/)).toBeInTheDocument()
+    // The metadata row should contain a date pattern (dd/dd)
+    expect(screen.getByText(/\d{2}\/\d{2}/)).toBeInTheDocument()
   })
 
-  it('shows finalization date when status === doneColumnId', () => {
-    const doneTask = { ...baseTask, status: 'done', updated_at: '2026-06-10T12:00:00Z' }
+  it('shows priority label in metadata', () => {
+    renderCard(<TaskCard {...defaultProps} />)
+    expect(screen.getByText('Alta')).toBeInTheDocument()
+  })
+
+  it('shows time estimate when present', () => {
+    const taskWithEstimate = { ...baseTask, time_estimate_minutes: 30 }
+    renderCard(<TaskCard {...defaultProps} task={taskWithEstimate} />)
+    expect(screen.getByText(/30min/)).toBeInTheDocument()
+  })
+
+  it('shows full date format in deadline', () => {
+    const taskWithDeadline = { ...baseTask, deadline: '2026-06-15T12:00:00Z' }
+    renderCard(<TaskCard {...defaultProps} task={taskWithDeadline} />)
+    expect(screen.getByText(/15\/06\/2026/)).toBeInTheDocument()
+  })
+
+  it('renders overdue badge with destructive (red) styling', () => {
     renderCard(
       <TaskCard
         {...defaultProps}
-        task={doneTask}
-        getTaskStatus={() => 'done'}
+        isTaskOverdue={() => true}
+        getOverdueDays={() => 5}
       />
     )
-    expect(screen.getByText(/Finalizada em/)).toBeInTheDocument()
+    const badge = screen.getByText(/Atrasado/)
+    expect(badge).toBeInTheDocument()
+    expect(badge.className).toContain('destructive')
   })
 
   it('calls onEdit when card is clicked', () => {

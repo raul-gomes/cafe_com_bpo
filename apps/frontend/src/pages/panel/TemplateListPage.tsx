@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle } from 'lucide-react';
+import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -112,6 +112,9 @@ export const TemplateListPage: React.FC = () => {
     });
   };
 
+  const formatWeekdays = (mask: string) =>
+    mask.split(',').map(d => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][Number(d)]).join(', ');
+
   if (isLoading) {
     return (
       <div className="tasks-page">
@@ -125,178 +128,127 @@ export const TemplateListPage: React.FC = () => {
     <div className="tasks-page animate-[panelFadeIn_0.4s_ease-out]">
       <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Rotinas' }]} />
 
+      {/* Header */}
       <div className="flex justify-between items-end mb-8">
         <div>
           <h1>Rotinas</h1>
-          <p>Rotinas de atividades recorrentes que podem ser vinculadas a clientes.</p>
+          <p className="mb-0">Atividades recorrentes que podem ser vinculadas a clientes.</p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setShowTypeManager(true)}>
-            <Settings size={18} /> Tipos
+            <Settings size={16} /> Tipos
           </Button>
           <Button onClick={() => setShowCreate(true)}>
-            <Plus size={18} /> Nova Rotina
+            <Plus size={16} /> Nova Rotina
           </Button>
         </div>
       </div>
 
-      {showCreate && (
-        <Card className="mb-6 border-primary/20">
-          <CardContent className="space-y-4">
-            <div className="flex justify-between items-center">
-              <h3 className="text-base font-bold">Nova Rotina</h3>
-              <Button variant="ghost" size="icon-sm" onClick={() => setShowCreate(false)}>
-                <X size={18} />
-              </Button>
+      {/* ── Create Modal ── */}
+      <Dialog open={showCreate} onOpenChange={setShowCreate}>
+        <DialogContent className="sm:max-w-xl">
+          <DialogHeader>
+            <DialogTitle>Nova Rotina</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground block mb-1">Nome</label>
+              <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Fiscal Mensal" autoFocus />
             </div>
-            <div className="flex gap-3 flex-wrap items-end">
-              <div className="flex-1 min-w-[200px]">
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Nome</label>
-                <Input
-                  value={newName}
-                  onChange={(e) => setNewName(e.target.value)}
-                  placeholder="Ex: Fiscal Mensal"
-                  autoFocus
-                />
-              </div>
+            <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Tipo</label>
-                <select
-                  value={newRoutineTypeId}
-                  onChange={(e) => setNewRoutineTypeId(e.target.value)}
-                  className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                >
-                  <option value="">Selecione um tipo</option>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Tipo</label>
+                <select value={newRoutineTypeId} onChange={(e) => setNewRoutineTypeId(e.target.value)}
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                  <option value="">Sem tipo</option>
                   {routineTypes?.map((rt) => (
                     <option key={rt.id} value={rt.id}>{rt.name}</option>
                   ))}
                 </select>
               </div>
               <div>
-                <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Periodicidade</label>
-                <select
-                  value={newRecurrence}
-                  onChange={(e) => {
-                    setNewRecurrence(e.target.value);
-                    setNewDaysFromStart('');
-                    setNewDueDay('');
-                    setNewDueMonth('');
-                    setNewWeekdays([1, 2, 3, 4, 5]);
-                  }}
-                  className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                >
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Periodicidade</label>
+                <select value={newRecurrence} onChange={(e) => { setNewRecurrence(e.target.value); setNewDaysFromStart(''); setNewDueDay(''); setNewDueMonth(''); setNewWeekdays([1, 2, 3, 4, 5]); }}
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
                   {Object.entries(RECURRENCE_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
                 </select>
               </div>
-              {newRecurrence === 'once' && (
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Dias para execução</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    value={newDaysFromStart}
-                    onChange={(e) => setNewDaysFromStart(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="Ex: 30"
-                    className="w-[100px]"
-                  />
+            </div>
+
+            {/* Recurrence-specific fields */}
+            {newRecurrence === 'once' && (
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Dias para execução</label>
+                <Input type="number" min={1} value={newDaysFromStart} onChange={(e) => setNewDaysFromStart(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 30" className="w-28" />
+              </div>
+            )}
+            {newRecurrence === 'weekly' && (
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Dias da semana</label>
+                <div className="flex gap-1.5 pt-1">
+                  {WEEKDAY_LABELS.map(({ value, label }) => (
+                    <label key={value} className={cn(
+                      "flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
+                      newWeekdays.includes(value) ? "bg-primary/10 border-primary text-primary" : "bg-muted border-border text-muted-foreground"
+                    )}>
+                      <input type="checkbox" checked={newWeekdays.includes(value)} onChange={() => toggleWeekday(value)} className="hidden" />
+                      {label}
+                    </label>
+                  ))}
                 </div>
-              )}
-              {newRecurrence === 'weekly' && (
+              </div>
+            )}
+            {newRecurrence === 'monthly' && (
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Dia do vencimento</label>
+                <Input type="number" min={1} max={31} value={newDueDay} onChange={(e) => setNewDueDay(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 15" className="w-28" />
+              </div>
+            )}
+            {newRecurrence === 'yearly' && (
+              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Dias da semana</label>
-                  <div className="flex gap-1.5 pt-1">
-                    {WEEKDAY_LABELS.map(({ value, label }) => (
-                      <label
-                        key={value}
-                        className={cn(
-                          "flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
-                          newWeekdays.includes(value)
-                            ? "bg-primary/10 border-primary text-primary"
-                            : "bg-muted border-border text-muted-foreground"
-                        )}
-                      >
-                        <input
-                          type="checkbox"
-                          checked={newWeekdays.includes(value)}
-                          onChange={() => toggleWeekday(value)}
-                          className="hidden"
-                        />
-                        {label}
-                      </label>
-                    ))}
-                  </div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Dia</label>
+                  <Input type="number" min={1} max={31} value={newDueDay} onChange={(e) => setNewDueDay(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 15" className="w-28" />
                 </div>
-              )}
-              {newRecurrence === 'monthly' && (
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Dia do vencimento</label>
-                  <Input
-                    type="number"
-                    min={1}
-                    max={31}
-                    value={newDueDay}
-                    onChange={(e) => setNewDueDay(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="Ex: 15"
-                    className="w-[100px]"
-                  />
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Mês</label>
+                  <select value={newDueMonth} onChange={(e) => setNewDueMonth(e.target.value === '' ? '' : Number(e.target.value))}
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                    <option value="">Selecione</option>
+                    {MONTH_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+                  </select>
                 </div>
-              )}
-              {newRecurrence === 'yearly' && (
-                <>
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Dia</label>
-                    <Input
-                      type="number"
-                      min={1}
-                      max={31}
-                      value={newDueDay}
-                      onChange={(e) => setNewDueDay(e.target.value === '' ? '' : Number(e.target.value))}
-                      placeholder="Ex: 15"
-                      className="w-[80px]"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1.5">Mês</label>
-                    <select
-                      value={newDueMonth}
-                      onChange={(e) => setNewDueMonth(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                    >
-                      <option value="">Selecione</option>
-                      {MONTH_OPTIONS.map(m => (
-                        <option key={m.value} value={m.value}>{m.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                </>
-              )}
-              <Button
-                onClick={handleCreate}
-                disabled={!newName.trim() || createTemplate.isPending}
-              >
+              </div>
+            )}
+
+            <div className="flex justify-end gap-2 pt-2">
+              <Button variant="outline" onClick={() => setShowCreate(false)}>Cancelar</Button>
+              <Button onClick={handleCreate} disabled={!newName.trim() || createTemplate.isPending}>
                 Criar Rotina
               </Button>
             </div>
-          </CardContent>
-        </Card>
-      )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
+      {/* ── Empty state ── */}
       {!templates || templates.length === 0 ? (
         <Card className="p-0">
           <CardContent className="flex flex-col items-center py-16">
-            <Settings size={48} className="text-muted-foreground/30 mb-4" />
+            <FileText size={48} className="text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-bold mb-2">Nenhuma rotina criada</h3>
             <p className="text-muted-foreground text-sm mb-5">
               Crie rotinas de atividades recorrentes para agilizar o onboarding de novos clientes.
             </p>
-            <Button onClick={() => setShowCreate(true)}>
-              <Plus size={18} /> Criar Primeira Rotina
-            </Button>
+              <Button onClick={() => setShowCreate(true)}>
+                <Plus size={16} /> Criar Primeira Rotina
+              </Button>
           </CardContent>
         </Card>
       ) : (
+        /* ── Card List ── */
         <div className="flex flex-col gap-3">
           {templates.map((tmpl) => (
             <Card
@@ -307,75 +259,60 @@ export const TemplateListPage: React.FC = () => {
               )}
               onClick={() => navigate(`/painel/templates-atividades/${tmpl.id}`)}
             >
-              <FileText size={24} className="text-primary shrink-0 ml-4" />
-              <CardContent className="flex-1 py-4">
-                <div className="flex items-center gap-2 mb-1">
-                  <span className="text-base font-bold">{tmpl.name}</span>
+              <CardContent className="flex-1 py-3.5 px-4">
+                <div className="flex items-center gap-2.5 mb-1">
+                  <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                    <LayoutList size={16} className="text-primary" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <span className="text-base font-bold">{tmpl.name}</span>
+                  </div>
                   {tmpl.routine_type_name && (
-                    <Badge variant="outline" className="gap-1">
+                    <Badge variant="outline" className="gap-1 text-[11px]">
                       <span className="size-1.5 rounded-full shrink-0" style={{ background: tmpl.routine_type_color || '#3b82f6' }} />
                       {tmpl.routine_type_name}
                     </Badge>
                   )}
-                  <Badge variant="secondary">
+                  <Badge variant="secondary" className="text-[11px]">
                     {RECURRENCE_LABELS[tmpl.recurrence] || tmpl.recurrence}
                   </Badge>
                   {tmpl.is_overdue && (tmpl.days_overdue ?? 0) > 0 && (
-                    <Badge variant="destructive" className="gap-1">
-                      <AlertTriangle size={12} /> Atrasado {tmpl.days_overdue ?? 0}d
+                    <Badge variant="destructive" className="gap-1 text-[11px]">
+                      <AlertTriangle size={11} /> Atrasado {tmpl.days_overdue ?? 0}d
                     </Badge>
                   )}
                 </div>
-                <div className="flex gap-1.5 flex-wrap mt-1">
+                <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
+                  <span>{tmpl.activity_count} atividade(s)</span>
+                  {/* Recurrence details as compact chips */}
                   {tmpl.recurrence === 'once' && tmpl.due_days_from_start && (
-                    <span className="text-[12px] px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
-                      {tmpl.due_days_from_start} dias p/ execução
-                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_days_from_start} dias</span>
                   )}
                   {tmpl.recurrence === 'weekly' && tmpl.weekday_mask && (
-                    <span className="text-[12px] px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
-                      {tmpl.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}
-                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{formatWeekdays(tmpl.weekday_mask)}</span>
                   )}
                   {tmpl.recurrence === 'monthly' && tmpl.due_day && (
-                    <span className="text-[12px] px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
-                      Vence dia {tmpl.due_day}
-                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">Dia {tmpl.due_day}</span>
                   )}
                   {tmpl.recurrence === 'yearly' && tmpl.due_day && (
-                    <span className="text-[12px] px-2.5 py-0.5 rounded-full bg-muted text-muted-foreground font-semibold">
-                      Vence {tmpl.due_day}/{tmpl.due_month}
-                    </span>
+                    <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_day}/{tmpl.due_month}</span>
+                  )}
+                  {tmpl.description && (
+                    <span className="truncate opacity-70">{tmpl.description}</span>
                   )}
                 </div>
-                <div className="text-[13px] text-muted-foreground mt-1">
-                  {tmpl.activity_count} atividade(s) • {tmpl.description || 'Sem descrição'}
-                </div>
               </CardContent>
-              <div className="flex items-center gap-1 pr-2" onClick={(e) => e.stopPropagation()}>
-                <Switch
-                  checked={tmpl.is_active}
-                  onCheckedChange={() => toggleActive(tmpl)}
-                />
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  className="text-destructive"
-                  onClick={async (e) => {
-                    e.stopPropagation();
-                    const ok = await confirm({
-                      title: 'Excluir template',
-                      message: `Excluir template "${tmpl.name}"?`,
-                      variant: 'danger',
-                      confirmLabel: 'Excluir',
-                    });
-                    if (ok) deleteTemplate.mutate(tmpl.id);
-                  }}
-                >
-                  <X size={16} />
+              <div className="flex items-center gap-1 pr-3" onClick={(e) => e.stopPropagation()}>
+                <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
+                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={async (e) => {
+                  e.stopPropagation();
+                  const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
+                  if (ok) deleteTemplate.mutate(tmpl.id);
+                }}>
+                  <X size={15} />
                 </Button>
               </div>
-              <ChevronRight size={18} className="text-muted-foreground mr-2 shrink-0" />
+              <ChevronRight size={16} className="text-muted-foreground mr-3 shrink-0" />
             </Card>
           ))}
         </div>
@@ -387,55 +324,20 @@ export const TemplateListPage: React.FC = () => {
           <DialogHeader>
             <DialogTitle>Gerenciar Tipos de Rotina</DialogTitle>
           </DialogHeader>
-
-          {/* Add / Edit form */}
           <div className="flex gap-2 mb-4">
-            <Input
-              value={typeEdit.name}
-              onChange={(e) => setTypeEdit((prev) => ({ ...prev, name: e.target.value }))}
-              placeholder="Nome do tipo"
-              className="flex-1"
-            />
-            <input
-              type="color"
-              value={typeEdit.color}
-              onChange={(e) => setTypeEdit((prev) => ({ ...prev, color: e.target.value }))}
-              className="size-10 p-0.5 border border-input rounded-md cursor-pointer"
-            />
+            <Input value={typeEdit.name} onChange={(e) => setTypeEdit((prev) => ({ ...prev, name: e.target.value }))} placeholder="Nome do tipo" className="flex-1" />
+            <input type="color" value={typeEdit.color} onChange={(e) => setTypeEdit((prev) => ({ ...prev, color: e.target.value }))} className="size-9 p-0.5 border border-input rounded-md cursor-pointer" />
             {typeEdit.id ? (
               <>
-                <Button
-                  onClick={async () => {
-                    if (!typeEdit.name.trim() || !typeEdit.id) return;
-                    await updateRoutineType.mutateAsync({ id: typeEdit.id, name: typeEdit.name.trim(), color: typeEdit.color });
-                    setTypeEdit({ name: '', color: '#3b82f6' });
-                  }}
-                  disabled={!typeEdit.name.trim() || updateRoutineType.isPending}
-                >
-                  Salvar
-                </Button>
-                <Button
-                  variant="outline"
-                  onClick={() => setTypeEdit({ name: '', color: '#3b82f6' })}
-                >
-                  Cancelar
-                </Button>
+                <Button onClick={async () => { if (!typeEdit.name.trim() || !typeEdit.id) return; await updateRoutineType.mutateAsync({ id: typeEdit.id, name: typeEdit.name.trim(), color: typeEdit.color }); setTypeEdit({ name: '', color: '#3b82f6' }); }}
+                  disabled={!typeEdit.name.trim() || updateRoutineType.isPending}>Salvar</Button>
+                <Button variant="outline" onClick={() => setTypeEdit({ name: '', color: '#3b82f6' })}>Cancelar</Button>
               </>
             ) : (
-              <Button
-                onClick={async () => {
-                  if (!typeEdit.name.trim()) return;
-                  await createRoutineType.mutateAsync({ name: typeEdit.name.trim(), color: typeEdit.color });
-                  setTypeEdit({ name: '', color: '#3b82f6' });
-                }}
-                disabled={!typeEdit.name.trim() || createRoutineType.isPending}
-              >
-                Adicionar
-              </Button>
+              <Button onClick={async () => { if (!typeEdit.name.trim()) return; await createRoutineType.mutateAsync({ name: typeEdit.name.trim(), color: typeEdit.color }); setTypeEdit({ name: '', color: '#3b82f6' }); }}
+                disabled={!typeEdit.name.trim() || createRoutineType.isPending}>Adicionar</Button>
             )}
           </div>
-
-          {/* Existing types list */}
           {typesLoading ? (
             <div className="py-5 text-center text-muted-foreground">Carregando...</div>
           ) : !routineTypes || routineTypes.length === 0 ? (
@@ -443,38 +345,14 @@ export const TemplateListPage: React.FC = () => {
           ) : (
             <div className="flex flex-col gap-2 max-h-[300px] overflow-y-auto">
               {routineTypes.map((rt) => (
-                <div
-                  key={rt.id}
-                  className="flex items-center gap-3 px-3 py-2.5 rounded-md bg-muted"
-                >
-                  <div
-                    className="size-3 rounded-full shrink-0"
-                    style={{ background: rt.color || '#3b82f6' }}
-                  />
+                <div key={rt.id} className="flex items-center gap-3 px-3 py-2.5 rounded-md bg-muted">
+                  <div className="size-3 rounded-full shrink-0" style={{ background: rt.color || '#3b82f6' }} />
                   <span className="flex-1 text-sm font-semibold">{rt.name}</span>
-                  <Button
-                    variant="ghost"
-                    size="xs"
-                    onClick={() => setTypeEdit({ id: rt.id, name: rt.name, color: rt.color || '#3b82f6' })}
-                  >
-                    Editar
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon-xs"
-                    className="text-destructive"
-                    onClick={async () => {
-                      const ok = await confirm({
-                        title: 'Excluir tipo',
-                        message: `Excluir tipo "${rt.name}"?`,
-                        variant: 'danger',
-                        confirmLabel: 'Excluir',
-                      });
-                      if (ok) await deleteRoutineType.mutateAsync(rt.id);
-                    }}
-                  >
-                    <X size={14} />
-                  </Button>
+                  <Button variant="ghost" size="xs" onClick={() => setTypeEdit({ id: rt.id, name: rt.name, color: rt.color || '#3b82f6' })}>Editar</Button>
+                  <Button variant="ghost" size="icon-xs" className="text-destructive" onClick={async () => {
+                    const ok = await confirm({ title: 'Excluir tipo', message: `Excluir tipo "${rt.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
+                    if (ok) await deleteRoutineType.mutateAsync(rt.id);
+                  }}><X size={14} /></Button>
                 </div>
               ))}
             </div>

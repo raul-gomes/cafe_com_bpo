@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Plus, X, Edit2, GripVertical } from 'lucide-react';
+import { ArrowLeft, Plus, X, Edit2, GripVertical, Settings2, Clock, AlertTriangle } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -10,36 +10,28 @@ import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Badge } from '../../components/ui/badge';
+import {
+  Sheet, SheetContent, SheetHeader, SheetTitle,
+} from '../../components/ui/sheet';
 import { cn } from '../../lib/utils';
 
-const PROCESS_TYPE_LABELS: Record<string, string> = {
-  fiscal: 'Fiscal',
-  contabil: 'Contábil',
-  dp: 'DP',
-  financeiro: 'Financeiro',
-  administrativo: 'Administrativo',
+const PRIORITY_STYLES: Record<string, { label: string; bg: string; text: string }> = {
+  low: { label: 'Baixa', bg: 'bg-blue-500/10', text: 'text-blue-600 dark:text-blue-400' },
+  medium: { label: 'Média', bg: 'bg-yellow-500/10', text: 'text-yellow-600 dark:text-yellow-400' },
+  high: { label: 'Alta', bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400' },
 };
 
 const RECURRENCE_LABELS: Record<string, string> = {
-  once: 'Uma só vez',
-  daily: 'Diário',
-  weekly: 'Semanal',
-  monthly: 'Mensal',
-  yearly: 'Anual',
+  once: 'Uma só vez', daily: 'Diário', weekly: 'Semanal', monthly: 'Mensal', yearly: 'Anual',
 };
 
-const PRIORITY_OPTIONS = [
-  { value: 'low', label: '🔵 Baixa' },
-  { value: 'medium', label: '🟡 Média' },
-  { value: 'high', label: '🔴 Alta' },
-];
+const PROCESS_TYPE_LABELS: Record<string, string> = {
+  fiscal: 'Fiscal', contabil: 'Contábil', dp: 'DP', financeiro: 'Financeiro', administrativo: 'Administrativo',
+};
 
 const WEEKDAY_LABELS = [
-  { value: 1, label: 'Seg' },
-  { value: 2, label: 'Ter' },
-  { value: 3, label: 'Qua' },
-  { value: 4, label: 'Qui' },
-  { value: 5, label: 'Sex' },
+  { value: 1, label: 'Seg' }, { value: 2, label: 'Ter' }, { value: 3, label: 'Qua' },
+  { value: 4, label: 'Qui' }, { value: 5, label: 'Sex' },
 ];
 
 const MONTH_OPTIONS = [
@@ -63,19 +55,25 @@ export const TemplateDetailPage: React.FC = () => {
   const deleteActivity = useDeleteActivity();
   const reorderActivities = useReorderActivities();
 
+  // ── Name edit state ──
   const [editingName, setEditingName] = useState(false);
   const [nameValue, setNameValue] = useState('');
+
+  // ── Add activity state ──
   const [showAdd, setShowAdd] = useState(false);
   const [newActName, setNewActName] = useState('');
   const [newActDescription, setNewActDescription] = useState('');
   const [newActPriority, setNewActPriority] = useState('medium');
-  const [newActHours, setNewActHours] = useState<number | ''>('');
+  const [newActMinutes, setNewActMinutes] = useState<number | ''>('');
+
+  // ── Edit activity state ──
   const [editingAct, setEditingAct] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
   const [editDescription, setEditDescription] = useState('');
   const [editPriority, setEditPriority] = useState('medium');
-  const [editHours, setEditHours] = useState<number | ''>('');
-  const [draggedId, setDraggedId] = useState<string | null>(null);
+  const [editMinutes, setEditMinutes] = useState<number | ''>('');
+
+  // ── Config sheet state ──
   const [showConfig, setShowConfig] = useState(false);
   const [cfgDescription, setCfgDescription] = useState('');
   const [cfgDueDay, setCfgDueDay] = useState<number | ''>('');
@@ -85,19 +83,20 @@ export const TemplateDetailPage: React.FC = () => {
   const [cfgRecurrence, setCfgRecurrence] = useState('monthly');
   const [cfgProcessType, setCfgProcessType] = useState('');
   const [cfgRoutineTypeId, setCfgRoutineTypeId] = useState('');
+
+  // ── Drag-reorder state ──
+  const [draggedId, setDraggedId] = useState<string | null>(null);
+
   const confirm = useConfirm();
 
+  // Populate config form from template data
   useEffect(() => {
     if (template) {
       setCfgDescription(template.description || '');
       setCfgDueDay(template.due_day ?? '');
       setCfgDueMonth(template.due_month ?? '');
       setCfgDueDaysFromStart(template.due_days_from_start ?? '');
-      if (template.weekday_mask) {
-        setCfgWeekdays(template.weekday_mask.split(',').map(Number));
-      } else {
-        setCfgWeekdays([1, 2, 3, 4, 5]);
-      }
+      setCfgWeekdays(template.weekday_mask ? template.weekday_mask.split(',').map(Number) : [1, 2, 3, 4, 5]);
       setCfgRecurrence(template.recurrence);
       setCfgProcessType(template.process_type || '');
       setCfgRoutineTypeId(template.routine_type_id || '');
@@ -117,15 +116,9 @@ export const TemplateDetailPage: React.FC = () => {
       process_type: cfgProcessType || undefined,
       routine_type_id: cfgRoutineTypeId || undefined,
     };
-    if (cfgRecurrence === 'once') {
-      payload.due_days_from_start = cfgDueDaysFromStart === '' ? undefined : Number(cfgDueDaysFromStart);
-    }
-    if (cfgRecurrence === 'weekly') {
-      payload.weekday_mask = cfgWeekdays.join(',');
-    }
-    if (cfgRecurrence === 'monthly') {
-      payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
-    }
+    if (cfgRecurrence === 'once') payload.due_days_from_start = cfgDueDaysFromStart === '' ? undefined : Number(cfgDueDaysFromStart);
+    if (cfgRecurrence === 'weekly') payload.weekday_mask = cfgWeekdays.join(',');
+    if (cfgRecurrence === 'monthly') payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
     if (cfgRecurrence === 'yearly') {
       payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
       payload.due_month = cfgDueMonth === '' ? undefined : Number(cfgDueMonth);
@@ -147,13 +140,13 @@ export const TemplateDetailPage: React.FC = () => {
       name: newActName.trim(),
       description: newActDescription.trim() || undefined,
       priority: newActPriority,
-      estimated_minutes: newActHours === '' ? undefined : Number(newActHours),
+      estimated_minutes: newActMinutes === '' ? undefined : Number(newActMinutes),
       order: template?.activities?.length || 0,
     });
     setNewActName('');
     setNewActDescription('');
     setNewActPriority('medium');
-    setNewActHours('');
+    setNewActMinutes('');
     setShowAdd(false);
   };
 
@@ -162,7 +155,7 @@ export const TemplateDetailPage: React.FC = () => {
     setEditName(act.name);
     setEditDescription(act.description || '');
     setEditPriority(act.priority || 'medium');
-    setEditHours(act.estimated_minutes ?? '');
+    setEditMinutes(act.estimated_minutes ?? '');
   };
 
   const saveEdit = async () => {
@@ -173,27 +166,31 @@ export const TemplateDetailPage: React.FC = () => {
       name: editName.trim(),
       description: editDescription.trim() || undefined,
       priority: editPriority,
-      estimated_minutes: editHours === '' ? undefined : Number(editHours),
+      estimated_minutes: editMinutes === '' ? undefined : Number(editMinutes),
     });
     setEditingAct(null);
   };
 
+  // ── Loading state ──
   if (isLoading) {
     return (
       <div className="tasks-page">
-        <Skeleton className="h-8 w-[200px] mb-10" />
-        <Skeleton className="h-[400px]" />
+        <Skeleton className="h-8 w-[250px] mb-6" />
+        <Skeleton className="h-10 w-[180px] mb-10" />
+        <Skeleton className="h-[300px]" />
       </div>
     );
   }
 
+  // ── Not found state ──
   if (!template) {
     return (
       <div className="tasks-page">
         <Card className="p-0">
           <CardContent className="flex flex-col items-center py-16">
+            <AlertTriangle size={40} className="text-muted-foreground/30 mb-4" />
             <h3 className="text-lg font-bold">Rotina não encontrada</h3>
-            <Button variant="ghost" onClick={() => navigate('/painel/templates-atividades')} className="mt-3">
+            <Button variant="outline" onClick={() => navigate('/painel/templates-atividades')} className="mt-4">
               ← Voltar
             </Button>
           </CardContent>
@@ -203,6 +200,7 @@ export const TemplateDetailPage: React.FC = () => {
   }
 
   const sortedActivities = [...(template.activities || [])].sort((a, b) => a.order - b.order);
+  const routineType = routineTypes?.find(r => r.id === template.routine_type_id);
 
   return (
     <div className="tasks-page animate-[panelFadeIn_0.4s_ease-out]">
@@ -213,132 +211,91 @@ export const TemplateDetailPage: React.FC = () => {
       ]} />
 
       <div className="mb-4">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/painel/templates-atividades')} className="gap-2">
-          <ArrowLeft size={16} /> Voltar
+        <Button variant="ghost" size="sm" onClick={() => navigate('/painel/templates-atividades')} className="gap-1.5">
+          <ArrowLeft size={15} /> Voltar
         </Button>
       </div>
 
-      {/* Header */}
-      <div className="flex justify-between items-end mb-8">
-        <div className="flex-1">
+      {/* ── Header ── */}
+      <div className="flex justify-between items-start mb-6">
+        <div className="flex-1 min-w-0">
           {editingName ? (
             <div className="flex gap-2 items-center">
-              <Input
-                value={nameValue}
-                onChange={(e) => setNameValue(e.target.value)}
-                className="max-w-[300px] text-xl font-bold"
-                autoFocus
-                onKeyDown={(e) => { if (e.key === 'Enter') saveName(); }}
-              />
+              <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} className="max-w-[300px] text-lg font-bold" autoFocus onKeyDown={(e) => { if (e.key === 'Enter') saveName(); }} />
               <Button size="sm" onClick={saveName}>Salvar</Button>
               <Button variant="ghost" size="sm" onClick={() => setEditingName(false)}>Cancelar</Button>
             </div>
           ) : (
-            <div className="flex items-center gap-3">
-              <h1>{template.name}</h1>
+            <div className="flex items-center gap-2.5">
+              <h1 className="text-2xl">{template.name}</h1>
               <Button variant="ghost" size="icon-sm" onClick={() => { setEditingName(true); setNameValue(template.name); }}>
-                <Edit2 size={16} />
+                <Edit2 size={15} />
               </Button>
             </div>
           )}
-          <div className="flex gap-2 mt-2">
-            <Badge variant="outline" className="text-primary bg-primary/10 border-primary/20">
-              {PROCESS_TYPE_LABELS[template.process_type || ''] || template.process_type}
-            </Badge>
-            <Badge variant="outline" className="text-emerald-600 bg-emerald-500/10 border-emerald-500/20 dark:text-emerald-400">
+          <div className="flex flex-wrap items-center gap-2 mt-2.5">
+            {routineType && (
+              <Badge variant="outline" className="gap-1.5 text-[11px]" style={{ borderColor: routineType.color + '40' }}>
+                <span className="size-2 rounded-full" style={{ background: routineType.color }} />
+                {routineType.name}
+              </Badge>
+            )}
+            <Badge variant="secondary" className="text-[11px]">
               {RECURRENCE_LABELS[template.recurrence] || template.recurrence}
             </Badge>
+            {template.process_type && (
+              <Badge variant="outline" className="text-primary bg-primary/10 border-primary/20 text-[11px]">
+                {PROCESS_TYPE_LABELS[template.process_type] || template.process_type}
+              </Badge>
+            )}
             {template.description && (
-              <span className="text-[13px] text-muted-foreground">{template.description}</span>
+              <span className="text-[13px] text-muted-foreground truncate max-w-[300px]">{template.description}</span>
             )}
           </div>
-          {/* Recurrence details — always visible */}
-          {template.recurrence === 'once' && template.due_days_from_start && (
-            <div className="mt-2.5 text-[13px] text-muted-foreground flex items-center gap-1.5">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              <span>Prazo: <strong>{template.due_days_from_start} dias</strong> após o start</span>
-            </div>
-          )}
-          {template.recurrence === 'weekly' && template.weekday_mask && (
-            <div className="mt-2.5 text-[13px] text-muted-foreground flex items-center gap-1.5">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <span>Dias: <strong>{template.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}</strong></span>
-            </div>
-          )}
-          {template.recurrence === 'monthly' && template.due_day && (
-            <div className="mt-2.5 text-[13px] text-muted-foreground flex items-center gap-1.5">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <span>Vencimento: <strong>dia {template.due_day}</strong> de cada mês</span>
-            </div>
-          )}
-          {template.recurrence === 'yearly' && template.due_day && (
-            <div className="mt-2.5 text-[13px] text-muted-foreground flex items-center gap-1.5">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-              <span>Vencimento: <strong>dia {template.due_day}/{template.due_month}</strong> anualmente</span>
-            </div>
-          )}
         </div>
-      </div>
-
-      {/* Template Config */}
-      <Card className="mb-6">
-        <CardContent>
-          <div className="flex justify-between items-center mb-3">
-            <h3 className="text-base font-bold m-0">Configurações da Rotina</h3>
-            <Button variant="outline" size="sm" onClick={() => setShowConfig(!showConfig)}>
-              {showConfig ? 'Cancelar' : <><Edit2 size={14} /> Editar</>}
-            </Button>
-          </div>
-          {showConfig ? (
-            <div className="flex flex-col gap-3">
+        <Sheet open={showConfig} onOpenChange={setShowConfig}>
+          <Button variant="outline" size="sm" onClick={() => setShowConfig(true)}>
+            <Settings2 size={15} /> Configurar
+          </Button>
+          <SheetContent side="right" className="w-[400px] sm:w-[480px]">
+            <SheetHeader>
+              <SheetTitle>Configurações da Rotina</SheetTitle>
+            </SheetHeader>
+            <div className="flex flex-col gap-4 mt-6">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Descrição</label>
-                <Textarea
-                  value={cfgDescription}
-                  onChange={(e) => setCfgDescription(e.target.value)}
-                  placeholder="Descrição da rotina..."
-                  rows={2}
-                  className="resize-y"
-                />
+                <Textarea value={cfgDescription} onChange={(e) => setCfgDescription(e.target.value)} placeholder="Descrição da rotina..." rows={2} className="resize-y" />
               </div>
-              <div className="flex gap-3 flex-wrap items-center">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Tipo de Processo</label>
-                  <select
-                    value={cfgProcessType}
-                    onChange={(e) => setCfgProcessType(e.target.value)}
-                    className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                  >
+                  <select value={cfgProcessType} onChange={(e) => setCfgProcessType(e.target.value)}
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
                     <option value="">Selecione</option>
-                    {Object.entries(PROCESS_TYPE_LABELS).map(([k, v]) => (
-                      <option key={k} value={k}>{v}</option>
-                    ))}
+                    {Object.entries(PROCESS_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Tipo de Rotina</label>
-                  <select
-                    value={cfgRoutineTypeId}
-                    onChange={(e) => setCfgRoutineTypeId(e.target.value)}
-                    className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                  >
+                  <select value={cfgRoutineTypeId} onChange={(e) => setCfgRoutineTypeId(e.target.value)}
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
                     <option value="">Sem tipo</option>
-                    {routineTypes?.map(rt => (
-                      <option key={rt.id} value={rt.id}>{rt.name}</option>
-                    ))}
+                    {routineTypes?.map(rt => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
                   </select>
                 </div>
+              </div>
+              {/* Recurrence fields */}
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Periodicidade</label>
+                <select value={cfgRecurrence} onChange={(e) => { setCfgRecurrence(e.target.value); setCfgDueDaysFromStart(''); setCfgDueDay(''); setCfgDueMonth(''); setCfgWeekdays([1, 2, 3, 4, 5]); }}
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                  {Object.entries(RECURRENCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+                </select>
               </div>
               {cfgRecurrence === 'once' && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Dias para execução</label>
-                  <Input
-                    type="number" min={1}
-                    value={cfgDueDaysFromStart}
-                    onChange={(e) => setCfgDueDaysFromStart(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="Ex: 30"
-                    className="w-[120px]"
-                  />
+                  <Input type="number" min={1} value={cfgDueDaysFromStart} onChange={(e) => setCfgDueDaysFromStart(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 30" className="w-28" />
                 </div>
               )}
               {cfgRecurrence === 'weekly' && (
@@ -346,15 +303,10 @@ export const TemplateDetailPage: React.FC = () => {
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Dias da semana</label>
                   <div className="flex gap-1.5 pt-1">
                     {WEEKDAY_LABELS.map(({ value, label }) => (
-                      <label
-                        key={value}
-                        className={cn(
-                          "flex items-center gap-1 px-2.5 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
-                          cfgWeekdays.includes(value)
-                            ? "bg-primary/10 border-primary text-primary"
-                            : "bg-muted border-border text-muted-foreground"
-                        )}
-                      >
+                      <label key={value} className={cn(
+                        "flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
+                        cfgWeekdays.includes(value) ? "bg-primary/10 border-primary text-primary" : "bg-muted border-border text-muted-foreground"
+                      )}>
                         <input type="checkbox" checked={cfgWeekdays.includes(value)} onChange={() => toggleWeekday(value)} className="hidden" />
                         {label}
                       </label>
@@ -365,147 +317,106 @@ export const TemplateDetailPage: React.FC = () => {
               {cfgRecurrence === 'monthly' && (
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Dia do vencimento</label>
-                  <Input
-                    type="number" min={1} max={31}
-                    value={cfgDueDay}
-                    onChange={(e) => setCfgDueDay(e.target.value === '' ? '' : Number(e.target.value))}
-                    placeholder="Ex: 15"
-                    className="w-[100px]"
-                  />
+                  <Input type="number" min={1} max={31} value={cfgDueDay} onChange={(e) => setCfgDueDay(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 15" className="w-28" />
                 </div>
               )}
               {cfgRecurrence === 'yearly' && (
-                <div className="flex gap-3">
+                <div className="grid grid-cols-2 gap-4">
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Dia</label>
-                    <Input
-                      type="number" min={1} max={31}
-                      value={cfgDueDay}
-                      onChange={(e) => setCfgDueDay(e.target.value === '' ? '' : Number(e.target.value))}
-                      placeholder="Ex: 15"
-                      className="w-[80px]"
-                    />
+                    <Input type="number" min={1} max={31} value={cfgDueDay} onChange={(e) => setCfgDueDay(e.target.value === '' ? '' : Number(e.target.value))} placeholder="Ex: 15" className="w-28" />
                   </div>
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Mês</label>
-                    <select
-                      value={cfgDueMonth}
-                      onChange={(e) => setCfgDueMonth(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                    >
+                    <select value={cfgDueMonth} onChange={(e) => setCfgDueMonth(e.target.value === '' ? '' : Number(e.target.value))}
+                      className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
                       <option value="">Selecione</option>
-                      {MONTH_OPTIONS.map(m => (
-                        <option key={m.value} value={m.value}>{m.label}</option>
-                      ))}
+                      {MONTH_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                     </select>
                   </div>
                 </div>
               )}
-              <div>
-                <Button size="sm" onClick={saveConfig} disabled={updateTemplate.isPending}>
-                  Salvar Configurações
-                </Button>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="outline" onClick={() => setShowConfig(false)}>Cancelar</Button>
+                <Button onClick={saveConfig} disabled={updateTemplate.isPending}>Salvar</Button>
               </div>
             </div>
-          ) : (
-            <div className="flex gap-3 flex-wrap items-center text-[13px]">
-              {template.description && (
-                <span className="text-muted-foreground">{template.description}</span>
-              )}
-              <Badge variant="outline" className="text-primary bg-primary/10 border-primary/20">
-                {PROCESS_TYPE_LABELS[template.process_type || ''] || template.process_type || 'Sem tipo'}
-              </Badge>
-              {template.routine_type_id && routineTypes && (
-                <Badge className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-semibold border-emerald-500/20">
-                  {(() => {
-                    const rt = routineTypes.find(r => r.id === template.routine_type_id);
-                    return rt ? <>{rt.name}</> : null;
-                  })()}
-                </Badge>
-              )}
-              <span className="text-muted-foreground">
-                {RECURRENCE_LABELS[template.recurrence] || template.recurrence}
-              </span>
-              {template.recurrence === 'weekly' && template.weekday_mask && (
-                <span className="text-muted-foreground">
-                  {template.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}
-                </span>
-              )}
-              {template.recurrence === 'monthly' && template.due_day && (
-                <span className="text-muted-foreground">Dia {template.due_day}</span>
-              )}
-              {template.recurrence === 'yearly' && template.due_day && (
-                <span className="text-muted-foreground">{template.due_day}/{template.due_month}</span>
-              )}
-              {template.recurrence === 'once' && template.due_days_from_start && (
-                <span className="text-muted-foreground">{template.due_days_from_start} dias p/ execução</span>
-              )}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+          </SheetContent>
+        </Sheet>
+      </div>
 
-      {/* Activities */}
+      {/* Recurrence details row */}
+      {template.recurrence === 'once' && template.due_days_from_start && (
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
+          <Clock size={14} /> Prazo: <strong>{template.due_days_from_start} dias</strong> após o start
+        </div>
+      )}
+      {template.recurrence === 'weekly' && template.weekday_mask && (
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
+          <Clock size={14} /> Dias: <strong>{template.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}</strong>
+        </div>
+      )}
+      {template.recurrence === 'monthly' && template.due_day && (
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
+          <Clock size={14} /> Vencimento: <strong>dia {template.due_day}</strong> de cada mês
+        </div>
+      )}
+      {template.recurrence === 'yearly' && template.due_day && (
+        <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
+          <Clock size={14} /> Vencimento: <strong>dia {template.due_day}/{String(template.due_month).padStart(2, '0')}</strong> anualmente
+        </div>
+      )}
+
+      {/* ── Activities Section ── */}
       <Card>
         <CardContent>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-bold">Atividades da Rotina</h3>
-            <Button size="sm" onClick={() => setShowAdd(true)}>
-              <Plus size={16} /> Adicionar Atividade
+            <h3 className="text-base font-bold">Atividades</h3>
+            <Button size="sm" onClick={() => setShowAdd(true)} disabled={showAdd}>
+              <Plus size={15} /> Adicionar
             </Button>
           </div>
 
+          {/* Add Activity Form - inline, compact */}
           {showAdd && (
-            <div className="p-4 bg-muted rounded-lg mb-4 border border-primary/20">
-              <div className="flex flex-col gap-3">
-                <div className="flex gap-3 flex-wrap items-start">
-                  <div className="flex-1 min-w-[200px]">
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Título da Tarefa</label>
-                    <Input value={newActName} onChange={(e) => setNewActName(e.target.value)} placeholder="Ex: Apuração de tributos" />
-                  </div>
-                  <div className="min-w-[140px]">
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Prioridade</label>
-                    <select
-                      value={newActPriority}
-                      onChange={(e) => setNewActPriority(e.target.value)}
-                      className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30"
-                    >
-                      {PRIORITY_OPTIONS.map(opt => (
-                        <option key={opt.value} value={opt.value}>{opt.label}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="text-xs font-semibold text-muted-foreground block mb-1">Minutos Estimados</label>
-                    <Input type="number" min={0} value={newActHours} onChange={(e) => setNewActHours(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" className="w-[80px]" />
-                  </div>
+            <div className="p-3 bg-muted rounded-lg mb-4 border border-primary/20 space-y-3">
+              <div className="flex gap-3 flex-wrap items-start">
+                <div className="flex-1 min-w-[180px]">
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Título</label>
+                  <Input value={newActName} onChange={(e) => setNewActName(e.target.value)} placeholder="Ex: Apuração de tributos" />
                 </div>
-                <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Descrição</label>
-                  <Textarea
-                    value={newActDescription}
-                    onChange={(e) => setNewActDescription(e.target.value)}
-                    placeholder="Passo a passo da atividade..."
-                    rows={3}
-                    className="resize-y"
-                  />
+                <div className="w-[120px]">
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Prioridade</label>
+                  <select value={newActPriority} onChange={(e) => setNewActPriority(e.target.value)}
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                    <option value="low">🔵 Baixa</option>
+                    <option value="medium">🟡 Média</option>
+                    <option value="high">🔴 Alta</option>
+                  </select>
                 </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={handleAddActivity} disabled={!newActName.trim() || createActivity.isPending}>
-                    Adicionar
-                  </Button>
-                  <Button variant="ghost" size="sm" onClick={() => setShowAdd(false)}>Cancelar</Button>
+                <div className="w-[100px]">
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Tempo (min)</label>
+                  <Input type="number" min={0} value={newActMinutes} onChange={(e) => setNewActMinutes(e.target.value === '' ? '' : Number(e.target.value))} placeholder="0" />
                 </div>
+              </div>
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground block mb-1">Descrição</label>
+                <Textarea value={newActDescription} onChange={(e) => setNewActDescription(e.target.value)} placeholder="Passo a passo da atividade..." rows={2} className="resize-y text-sm" />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={handleAddActivity} disabled={!newActName.trim() || createActivity.isPending}>Adicionar</Button>
+                <Button variant="ghost" size="sm" onClick={() => setShowAdd(false)}>Cancelar</Button>
               </div>
             </div>
           )}
 
+          {/* Activity list */}
           {sortedActivities.length === 0 ? (
             <div className="text-center py-10 text-muted-foreground">
-              Nenhuma atividade nesta rotina. Adicione atividades para que sejam geradas automaticamente ao vincular a um cliente.
+              Nenhuma atividade cadastrada. Adicione atividades para gerar tarefas automaticamente.
             </div>
           ) : (
-            <div className="flex flex-col gap-2">
+            <div className="flex flex-col gap-1.5">
               {sortedActivities.map((act, idx) => (
                 <div
                   key={act.id}
@@ -525,86 +436,64 @@ export const TemplateDetailPage: React.FC = () => {
                     setDraggedId(null);
                   }}
                   className={cn(
-                    "flex flex-col gap-2 p-3 rounded-lg border",
-                    editingAct === act.id ? "bg-muted" : "bg-card",
-                    draggedId === act.id && "opacity-50",
-                    "border-border"
+                    "flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors",
+                    editingAct === act.id ? "bg-muted border-primary/30" : "bg-card border-border/60 hover:border-border",
+                    draggedId === act.id && "opacity-40"
                   )}
                 >
                   {editingAct === act.id ? (
-                    <div className="flex flex-col gap-2.5">
-                      <div className="flex gap-2 items-center flex-wrap">
-                        <Input value={editName} onChange={(e) => setEditName(e.target.value)} className="flex-1 min-w-[150px]" />
+                    /* ── Edit mode ── */
+                    <div className="flex-1 flex flex-col gap-2.5">
+                      <div className="flex gap-2 items-start flex-wrap">
+                        <div className="flex-1 min-w-[150px]">
+                          <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome da atividade" />
+                        </div>
                         <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)}
-                          className="flex h-8 rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
-                          {PRIORITY_OPTIONS.map(opt => (
-                            <option key={opt.value} value={opt.value}>{opt.label}</option>
-                          ))}
+                          className="flex h-9 w-[110px] rounded-lg border border-input bg-transparent px-2 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                          <option value="low">🔵 Baixa</option>
+                          <option value="medium">🟡 Média</option>
+                          <option value="high">🔴 Alta</option>
                         </select>
-                        <div className="flex gap-1 items-center text-[13px] text-muted-foreground">
-                          ⏱
-                          <Input type="number" min={0} value={editHours} onChange={(e) => setEditHours(e.target.value === '' ? '' : Number(e.target.value))} className="w-[60px] text-center" />
-                          min
+                        <div className="flex items-center gap-1">
+                          <Input type="number" min={0} value={editMinutes} onChange={(e) => setEditMinutes(e.target.value === '' ? '' : Number(e.target.value))} className="w-16 text-center" placeholder="0" />
+                          <span className="text-xs text-muted-foreground">min</span>
                         </div>
                       </div>
-                      <Textarea
-                        value={editDescription}
-                        onChange={(e) => setEditDescription(e.target.value)}
-                        placeholder="Descrição da atividade..."
-                        rows={2}
-                        className="resize-y"
-                      />
+                      <Textarea value={editDescription} onChange={(e) => setEditDescription(e.target.value)} placeholder="Descrição da atividade..." rows={2} className="resize-y text-sm" />
                       <div className="flex gap-1.5">
-                        <Button size="sm" onClick={saveEdit} disabled={updateActivity.isPending}>Salvar</Button>
+                        <Button size="sm" onClick={saveEdit} disabled={!editName.trim() || updateActivity.isPending}>Salvar</Button>
                         <Button variant="ghost" size="sm" onClick={() => setEditingAct(null)}>Cancelar</Button>
                       </div>
                     </div>
                   ) : (
+                    /* ── View mode ── */
                     <>
-                      <div className="flex items-start gap-3">
-                        <GripVertical size={16} className="text-muted-foreground shrink-0 mt-0.5 cursor-grab" />
-                        <span className="text-xs font-bold text-muted-foreground min-w-[24px] mt-0.5">{idx + 1}.</span>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <span className="font-semibold text-sm">{act.name}</span>
-                            <span className={cn(
-                              "text-[11px] px-2 py-0.5 rounded-full font-bold text-white",
-                              act.priority === 'low' && "bg-blue-500",
-                              act.priority === 'medium' && "bg-yellow-500",
-                              act.priority === 'high' && "bg-red-500",
-                              !act.priority && "bg-gray-500"
-                            )}>
-                              {PRIORITY_OPTIONS.find(p => p.value === act.priority)?.label.split(' ')[1] || act.priority}
-                            </span>
-                            {act.due_day && (
-                              <span className="text-xs text-muted-foreground">📅 Dia {act.due_day}</span>
-                            )}
-                            {act.estimated_minutes && (
-                              <span className="text-xs text-muted-foreground">⏱ {act.estimated_minutes}min</span>
-                            )}
-                          </div>
-                          {act.description && (
-                            <p className="text-[13px] text-muted-foreground mt-1 leading-[1.4] whitespace-pre-wrap">
-                              {act.description}
-                            </p>
+                      <GripVertical size={14} className="text-muted-foreground shrink-0 mt-1 cursor-grab" />
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 mb-0.5">
+                          <span className="text-xs font-bold text-muted-foreground min-w-[18px]">{idx + 1}.</span>
+                          <span className="font-semibold text-sm">{act.name}</span>
+                          <span className={cn("text-[10px] px-1.5 py-0.5 rounded-full font-bold", PRIORITY_STYLES[act.priority]?.bg || 'bg-gray-500/10', PRIORITY_STYLES[act.priority]?.text || 'text-gray-500')}>
+                            {PRIORITY_STYLES[act.priority]?.label || act.priority || 'Baixa'}
+                          </span>
+                        </div>
+                        {act.description && (
+                          <p className="text-[12px] text-muted-foreground ml-[26px] leading-[1.4] whitespace-pre-wrap line-clamp-2">
+                            {act.description}
+                          </p>
+                        )}
+                        <div className="flex items-center gap-3 ml-[26px] mt-0.5 text-[11px] text-muted-foreground">
+                          {act.estimated_minutes && (
+                            <span className="flex items-center gap-1"><Clock size={11} /> {act.estimated_minutes}min</span>
                           )}
                         </div>
-                        <div className="flex gap-1 shrink-0 mt-0.5">
-                          <Button variant="ghost" size="icon-sm" onClick={() => startEdit(act)}>
-                            <Edit2 size={14} />
-                          </Button>
-                          <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={async () => {
-                            const ok = await confirm({
-                              title: 'Remover atividade',
-                              message: `Remover "${act.name}"?`,
-                              variant: 'danger',
-                              confirmLabel: 'Remover',
-                            });
-                            if (ok) deleteActivity.mutate({ template_id: id!, id: act.id });
-                          }}>
-                            <X size={14} />
-                          </Button>
-                        </div>
+                      </div>
+                      <div className="flex gap-0.5 shrink-0">
+                        <Button variant="ghost" size="icon-xs" onClick={() => startEdit(act)}><Edit2 size={13} /></Button>
+                        <Button variant="ghost" size="icon-xs" className="text-destructive" onClick={async () => {
+                          const ok = await confirm({ title: 'Remover atividade', message: `Remover "${act.name}"?`, variant: 'danger', confirmLabel: 'Remover' });
+                          if (ok) deleteActivity.mutate({ template_id: id!, id: act.id });
+                        }}><X size={13} /></Button>
                       </div>
                     </>
                   )}
@@ -616,12 +505,10 @@ export const TemplateDetailPage: React.FC = () => {
       </Card>
 
       {/* Usage info */}
-      <Card className="mt-6 bg-primary/[0.03]">
-        <CardContent>
-          <h4 className="text-sm font-bold mb-2">Como usar esta rotina</h4>
+      <Card className="mt-5 bg-primary/[0.03]">
+        <CardContent className="py-4">
           <p className="text-[13px] text-muted-foreground leading-relaxed">
-            Ao vincular esta rotina a um cliente (na página de <strong>Empresas</strong> ou diretamente na <strong>Timeline do Cliente</strong>),
-            o sistema irá gerar automaticamente todas as {sortedActivities.length} atividade(s) como tarefas individuais, cada uma com seu prazo calculado.
+            Ao vincular esta rotina a um cliente, o sistema gera automaticamente {sortedActivities.length} atividade(s) como tarefas individuais com prazos calculados.
           </p>
         </CardContent>
       </Card>
