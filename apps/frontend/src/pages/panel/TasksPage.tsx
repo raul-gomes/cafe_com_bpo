@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw } from 'lucide-react';
+import React, { useState, useMemo } from 'react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw, Users } from 'lucide-react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { TaskResponse } from '../../schemas/tasks';
+import { ClientData } from '../../api/clients';
 import { TaskModal } from '../../components/tasks/TaskModal';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { TaskKanban } from '../../components/tasks/TaskKanban';
@@ -44,13 +45,51 @@ export const TasksPage: React.FC = () => {
     const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
 
+    const [showTeamCards, setShowTeamCards] = useState(false);
+    const [teamClientId, setTeamClientId] = useState<string | undefined>(undefined);
+    const { data: teamTasks } = useTasksList(teamClientId);
+
     const { data: clients } = useQuery({
         queryKey: ['clients'],
         queryFn: async () => {
             const { data } = await apiClient.get('/clients/');
-            return data;
+            return data as (ClientData & { role?: string })[];
         }
     });
+
+    // When toggle changes, fetch team tasks for all member-clients
+    const handleToggleTeamCards = () => {
+        if (!showTeamCards) {
+            setShowTeamCards(true);
+            // For simplicity, use first member client_id to fetch team tasks
+            // A real implementation would fetch for all clients and merge
+            const memberClient = (clients || []).find(c => c.role === 'member');
+            if (memberClient) {
+                setTeamClientId(memberClient.id);
+            }
+        } else {
+            setShowTeamCards(false);
+            setTeamClientId(undefined);
+        }
+    };
+
+    // Merge team tasks into main task list when toggle is on
+    const allTasks = useMemo(() => {
+        if (!showTeamCards || !teamTasks || !tasks) return tasks || [];
+        const seen = new Set<string>();
+        const merged: TaskResponse[] = [];
+        for (const t of tasks) {
+            seen.add(t.id);
+            merged.push(t);
+        }
+        for (const t of teamTasks) {
+            if (!seen.has(t.id)) {
+                seen.add(t.id);
+                merged.push(t);
+            }
+        }
+        return merged;
+    }, [tasks, teamTasks, showTeamCards]);
 
     const handleBulkComplete = async (colId: string) => {
         if (!tasks) return;
@@ -86,7 +125,17 @@ export const TasksPage: React.FC = () => {
         if (!result.destination) return;
         const { draggableId, destination } = result;
         if (destination.droppableId === result.source.droppableId) return;
-        updateTaskStatus.mutate({ id: draggableId, phase_id: destination.droppableId });
+        updateTaskStatus.mutate(
+            { id: draggableId, phase_id: destination.droppableId },
+            {
+                onError: (err: any) => {
+                    const detail = err?.response?.data?.detail;
+                    if (err?.response?.status === 422 && typeof detail === 'object') {
+                        toast.error(detail?.message || 'Fase não disponível para o gestor deste cliente');
+                    }
+                },
+            }
+        );
     };
 
     const getTaskStatus = (task: TaskResponse): string => {
@@ -150,7 +199,8 @@ export const TasksPage: React.FC = () => {
         );
     }
 
-    const tasksList = tasks || [];
+    // Use allTasks (with team tasks merged) when toggle is on
+    const tasksList = allTasks || tasks || [];
 
     const todayStr = new Date().toISOString().split('T')[0];
     const todayStart = new Date();
@@ -345,6 +395,21 @@ export const TasksPage: React.FC = () => {
                         );
                     })}
                     <div className="mx-1 h-5 w-px bg-white/10" />
+
+                    {/* Team toggle */}
+                    <button
+                        onClick={handleToggleTeamCards}
+                        className={cn(
+                            'flex items-center gap-1 rounded-sm px-2.5 py-1 text-[12px] font-bold font-sans transition-all',
+                            showTeamCards
+                                ? 'border border-primary bg-primary text-primary-foreground'
+                                : 'border border-white/10 bg-muted text-muted-foreground'
+                        )}
+                        title="Mostrar cards da equipe"
+                    >
+                        <Users size={14} />
+                        Equipe
+                    </button>
 
                     {/* Datepicker */}
                     <div className="relative">

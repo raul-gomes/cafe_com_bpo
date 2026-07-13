@@ -158,6 +158,11 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               day: '2-digit', month: '2-digit',
             })}
           </span>
+          {task.moved_by_name && (
+            <span className="flex items-center gap-1 text-[9px] text-muted-foreground/70 font-medium">
+              → {task.moved_by_name}
+            </span>
+          )}
         </div>
         <div className="flex gap-1">
           {onFinalize && !isDone && !isCancelled && (

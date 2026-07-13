@@ -18,11 +18,12 @@ import {
 export const useTasks = () => {
   const queryClient = useQueryClient();
 
-  const useTasksList = () => {
+  const useTasksList = (clientId?: string) => {
     return useQuery<TaskResponse[]>({
-      queryKey: ['tasks'],
+      queryKey: clientId ? ['tasks', 'team', clientId] : ['tasks'],
       queryFn: async () => {
-        const { data } = await apiClient.get('/tasks/');
+        const params = clientId ? { client_id: clientId } : {};
+        const { data } = await apiClient.get('/tasks/', { params });
         return data;
       },
     });

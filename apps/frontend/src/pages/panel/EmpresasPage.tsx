@@ -5,6 +5,13 @@ import { maskCNPJ, maskPhone } from '../../lib/formatters';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Link, Unlink, FileText } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { Users, UserPlus, Trash2 } from 'lucide-react';
+import {
+  inviteCollaborator,
+  listTeamMembers,
+  removeTeamMember,
+  TeamMemberResponse,
+} from '../../api/team';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -45,6 +52,13 @@ export const EmpresasPage: React.FC = () => {
   const [formData, setFormData] = useState({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
   const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment } = useTasks();
   const [linkClientId, setLinkClientId] = useState<string | null>(null);
+  const [teamClientId, setTeamClientId] = useState<string | null>(null);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
+  const [showInvite, setShowInvite] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteTemplateIds, setInviteTemplateIds] = useState<string[]>([]);
+  const [inviting, setInviting] = useState(false);
+  const [loadingTeam, setLoadingTeam] = useState(false);
   const { data: templates } = useTemplatesList();
   const { data: currentAssignments, refetch: refetchAssignments } = useClientAssignments(linkClientId || '');
   const assignTemplate = useAssignTemplate();
@@ -132,6 +146,54 @@ export const EmpresasPage: React.FC = () => {
       console.error(e);
       toast.error('Erro ao excluir cliente.');
       await loadClients();
+    }
+  };
+
+  /* ── Team ── */
+  const loadTeam = async (clientId: string) => {
+    setLoadingTeam(true);
+    try {
+      const { data } = await listTeamMembers(clientId);
+      setTeamMembers(data.members);
+    } catch {
+      toast.error('Erro ao carregar equipe');
+    } finally {
+      setLoadingTeam(false);
+    }
+  };
+
+  const handleInvite = async () => {
+    if (!inviteEmail.trim() || inviteTemplateIds.length === 0 || !teamClientId) return;
+    setInviting(true);
+    try {
+      await inviteCollaborator(teamClientId, { email: inviteEmail.trim(), template_ids: inviteTemplateIds });
+      toast.success('Convite enviado com sucesso!');
+      setShowInvite(false);
+      setInviteEmail('');
+      setInviteTemplateIds([]);
+      loadTeam(teamClientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Erro ao enviar convite');
+    } finally {
+      setInviting(false);
+    }
+  };
+
+  const handleRemoveMember = async (userId: string, name: string) => {
+    if (!teamClientId) return;
+    const ok = await confirm({
+      title: 'Remover membro',
+      message: `Tem certeza que deseja remover "${name}" da equipe?`,
+      variant: 'danger',
+      confirmLabel: 'Remover',
+    });
+    if (!ok) return;
+    try {
+      await removeTeamMember(teamClientId, userId);
+      toast.success('Membro removido');
+      loadTeam(teamClientId);
+    } catch {
+      toast.error('Erro ao remover membro');
     }
   };
 
@@ -276,8 +338,11 @@ export const EmpresasPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                      <Button variant="ghost" size="sm" onClick={() => setLinkClientId(c.id)} title="Vincular Rotinas">
+                      <Button variant="ghost" size="sm" onClick={() => { setLinkClientId(c.id); }} title="Vincular Rotinas">
                         <Link size={14} /> Rotinas
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => { setTeamClientId(c.id); loadTeam(c.id); }} title="Equipe">
+                        <Users size={14} /> Equipe
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => handleStartEdit(c)} title="Editar">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -375,6 +440,141 @@ export const EmpresasPage: React.FC = () => {
               💡 Ao vincular uma rotina, as tarefas são geradas automaticamente para o período atual.
               Você pode gerenciar as rotinas em <strong>Rotinas</strong> no menu lateral.
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Dialog: Equipe */}
+      <Dialog open={!!teamClientId} onOpenChange={(open) => { if (!open) { setTeamClientId(null); setShowInvite(false); } }}>
+        <DialogContent className="sm:max-w-[550px]">
+          <DialogHeader>
+            <div className="flex items-center gap-3">
+              <Users size={20} className="text-primary" />
+              <DialogTitle>Equipe do Cliente</DialogTitle>
+            </div>
+            <DialogDescription>
+              Gerencie os colaboradores que têm acesso a este cliente.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="px-6 pb-6">
+            {/* Invite button */}
+            {!showInvite && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="mb-4 w-full"
+                onClick={() => setShowInvite(true)}
+              >
+                <UserPlus size={15} /> Convidar Colaborador
+              </Button>
+            )}
+
+            {/* Invite form */}
+            {showInvite && (
+              <div className="mb-4 rounded-lg border border-primary/20 bg-muted p-4 space-y-3">
+                <h4 className="text-sm font-semibold">Convidar Colaborador</h4>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Email do colaborador</label>
+                  <Input
+                    type="email"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                    placeholder="colaborador@email.com"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Rotinas com acesso</label>
+                  <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto">
+                    {templates?.length === 0 ? (
+                      <p className="text-[12px] text-muted-foreground py-2">
+                        Nenhuma rotina disponível. Vincule rotinas ao cliente primeiro.
+                      </p>
+                    ) : (
+                      templates?.map(tmpl => (
+                        <label
+                          key={tmpl.id}
+                          className={cn(
+                            'flex items-center gap-2 rounded-md border px-3 py-2 text-sm cursor-pointer transition-colors',
+                            inviteTemplateIds.includes(tmpl.id)
+                              ? 'border-primary/30 bg-primary/5'
+                              : 'border-border'
+                          )}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={inviteTemplateIds.includes(tmpl.id)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setInviteTemplateIds(prev => [...prev, tmpl.id]);
+                              } else {
+                                setInviteTemplateIds(prev => prev.filter(id => id !== tmpl.id));
+                              }
+                            }}
+                            className="size-4"
+                          />
+                          <span>{tmpl.name}</span>
+                        </label>
+                      ))
+                    )}
+                  </div>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button variant="ghost" size="sm" onClick={() => { setShowInvite(false); setInviteEmail(''); setInviteTemplateIds([]); }}>
+                    Cancelar
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleInvite}
+                    disabled={!inviteEmail.trim() || inviteTemplateIds.length === 0 || inviting}
+                  >
+                    {inviting ? 'Enviando...' : 'Enviar Convite'}
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {/* Team members list */}
+            {loadingTeam ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">Carregando...</div>
+            ) : teamMembers.length === 0 ? (
+              <div className="py-6 text-center text-sm text-muted-foreground">
+                Nenhum colaborador na equipe ainda.
+              </div>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {teamMembers.map((member) => (
+                  <div
+                    key={member.user_id}
+                    className="flex items-center gap-3 rounded-md border border-border p-3"
+                  >
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                      {(member.name || member.email)[0].toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-sm font-semibold">{member.name || 'Sem nome'}</div>
+                      <div className="text-xs text-muted-foreground">{member.email}</div>
+                      <div className="mt-1 flex flex-wrap gap-1">
+                        {member.routines.map(r => (
+                          <span key={r.template_id} className="rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
+                            {r.name}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                    <Button
+                      variant="ghost"
+                      size="icon-xs"
+                      className="text-destructive shrink-0"
+                      onClick={() => handleRemoveMember(member.user_id, member.name || member.email)}
+                      title="Remover"
+                    >
+                      <Trash2 size={14} />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </DialogContent>
       </Dialog>

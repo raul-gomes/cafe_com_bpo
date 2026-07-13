@@ -45,6 +45,8 @@ class TaskResponse(TaskBase):
     template_id: Optional[UUID] = None
     assignment_id: Optional[UUID] = None
     template_name: Optional[str] = None
+    moved_by: Optional[UUID] = None
+    moved_by_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     cancelled_at: Optional[datetime] = None

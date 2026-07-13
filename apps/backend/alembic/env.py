@@ -20,6 +20,11 @@ from src.modules.tasks.models import (  # noqa: F401
     ClientSLA,
     TaskAttachment,
 )
+from src.modules.team.models import (  # noqa: F401
+    ClientInvitation,
+    ClientInvitationRoutine,
+    ClientTeamMember,
+)
 from src.core.config import get_settings
 
 # this is the Alembic Config object, which provides

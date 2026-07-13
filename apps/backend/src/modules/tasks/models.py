@@ -113,6 +113,11 @@ class Task(Base):
     cancelled_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, server_default="true", default=True, nullable=False)
 
+    # Team tracking
+    moved_by = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
     # Relationships
     phase = relationship("TaskPhase", back_populates="tasks")
     attachments = relationship(
@@ -122,10 +127,15 @@ class Task(Base):
         foreign_keys="TaskAttachment.task_id",
     )
     template = relationship("ActivityTemplate", foreign_keys=[template_id])
+    mover = relationship("User", foreign_keys=[moved_by])
 
     @property
     def template_name(self) -> Optional[str]:
         return self.template.name if self.template else None
+
+    @property
+    def moved_by_name(self) -> Optional[str]:
+        return self.mover.name if self.mover else None
 
 
 # ──────────────────────────────────────────────

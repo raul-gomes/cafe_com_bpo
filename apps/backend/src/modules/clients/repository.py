@@ -30,6 +30,14 @@ class ClientRepository:
             .all()
         )
 
+    def get_by_id_unchecked(self, client_id: UUID) -> Optional[Client]:
+        """Get client without filtering by user_id (for team access checks)."""
+        return (
+            self.session.query(Client)
+            .filter(Client.id == client_id, Client.is_active == True)
+            .first()
+        )
+
     def create(self, client_in: ClientCreate, user_id: UUID) -> Client:
         client_data = client_in.model_dump()
 

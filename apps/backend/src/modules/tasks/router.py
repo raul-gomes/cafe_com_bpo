@@ -10,6 +10,7 @@ from src.core.config import get_settings
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 from src.modules.notifications.repository import NotificationRepository
+from src.modules.team.repository import TeamRepository
 
 from .schemas import (
     TaskCreate,
@@ -67,15 +68,58 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 def get_tasks(
     repo: RepoDep,
     current_user: CurrentUserDep,
+    session: Annotated[Session, Depends(get_db_session)],
     today: bool = False,
     overdue: bool = False,
+    client_id: Optional[UUID] = None,
 ):
     """Retorna tarefas cadastradas pelo usuário atual.
+
+    Se client_id for informado e o usuário for membro da equipe,
+    retorna também as tarefas dos demais membros para aquele cliente.
 
     Query params:
     - today: filtra apenas tarefas com deadline igual à data de hoje
     - overdue: filtra apenas tarefas com deadline anterior a hoje e não concluídas
+    - client_id: filtra por cliente e inclui tarefas do time
     """
+    if client_id:
+        team_repo = TeamRepository(session)
+        owner_id = team_repo.get_client_owner_id(client_id)
+        is_owner = owner_id == current_user.id
+        is_member = team_repo.is_team_member(client_id, current_user.id)
+
+        if is_owner or is_member:
+            if is_owner:
+                # Owner sees all tasks for this client (their own + team members')
+                user_ids = [current_user.id] + [
+                    m.user_id for m in team_repo.get_team_members(client_id)
+                    if m.user_id != current_user.id
+                ]
+            else:
+                # Team member sees own tasks + owner's tasks for this client
+                user_ids = [current_user.id]
+                if owner_id:
+                    user_ids.append(owner_id)
+
+            all_tasks = []
+            for uid in user_ids:
+                all_tasks.extend(repo.get_by_user(
+                    uid,
+                    today_filter=today,
+                    overdue_filter=overdue,
+                ))
+            # Filter by client_id
+            all_tasks = [t for t in all_tasks if str(t.client_id) == str(client_id)]
+            # Deduplicate by task id
+            seen = set()
+            unique = []
+            for t in all_tasks:
+                if t.id not in seen:
+                    seen.add(t.id)
+                    unique.append(t)
+            return unique
+
     return repo.get_by_user(
         current_user.id,
         today_filter=today,
@@ -93,12 +137,45 @@ def create_task(task_in: TaskCreate, repo: RepoDep, current_user: CurrentUserDep
 
 @router.put("/{task_id}", response_model=TaskResponse)
 def update_task(
-    task_id: UUID, task_in: TaskUpdate, repo: RepoDep, current_user: CurrentUserDep
+    task_id: UUID,
+    task_in: TaskUpdate,
+    repo: RepoDep,
+    current_user: CurrentUserDep,
+    session: Annotated[Session, Depends(get_db_session)],
 ):
-    """Atualiza dados da tarefa"""
+    """Atualiza dados da tarefa.
+
+    Se phase_id mudar e a task pertencer a um cliente com equipe,
+    valida que a fase existe no gestor e registra quem moveu.
+    """
     task = repo.get_by_id(task_id, current_user.id)
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+
+    # If phase_id is changing, validate and track
+    if task_in.phase_id is not None and task_in.phase_id != task.phase_id:
+        team_repo = TeamRepository(session)
+        owner_id = team_repo.get_client_owner_id(task.client_id)
+
+        if owner_id:
+            # Validate phase exists in gestor's phases
+            gestor_phases = repo.get_phases_by_user(owner_id)
+            phase_ids = [str(p.id) for p in gestor_phases]
+
+            if str(task_in.phase_id) not in phase_ids:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail={
+                        "error": "fase_inexistente",
+                        "message": (
+                            "Esta fase não existe para o gestor deste cliente. "
+                            "Peça ao gestor para criar a fase primeiro."
+                        ),
+                    },
+                )
+
+        # Set moved_by on phase change before update
+        task.moved_by = current_user.id
 
     updated_task = repo.update(task, task_in)
     return updated_task

@@ -26,6 +26,7 @@ class ClientUpdate(ClientBase):
 class ClientResponse(ClientBase):
     id: UUID
     user_id: UUID
+    role: str = "owner"  # "owner" | "member"
     created_at: datetime
     updated_at: datetime
 

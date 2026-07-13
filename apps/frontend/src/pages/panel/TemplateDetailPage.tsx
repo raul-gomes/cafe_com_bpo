@@ -210,7 +210,7 @@ export const TemplateDetailPage: React.FC = () => {
         { label: template.name },
       ]} />
 
-      <div className="mb-4">
+      <div className="mb-4 flex justify-end">
         <Button variant="ghost" size="sm" onClick={() => navigate('/painel/templates-atividades')} className="gap-1.5">
           <ArrowLeft size={15} /> Voltar
         </Button>
@@ -261,7 +261,7 @@ export const TemplateDetailPage: React.FC = () => {
             <SheetHeader>
               <SheetTitle>Configurações da Rotina</SheetTitle>
             </SheetHeader>
-            <div className="flex flex-col gap-4 mt-6">
+            <div className="flex flex-col gap-4 mt-6 px-6 pb-6">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Descrição</label>
                 <Textarea value={cfgDescription} onChange={(e) => setCfgDescription(e.target.value)} placeholder="Descrição da rotina..." rows={2} className="resize-y" />
@@ -436,7 +436,7 @@ export const TemplateDetailPage: React.FC = () => {
                     setDraggedId(null);
                   }}
                   className={cn(
-                    "flex items-start gap-2.5 p-2.5 rounded-lg border transition-colors",
+                    "flex items-start gap-2.5 p-3 rounded-lg border transition-colors",
                     editingAct === act.id ? "bg-muted border-primary/30" : "bg-card border-border/60 hover:border-border",
                     draggedId === act.id && "opacity-40"
                   )}

@@ -4,7 +4,7 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, Annotated
 from sqlalchemy.orm import Session
 from sqlalchemy.exc import IntegrityError
-from fastapi import HTTPException, Depends, status
+from fastapi import HTTPException, Depends, status, Request
 
 from src.core.database import get_db_session
 from src.core.security import PasswordService, TokenService, oauth2_scheme
@@ -182,3 +182,30 @@ async def require_admin(
             detail="Acesso restrito a administradores",
         )
     return current_user
+
+
+async def get_optional_user(
+    request: Request,
+    session: Annotated[Session, Depends(get_db_session)],
+) -> Optional[UserResponse]:
+    """Tenta obter o usuário logado, retorna None se não autenticado."""
+    token = request.cookies.get("access_token")
+    if not token:
+        # Try Authorization header
+        auth = request.headers.get("Authorization")
+        if auth and auth.startswith("Bearer "):
+            token = auth[7:]
+        else:
+            return None
+    try:
+        payload = TokenService.decode_access_token(token)
+        user_id = payload.get("sub")
+        if user_id is None:
+            return None
+        repo = UserRepository(session)
+        user = repo.get_user_by_id(uuid.UUID(user_id))
+        if user is None:
+            return None
+        return UserResponse.from_user(user)
+    except Exception:
+        return None
