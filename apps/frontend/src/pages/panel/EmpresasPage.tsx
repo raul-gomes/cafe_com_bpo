@@ -5,7 +5,7 @@ import { maskCNPJ, maskPhone } from '../../lib/formatters';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Link, Unlink, FileText } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { Users, UserPlus, Trash2 } from 'lucide-react';
+import { Users, UserPlus, Trash2, Check } from 'lucide-react';
 import {
   inviteCollaborator,
   listTeamMembers,
@@ -27,6 +27,8 @@ import {
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
+import { EmailChipInput, type EmailChip } from '../../components/ui/EmailChipInput';
+import { useUserLookup } from '../../api/hooks/useUserLookup';
 
 const BPO_SEGMENTS = [
   'BPO Financeiro',
@@ -55,15 +57,62 @@ export const EmpresasPage: React.FC = () => {
   const [teamClientId, setTeamClientId] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
   const [showInvite, setShowInvite] = useState(false);
-  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteEmails, setInviteEmails] = useState<EmailChip[]>([]);
   const [inviteTemplateIds, setInviteTemplateIds] = useState<string[]>([]);
   const [inviting, setInviting] = useState(false);
   const [loadingTeam, setLoadingTeam] = useState(false);
+  const [lookedUpEmails, setLookedUpEmails] = useState<Set<string>>(new Set());
+  const [userDataMap, setUserDataMap] = useState<Map<string, { name?: string | null; avatar_url?: string | null }>>(new Map());
   const { data: templates } = useTemplatesList();
   const { data: currentAssignments, refetch: refetchAssignments } = useClientAssignments(linkClientId || '');
+  const { data: teamAssignments } = useClientAssignments(teamClientId || '');
+
+  // Derive linked templates (with name) from assignments + templates list
+  const linkedTemplates = React.useMemo(() => {
+    if (!teamAssignments || !templates) return [];
+    const tmplMap = new Map(templates.map(t => [t.id, t]));
+    return teamAssignments
+      .map(a => tmplMap.get(a.template_id))
+      .filter((t): t is NonNullable<typeof t> => !!t);
+  }, [teamAssignments, templates]);
   const assignTemplate = useAssignTemplate();
   const removeAssignment = useRemoveAssignment();
   const confirm = useConfirm();
+  const userLookup = useUserLookup();
+
+  // When teamClientId changes, reset invite form
+  useEffect(() => {
+    setShowInvite(false);
+    setInviteEmails([]);
+    setInviteTemplateIds([]);
+    setLookedUpEmails(new Set());
+    setUserDataMap(new Map());
+  }, [teamClientId]);
+
+  // Auto-lookup emails when chips change
+  useEffect(() => {
+    const unchecked = inviteEmails
+      .map(c => c.email)
+      .filter(e => !lookedUpEmails.has(e));
+    if (unchecked.length === 0) return;
+
+    userLookup.mutate(unchecked, {
+      onSuccess: (data) => {
+        setLookedUpEmails(prev => {
+          const s = new Set(prev);
+          unchecked.forEach(e => s.add(e));
+          return s;
+        });
+        if (data.found.length > 0) {
+          setUserDataMap(prev => {
+            const m = new Map(prev);
+            data.found.forEach(u => m.set(u.email, { name: u.name, avatar_url: u.avatar_url }));
+            return m;
+          });
+        }
+      },
+    });
+  }, [inviteEmails.length]);
 
   useEffect(() => {
     loadClients();
@@ -163,17 +212,27 @@ export const EmpresasPage: React.FC = () => {
   };
 
   const handleInvite = async () => {
-    if (!inviteEmail.trim() || inviteTemplateIds.length === 0 || !teamClientId) return;
+    if (inviteEmails.length === 0 || inviteTemplateIds.length === 0 || !teamClientId) return;
     setInviting(true);
     try {
-      await inviteCollaborator(teamClientId, { email: inviteEmail.trim(), template_ids: inviteTemplateIds });
-      toast.success('Convite enviado com sucesso!');
+      const { data } = await inviteCollaborator(teamClientId, {
+        emails: inviteEmails.map(c => c.email),
+        template_ids: inviteTemplateIds,
+      });
+      if (data.total_sent > 0) {
+        toast.success(`${data.total_sent} convite(s) enviado(s) com sucesso!`);
+      }
+      if (data.total_errors > 0) {
+        data.results.filter(r => r.status === 'error').forEach(r => {
+          toast.error(`${r.email}: ${r.error}`);
+        });
+      }
       setShowInvite(false);
-      setInviteEmail('');
+      setInviteEmails([]);
       setInviteTemplateIds([]);
       loadTeam(teamClientId);
     } catch (e: any) {
-      toast.error(e?.response?.data?.detail || 'Erro ao enviar convite');
+      toast.error(e?.response?.data?.detail || 'Erro ao enviar convites');
     } finally {
       setInviting(false);
     }
@@ -475,23 +534,25 @@ export const EmpresasPage: React.FC = () => {
               <div className="mb-4 rounded-lg border border-primary/20 bg-muted p-4 space-y-3">
                 <h4 className="text-sm font-semibold">Convidar Colaborador</h4>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Email do colaborador</label>
-                  <Input
-                    type="email"
-                    value={inviteEmail}
-                    onChange={(e) => setInviteEmail(e.target.value)}
-                    placeholder="colaborador@email.com"
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">
+                    Emails dos colaboradores <span className="text-muted-foreground/60">(digite e pressione vírgula ou Enter)</span>
+                  </label>
+                  <EmailChipInput
+                    value={inviteEmails}
+                    onChange={setInviteEmails}
+                    placeholder="email@exemplo.com"
+                    userData={userDataMap}
                   />
                 </div>
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Rotinas com acesso</label>
-                  <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto">
-                    {templates?.length === 0 ? (
-                      <p className="text-[12px] text-muted-foreground py-2">
-                        Nenhuma rotina disponível. Vincule rotinas ao cliente primeiro.
-                      </p>
-                    ) : (
-                      templates?.map(tmpl => (
+                  {linkedTemplates.length === 0 ? (
+                    <p className="text-[12px] text-muted-foreground py-2">
+                      Nenhuma rotina vinculada a este cliente. Vincule rotinas primeiro em <strong>Rotinas</strong>.
+                    </p>
+                  ) : (
+                    <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto">
+                      {linkedTemplates.map(tmpl => (
                         <label
                           key={tmpl.id}
                           className={cn(
@@ -515,20 +576,26 @@ export const EmpresasPage: React.FC = () => {
                           />
                           <span>{tmpl.name}</span>
                         </label>
-                      ))
-                    )}
-                  </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
+                {inviteEmails.length > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <Check size={12} className="text-green-500" />
+                    {inviteEmails.length} destinatário(s) adicionado(s)
+                  </div>
+                )}
                 <div className="flex gap-2 justify-end">
-                  <Button variant="ghost" size="sm" onClick={() => { setShowInvite(false); setInviteEmail(''); setInviteTemplateIds([]); }}>
+                  <Button variant="ghost" size="sm" onClick={() => { setShowInvite(false); setInviteEmails([]); setInviteTemplateIds([]); }}>
                     Cancelar
                   </Button>
                   <Button
                     size="sm"
                     onClick={handleInvite}
-                    disabled={!inviteEmail.trim() || inviteTemplateIds.length === 0 || inviting}
+                    disabled={inviteEmails.length === 0 || inviteTemplateIds.length === 0 || inviting}
                   >
-                    {inviting ? 'Enviando...' : 'Enviar Convite'}
+                    {inviting ? 'Enviando...' : `Enviar Convite${inviteEmails.length > 1 ? `s (${inviteEmails.length})` : ''}`}
                   </Button>
                 </div>
               </div>

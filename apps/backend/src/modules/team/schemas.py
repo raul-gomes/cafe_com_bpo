@@ -5,15 +5,21 @@ from datetime import datetime
 
 
 class InviteCreate(BaseModel):
-    email: str
+    emails: list[str]
     template_ids: list[UUID]
 
 
-class InviteResponse(BaseModel):
-    invitation_id: UUID
-    status: str = "pending"
+class InviteResult(BaseModel):
+    email: str
+    status: str
+    invitation_id: Optional[UUID] = None
+    error: Optional[str] = None
 
-    model_config = ConfigDict(from_attributes=True)
+
+class InviteBatchResponse(BaseModel):
+    results: list[InviteResult]
+    total_sent: int
+    total_errors: int
 
 
 class RoutineAccess(BaseModel):

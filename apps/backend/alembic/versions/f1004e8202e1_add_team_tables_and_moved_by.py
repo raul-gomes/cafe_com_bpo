@@ -1,8 +1,8 @@
 """add team tables and moved_by field
 
-Revision ID: a1b2c3d4e5f6
+Revision ID: f1004e8202e1
 Revises: 88b38077df52
-Create Date: 2026-07-03 10:00:00.000000
+Create Date: 2026-07-13 15:00:00.000000
 
 """
 
@@ -11,7 +11,7 @@ from alembic import op
 import sqlalchemy as sa
 
 
-revision: str = "a1b2c3d4e5f6"
+revision: str = "f1004e8202e1"
 down_revision: Union[str, None] = "88b38077df52"
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None

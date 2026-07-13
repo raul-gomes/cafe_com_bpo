@@ -1,13 +1,21 @@
 import { apiClient } from './client';
 
 export interface InviteCreate {
-  email: string;
+  emails: string[];
   template_ids: string[];
 }
 
-export interface InviteResponse {
-  invitation_id: string;
+export interface InviteResult {
+  email: string;
   status: string;
+  invitation_id?: string;
+  error?: string;
+}
+
+export interface InviteBatchResponse {
+  results: InviteResult[];
+  total_sent: number;
+  total_errors: number;
 }
 
 export interface TeamMemberResponse {
@@ -29,7 +37,7 @@ export interface AcceptResponse {
 }
 
 export const inviteCollaborator = (clientId: string, data: InviteCreate) =>
-  apiClient.post<InviteResponse>(`/clients/${clientId}/invite`, data);
+  apiClient.post<InviteBatchResponse>(`/clients/${clientId}/invite`, data);
 
 export const acceptInvitation = (token: string) =>
   apiClient.get<AcceptResponse>('/invitations/accept', { params: { token } });

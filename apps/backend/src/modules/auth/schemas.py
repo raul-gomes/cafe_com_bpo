@@ -95,6 +95,21 @@ class TokenResponse(BaseModel):
     refresh_token: str | None = None  # deprecated — now set as httpOnly cookie
 
 
+class UserLookupRequest(BaseModel):
+    emails: list[str]
+
+
+class UserLookupItem(BaseModel):
+    email: str
+    name: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+class UserLookupResponse(BaseModel):
+    found: list[UserLookupItem]
+    not_found: list[str]
+
+
 class RefreshTokenRequest(BaseModel):
     refresh_token: str | None = None  # optional — may come from httpOnly cookie
 

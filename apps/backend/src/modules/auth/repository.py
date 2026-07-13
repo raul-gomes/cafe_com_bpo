@@ -34,6 +34,14 @@ class UserRepository:
     def get_user_by_email(self, email: str) -> Optional[User]:
         return self.session.query(User).filter(User.email == email).first()
 
+    def get_users_by_emails(self, emails: list[str]) -> list[User]:
+        normalized = [e.lower().strip() for e in emails]
+        return (
+            self.session.query(User)
+            .filter(User.email.in_(normalized))
+            .all()
+        )
+
     def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
         return self.session.query(User).filter(User.id == user_id).first()
 

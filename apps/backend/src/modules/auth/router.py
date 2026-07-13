@@ -17,6 +17,9 @@ from .schemas import (
     RefreshTokenRequest,
     ForgotPasswordRequest,
     ResetPasswordRequest,
+    UserLookupRequest,
+    UserLookupResponse,
+    UserLookupItem,
 )
 from .service import AuthService, get_current_user
 from .oauth.service import OAuthStateService, GoogleOAuthProvider
@@ -281,6 +284,30 @@ async def upload_company_logo(
     resp = UserResponse.from_user(db_user)
     resp.company_logo_url = read_url
     return resp
+
+
+@router.post("/users/lookup", response_model=UserLookupResponse)
+def user_lookup(
+    data: UserLookupRequest,
+    service: AuthServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Buscar informações de usuários por email (apenas existentes)."""
+    if not data.emails:
+        return UserLookupResponse(found=[], not_found=[])
+
+    users = service.user_repo.get_users_by_emails(data.emails)
+    found_emails = {u.email for u in users}
+    found = [
+        UserLookupItem(
+            email=u.email,
+            name=u.name,
+            avatar_url=u.avatar_file.read_url if u.avatar_file else u.avatar_url,
+        )
+        for u in users
+    ]
+    not_found = [e for e in data.emails if e.lower().strip() not in found_emails]
+    return UserLookupResponse(found=found, not_found=not_found)
 
 
 @router.post("/logout", status_code=200)

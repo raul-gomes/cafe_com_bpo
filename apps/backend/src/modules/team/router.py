@@ -10,7 +10,7 @@ from src.modules.auth.service import get_current_user, get_optional_user
 from .repository import TeamRepository
 from .service import TeamService
 from .schemas import (
-    InviteCreate, InviteResponse,
+    InviteCreate, InviteBatchResponse,
     TeamListResponse, AcceptResponse,
 )
 
@@ -28,7 +28,7 @@ OptionalUserDep = Annotated[Optional[UserResponse], Depends(get_optional_user)]
 
 @router.post(
     "/clients/{client_id}/invite",
-    response_model=InviteResponse,
+    response_model=InviteBatchResponse,
     status_code=status.HTTP_201_CREATED,
 )
 def invite_collaborator(

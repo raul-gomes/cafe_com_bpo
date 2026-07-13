@@ -6,7 +6,8 @@ from src.core.config import get_settings
 
 from .repository import TeamRepository
 from .schemas import (
-    InviteCreate, InviteResponse, TeamMemberResponse,
+    InviteCreate, InviteBatchResponse, InviteResult,
+    TeamMemberResponse,
     RoutineAccess, TeamListResponse, AcceptResponse,
 )
 
@@ -20,8 +21,8 @@ class TeamService:
 
     def invite_collaborator(
         self, client_id: UUID, data: InviteCreate, invited_by: UUID
-    ) -> InviteResponse:
-        """Send an invitation to a collaborator."""
+    ) -> InviteBatchResponse:
+        """Send invitations to multiple collaborators."""
         # Verify client exists and belongs to inviter
         client = self.repo.get_client_by_id(client_id)
         if not client:
@@ -35,34 +36,76 @@ class TeamService:
             if not tmpl:
                 raise ValueError(f"Template {tid} não encontrado")
 
-        # Check for existing pending invitation
-        existing = self.repo.get_pending_invitation_by_email(client_id, data.email)
-        if existing:
-            raise ValueError("Já existe um convite pendente para este email neste cliente")
+        if not data.emails:
+            raise ValueError("Pelo menos um email deve ser informado")
 
-        # Check if user is already a team member
-        user = self.repo.get_user_by_email(data.email)
-        if user and self.repo.is_team_member(client_id, user.id):
-            raise ValueError("Este usuário já é membro da equipe deste cliente")
+        results: list[InviteResult] = []
 
-        # Create invitation
-        invitation, raw_token = self.repo.create_invitation(
-            client_id=client_id,
-            invited_by=invited_by,
-            invited_email=data.email,
-            template_ids=data.template_ids,
+        for email in data.emails:
+            email_clean = email.lower().strip()
+            result = self._invite_single(client_id, email_clean, data.template_ids, invited_by, client.name)
+            results.append(result)
+
+        total_sent = sum(1 for r in results if r.status == "sent")
+        total_errors = sum(1 for r in results if r.status == "error")
+
+        return InviteBatchResponse(
+            results=results,
+            total_sent=total_sent,
+            total_errors=total_errors,
         )
 
-        # Send email
-        self._send_invite_email(
-            to_email=data.email,
-            client_name=client.name,
-            inviter_name=self.repo.get_user_by_id(invited_by).name or "Um usuário",
-            token=raw_token,
-            user_exists=user is not None,
-        )
+    def _invite_single(
+        self, client_id: UUID, email: str, template_ids: list[UUID],
+        invited_by: UUID, client_name: str
+    ) -> InviteResult:
+        """Process a single email invitation."""
+        try:
+            # Check for existing pending invitation
+            existing = self.repo.get_pending_invitation_by_email(client_id, email)
+            if existing:
+                return InviteResult(
+                    email=email, status="error",
+                    error="Já existe um convite pendente para este email neste cliente"
+                )
 
-        return InviteResponse(invitation_id=invitation.id, status="pending")
+            # Check if user is already a team member
+            user = self.repo.get_user_by_email(email)
+            if user and self.repo.is_team_member(client_id, user.id):
+                return InviteResult(
+                    email=email, status="error",
+                    error="Este usuário já é membro da equipe deste cliente"
+                )
+
+            # Create invitation
+            invitation, raw_token = self.repo.create_invitation(
+                client_id=client_id,
+                invited_by=invited_by,
+                invited_email=email,
+                template_ids=template_ids,
+            )
+
+            # Send email
+            self._send_invite_email(
+                to_email=email,
+                client_name=client_name,
+                inviter_name=self.repo.get_user_by_id(invited_by).name or "Um usuário",
+                token=raw_token,
+                user_exists=user is not None,
+            )
+
+            return InviteResult(
+                email=email,
+                status="sent",
+                invitation_id=invitation.id,
+            )
+
+        except Exception as e:
+            log.error(f"Erro ao convidar {email}: {str(e)}")
+            return InviteResult(
+                email=email, status="error",
+                error=str(e),
+            )
 
     def accept_invitation(self, token: str, user_id: Optional[UUID] = None) -> AcceptResponse:
         """Accept an invitation. If user_id is None, return info for redirect."""
