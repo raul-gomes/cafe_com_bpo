@@ -1,5 +1,5 @@
-import React, { useState, useMemo } from 'react';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw, Users } from 'lucide-react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw, Users, ChevronDown } from 'lucide-react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
@@ -15,6 +15,12 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
+import {
+    DropdownMenu,
+    DropdownMenuTrigger,
+    DropdownMenuContent,
+    DropdownMenuItem,
+} from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
@@ -22,7 +28,7 @@ import { useAuth } from '../../context/AuthContext';
 export const TasksPage: React.FC = () => {
     const { user } = useAuth();
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
-    const [filterMode, setFilterMode] = useState<'all' | 'today' | 'week' | 'month' | 'overdue'>('today');
+    const [userFilter, setUserFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'overdue'>('today');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [showPhaseManager, setShowPhaseManager] = useState(false);
     const [dateFrom, setDateFrom] = useState('');
@@ -30,7 +36,7 @@ export const TasksPage: React.FC = () => {
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
     const [bulkLoading, setBulkLoading] = useState<Record<string, 'completing' | 'cancelling' | null>>({});
-    const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask } = useTasks();
+    const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask, useRunDaily, useRunMonthly, useRunWeekly, useRunYearly } = useTasks();
     const { data: tasks, isLoading } = useTasksList();
     const { data: phases } = usePhases();
     const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
@@ -39,6 +45,10 @@ export const TasksPage: React.FC = () => {
         : 'done';
     const updateTaskStatus = useUpdateTaskStatus();
     const cancelTask = useCancelTask();
+    const runDaily = useRunDaily();
+    const runMonthly = useRunMonthly();
+    const runWeekly = useRunWeekly();
+    const runYearly = useRunYearly();
     const { data: timelineData, isLoading: timelineLoading } = useTimeline();
     const { data: conflictsData } = useConflicts();
 
@@ -139,7 +149,7 @@ export const TasksPage: React.FC = () => {
     };
 
     const getTaskStatus = (task: TaskResponse): string => {
-        if (task.status === 'cancelled' || task.cancelled_at) {
+        if (task.status === 'cancelled' || task.is_cancelled) {
             return 'cancelled';
         }
         if (task.phase_id && phases) {
@@ -155,7 +165,7 @@ export const TasksPage: React.FC = () => {
 
     const handleSyncCalendar = async () => {
         const activeTaskIds = tasksList
-            .filter(t => t.status !== 'done' && t.status !== 'cancelled' && !t.cancelled_at)
+            .filter(t => t.status !== 'done' && t.status !== 'cancelled' && !t.is_cancelled)
             .map(t => t.id);
         if (activeTaskIds.length === 0) return;
         try {
@@ -167,28 +177,148 @@ export const TasksPage: React.FC = () => {
         }
     };
 
-    const handleRunScheduler = async () => {
-        try {
-            const { data } = await apiClient.post('/tasks/scheduler/run');
-            const parts = [
-                `${data.tasks_generated} tarefa(s) gerada(s)`,
-                `${data.tasks_skipped} já existente(s)`,
-                `${data.assignments_processed} vinculo(s) processado(s)`,
-            ];
-            if (data.errors?.length > 0) {
-                parts.push(`${data.errors.length} erro(s)`);
-            }
-            toast.success(`Rotinas executadas!\n${parts.join('\n')}`);
-        } catch (err: any) {
-            const detail = err?.response?.data?.detail || 'Erro ao executar rotinas';
-            toast.error(detail);
-        }
+    const handleRunDaily = async () => {
+        toast.promise(runDaily.mutateAsync(), {
+            loading: 'Gerando tarefas do dia...',
+            success: (data) => `${data.tasks_generated} tarefas geradas hoje, ${data.tasks_skipped} já existentes`,
+            error: 'Erro ao executar rotina diária',
+        });
+    };
+
+    const handleRunMonthly = async () => {
+        toast.promise(runMonthly.mutateAsync(), {
+            loading: 'Pré-gerando tarefas do mês que vem...',
+            success: (data) => `${data.tasks_generated} tarefas pré-geradas, ${data.tasks_skipped} já existentes`,
+            error: 'Erro ao executar pré-geração mensal',
+        });
+    };
+
+    const handleRunWeekly = async () => {
+        toast.promise(runWeekly.mutateAsync(), {
+            loading: 'Gerando tarefas da semana...',
+            success: (data) => `${data.tasks_generated} tarefas geradas, ${data.tasks_skipped} já existentes`,
+            error: 'Erro ao executar rotina semanal',
+        });
+    };
+
+    const handleRunYearly = async () => {
+        toast.promise(runYearly.mutateAsync(), {
+            loading: 'Gerando tarefas do ano...',
+            success: (data) => `${data.tasks_generated} tarefas geradas, ${data.tasks_skipped} já existentes`,
+            error: 'Erro ao executar rotina anual',
+        });
     };
 
     const handleEditTask = (task: TaskResponse) => {
         setSelectedTask(task);
         setTaskModalOpen(true);
     };
+
+    // Use allTasks (with team tasks merged) when toggle is on
+    const tasksList = allTasks || tasks || [];
+
+    const todayStart = new Date();
+    todayStart.setHours(0, 0, 0, 0);
+    const todayEnd = new Date();
+    todayEnd.setHours(23, 59, 59, 999);
+
+    const isOverdue = (t: TaskResponse) => t.deadline && new Date(t.deadline) < todayStart;
+
+    const firstPhaseId = sortedPhases.length > 0 ? sortedPhases[0].id : 'todo';
+    const lastPhaseId = sortedPhases.length > 0 ? sortedPhases[sortedPhases.length - 1].id : 'done';
+
+    // ── Helper: check if a date is within a period ──
+    const isInPeriod = (dateStr: string | undefined, p: { start: Date; end: Date }): boolean => {
+        if (!dateStr) return false;
+        const d = new Date(dateStr);
+        return d >= p.start && d <= p.end;
+    };
+
+    // ── Helper: check if completed_at is within period ──
+    const isCompletedInPeriod = (t: TaskResponse, p: { start: Date; end: Date }): boolean => {
+        if (!t.completed_at) return false;
+        return isInPeriod(t.completed_at, p);
+    };
+
+    // ── Filter tasks for a given mode ──
+    const filterTasksForMode = (mode: 'all' | 'today' | 'week' | 'month' | 'year' | 'overdue'): TaskResponse[] => {
+        const computePeriodForMode = (m: string): { start: Date; end: Date } | null => {
+            if (m === 'today') return { start: todayStart, end: todayEnd };
+            if (m === 'week') {
+                const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1); mon.setHours(0,0,0,0);
+                const sun = new Date(mon); sun.setDate(sun.getDate() + 6); sun.setHours(23,59,59,999);
+                return { start: mon, end: sun };
+            }
+            if (m === 'month') {
+                return { start: new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0,0,0,0), end: new Date(new Date().getFullYear(), new Date().getMonth()+1, 0, 23,59,59,999) };
+            }
+            if (m === 'year') {
+                return { start: new Date(new Date().getFullYear(), 0, 1, 0,0,0,0), end: new Date(new Date().getFullYear(), 12, 0, 23,59,59,999) };
+            }
+            return null;
+        };
+        const p = computePeriodForMode(mode);
+        return tasksList.filter(t => {
+            if (t.status === 'cancelled' || t.is_cancelled) return false;
+            const taskStatus = getTaskStatus(t);
+            const isFirstPhase = taskStatus === firstPhaseId || taskStatus === 'todo';
+            const isLastPhase = taskStatus === lastPhaseId || taskStatus === 'done';
+            const isMiddlePhase = !isFirstPhase && !isLastPhase && taskStatus !== 'cancelled';
+            if (isFirstPhase) {
+                if (isOverdue(t)) return true;
+                if (p) return isInPeriod(t.deadline, p);
+                if (mode === 'overdue') return false;
+                return true;
+            }
+            if (isMiddlePhase) {
+                if (!p) return true;
+                return isInPeriod(t.deadline, p);
+            }
+            if (isLastPhase) {
+                if (mode === 'overdue') return false;
+                if (!p) return isCompletedInPeriod(t, { start: todayStart, end: todayEnd });
+                return isCompletedInPeriod(t, p);
+            }
+            return false;
+        });
+    };
+
+    // ── Cascade: avança automaticamente o filtro quando não há tasks ──
+    const cascadeModes: Array<'today' | 'week' | 'month' | 'year'> = ['today', 'week', 'month', 'year'];
+
+    // Efetivamente qual filtro está sendo usado (pode ter sido cascateado)
+    const effectiveFilter = useMemo((): typeof userFilter => {
+        if (userFilter === 'overdue' || userFilter === 'all' || dateFrom) return userFilter;
+        const startIdx = cascadeModes.indexOf(userFilter as any);
+        if (startIdx === -1) return userFilter;
+        for (let i = startIdx; i < cascadeModes.length; i++) {
+            const tasks = filterTasksForMode(cascadeModes[i]);
+            if (tasks.length > 0) return cascadeModes[i];
+        }
+        return 'all';
+    }, [userFilter, tasksList, dateFrom, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases]);
+
+    const filteredTasks = useMemo(() => filterTasksForMode(effectiveFilter),
+        [tasksList, effectiveFilter, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases]);
+
+    // Sincroniza o botão de filtro visual com o efetivo (sem causar loop)
+    const prevEffective = useRef(effectiveFilter);
+    useEffect(() => {
+        if (prevEffective.current !== effectiveFilter && effectiveFilter !== userFilter && effectiveFilter !== 'all') {
+            setUserFilter(effectiveFilter);
+        }
+        prevEffective.current = effectiveFilter;
+    }, [effectiveFilter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+    // ── Filter counts by mode (same logic as filterTasksForMode) ──
+    const filterCounts = useMemo((): Record<string, number> => {
+        const modes: Array<'today' | 'week' | 'month' | 'year' | 'all' | 'overdue'> = ['today', 'week', 'month', 'year', 'all', 'overdue'];
+        const counts: Record<string, number> = {};
+        for (const mode of modes) {
+            counts[mode] = filterTasksForMode(mode).length;
+        }
+        return counts;
+    }, [tasksList, firstPhaseId, lastPhaseId, phases, todayStart, todayEnd]);
 
     if (isLoading) {
         return (
@@ -198,104 +328,6 @@ export const TasksPage: React.FC = () => {
             </div>
         );
     }
-
-    // Use allTasks (with team tasks merged) when toggle is on
-    const tasksList = allTasks || tasks || [];
-
-    const todayStr = new Date().toISOString().split('T')[0];
-    const todayStart = new Date();
-    todayStart.setHours(0, 0, 0, 0);
-
-    const isOverdue = (t: TaskResponse) => t.deadline && new Date(t.deadline) < todayStart;
-
-    const firstPhaseId = sortedPhases.length > 0 ? sortedPhases[0].id : 'todo';
-    const lastPhaseId = sortedPhases.length > 0 ? sortedPhases[sortedPhases.length - 1].id : 'done';
-
-    // ── Helper: count active tasks for a given filter mode (excludes completed) ──
-    const countForFilter = (mode: typeof filterMode): number => {
-        return tasksList.filter(t => {
-            if (t.status === 'cancelled' || t.cancelled_at) return false;
-            const taskStatus = getTaskStatus(t);
-            // Exclude completed tasks from filter counts (shown only in their column)
-            if (taskStatus === lastPhaseId || t.status === 'done') return false;
-            const deadlineDate = t.deadline?.split('T')[0];
-            // Overdue and in-progress always count
-            if (isOverdue(t)) return true;
-            if (taskStatus !== firstPhaseId && taskStatus !== lastPhaseId && taskStatus !== 'cancelled') return true;
-            // Filter modes for remaining (todo) tasks
-            if (mode === 'today') return !!deadlineDate && deadlineDate.startsWith(todayStr);
-            if (mode === 'week') {
-                const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1);
-                const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-                const weekStart = mon.toISOString().split('T')[0];
-                const weekEnd = sun.toISOString().split('T')[0];
-                return !!deadlineDate && deadlineDate >= weekStart && deadlineDate <= weekEnd;
-            }
-            if (mode === 'month') {
-                const now = new Date();
-                const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-                const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-                return !!deadlineDate && deadlineDate >= first && deadlineDate <= last;
-            }
-            if (mode === 'overdue') return false; // already caught above
-            return true; // 'all'
-        }).length;
-    };
-
-    const filterCounts = {
-        today: countForFilter('today'),
-        week: countForFilter('week'),
-        month: countForFilter('month'),
-        all: countForFilter('all'),
-        overdue: countForFilter('overdue'),
-    };
-
-    const filteredTasks = tasksList.filter(t => {
-        // Always exclude cancelled
-        if (t.status === 'cancelled' || t.cancelled_at) return false;
-
-        const taskStatus = getTaskStatus(t);
-        const deadlineDate = t.deadline?.split('T')[0];
-
-        // 1. Overdue tasks → always visible (regardless of filter)
-        if (isOverdue(t)) return true;
-
-        // 2. In-progress tasks (any phase except first/todo and last/done) → always visible
-        if (taskStatus !== firstPhaseId && taskStatus !== lastPhaseId && taskStatus !== 'cancelled') return true;
-
-        // 3. Completed tasks → only on the day they were completed
-        if (taskStatus === lastPhaseId || t.status === 'done') {
-            return t.updated_at?.startsWith(todayStr) ?? false;
-        }
-
-        // 4. Filter modes for remaining (todo / a fazer, non-overdue) tasks
-        if (filterMode === 'today') {
-            if (!deadlineDate || !deadlineDate.startsWith(todayStr)) return false;
-        }
-        if (filterMode === 'week') {
-            const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1);
-            const sun = new Date(mon); sun.setDate(sun.getDate() + 6);
-            const weekStart = mon.toISOString().split('T')[0];
-            const weekEnd = sun.toISOString().split('T')[0];
-            if (!deadlineDate || deadlineDate < weekStart || deadlineDate > weekEnd) return false;
-        }
-        if (filterMode === 'month') {
-            const now = new Date();
-            const first = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
-            const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
-            if (!deadlineDate || deadlineDate < first || deadlineDate > last) return false;
-        }
-        if (filterMode === 'overdue') {
-            // Overdue already caught above; any task reaching here is NOT overdue
-            return false;
-        }
-
-        // Custom date range
-        if (dateFrom && deadlineDate && deadlineDate < dateFrom) return false;
-        if (dateTo && deadlineDate && deadlineDate > dateTo) return false;
-
-        return true;
-    });
 
     return (
         <div className="animate-[panelFadeIn_0.4s_ease-out]">
@@ -327,9 +359,25 @@ export const TasksPage: React.FC = () => {
                         <CalendarIcon size={16} /> Sincronizar
                     </Button>
                     {user?.role === 'admin' && (
-                        <Button variant="ghost" size="sm" onClick={handleRunScheduler} title="Executar rotinas — gerar tarefas pendentes com base na recorrência">
-                            <RefreshCw size={16} /> Executar Rotinas
-                        </Button>
+                        <DropdownMenu>
+                            <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="gap-1" />}>
+                                <RefreshCw size={16} /> Disparar Rotina <ChevronDown size={14} />
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end" className="w-44">
+                                <DropdownMenuItem onClick={handleRunDaily}>
+                                    <Clock size={14} /> Diária
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleRunWeekly}>
+                                    <CalendarIcon size={14} /> Semanal
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleRunMonthly}>
+                                    <CalendarIcon size={14} /> Mensal
+                                </DropdownMenuItem>
+                                <DropdownMenuItem onClick={handleRunYearly}>
+                                    <CalendarIcon size={14} /> Anual
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
                     )}
 
                     {/* View toggle */}
@@ -365,6 +413,7 @@ export const TasksPage: React.FC = () => {
                         { key: 'today', label: 'Hoje' },
                         { key: 'week', label: 'Semana' },
                         { key: 'month', label: 'Mês' },
+                        { key: 'year', label: 'Ano' },
                         { key: 'all', label: 'Todas' },
                         { key: 'overdue', label: 'Atrasadas' },
                     ] as const).map(f => {
@@ -372,10 +421,10 @@ export const TasksPage: React.FC = () => {
                         return (
                             <button
                                 key={f.key}
-                                onClick={() => { setFilterMode(f.key); setDateFrom(''); setDateTo(''); }}
+                                onClick={() => { setUserFilter(f.key); setDateFrom(''); setDateTo(''); }}
                                 className={cn(
                                     'rounded-sm px-3 py-1 text-[12px] font-bold font-sans transition-all',
-                                    filterMode === f.key
+                                    effectiveFilter === f.key
                                         ? 'border border-primary bg-primary text-primary-foreground'
                                         : 'border border-white/10 bg-muted text-muted-foreground'
                                 )}
@@ -384,7 +433,7 @@ export const TasksPage: React.FC = () => {
                                 {count > 0 && (
                                     <span className={cn(
                                         'ml-1.5 inline-flex items-center justify-center rounded-full px-1.5 py-0.5 text-[10px] font-bold leading-none',
-                                        filterMode === f.key
+                                        effectiveFilter === f.key
                                             ? 'bg-primary-foreground/20 text-primary-foreground'
                                             : 'bg-white/15 text-muted-foreground'
                                     )}>
@@ -430,12 +479,12 @@ export const TasksPage: React.FC = () => {
                             <div className="absolute left-0 top-full z-[100] mt-1 flex min-w-[220px] flex-col gap-2 rounded-md border border-border bg-card p-3 shadow-lg">
                                 <div className="flex items-center gap-2">
                                     <label className="text-[10px] font-bold text-muted-foreground">De</label>
-                                    <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setFilterMode('all'); }}
+                                    <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setUserFilter('all'); }}
                                         className="filter-date-input w-full rounded-sm border border-border bg-muted px-2 py-1 text-[12px] text-foreground outline-none focus:border-primary" />
                                 </div>
                                 <div className="flex items-center gap-2">
                                     <label className="text-[10px] font-bold text-muted-foreground">Até</label>
-                                    <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setFilterMode('all'); }}
+                                    <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setUserFilter('all'); }}
                                         className="filter-date-input w-full rounded-sm border border-border bg-muted px-2 py-1 text-[12px] text-foreground outline-none focus:border-primary" />
                                 </div>
                                 <div className="flex justify-end gap-1">
@@ -453,8 +502,8 @@ export const TasksPage: React.FC = () => {
                     </div>
 
                     {/* Clear all filters */}
-                    {(filterMode !== 'all' || dateFrom) && (
-                        <button onClick={() => { setFilterMode('all'); setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
+                    {(userFilter !== 'all' || dateFrom) && (
+                        <button onClick={() => { setUserFilter('today'); setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
                             className="cursor-pointer border-none bg-transparent text-[10px] font-bold text-primary underline underline-offset-2">
                             Limpar
                         </button>
@@ -472,10 +521,10 @@ export const TasksPage: React.FC = () => {
                                     <rect x="3" y="3" width="7" height="7" /><rect x="14" y="3" width="7" height="7" /><rect x="3" y="14" width="7" height="7" /><rect x="14" y="14" width="7" height="7" />
                                 </svg>
                                 <h3 className="mb-2 text-[18px] font-bold text-foreground">
-                                    {filterMode !== 'all' ? 'Nenhuma tarefa encontrada' : 'Nenhuma tarefa criada'}
+                                    {userFilter !== 'all' ? 'Nenhuma tarefa encontrada' : 'Nenhuma tarefa criada'}
                                 </h3>
                                 <p className="mb-5 text-[14px] text-muted-foreground">
-                                    {filterMode !== 'all' ? 'Tente alterar o filtro ou criar uma nova tarefa.' : 'Comece organizando suas tarefas operacionais por empresa e fase.'}
+                                    {userFilter !== 'all' ? 'Tente alterar o filtro ou criar uma nova tarefa.' : 'Comece organizando suas tarefas operacionais por empresa e fase.'}
                                 </p>
                                 <Button variant="default" onClick={handleOpenNewTask}>
                                     <Plus size={18} /> Criar Primeira Tarefa

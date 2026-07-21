@@ -43,7 +43,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   const overdue = isTaskOverdue(task);
   const confirm = useConfirm();
   const isDone = status === doneColumnId;
-  const isCancelled = task.status === 'cancelled' || task.cancelled_at;
+  const isCancelled = task.status === 'cancelled' || task.is_cancelled;
 
   const handleCancel = useCallback(async () => {
     if (!onCancel) return;

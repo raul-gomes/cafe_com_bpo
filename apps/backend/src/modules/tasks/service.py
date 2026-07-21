@@ -4,7 +4,6 @@ Tasks Module - Service Layer
 Business logic for task and routine management.
 """
 
-import calendar
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone, timedelta
@@ -14,6 +13,12 @@ from src.modules.tasks.repository import TaskRepository
 from src.modules.tasks.models import (
     ActivityTemplate,
     TemplateActivity as TemplateActivityModel,
+)
+from src.modules.tasks.scheduler import (
+    calculate_activity_deadline,
+    get_weekly_deadlines_for_month,
+    get_effective_due_day,
+    build_routine_instance_id,
 )
 from src.modules.tasks.schemas import (
     TaskCreate,
@@ -125,10 +130,18 @@ class TaskService:
         old_phase_id = task.phase_id
         old_deadline = task.deadline
 
+        # Get phase names before update for completed_at logic
+        phases = self.repository.get_phases_by_user(user_id)
+        old_phase_name = None
+        if old_phase_id:
+            old_p = next((p for p in phases if str(p.id) == str(old_phase_id)), None)
+            if old_p:
+                old_phase_name = old_p.name
+
         updated_task = self.repository.update(task, task_data)
 
+        # ── completed_at logic: moving to/from "Concluído" ──
         if task_data.phase_id and task_data.phase_id != old_phase_id:
-            phases = self.repository.get_phases_by_user(user_id)
             new_phase = next(
                 (p for p in phases if str(p.id) == str(task_data.phase_id)), None
             )
@@ -141,6 +154,16 @@ class TaskService:
                     "task",
                     updated_task.id,
                 )
+
+                # Moving to "Concluído" → set completed_at
+                if new_phase.name == "Concluído":
+                    updated_task.completed_at = datetime.now(timezone.utc)
+                # Moving from "Concluído" to another phase → clear completed_at
+                elif old_phase_name == "Concluído":
+                    updated_task.completed_at = None
+
+            self.repository.session.commit()
+            self.repository.session.refresh(updated_task)
 
         if task_data.deadline and task_data.deadline != old_deadline:
             self._notify(
@@ -612,6 +635,9 @@ class TaskService:
                 for deadline in weekly_deadlines:
                     if self.repository.has_pending_task(assignment.id, act.name, deadline):
                         continue
+                    instance_id = build_routine_instance_id(
+                        assignment.id, act.name, deadline.strftime("%Y-%m-%d"),
+                    )
                     task_data = TaskCreate(
                         title=act.name,
                         description=act.description,
@@ -623,6 +649,7 @@ class TaskService:
                         time_estimate_minutes=act.estimated_minutes,
                         template_id=assignment_in.template_id,
                         assignment_id=assignment.id,
+                        routine_instance_id=instance_id,
                     )
                     task = self.repository.create(task_data, user_id)
                     if first_phase:
@@ -630,8 +657,7 @@ class TaskService:
                     generated_tasks.append(task)
 
         elif tmpl.recurrence == "daily":
-            # Daily: only generate on weekdays (same logic as scheduler's
-            # _should_generate_today), using the same deadline calculation
+            # Daily: only generate on weekdays, using the same deadline calculation
             now = datetime.now(timezone.utc)
             if now.weekday() < 5:
                 deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
@@ -640,6 +666,9 @@ class TaskService:
                 for act in activities:
                     if self.repository.has_pending_task(assignment.id, act.name, daily_deadline):
                         continue
+                    instance_id = build_routine_instance_id(
+                        assignment.id, act.name, daily_deadline.strftime("%Y-%m-%d"),
+                    )
                     task_data = TaskCreate(
                         title=act.name,
                         description=act.description,
@@ -651,6 +680,7 @@ class TaskService:
                         time_estimate_minutes=act.estimated_minutes,
                         template_id=assignment_in.template_id,
                         assignment_id=assignment.id,
+                        routine_instance_id=instance_id,
                     )
                     task = self.repository.create(task_data, user_id)
                     if first_phase:
@@ -662,6 +692,16 @@ class TaskService:
             # (used by monthly, yearly, once)
             for act in activities:
                 deadline = self._calculate_activity_deadline(act, assignment.start_date, tmpl)
+                # Build routine_instance_id based on recurrence type
+                if tmpl.recurrence == "monthly":
+                    period_key = deadline.strftime("%Y-%m")
+                elif tmpl.recurrence in ("yearly", "annual"):
+                    period_key = str(deadline.year)
+                else:
+                    period_key = deadline.strftime("%Y-%m-%d")
+                instance_id = build_routine_instance_id(
+                    assignment.id, act.name, period_key,
+                )
                 task_data = TaskCreate(
                     title=act.name,
                     description=act.description,
@@ -673,6 +713,7 @@ class TaskService:
                     time_estimate_minutes=act.estimated_minutes,
                     template_id=assignment_in.template_id,
                     assignment_id=assignment.id,
+                    routine_instance_id=instance_id,
                 )
                 task = self.repository.create(task_data, user_id)
                 if first_phase:
@@ -698,127 +739,18 @@ class TaskService:
     def _get_effective_due_day(
         self, activity: TemplateActivityModel, tmpl: Optional[ActivityTemplate] = None
     ) -> Optional[int]:
-        """Resolve the effective due_day for an activity.
-        
-        Falls back to the template's due_day if the activity doesn't have one.
-        Returns None if neither is set (caller must handle).
-        """
-        if activity.due_day is not None:
-            return activity.due_day
-        if tmpl is not None and tmpl.due_day is not None:
-            return tmpl.due_day
-        return None
-
-    def _get_weekly_deadlines_for_year_month(
-        self, weekday_mask: str, year: int, month: int,
-        min_day: int = 1, max_day: Optional[int] = None
-    ) -> list[datetime]:
-        """Generate deadlines for marked weekdays in a given year/month.
-
-        Args:
-            weekday_mask: frontend format (1=Seg..5=Sex)
-            year, month: target year and month
-            min_day: first day to consider (default 1)
-            max_day: last day to consider (default month end)
-
-        Returns deadlines sorted at 18:00 UTC, adjusted to next business day.
-        """
-        if not weekday_mask:
-            return []
-
-        marked_days = [
-            int(d.strip()) - 1
-            for d in weekday_mask.split(",")
-            if d.strip()
-        ]
-
-        if max_day is None:
-            max_day = calendar.monthrange(year, month)[1]
-
-        deadlines: list[datetime] = []
-        for day in range(min_day, max_day + 1):
-            candidate = datetime(year, month, day, tzinfo=timezone.utc)
-            if candidate.weekday() not in marked_days:
-                continue
-            deadline = candidate.replace(hour=18, minute=0, second=0, microsecond=0)
-            deadlines.append(next_business_day(deadline))
-
-        return deadlines
+        return get_effective_due_day(activity, tmpl)
 
     def _get_weekly_deadlines_for_month(
         self, tmpl: ActivityTemplate
     ) -> list[datetime]:
-        """Generate deadlines for all remaining marked weekdays in the current month."""
-        now = datetime.now(timezone.utc)
-        today = now.replace(hour=0, minute=0, second=0, microsecond=0)
-        min_day = now.day
-        return self._get_weekly_deadlines_for_year_month(
-            tmpl.weekday_mask, now.year, now.month,
-            min_day=min_day
-        )
+        return get_weekly_deadlines_for_month(tmpl)
 
     def _calculate_activity_deadline(
         self, activity: TemplateActivityModel, start_date: Optional[datetime] = None,
         tmpl: Optional[ActivityTemplate] = None
     ) -> datetime:
-        """Calculate the next deadline for an activity.
-
-        If the activity has ``due_days`` set, the deadline is
-        *start_date + due_days*, adjusted to the next business day.
-        Otherwise the ``due_day``-based logic kicks in (falls back to template's due_day).
-        """
-        now = datetime.now(timezone.utc)
-        base = start_date if start_date else now
-
-        # ── due_days mode (days after start) ──────────────────────
-        if activity.due_days is not None:
-            deadline = base + timedelta(days=activity.due_days)
-            deadline = deadline.replace(hour=18, minute=0, second=0, microsecond=0)
-            return next_business_day(deadline)
-
-        # ── due_days_from_start mode (template-level, for "once") ─
-        if tmpl is not None and tmpl.due_days_from_start is not None:
-            deadline = base + timedelta(days=tmpl.due_days_from_start)
-            deadline = deadline.replace(hour=18, minute=0, second=0, microsecond=0)
-            return next_business_day(deadline)
-
-        # ── due_day mode (day of month) ───────────────────────────
-        effective_due_day = self._get_effective_due_day(activity, tmpl)
-        if effective_due_day is None:
-            # Fallback: use current day if no due_day configured
-            effective_due_day = now.day
-
-        import calendar
-
-        year = base.year
-        month = base.month
-
-        max_day = calendar.monthrange(year, month)[1]
-        day = min(effective_due_day, max_day)
-
-        deadline = base.replace(day=day, hour=18, minute=0, second=0, microsecond=0)
-
-        # If the deadline day has already completely passed (not just past 18:00),
-        # advance to the same day next month
-        if deadline.date() < now.date():
-            month += 1
-            if month > 12:
-                month = 1
-                year += 1
-            max_day = calendar.monthrange(year, month)[1]
-            day = min(effective_due_day, max_day)
-            deadline = datetime(
-                year=year,
-                month=month,
-                day=day,
-                hour=18,
-                minute=0,
-                second=0,
-                microsecond=0,
-                tzinfo=timezone.utc,
-            )
-
-        return deadline
+        return calculate_activity_deadline(activity, start_date, tmpl)
 
     def get_client_assignments(
         self, client_id: UUID
@@ -872,312 +804,6 @@ class TaskService:
             self.repository.session.commit()
 
         return {"tasks_generated": generated}
-
-    # ================================================================
-    # Scheduler — Recurrence-based task generation
-    # ================================================================
-
-    def _should_generate_today(
-        self, tmpl: ActivityTemplate, activity: TemplateActivityModel
-    ) -> Optional[datetime]:
-        """Check if a task should be generated today for the given template+activity.
-
-        Returns the deadline datetime if it should generate, None otherwise.
-        """
-        now = datetime.now(timezone.utc)
-
-        if tmpl.recurrence == "once":
-            # "once" only generates at assignment time, not by scheduler
-            return None
-
-        if tmpl.recurrence == "daily":
-            # Generate Mon-Fri
-            if now.weekday() < 5:  # 0=Monday, 6=Sunday
-                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-                return next_business_day(deadline)
-            return None
-
-        if tmpl.recurrence == "weekly":
-            if not tmpl.weekday_mask:
-                return None
-            weekdays = [int(d.strip()) for d in tmpl.weekday_mask.split(",") if d.strip()]
-            if now.weekday() in weekdays:
-                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-                return next_business_day(deadline)
-            return None
-
-        if tmpl.recurrence == "monthly":
-            # Generate on due_day (fallback to template's due_day)
-            effective_due_day = self._get_effective_due_day(activity, tmpl)
-            if effective_due_day is None:
-                return None
-            import calendar
-
-            year = now.year
-            month = now.month
-            max_day = calendar.monthrange(year, month)[1]
-            day = min(effective_due_day, max_day)
-            if now.day == day:
-                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-                return next_business_day(deadline)
-            # Also check if due_day has already passed this month (generate if not yet generated)
-            return None
-
-        if tmpl.recurrence in ("yearly", "annual"):
-            # Generate if current month matches due_month and today is due_day
-            if tmpl.due_month and now.month == tmpl.due_month:
-                effective_due_day = self._get_effective_due_day(activity, tmpl)
-                if effective_due_day is None:
-                    return None
-                import calendar
-
-                max_day = calendar.monthrange(now.year, now.month)[1]
-                day = min(effective_due_day, max_day)
-                if now.day == day:
-                    deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-                    return next_business_day(deadline)
-            return None
-
-        return None
-
-    def run_scheduler(self, user_id: Optional[UUID] = None) -> dict:
-        """Run the scheduler for active assignments.
-
-        Iterates active assignments (optionally filtered by user),
-        checks each template's recurrence, and generates tasks for
-        activities that are due today.
-        """
-        if user_id:
-            assignments = self.repository.get_assignments_by_user(user_id)
-            assignments = [a for a in assignments if a.is_active]
-        else:
-            assignments = self.repository.get_active_assignments()
-        total_generated = 0
-        total_skipped = 0
-        assignments_processed = 0
-        errors = []
-
-        for assignment in assignments:
-            try:
-                tmpl = self.repository.get_template_by_id(
-                    assignment.template_id, assignment.user_id
-                )
-                if not tmpl or not tmpl.is_active:
-                    continue
-
-                activities = self.repository.get_activities_by_template(tmpl.id)
-                if not activities:
-                    continue
-
-                phases = self.repository.get_phases_by_user(assignment.user_id)
-                first_phase = phases[0] if phases else None
-
-                generated_for_assignment = 0
-
-                for act in activities:
-                    deadline = self._should_generate_today(tmpl, act)
-                    if deadline is None:
-                        continue
-
-                    # ── Check per-activity: skip if a pending task with the same title exists ──
-                    if tmpl.recurrence == "daily":
-                        # Daily: check any deadline (if overdue, don't create new)
-                        if self.repository.has_pending_task(assignment.id, act.name):
-                            total_skipped += 1
-                            continue
-                    elif self.repository.has_pending_task(
-                        assignment.id, act.name, deadline
-                    ):
-                        total_skipped += 1
-                        continue
-
-                    task_data = TaskCreate(
-                        title=act.name,
-                        description=act.description,
-                        client_id=assignment.client_id,
-                        status="todo",
-                        priority="medium",
-                        process_type=tmpl.process_type,
-                        deadline=deadline,
-                        time_estimate_minutes=act.estimated_minutes,
-                        template_id=tmpl.id,
-                        assignment_id=assignment.id,
-                    )
-                    task = self.repository.create(task_data, assignment.user_id)
-                    if first_phase:
-                        task.phase_id = first_phase.id
-                    generated_for_assignment += 1
-
-                if generated_for_assignment:
-                    self.repository.session.commit()
-                    self.repository.update_assignment_last_generated(assignment.id)
-                    total_generated += generated_for_assignment
-
-                assignments_processed += 1
-
-            except Exception as e:
-                log.error(
-                    f"Scheduler error for assignment {assignment.id}: {e}"
-                )
-                errors.append({"assignment_id": str(assignment.id), "error": str(e)})
-
-        # ── Auto pre-generate next month when within 3 days of month end ──
-        now = datetime.now(timezone.utc)
-        days_in_month = calendar.monthrange(now.year, now.month)[1]
-        days_remaining = days_in_month - now.day
-        if 0 <= days_remaining <= 3:
-            pre_result = self.run_pre_generate_for_next_month()
-            total_generated += pre_result.get("tasks_generated", 0)
-            total_skipped += pre_result.get("tasks_skipped", 0)
-            assignments_processed += pre_result.get("assignments_processed", 0)
-            for e in pre_result.get("errors", []):
-                errors.append(e)
-
-        log.info(
-            f"Scheduler run complete: {assignments_processed} assignments, "
-            f"{total_generated} tasks generated, {total_skipped} skipped"
-        )
-
-        return {
-            "assignments_processed": assignments_processed,
-            "tasks_generated": total_generated,
-            "tasks_skipped": total_skipped,
-            "errors": errors,
-        }
-
-    def run_pre_generate_for_next_month(self) -> dict:
-        """Pre-generate all recurring tasks for the next month.
-
-        Called by cronjob on the last business day of each month.
-        Generates tasks for weekly, monthly and yearly routines.
-        Daily routines are handled by the regular scheduler.
-        """
-        assignments = self.repository.get_active_assignments()
-        now = datetime.now(timezone.utc)
-
-        # Next month
-        if now.month == 12:
-            next_year = now.year + 1
-            next_month = 1
-        else:
-            next_year = now.year
-            next_month = now.month + 1
-
-        total_generated = 0
-        total_skipped = 0
-        assignments_processed = 0
-        errors = []
-
-        for assignment in assignments:
-            try:
-                tmpl = self.repository.get_template_by_id(
-                    assignment.template_id, assignment.user_id
-                )
-                if not tmpl or not tmpl.is_active:
-                    continue
-                if tmpl.recurrence not in ("weekly", "monthly", "yearly", "annual"):
-                    continue
-
-                activities = self.repository.get_activities_by_template(tmpl.id)
-                if not activities:
-                    continue
-
-                phases = self.repository.get_phases_by_user(assignment.user_id)
-                first_phase = phases[0] if phases else None
-                generated_for_assignment = 0
-
-                deadlines: list[datetime] = []
-
-                if tmpl.recurrence == "weekly":
-                    deadlines = self._get_weekly_deadlines_for_year_month(
-                        tmpl.weekday_mask, next_year, next_month
-                    )
-
-                elif tmpl.recurrence == "monthly":
-                    effective_due_day = None
-                    # Use first activity's due_day as reference
-                    if activities and activities[0].due_day is not None:
-                        effective_due_day = activities[0].due_day
-                    elif tmpl.due_day is not None:
-                        effective_due_day = tmpl.due_day
-
-                    if effective_due_day is not None:
-                        max_day = calendar.monthrange(next_year, next_month)[1]
-                        day = min(effective_due_day, max_day)
-                        deadline = datetime(
-                            next_year, next_month, day, 18, 0, 0, tzinfo=timezone.utc
-                        )
-                        deadlines = [next_business_day(deadline)]
-
-                elif tmpl.recurrence in ("yearly", "annual"):
-                    due_month = tmpl.due_month
-                    if due_month is not None and due_month == next_month:
-                        effective_due_day = None
-                        if activities and activities[0].due_day is not None:
-                            effective_due_day = activities[0].due_day
-                        elif tmpl.due_day is not None:
-                            effective_due_day = tmpl.due_day
-
-                        if effective_due_day is not None:
-                            max_day = calendar.monthrange(next_year, next_month)[1]
-                            day = min(effective_due_day, max_day)
-                            deadline = datetime(
-                                next_year, next_month, day, 18, 0, 0, tzinfo=timezone.utc
-                            )
-                            deadlines = [next_business_day(deadline)]
-
-                for act in activities:
-                    for deadline in deadlines:
-                        if self.repository.has_pending_task(
-                            assignment.id, act.name, deadline
-                        ):
-                            total_skipped += 1
-                            continue
-
-                        task_data = TaskCreate(
-                            title=act.name,
-                            description=act.description,
-                            client_id=assignment.client_id,
-                            status="todo",
-                            priority="medium",
-                            process_type=tmpl.process_type,
-                            deadline=deadline,
-                            time_estimate_minutes=act.estimated_minutes,
-                            template_id=tmpl.id,
-                            assignment_id=assignment.id,
-                        )
-                        task = self.repository.create(task_data, assignment.user_id)
-                        if first_phase:
-                            task.phase_id = first_phase.id
-                        generated_for_assignment += 1
-
-                if generated_for_assignment:
-                    self.repository.session.commit()
-                    self.repository.update_assignment_last_generated(assignment.id)
-                    total_generated += generated_for_assignment
-
-                assignments_processed += 1
-
-            except Exception as e:
-                log.error(
-                    f"Pre-generate error for assignment {assignment.id}: {e}"
-                )
-                errors.append({"assignment_id": str(assignment.id), "error": str(e)})
-
-        log.info(
-            f"Pre-generate for {next_month}/{next_year} complete: "
-            f"{assignments_processed} assignments, "
-            f"{total_generated} tasks generated, {total_skipped} skipped"
-        )
-
-        return {
-            "month": next_month,
-            "year": next_year,
-            "assignments_processed": assignments_processed,
-            "tasks_generated": total_generated,
-            "tasks_skipped": total_skipped,
-            "errors": errors,
-        }
 
     # ================================================================
     # RoutineType Service Methods

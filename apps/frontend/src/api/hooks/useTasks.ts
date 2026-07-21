@@ -532,6 +532,56 @@ export const useTasks = () => {
     useSendTaskEmail,
     useSLAAlerts,
 
+    // ── Scheduler / Manual Routine Triggers ──
+
+    useRunDaily: () => {
+      return useMutation({
+        mutationFn: async () => {
+          const { data } = await apiClient.post('/tasks/scheduler/run-daily');
+          return data as { assignments_processed: number; tasks_generated: number; tasks_skipped: number; errors: string[] };
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        },
+      });
+    },
+
+    useRunMonthly: () => {
+      return useMutation({
+        mutationFn: async () => {
+          const { data } = await apiClient.post('/tasks/scheduler/run-monthly');
+          return data as { assignments_processed: number; tasks_generated: number; tasks_skipped: number; errors: string[] };
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        },
+      });
+    },
+
+    useRunWeekly: () => {
+      return useMutation({
+        mutationFn: async () => {
+          const { data } = await apiClient.post('/tasks/scheduler/run-weekly');
+          return data as { assignments_processed: number; tasks_generated: number; tasks_skipped: number; errors: string[] };
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        },
+      });
+    },
+
+    useRunYearly: () => {
+      return useMutation({
+        mutationFn: async () => {
+          const { data } = await apiClient.post('/tasks/scheduler/run-yearly');
+          return data as { assignments_processed: number; tasks_generated: number; tasks_skipped: number; errors: string[] };
+        },
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['tasks'] });
+        },
+      });
+    },
+
     // ── RoutineType ──
     useRoutineTypes: () => {
       return useQuery<RoutineTypeResponse[]>({

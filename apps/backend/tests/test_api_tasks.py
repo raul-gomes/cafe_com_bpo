@@ -809,35 +809,44 @@ def test_task_template_name_null_when_manual(client):
     assert resp.json()["assignment_id"] is None
 
 
-# ── Scheduler tests (Items 17-21) ──
+# ── Scheduler tests (direct method calls) ──
+
+
+def _get_scheduler_result(now=None, mode=None):
+    """Helper: create a one-off TaskScheduler and run daily check."""
+    from src.modules.tasks.scheduler import TaskScheduler
+    sched = TaskScheduler()
+    kwargs = {}
+    if now is not None:
+        kwargs["now"] = now
+    if mode is not None:
+        kwargs["mode"] = mode
+    return sched.run_daily_check(**kwargs)
 
 
 def test_scheduler_no_assignments(client):
-    """Scheduler com 0 assignments → 0 geradas."""
+    """Scheduler funciona mesmo sem assignments do usuario (nao quebra)."""
     email = f"sched_empty_{uuid4()}@cafe.com"
-    auth = get_auth_header(client, email)
+    get_auth_header(client, email)
 
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["assignments_processed"] == 0
-    assert data["tasks_generated"] == 0
-    assert data["tasks_skipped"] == 0
+    data = _get_scheduler_result()
+    assert "assignments_processed" in data
+    assert "tasks_generated" in data
+    assert "tasks_skipped" in data
+    assert isinstance(data["errors"], list)
 
 
 def test_scheduler_daily_generates_on_weekday(client):
-    """Scheduler gera tarefa diária se hoje é dia útil."""
-    now = datetime.now(timezone.utc)
-    is_weekday = now.weekday() < 5
+    """Scheduler gera tarefa diaria em dia util (Mon-Thu)."""
+    now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
 
     email = f"sched_daily_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth)
 
-    # Criar template daily com uma activity
     tmpl_resp = client.post(
         "/tasks/templates/",
-        json={"name": "Diário Scheduler", "recurrence": "daily", "process_type": "fiscal"},
+        json={"name": "Diario Scheduler", "recurrence": "daily", "process_type": "fiscal"},
         headers=auth,
     )
     assert tmpl_resp.status_code == 201
@@ -845,47 +854,28 @@ def test_scheduler_daily_generates_on_weekday(client):
 
     client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Diária", "due_day": 1},
+        json={"name": "Task Diaria", "due_day": 1},
         headers=auth,
     )
 
-    # Vincular ao cliente — auto‑generation já cria a tarefa do período
+    # Vincular ao cliente
     assign_resp = client.post(
         "/tasks/client-templates/",
         json={"client_id": cli["id"], "template_id": tmpl_id},
         headers=auth,
     )
     assert assign_resp.status_code == 201
-    assign_data = assign_resp.json()
 
-    if is_weekday:
-        assert assign_data["tasks_generated"] >= 1, (
-            f"Dia útil ({now.weekday()}) deveria gerar via auto‑generation"
-        )
-    else:
-        assert assign_data["tasks_generated"] == 0, (
-            f"Fim de semana ({now.weekday()}) não deve gerar no assignment"
-        )
-
-    # Executar scheduler — task já existe, deve pular
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
-
-    if is_weekday:
-        assert data["tasks_generated"] == 0, "Task já foi gerada pelo assignment"
-        assert data["tasks_skipped"] >= 1, "Deveria ter detectado tarefa existente"
-    else:
-        assert data["tasks_generated"] == 0, (
-            f"Fim de semana ({now.weekday()}) não deve gerar tasks"
-        )
+    # Executar scheduler com data fixa (segunda-feira)
+    data = _get_scheduler_result(now=now)
+    assert data["tasks_generated"] >= 1, (
+        "Segunda-feira deveria gerar tarefa diaria"
+    )
 
 
 def test_scheduler_does_not_duplicate(client):
-    """Segunda execução do scheduler não duplica tarefas pendentes."""
-    now = datetime.now(timezone.utc)
-    if now.weekday() >= 5:
-        return  # Skip em fim de semana — teste irrelevante
+    """Segunda execucao do scheduler nao duplica tarefas pendentes."""
+    now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
 
     email = f"sched_dedup_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -908,23 +898,22 @@ def test_scheduler_does_not_duplicate(client):
         headers=auth,
     )
     assert assign_resp.status_code == 201
-    assert assign_resp.json()["tasks_generated"] >= 1, "Auto‑generation deve criar tarefa"
+    assert assign_resp.json()["tasks_generated"] >= 1
 
-    # Primeira execução — task já existe, scheduler deve pular
-    r1 = client.post("/tasks/scheduler/run", headers=auth).json()
-    assert r1["tasks_generated"] == 0, "Task já existe, não deve gerar nova"
-    assert r1["tasks_skipped"] >= 1, "Deveria ter detectado tarefa existente"
+    # Primeira execucao — deve gerar para segunda-feira
+    r1 = _get_scheduler_result(now=now)
+    assert r1["tasks_generated"] >= 1, "Deveria gerar tarefa para segunda-feira"
 
-    # Segunda execução — ainda não deve duplicar
-    r2 = client.post("/tasks/scheduler/run", headers=auth).json()
-    assert r2["tasks_generated"] == 0
-    assert r2["tasks_skipped"] >= 1
+    # Segunda execucao — mesmo routine_instance_id, deve pular
+    r2 = _get_scheduler_result(now=now)
+    assert r2["tasks_generated"] == 0, "Nao deve duplicar"
+    assert r2["tasks_skipped"] >= 1, "Deveria ter detectado task existente"
 
 
 def test_scheduler_weekly_with_weekday_mask(client):
-    """Scheduler gera tarefa semanal se weekday_mask inclui hoje."""
-    now = datetime.now(timezone.utc)
-    today_weekday = str(now.weekday())
+    """Scheduler gera tarefa semanal no domingo com base na weekday_mask."""
+    now = datetime(2026, 7, 19, 0, 0, 0, tzinfo=timezone.utc)  # Sunday
+    mask = "0,1"  # Monday, Tuesday
 
     email = f"sched_weekly_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -935,7 +924,7 @@ def test_scheduler_weekly_with_weekday_mask(client):
         json={
             "name": "Semanal Scheduler",
             "recurrence": "weekly",
-            "weekday_mask": today_weekday,
+            "weekday_mask": mask,
             "process_type": "fiscal",
         },
         headers=auth,
@@ -954,18 +943,16 @@ def test_scheduler_weekly_with_weekday_mask(client):
         headers=auth,
     )
 
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["tasks_generated"] >= 1, (
-        f"Weekday {today_weekday} deveria gerar com mask {today_weekday}"
+    data = _get_scheduler_result(now=now)
+    matched_days = len(mask.split(","))
+    assert data["tasks_generated"] >= matched_days, (
+        f"Domingo deveria gerar tasks para a semana ({matched_days} dias no mask)"
     )
 
 
 def test_scheduler_weekly_skips_when_mask_mismatch(client):
-    """Scheduler não gera se weekday_mask não inclui hoje."""
-    now = datetime.now(timezone.utc)
-    other_day = str((now.weekday() + 1) % 7)  # Um dia diferente de hoje
+    """Scheduler semanal so roda no domingo; em segunda-feira nao gera."""
+    now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
 
     email = f"sched_weekly_skip_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -976,7 +963,7 @@ def test_scheduler_weekly_skips_when_mask_mismatch(client):
         json={
             "name": "Semanal Skip",
             "recurrence": "weekly",
-            "weekday_mask": other_day,
+            "weekday_mask": "0",  # Monday — matches today, mas nao e domingo
             "process_type": "fiscal",
         },
         headers=auth,
@@ -993,18 +980,15 @@ def test_scheduler_weekly_skips_when_mask_mismatch(client):
         headers=auth,
     )
 
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
+    data = _get_scheduler_result(now=now)
     assert data["tasks_generated"] == 0, (
-        f"Weekday mask {other_day} diferente de hoje ({now.weekday()}) não deve gerar"
+        "Weekly nao deve gerar em dia que nao seja domingo"
     )
 
 
 def test_scheduler_monthly_skips_existing_task(client):
-    """Scheduler mensal não gera task duplicada quando já existe pendente."""
-    now = datetime.now(timezone.utc)
-    today_day = now.day
+    """Scheduler mensal gera no ultimo dia util do mes e nao duplica."""
+    now = datetime(2026, 7, 31, 0, 0, 0, tzinfo=timezone.utc)  # Last business day of July (Friday)
 
     email = f"sched_monthly_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1018,32 +1002,28 @@ def test_scheduler_monthly_skips_existing_task(client):
     tmpl_id = tmpl_resp.json()["id"]
     client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Mensal", "due_day": today_day},
+        json={"name": "Task Mensal", "due_day": 31},
         headers=auth,
     )
-    # Assignment já gera a task para o período atual
     assign_resp = client.post(
         "/tasks/client-templates/",
         json={"client_id": cli["id"], "template_id": tmpl_id},
         headers=auth,
     )
     assert assign_resp.status_code == 201
-    assert assign_resp.json()["tasks_generated"] == 1
 
-    # Scheduler não deve duplicar — a task já existe
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["tasks_generated"] == 0
-    assert data["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
+    data = _get_scheduler_result(now=now)
+    assert data["tasks_generated"] >= 1, "Ultimo dia util do mes deve gerar task mensal"
+
+    # Segundo run — nao deve duplicar
+    data2 = _get_scheduler_result(now=now)
+    assert data2["tasks_generated"] == 0
+    assert data2["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
 
 
 def test_scheduler_monthly_skips_wrong_day(client):
-    """Scheduler mensal não gera se due_day da activity não coincide com hoje."""
-    now = datetime.now(timezone.utc)
-    wrong_day = (now.day % 28) + 1  # Garante que é diferente do dia atual
-    if wrong_day == now.day:
-        wrong_day = wrong_day % 28 + 1  # fallback
+    """Scheduler mensal nao gera se nao for o ultimo dia util do mes."""
+    now = datetime(2026, 7, 15, 0, 0, 0, tzinfo=timezone.utc)  # Not last business day
 
     email = f"sched_monthly_skip_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1061,7 +1041,7 @@ def test_scheduler_monthly_skips_wrong_day(client):
     tmpl_id = tmpl_resp.json()["id"]
     client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Mensal Skip", "due_day": wrong_day},
+        json={"name": "Task Mensal Skip", "due_day": 15},
         headers=auth,
     )
     client.post(
@@ -1070,17 +1050,27 @@ def test_scheduler_monthly_skips_wrong_day(client):
         headers=auth,
     )
 
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["tasks_generated"] == 0, (
-        f"Due day {wrong_day} diferente de hoje {now.day} não deve gerar"
+    # Contar tasks do usuario antes do scheduler
+    tasks_before = client.get("/tasks/", headers=auth).json()
+    before_count = len(tasks_before)
+
+    data = _get_scheduler_result(now=now)
+    assert "tasks_generated" in data
+    assert "tasks_skipped" in data
+
+    # Contar tasks do usuario depois — nao deve ter aumentado pois
+    # o monthly rule so dispara no ultimo dia util do mes
+    tasks_after = client.get("/tasks/", headers=auth).json()
+    after_count = len(tasks_after)
+    assert after_count == before_count, (
+        f"Nao sendo ultimo dia util do mes ({now.date()}), "
+        "nao deve gerar task mensal para este usuario"
     )
 
 
 def test_scheduler_yearly_skips_existing_task(client):
-    """Scheduler anual não gera task duplicada quando já existe pendente."""
-    now = datetime.now(timezone.utc)
+    """Scheduler anual gera no ultimo dia util de dezembro e nao duplica."""
+    now = datetime(2026, 12, 31, 0, 0, 0, tzinfo=timezone.utc)  # Last business day of year (Thu)
 
     email = f"sched_yearly_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1091,7 +1081,7 @@ def test_scheduler_yearly_skips_existing_task(client):
         json={
             "name": "Anual",
             "recurrence": "yearly",
-            "due_month": now.month,
+            "due_month": 12,
             "process_type": "fiscal",
         },
         headers=auth,
@@ -1099,7 +1089,7 @@ def test_scheduler_yearly_skips_existing_task(client):
     tmpl_id = tmpl_resp.json()["id"]
     client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Anual", "due_day": now.day},
+        json={"name": "Task Anual", "due_day": 31},
         headers=auth,
     )
     assign_resp = client.post(
@@ -1108,20 +1098,18 @@ def test_scheduler_yearly_skips_existing_task(client):
         headers=auth,
     )
     assert assign_resp.status_code == 201
-    assert assign_resp.json()["tasks_generated"] == 1
 
-    # Scheduler não deve duplicar
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["tasks_generated"] == 0
-    assert data["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
+    data = _get_scheduler_result(now=now)
+    assert data["tasks_generated"] >= 1, "Ultimo dia util de dezembro deve gerar task anual"
+
+    data2 = _get_scheduler_result(now=now)
+    assert data2["tasks_generated"] == 0
+    assert data2["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
 
 
 def test_scheduler_yearly_skips_wrong_month(client):
-    """Scheduler não gera anual se due_month não coincide."""
-    now = datetime.now(timezone.utc)
-    wrong_month = (now.month % 12) + 1  # Mês diferente
+    """Scheduler anual so roda no ultimo dia util de dezembro."""
+    now = datetime(2026, 7, 31, 0, 0, 0, tzinfo=timezone.utc)  # July, not December
 
     email = f"sched_yearly_skip_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1132,7 +1120,7 @@ def test_scheduler_yearly_skips_wrong_month(client):
         json={
             "name": "Anual Skip",
             "recurrence": "yearly",
-            "due_month": wrong_month,
+            "due_month": 7,
             "process_type": "fiscal",
         },
         headers=auth,
@@ -1140,7 +1128,7 @@ def test_scheduler_yearly_skips_wrong_month(client):
     tmpl_id = tmpl_resp.json()["id"]
     client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Anual Skip", "due_day": 15},
+        json={"name": "Task Anual Skip", "due_day": 31},
         headers=auth,
     )
     client.post(
@@ -1149,19 +1137,27 @@ def test_scheduler_yearly_skips_wrong_month(client):
         headers=auth,
     )
 
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["tasks_generated"] == 0, (
-        f"Due month {wrong_month} diferente do atual {now.month} não deve gerar"
+    # Contar tasks do usuario antes do scheduler
+    tasks_before = client.get("/tasks/", headers=auth).json()
+    before_count = len(tasks_before)
+
+    data = _get_scheduler_result(now=now)
+    assert "tasks_generated" in data
+    assert "tasks_skipped" in data
+
+    # Contar tasks do usuario depois — nao deve ter aumentado pois
+    # o yearly rule so dispara no ultimo dia util de dezembro
+    tasks_after = client.get("/tasks/", headers=auth).json()
+    after_count = len(tasks_after)
+    assert after_count == before_count, (
+        f"Nao sendo ultimo dia util de dezembro ({now.date()}), "
+        "nao deve gerar task anual para este usuario"
     )
 
 
 def test_scheduler_isolation(client):
-    """Scheduler só gera tasks para os assignments do próprio scheduler globalmente."""
-    now = datetime.now(timezone.utc)
-    if now.weekday() >= 5:
-        return
+    """Scheduler gera tasks globalmente (nao por usuario)."""
+    now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
 
     email_a = f"sched_iso_a_{uuid4()}@cafe.com"
     email_b = f"sched_iso_b_{uuid4()}@cafe.com"
@@ -1170,7 +1166,6 @@ def test_scheduler_isolation(client):
     cli_a = create_client(client, auth_a, "Cliente A")
     create_client(client, auth_b, "Cliente B")
 
-    # Apenas usuário A cria template + assignment
     tmpl_resp = client.post(
         "/tasks/templates/",
         json={"name": "Isolation", "recurrence": "daily", "process_type": "fiscal"},
@@ -1188,25 +1183,20 @@ def test_scheduler_isolation(client):
         headers=auth_a,
     )
     assert assign_resp.status_code == 201
-    assert assign_resp.json()["tasks_generated"] >= 1, "Auto‑generation deve criar tarefa"
+    assert assign_resp.json()["tasks_generated"] >= 1
 
-    # Executar scheduler — task já existe, deve pular
-    resp = client.post("/tasks/scheduler/run", headers=auth_a)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["tasks_generated"] == 0, "Task já existe via auto‑generation"
-    assert data["tasks_skipped"] >= 1, "Deveria ter detectado tarefa existente"
+    data = _get_scheduler_result(now=now)
+    assert "tasks_generated" in data
+    assert "tasks_skipped" in data
 
-    # Usuário B não vê tasks de A
+    # Usuario B nao ve tasks de A
     tasks_b = client.get("/tasks/", headers=auth_b).json()
     assert len(tasks_b) == 0
 
 
 def test_scheduler_template_not_active_skipped(client):
     """Scheduler ignora templates com is_active=False."""
-    now = datetime.now(timezone.utc)
-    if now.weekday() >= 5:
-        return
+    now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
 
     email = f"sched_inactive_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1234,68 +1224,51 @@ def test_scheduler_template_not_active_skipped(client):
         headers=auth,
     )
 
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    assert resp.json()["tasks_generated"] == 0
+    data = _get_scheduler_result(now=now)
+    assert data["tasks_generated"] == 0
 
 
 def test_scheduler_response_structure(client):
     """Verifica estrutura da resposta do scheduler."""
     email = f"sched_struct_{uuid4()}@cafe.com"
-    auth = get_auth_header(client, email)
+    get_auth_header(client, email)
 
-    resp = client.post("/tasks/scheduler/run", headers=auth)
-    assert resp.status_code == 200
-    data = resp.json()
+    data = _get_scheduler_result()
     assert "assignments_processed" in data
     assert "tasks_generated" in data
     assert "tasks_skipped" in data
     assert "errors" in data
 
 
-# ── Cron endpoint tests ──
-
-
-def test_scheduler_cron_requires_secret(client):
-    """POST /tasks/scheduler/cron sem X-Cron-Secret retorna 501 ou 401."""
-    email = f"cron_nosecret_{uuid4()}@cafe.com"
+def test_routine_instance_id_dedup(client):
+    """Mesmo routine_instance_id nao gera task duplicada."""
+    now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
+    email = f"sched_uuid_dedup_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
 
-    resp = client.post("/tasks/scheduler/cron", headers=auth)
-    assert resp.status_code in (401, 501)
-
-
-def test_scheduler_cron_wrong_secret(client, monkeypatch):
-    """X-Cron-Secret inválido retorna 401."""
-    from src.core.config import get_settings
-    get_settings.cache_clear()
-    monkeypatch.setenv("CRON_SECRET", "my-cron-secret")
-    email = f"cron_wrong_{uuid4()}@cafe.com"
-    auth = get_auth_header(client, email)
-
-    resp = client.post(
-        "/tasks/scheduler/cron",
-        headers={**auth, "x-cron-secret": "wrong-secret"},
+    tmpl_resp = client.post(
+        "/tasks/templates/",
+        json={"name": "UUID Dedup", "recurrence": "daily", "process_type": "fiscal"},
+        headers=auth,
     )
-    assert resp.status_code == 401
-    assert "inválido" in resp.json()["detail"].lower()
-
-
-def test_scheduler_cron_success(client, monkeypatch):
-    """X-Cron-Secret correto executa o scheduler para todos os usuários."""
-    from src.core.config import get_settings
-    get_settings.cache_clear()
-    monkeypatch.setenv("CRON_SECRET", "my-cron-secret")
-    email = f"cron_ok_{uuid4()}@cafe.com"
-    auth = get_auth_header(client, email)
-
-    resp = client.post(
-        "/tasks/scheduler/cron",
-        headers={**auth, "x-cron-secret": "my-cron-secret"},
+    tmpl_id = tmpl_resp.json()["id"]
+    client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={"name": "Task UUID", "due_day": 1},
+        headers=auth,
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert "assignments_processed" in data
-    assert "tasks_generated" in data
-    assert "tasks_skipped" in data
-    assert "errors" in data
+    client.post(
+        "/tasks/client-templates/",
+        json={"client_id": cli["id"], "template_id": tmpl_id},
+        headers=auth,
+    )
+
+    # First run — should generate
+    r1 = _get_scheduler_result(now=now)
+    assert r1["tasks_generated"] >= 1
+
+    # Second run — same instance_id, should skip
+    r2 = _get_scheduler_result(now=now)
+    assert r2["tasks_generated"] == 0
+    assert r2["tasks_skipped"] >= 1

@@ -13,11 +13,14 @@ const mockMutation = () => ({ mutateAsync: vi.fn(), mutate: vi.fn(), isPending: 
 
 // Mock all the hooks used by TasksPage
 vi.mock('../src/api/hooks/useTasks', () => {
+  // Use local noon today to avoid timezone mismatches with the filter period
+  const now = new Date();
+  const todayDeadline = new Date(now).toISOString();
   const mockData = {
     useTasksList: () => ({
       data: [
-        { id: 'task-1', title: 'Task 1', client_id: 'c1', status: 'todo', priority: 'high', phase_id: 'phase-1', deadline: '2026-06-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1' },
-        { id: 'task-2', title: 'Task 2', client_id: 'c1', status: 'doing', priority: 'medium', phase_id: 'phase-2', deadline: '2026-06-01T00:00:00Z', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1' },
+        { id: 'task-1', title: 'Task 1', client_id: 'c1', status: 'todo', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
+        { id: 'task-2', title: 'Task 2', client_id: 'c1', status: 'doing', priority: 'medium', phase_id: 'phase-2', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
       ],
       isLoading: false,
     }),
@@ -66,6 +69,10 @@ vi.mock('../src/api/hooks/useTasks', () => {
     useSendTaskEmail: mockMutation,
     useSLAAlerts: () => ({ data: { alerts: [] } }),
     useCancelTask: mockMutation,
+    useRunDaily: mockMutation,
+    useRunMonthly: mockMutation,
+    useRunWeekly: mockMutation,
+    useRunYearly: mockMutation,
   }
   return { useTasks: () => mockData }
 })
@@ -105,12 +112,10 @@ describe('TasksPage — Phases (Tarefa 5.2)', () => {
     )
   }
 
-  it('renders phase names as Kanban column headers', async () => {
+  it('renders phase names as Kanban column headers', () => {
     renderPage()
 
     // All 4 phases should appear as column headers (h3 elements)
-    // Note: phase names also appear in the filter dropdown, so use getAllByText
-    // Phase names can appear in both column headers and filter dropdown
     expect(screen.getAllByText('A Fazer').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Em Andamento').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('Concluído').length).toBeGreaterThanOrEqual(1)

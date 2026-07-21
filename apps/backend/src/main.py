@@ -1,7 +1,8 @@
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import os
+from contextlib import asynccontextmanager
 from fastapi.middleware.cors import CORSMiddleware
 from datetime import datetime
 import time
@@ -14,6 +15,8 @@ from src.core.logger import setup_logging, log
 from src.core.database import engine
 from src.modules.pricing.router import router as pricing_router
 from src.modules.auth.router import router as auth_router
+from src.modules.auth.schemas import UserResponse
+from src.modules.auth.service import get_current_user
 from src.modules.proposals.router import router as proposals_router
 from src.modules.gallery.router import router as gallery_router
 from src.modules.clients.router import router as clients_router
@@ -26,6 +29,18 @@ from src.modules.companies.router import router as companies_router
 from src.modules.calendar.router import router as calendar_router
 from src.modules.feedback.router import router as feedback_router
 from src.modules.team.router import router as team_router
+from src.modules.tasks.scheduler import TaskScheduler
+
+_scheduler = TaskScheduler()
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    log.info("🚀 Iniciando aplicação...")
+    _scheduler.start()
+    yield
+    _scheduler.stop()
+    log.info("🛑 Aplicação encerrada.")
 
 
 def create_app() -> FastAPI:
@@ -35,6 +50,7 @@ def create_app() -> FastAPI:
         title="Café com BPO API",
         description="API de Precificação e Gestão de Propostas BPO (Arquitetura Modular)",
         version="1.1.0",
+        lifespan=lifespan,
     )
 
     app.state.limiter = limiter
@@ -69,7 +85,7 @@ def create_app() -> FastAPI:
             "version": app.version,
             "mode": settings.mode,
             "database": db_status,
-            "cron_configured": bool(settings.cron_secret),
+            "scheduler": "rocketry",
             "timestamp": datetime.utcnow().isoformat() + "Z",
         }
         if error_msg:
@@ -96,6 +112,48 @@ def create_app() -> FastAPI:
 
     os.makedirs("storage/avatars", exist_ok=True)
     app.mount("/avatars", StaticFiles(directory="storage/avatars"), name="avatars")
+
+    # ── Scheduler endpoints ──
+
+    @app.post("/tasks/scheduler/run")
+    def run_scheduler(_current_user: UserResponse = Depends(get_current_user)):
+        """Run the scheduler check (auto-detects rules based on today's date)."""
+        if not _scheduler.app:
+            raise HTTPException(status_code=503, detail="Scheduler not initialized")
+        result = _scheduler.run_daily_check(mode="all")
+        return result
+
+    @app.post("/tasks/scheduler/run-daily")
+    def run_scheduler_daily(_current_user: UserResponse = Depends(get_current_user)):
+        """Force run the daily rule (for testing)."""
+        if not _scheduler.app:
+            raise HTTPException(status_code=503, detail="Scheduler not initialized")
+        result = _scheduler.run_daily_check(mode="daily")
+        return result
+
+    @app.post("/tasks/scheduler/run-weekly")
+    def run_scheduler_weekly(_current_user: UserResponse = Depends(get_current_user)):
+        """Force run the weekly rule (for testing)."""
+        if not _scheduler.app:
+            raise HTTPException(status_code=503, detail="Scheduler not initialized")
+        result = _scheduler.run_daily_check(mode="weekly")
+        return result
+
+    @app.post("/tasks/scheduler/run-monthly")
+    def run_scheduler_monthly(_current_user: UserResponse = Depends(get_current_user)):
+        """Force run the monthly rule (for testing)."""
+        if not _scheduler.app:
+            raise HTTPException(status_code=503, detail="Scheduler not initialized")
+        result = _scheduler.run_daily_check(mode="monthly")
+        return result
+
+    @app.post("/tasks/scheduler/run-yearly")
+    def run_scheduler_yearly(_current_user: UserResponse = Depends(get_current_user)):
+        """Force run the yearly rule (for testing)."""
+        if not _scheduler.app:
+            raise HTTPException(status_code=503, detail="Scheduler not initialized")
+        result = _scheduler.run_daily_check(mode="yearly")
+        return result
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):

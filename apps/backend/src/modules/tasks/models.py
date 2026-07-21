@@ -84,6 +84,7 @@ class Task(Base):
 
     # Scheduling
     time_estimate_minutes = Column(Integer, nullable=True)
+    routine_instance_id = Column(UUID(as_uuid=True), nullable=True, index=True)
 
     # Notes
     notes = Column(Text, nullable=True)
@@ -111,7 +112,9 @@ class Task(Base):
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     cancelled_at = Column(DateTime(timezone=True), nullable=True)
+    is_cancelled = Column(Boolean, server_default="false", default=False, nullable=False)
     is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    completed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Team tracking
     moved_by = Column(

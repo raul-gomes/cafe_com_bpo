@@ -144,12 +144,11 @@ class TestMultiActivity:
         )
 
     def test_scheduler_skips_both_activities_when_pending(self, client: TestClient):
-        """Scheduler skips both activities when both have pending tasks."""
-        import calendar
-        now = datetime.now(timezone.utc)
-        if now.weekday() >= 5:
-            return  # Weekend — skip
+        """Scheduler nao duplica tasks ja existentes (dedup via routine_instance_id)."""
+        from src.modules.tasks.scheduler import TaskScheduler
 
+        # Pin to Monday to ensure daily rule fires
+        now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)
         email = f"multi_sched_{uuid4()}@test.com"
         auth = get_auth_header(client, email)
         cli = create_client(client, auth)
@@ -166,15 +165,27 @@ class TestMultiActivity:
                 headers=auth,
             )
 
-        # Assign generates 2 tasks
+        # Assign generates 2 tasks (with routine_instance_id) — deadline = Monday 18:00
         assign = client.post("/tasks/client-templates/", json={
             "client_id": cli["id"], "template_id": tmpl_id,
         }, headers=auth).json()
         assert assign["tasks_generated"] == 2
 
-        # Scheduler should skip both
-        sched = client.post("/tasks/scheduler/run", headers=auth).json()
-        assert sched["tasks_generated"] == 0
-        assert sched["tasks_skipped"] >= 2, (
-            f"Expected 2 skipped, got {sched['tasks_skipped']}"
+        # Primeira execucao do scheduler (Mon) — gera tasks para terca-feira
+        # (pelo menos 2 para as 2 activities deste teste)
+        sched = TaskScheduler()
+        r1 = sched.run_daily_check(now=now)
+        assert r1["tasks_generated"] >= 2, (
+            f"Monday should generate at least 2 tasks for Tuesday, "
+            f"got {r1['tasks_generated']}"
+        )
+
+        # Segunda execucao — routine_instance_id ja existe, deve pular tudo
+        r2 = sched.run_daily_check(now=now)
+        assert r2["tasks_generated"] == 0, (
+            f"Expected 0 generated on second run, got {r2['tasks_generated']}"
+        )
+        assert r2["tasks_skipped"] >= 2, (
+            f"Expected at least 2 skipped on second run (got {r2['tasks_skipped']}) "
+            f"— routine_instance_id dedup should skip this test's activities"
         )

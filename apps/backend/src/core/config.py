@@ -46,9 +46,6 @@ class Settings(BaseSettings):
     google_calendar_client_secret: str = ""
     google_calendar_redirect_uri: str = "http://localhost:3000/calendar/callback"
 
-    # Cron / Scheduler
-    cron_secret: str = ""
-
     # Support / Feedback
     support_email: str = "cafe@cafecombpo.com.br"
 

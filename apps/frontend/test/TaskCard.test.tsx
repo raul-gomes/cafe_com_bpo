@@ -35,6 +35,7 @@ const baseTask: TaskResponse = {
   title: 'Test Task',
   status: 'todo',
   priority: 'high',
+  is_cancelled: false,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }
@@ -104,7 +105,7 @@ describe('TaskCard', () => {
   })
 
   it('does NOT render cancel button when task has cancelled_at', () => {
-    const cancelledTask = { ...baseTask, cancelled_at: '2026-01-02T00:00:00Z' }
+    const cancelledTask = { ...baseTask, is_cancelled: true, cancelled_at: '2026-01-02T00:00:00Z' }
     renderCard(<TaskCard {...defaultProps} task={cancelledTask} />)
     expect(screen.queryByTitle('Cancelar tarefa')).not.toBeInTheDocument()
   })

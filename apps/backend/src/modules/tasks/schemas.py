@@ -16,12 +16,15 @@ class TaskBase(BaseModel):
     notes: Optional[str] = None
     phase_id: Optional[UUID] = None
     cancelled_at: Optional[datetime] = None
+    is_cancelled: bool = False
     is_active: bool = True
+    completed_at: Optional[datetime] = None
 
 
 class TaskCreate(TaskBase):
     template_id: Optional[UUID] = None
     assignment_id: Optional[UUID] = None
+    routine_instance_id: Optional[UUID] = None
 
 
 class TaskUpdate(BaseModel):
@@ -36,6 +39,7 @@ class TaskUpdate(BaseModel):
     notes: Optional[str] = None
     phase_id: Optional[UUID] = None
     cancelled_at: Optional[datetime] = None
+    is_cancelled: Optional[bool] = None
 
 
 class TaskResponse(TaskBase):
@@ -44,12 +48,15 @@ class TaskResponse(TaskBase):
     phase_id: Optional[UUID] = None
     template_id: Optional[UUID] = None
     assignment_id: Optional[UUID] = None
+    routine_instance_id: Optional[UUID] = None
     template_name: Optional[str] = None
     moved_by: Optional[UUID] = None
     moved_by_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     cancelled_at: Optional[datetime] = None
+    is_cancelled: bool = False
+    completed_at: Optional[datetime] = None
     deleted_at: Optional[datetime] = None
 
     model_config = ConfigDict(from_attributes=True)

@@ -17,6 +17,8 @@ export interface TaskResponse {
   moved_by?: string;
   moved_by_name?: string;
   cancelled_at?: string;
+  is_cancelled: boolean;
+  completed_at?: string;
   deleted_at?: string;
   created_at: string;
   updated_at: string;

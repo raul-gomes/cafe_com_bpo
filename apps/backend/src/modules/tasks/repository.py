@@ -78,7 +78,7 @@ class TaskRepository:
             query = query.filter(
                 Task.deadline < day_start,
                 Task.status != "done",
-                Task.cancelled_at.is_(None),
+                Task.is_cancelled == False,
             )
 
         return query.order_by(Task.deadline.asc().nullslast()).all()
@@ -105,8 +105,9 @@ class TaskRepository:
         self.session.commit()
 
     def cancel(self, task: Task) -> Task:
-        """Mark a task as cancelled by setting cancelled_at timestamp."""
-        if task.cancelled_at is None:
+        """Mark a task as cancelled (idempotent)."""
+        if not task.is_cancelled:
+            task.is_cancelled = True
             task.cancelled_at = datetime.now(timezone.utc)
             task.status = "cancelled"
             self.session.commit()
@@ -378,6 +379,14 @@ class TaskRepository:
         all_assignments = self.session.query(ClientTemplateAssignment).all()
         return [a for a in all_assignments if a.is_active is True]
 
+    def count_active_assignments(self) -> int:
+        """Count active assignments (is_active == True)."""
+        return (
+            self.session.query(ClientTemplateAssignment)
+            .filter(ClientTemplateAssignment.is_active == True)
+            .count()
+        )
+
     def get_tasks_by_assignment_and_deadline(
         self, assignment_id: UUID, deadline_start: datetime, deadline_end: datetime
     ) -> List[Task]:
@@ -421,6 +430,17 @@ class TaskRepository:
                 TaskModel.deadline <= deadline_end,
             )
         existing = query.first()
+        return existing is not None
+
+    def task_exists_by_instance_id(self, instance_id: UUID) -> bool:
+        """Check if a pending task with the given routine_instance_id exists."""
+        from src.modules.tasks.models import Task as TaskModel
+
+        existing = self.session.query(TaskModel.id).filter(
+            TaskModel.routine_instance_id == instance_id,
+            TaskModel.is_active == True,
+            TaskModel.status.notin_(["done", "cancelled"]),
+        ).first()
         return existing is not None
 
     def update_assignment_last_generated(
@@ -544,7 +564,7 @@ class TaskRepository:
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
             Task.is_active == True,
-            Task.cancelled_at.is_(None),
+            Task.is_cancelled == False,
             Task.deadline.isnot(None),
             Task.deadline < datetime.now(timezone.utc),
         )
@@ -562,7 +582,7 @@ class TaskRepository:
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
             Task.is_active == True,
-            Task.cancelled_at.is_(None),
+            Task.is_cancelled == False,
             Task.deadline.isnot(None),
             Task.deadline >= now,
             Task.deadline <= cutoff,
@@ -570,6 +590,23 @@ class TaskRepository:
         if done_ids:
             query = query.filter(~Task.phase_id.in_(done_ids))
         return query.order_by(Task.deadline.asc()).all()
+
+    def get_tasks_completed_in_range(
+        self, user_id: UUID, start_date: datetime, end_date: datetime
+    ) -> List[Task]:
+        """Get tasks completed (completed_at) within a date range."""
+        done_ids = self._get_done_phase_ids(user_id)
+        query = self.session.query(Task).filter(
+            Task.user_id == user_id,
+            Task.is_active == True,
+            Task.is_cancelled == False,
+            Task.completed_at.isnot(None),
+            Task.completed_at >= start_date,
+            Task.completed_at <= end_date,
+        )
+        if done_ids:
+            query = query.filter(Task.phase_id.in_(done_ids))
+        return query.order_by(Task.completed_at.desc()).all()
 
     def get_tasks_by_client_and_month(
         self, client_id: UUID, start_date: datetime, end_date: datetime
