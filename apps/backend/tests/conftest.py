@@ -20,9 +20,7 @@ class SQLiteArray(TypeDecorator):
         # ARRAY can receive item_type (e.g. ARRAY(String)).
         # Ignore it and just pass through to the Text impl.
         # Also drop positional args that aren't standard Text params.
-        filtered_args = tuple(
-            a for a in args if isinstance(a, (int, type(None)))
-        )
+        filtered_args = tuple(a for a in args if isinstance(a, (int, type(None))))
         super().__init__(*filtered_args, **kwargs)
 
     def process_bind_param(self, value, dialect):

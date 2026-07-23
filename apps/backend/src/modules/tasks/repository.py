@@ -39,7 +39,7 @@ class TaskRepository:
             .filter(
                 Task.id == task_id,
                 Task.user_id == user_id,
-                Task.is_active == True,
+                Task.is_active,
             )
             .first()
         )
@@ -54,9 +54,7 @@ class TaskRepository:
     ) -> List[Task]:
         from datetime import datetime, timezone, timedelta
 
-        query = self.session.query(Task).filter(
-            Task.user_id == user_id, Task.is_active == True
-        )
+        query = self.session.query(Task).filter(Task.user_id == user_id, Task.is_active)
         if status_filter:
             query = query.filter(Task.status == status_filter)
 
@@ -78,7 +76,7 @@ class TaskRepository:
             query = query.filter(
                 Task.deadline < day_start,
                 Task.status != "done",
-                Task.is_cancelled == False,
+                not Task.is_cancelled,
             )
 
         return query.order_by(Task.deadline.asc().nullslast()).all()
@@ -187,7 +185,7 @@ class TaskRepository:
             .filter(
                 Task.phase_id == phase_id,
                 Task.user_id == user_id,
-                Task.is_active == True,
+                Task.is_active,
             )
             .order_by(Task.deadline.asc().nullslast())
             .all()
@@ -212,7 +210,7 @@ class TaskRepository:
             self.session.query(Task)
             .filter(
                 Task.user_id == user_id,
-                Task.is_active == True,
+                Task.is_active,
                 Task.deadline >= start_date,
                 Task.deadline <= end_date,
             )
@@ -226,7 +224,7 @@ class TaskRepository:
             self.session.query(Task)
             .filter(
                 Task.user_id == user_id,
-                Task.is_active == True,
+                Task.is_active,
                 Task.deadline.isnot(None),
             )
             .order_by(Task.deadline.asc())
@@ -383,7 +381,7 @@ class TaskRepository:
         """Count active assignments (is_active == True)."""
         return (
             self.session.query(ClientTemplateAssignment)
-            .filter(ClientTemplateAssignment.is_active == True)
+            .filter(ClientTemplateAssignment.is_active)
             .count()
         )
 
@@ -397,7 +395,7 @@ class TaskRepository:
                 Task.assignment_id == assignment_id,
                 Task.deadline >= deadline_start,
                 Task.deadline <= deadline_end,
-                Task.is_active == True,
+                Task.is_active,
             )
             .all()
         )
@@ -419,12 +417,14 @@ class TaskRepository:
         query = self.session.query(TaskModel.id).filter(
             TaskModel.assignment_id == assignment_id,
             TaskModel.title == title,
-            TaskModel.is_active == True,
+            TaskModel.is_active,
             TaskModel.status.notin_(["done", "cancelled"]),
         )
         if deadline is not None:
             deadline_start = deadline.replace(hour=0, minute=0, second=0, microsecond=0)
-            deadline_end = deadline.replace(hour=23, minute=59, second=59, microsecond=999999)
+            deadline_end = deadline.replace(
+                hour=23, minute=59, second=59, microsecond=999999
+            )
             query = query.filter(
                 TaskModel.deadline >= deadline_start,
                 TaskModel.deadline <= deadline_end,
@@ -436,11 +436,15 @@ class TaskRepository:
         """Check if a pending task with the given routine_instance_id exists."""
         from src.modules.tasks.models import Task as TaskModel
 
-        existing = self.session.query(TaskModel.id).filter(
-            TaskModel.routine_instance_id == instance_id,
-            TaskModel.is_active == True,
-            TaskModel.status.notin_(["done", "cancelled"]),
-        ).first()
+        existing = (
+            self.session.query(TaskModel.id)
+            .filter(
+                TaskModel.routine_instance_id == instance_id,
+                TaskModel.is_active,
+                TaskModel.status.notin_(["done", "cancelled"]),
+            )
+            .first()
+        )
         return existing is not None
 
     def update_assignment_last_generated(
@@ -563,8 +567,8 @@ class TaskRepository:
         done_ids = self._get_done_phase_ids(user_id)
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
-            Task.is_active == True,
-            Task.is_cancelled == False,
+            Task.is_active,
+            not Task.is_cancelled,
             Task.deadline.isnot(None),
             Task.deadline < datetime.now(timezone.utc),
         )
@@ -581,8 +585,8 @@ class TaskRepository:
         cutoff = now + timedelta(days=days_ahead)
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
-            Task.is_active == True,
-            Task.is_cancelled == False,
+            Task.is_active,
+            not Task.is_cancelled,
             Task.deadline.isnot(None),
             Task.deadline >= now,
             Task.deadline <= cutoff,
@@ -598,8 +602,8 @@ class TaskRepository:
         done_ids = self._get_done_phase_ids(user_id)
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
-            Task.is_active == True,
-            Task.is_cancelled == False,
+            Task.is_active,
+            not Task.is_cancelled,
             Task.completed_at.isnot(None),
             Task.completed_at >= start_date,
             Task.completed_at <= end_date,
@@ -616,7 +620,7 @@ class TaskRepository:
             self.session.query(Task)
             .filter(
                 Task.client_id == client_id,
-                Task.is_active == True,
+                Task.is_active,
                 Task.deadline >= start_date,
                 Task.deadline <= end_date,
             )
@@ -628,7 +632,9 @@ class TaskRepository:
     # RoutineType
     # ──────────────────────────────────────────────
 
-    def create_routine_type(self, user_id: UUID, data: RoutineTypeCreate) -> RoutineType:
+    def create_routine_type(
+        self, user_id: UUID, data: RoutineTypeCreate
+    ) -> RoutineType:
         obj = RoutineType(**data.model_dump(), user_id=user_id)
         self.session.add(obj)
         self.session.commit()
@@ -650,7 +656,9 @@ class TaskRepository:
             .first()
         )
 
-    def update_routine_type(self, type_id: UUID, user_id: UUID, data: RoutineTypeUpdate) -> Optional[RoutineType]:
+    def update_routine_type(
+        self, type_id: UUID, user_id: UUID, data: RoutineTypeUpdate
+    ) -> Optional[RoutineType]:
         obj = self.get_routine_type(type_id, user_id)
         if not obj:
             return None

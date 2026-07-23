@@ -182,8 +182,7 @@ class GoogleCalendarService:
                 "synced": len(task_ids),
                 "failed": 0,
                 "details": [
-                    {"task_id": str(tid), "status": "mock_synced"}
-                    for tid in task_ids
+                    {"task_id": str(tid), "status": "mock_synced"} for tid in task_ids
                 ],
             }
 
@@ -200,8 +199,7 @@ class GoogleCalendarService:
         return {
             "synced": 0,
             "failed": len(task_ids),
-            "details": [{"task_id": str(tid), "status": "not_implemented"} for tid in task_ids],
+            "details": [
+                {"task_id": str(tid), "status": "not_implemented"} for tid in task_ids
+            ],
         }
-
-
-

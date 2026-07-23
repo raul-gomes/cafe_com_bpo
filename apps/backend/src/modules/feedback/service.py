@@ -7,7 +7,9 @@ settings = get_settings()
 
 class FeedbackService:
     @staticmethod
-    def send_feedback(title: str, description: str, user_name: str, user_email: str) -> None:
+    def send_feedback(
+        title: str, description: str, user_name: str, user_email: str
+    ) -> None:
         support_email = settings.support_email
 
         subject = f"[Feedback] {title}"

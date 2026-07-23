@@ -3,8 +3,8 @@ Tests for the Calendar sync endpoints (Tarefa 8.3).
 
 Tests mock mode behavior — real Google Calendar API calls are mocked via httpx.
 """
+
 from uuid import uuid4
-from datetime import datetime, timedelta, timezone
 
 
 def get_auth_header(client, email):

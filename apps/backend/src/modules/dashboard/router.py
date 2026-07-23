@@ -33,7 +33,7 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
                 Task.user_id == current_user.id,
                 Task.status != "done",
                 Task.status != "cancelled",
-                Task.is_active == True,
+                Task.is_active,
                 Task.cancelled_at.is_(None),
                 or_(Task.deadline <= three_days_from_now, Task.deadline < now),
             )
@@ -113,7 +113,7 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             Task.user_id == current_user.id,
             Task.status != "done",
             Task.status != "cancelled",
-            Task.is_active == True,
+            Task.is_active,
             Task.cancelled_at.is_(None),
         )
         .count(),

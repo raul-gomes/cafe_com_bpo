@@ -20,7 +20,9 @@ cloudinary.config(
 
 class CloudinaryService:
     @classmethod
-    async def upload_file(cls, content: bytes, user_id: str, folder: str = "avatars") -> Dict:
+    async def upload_file(
+        cls, content: bytes, user_id: str, folder: str = "avatars"
+    ) -> Dict:
         """
         Faz o upload de um arquivo para o Cloudinary com ID único para evitar conflitos.
 

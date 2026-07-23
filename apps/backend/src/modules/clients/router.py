@@ -47,7 +47,7 @@ def get_clients(
     # Convert to response with role
     result = [
         ClientResponse(
-            **{k: getattr(c, k) for k in c.__dict__ if not k.startswith('_')},
+            **{k: getattr(c, k) for k in c.__dict__ if not k.startswith("_")},
             role="owner",
         )
         for c in owned_clients
@@ -55,10 +55,12 @@ def get_clients(
     for c in member_clients:
         # Skip if already in owned list (shouldn't happen, but be safe)
         if not any(r.id == c.id for r in result):
-            result.append(ClientResponse(
-                **{k: getattr(c, k) for k in c.__dict__ if not k.startswith('_')},
-                role="member",
-            ))
+            result.append(
+                ClientResponse(
+                    **{k: getattr(c, k) for k in c.__dict__ if not k.startswith("_")},
+                    role="member",
+                )
+            )
 
     return result
 

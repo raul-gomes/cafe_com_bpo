@@ -47,7 +47,7 @@ export const OrcamentoNovoPage: React.FC = () => {
       }
       setLoading(false);
     }
-  }, [id, navigate, toast]);
+  }, [id, navigate]);
 
   const handleSave = async (formData: PricingFormData, name: string) => {
     try {

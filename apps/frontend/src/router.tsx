@@ -15,6 +15,7 @@ const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage
 const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
 
 // ── Suspense wrapper ─────────────────────────────────────────────
+// eslint-disable-next-line react-refresh/only-export-components
 function SuspenseWrapper({ children }: { children: React.ReactNode }) {
   return (
     <Suspense fallback={

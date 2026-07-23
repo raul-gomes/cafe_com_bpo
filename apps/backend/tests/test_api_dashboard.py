@@ -101,21 +101,29 @@ def test_dashboard_urgent_tasks_days_remaining_accuracy(client):
 
     # Task overdue by exactly 5 days
     past = datetime.now(timezone.utc) - timedelta(days=5)
-    client.post("/tasks/", json={
-        "title": "5 Dias Atrasada",
-        "client_id": cli["id"],
-        "deadline": past.isoformat(),
-        "priority": "high",
-    }, headers=auth)
+    client.post(
+        "/tasks/",
+        json={
+            "title": "5 Dias Atrasada",
+            "client_id": cli["id"],
+            "deadline": past.isoformat(),
+            "priority": "high",
+        },
+        headers=auth,
+    )
 
     # Task due in exactly 2 days
     future = datetime.now(timezone.utc) + timedelta(days=2)
-    client.post("/tasks/", json={
-        "title": "2 Dias Restantes",
-        "client_id": cli["id"],
-        "deadline": future.isoformat(),
-        "priority": "medium",
-    }, headers=auth)
+    client.post(
+        "/tasks/",
+        json={
+            "title": "2 Dias Restantes",
+            "client_id": cli["id"],
+            "deadline": future.isoformat(),
+            "priority": "medium",
+        },
+        headers=auth,
+    )
 
     resp = client.get("/dashboard/summary", headers=auth)
     assert resp.status_code == 200

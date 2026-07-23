@@ -4,6 +4,7 @@ Tests for the Feedback endpoint (POST /feedback/).
 Verifies authentication, validation, and successful submission.
 The actual email sending is mocked by the dev-mode fallback in tests.
 """
+
 from unittest.mock import patch
 from uuid import uuid4
 

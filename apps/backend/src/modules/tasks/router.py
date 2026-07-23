@@ -92,7 +92,8 @@ def get_tasks(
             if is_owner:
                 # Owner sees all tasks for this client (their own + team members')
                 user_ids = [current_user.id] + [
-                    m.user_id for m in team_repo.get_team_members(client_id)
+                    m.user_id
+                    for m in team_repo.get_team_members(client_id)
                     if m.user_id != current_user.id
                 ]
             else:
@@ -103,11 +104,13 @@ def get_tasks(
 
             all_tasks = []
             for uid in user_ids:
-                all_tasks.extend(repo.get_by_user(
-                    uid,
-                    today_filter=today,
-                    overdue_filter=overdue,
-                ))
+                all_tasks.extend(
+                    repo.get_by_user(
+                        uid,
+                        today_filter=today,
+                        overdue_filter=overdue,
+                    )
+                )
             # Filter by client_id
             all_tasks = [t for t in all_tasks if str(t.client_id) == str(client_id)]
             # Deduplicate by task id
@@ -485,9 +488,6 @@ def regenerate_client_tasks(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-
-
-
 # ================================================================
 # RoutineType Endpoints
 # ================================================================
@@ -630,9 +630,19 @@ ALLOWED_MIME_TYPES = {
 }
 
 ALLOWED_EXTENSIONS = {
-    ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".ppt", ".pptx",
-    ".txt", ".csv",
-    ".png", ".jpg", ".jpeg", ".webp",
+    ".pdf",
+    ".doc",
+    ".docx",
+    ".xls",
+    ".xlsx",
+    ".ppt",
+    ".pptx",
+    ".txt",
+    ".csv",
+    ".png",
+    ".jpg",
+    ".jpeg",
+    ".webp",
 }
 
 FILE_UPLOAD_MAX_SIZE = 20 * 1024 * 1024  # 20 MB
@@ -658,7 +668,7 @@ async def upload_attachment(
         raise HTTPException(
             status_code=400,
             detail=f"Formato de arquivo não permitido: {ext}. "
-                   f"Use: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
+            f"Use: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
     # ── Validate MIME type ────────────────────────────────────────

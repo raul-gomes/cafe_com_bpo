@@ -84,9 +84,7 @@ def create_comment(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.delete(
-    "/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT
-)
+@router.delete("/comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_comment(
     comment_id: UUID,
     current_user: User = Depends(get_current_user),

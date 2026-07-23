@@ -112,7 +112,9 @@ class Task(Base):
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     cancelled_at = Column(DateTime(timezone=True), nullable=True)
-    is_cancelled = Column(Boolean, server_default="false", default=False, nullable=False)
+    is_cancelled = Column(
+        Boolean, server_default="false", default=False, nullable=False
+    )
     is_active = Column(Boolean, server_default="true", default=True, nullable=False)
     completed_at = Column(DateTime(timezone=True), nullable=True)
 
@@ -160,7 +162,9 @@ class RoutineType(Base):
     )
     name = Column(String(100), nullable=False)
     color = Column(String(10), nullable=True)
-    suggestions = Column(JSON, nullable=True)  # Optional array of suggested activity names
+    suggestions = Column(
+        JSON, nullable=True
+    )  # Optional array of suggested activity names
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
@@ -186,9 +190,13 @@ class ActivityTemplate(Base):
         String(50), nullable=False, default="monthly"
     )  # once, daily, weekly, monthly, quarterly, yearly
     weekday_mask = Column(String(20), nullable=True)  # ex: "0,2,4" (dom=0, seg=1, ...)
-    due_day = Column(Integer, nullable=True)  # dia do mês para recorrência mensal (1-31)
+    due_day = Column(
+        Integer, nullable=True
+    )  # dia do mês para recorrência mensal (1-31)
     due_month = Column(Integer, nullable=True)  # mês para recorrência anual (1-12)
-    due_days_from_start = Column(Integer, nullable=True)  # dias a partir do start para "once"
+    due_days_from_start = Column(
+        Integer, nullable=True
+    )  # dias a partir do start para "once"
     due_date = Column(DateTime(timezone=True), nullable=True)
     recurrence_end_date = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, server_default="true", nullable=False)
@@ -233,9 +241,15 @@ class TemplateActivity(Base):
     )
     name = Column(String(255), nullable=False)
     description = Column(Text, nullable=True)
-    priority = Column(String(20), nullable=False, server_default="medium")  # low, medium, high
-    due_day = Column(Integer, nullable=True)  # dia do mês (1-31) - opcional, usa do template se null
-    due_days = Column(Integer, nullable=True)  # dias após início (alternativa a due_day)
+    priority = Column(
+        String(20), nullable=False, server_default="medium"
+    )  # low, medium, high
+    due_day = Column(
+        Integer, nullable=True
+    )  # dia do mês (1-31) - opcional, usa do template se null
+    due_days = Column(
+        Integer, nullable=True
+    )  # dias após início (alternativa a due_day)
     estimated_minutes = Column(Integer, nullable=True)  # minutos estimados
     order = Column(Integer, nullable=False, default=0)  # ordenação
     phase_id = Column(

@@ -36,9 +36,7 @@ class NetworkRepository:
 
     def get_posts(self, limit: int = 10, offset: int = 0):
         # Only active posts
-        query = self.session.query(DiscussionPost).filter(
-            DiscussionPost.is_active == True
-        )
+        query = self.session.query(DiscussionPost).filter(DiscussionPost.is_active)
         total = query.count()
         items = (
             query.order_by(desc(DiscussionPost.created_at))
@@ -51,7 +49,7 @@ class NetworkRepository:
     def get_post_by_id(self, post_id: UUID) -> DiscussionPost | None:
         return (
             self.session.query(DiscussionPost)
-            .filter(DiscussionPost.id == post_id, DiscussionPost.is_active == True)
+            .filter(DiscussionPost.id == post_id, DiscussionPost.is_active)
             .first()
         )
 
@@ -111,18 +109,16 @@ class NetworkRepository:
 
     def get_comments(self, post_id: UUID):
         query = self.session.query(DiscussionComment).filter(
-            DiscussionComment.post_id == post_id, DiscussionComment.is_active == True
+            DiscussionComment.post_id == post_id, DiscussionComment.is_active
         )
         return query.order_by(DiscussionComment.created_at).all()
 
-    def get_comment_by_id(
-        self, comment_id: UUID
-    ) -> DiscussionComment | None:
+    def get_comment_by_id(self, comment_id: UUID) -> DiscussionComment | None:
         return (
             self.session.query(DiscussionComment)
             .filter(
                 DiscussionComment.id == comment_id,
-                DiscussionComment.is_active == True,
+                DiscussionComment.is_active,
             )
             .first()
         )
@@ -153,6 +149,6 @@ class NetworkRepository:
 
     def mark_notifications_read(self, user_id: UUID) -> None:
         self.session.query(Notification).filter(
-            Notification.user_id == user_id, Notification.is_read == False
+            Notification.user_id == user_id, not Notification.is_read
         ).update({"is_read": True, "read_at": datetime.now(timezone.utc)})
         self.session.commit()

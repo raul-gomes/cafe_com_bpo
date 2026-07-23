@@ -20,10 +20,14 @@ class ClientInvitation(Base):
     )
     invited_email = Column(String(255), nullable=False)
     token_hash = Column(String(255), unique=True, nullable=False, index=True)
-    status = Column(String(20), nullable=False, default="pending")  # pending, accepted, expired
+    status = Column(
+        String(20), nullable=False, default="pending"
+    )  # pending, accepted, expired
     expires_at = Column(DateTime(timezone=True), nullable=False)
     accepted_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     client = relationship("Client", foreign_keys=[client_id])
     inviter = relationship("User", foreign_keys=[invited_by])
@@ -73,7 +77,9 @@ class ClientTeamMember(Base):
     invited_by = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
-    joined_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+    joined_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
 
     client = relationship("Client", foreign_keys=[client_id])
     member = relationship("User", foreign_keys=[user_id])

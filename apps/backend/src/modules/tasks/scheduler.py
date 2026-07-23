@@ -24,17 +24,17 @@ from rocketry import Rocketry
 from rocketry.conds import cron
 from rocketry.tasks import FuncTask
 
-# Silence Rocketry internal debug spam
-logging.getLogger("rocketry").setLevel(logging.WARNING)
-logging.getLogger("rocketry.session").setLevel(logging.WARNING)
-logging.getLogger("rocketry.core").setLevel(logging.WARNING)
-
 from src.core.database import SessionLocal
 from src.core.utils import next_business_day
 from src.core.logger import log
 from src.modules.tasks.repository import TaskRepository
 from src.modules.tasks.models import ActivityTemplate, TemplateActivity
 from src.modules.tasks.schemas import TaskCreate
+
+# Silence Rocketry internal debug spam
+logging.getLogger("rocketry").setLevel(logging.WARNING)
+logging.getLogger("rocketry.session").setLevel(logging.WARNING)
+logging.getLogger("rocketry.core").setLevel(logging.WARNING)
 
 
 # ================================================================
@@ -54,8 +54,11 @@ def get_effective_due_day(
 
 
 def get_weekly_deadlines_for_year_month(
-    weekday_mask: str, year: int, month: int,
-    min_day: int = 1, max_day: Optional[int] = None,
+    weekday_mask: str,
+    year: int,
+    month: int,
+    min_day: int = 1,
+    max_day: Optional[int] = None,
 ) -> list[datetime]:
     """Generate deadlines for marked weekdays in a given year/month.
     Returns deadlines at 18:00 UTC, adjusted to next business day.
@@ -63,11 +66,7 @@ def get_weekly_deadlines_for_year_month(
     """
     if not weekday_mask:
         return []
-    marked_days = [
-        int(d.strip()) - 1
-        for d in weekday_mask.split(",")
-        if d.strip()
-    ]
+    marked_days = [int(d.strip()) - 1 for d in weekday_mask.split(",") if d.strip()]
     if max_day is None:
         max_day = calendar.monthrange(year, month)[1]
 
@@ -86,7 +85,10 @@ def get_weekly_deadlines_for_month(tmpl: ActivityTemplate) -> list[datetime]:
     now = datetime.now(timezone.utc)
     min_day = now.day
     return get_weekly_deadlines_for_year_month(
-        tmpl.weekday_mask, now.year, now.month, min_day=min_day,
+        tmpl.weekday_mask,
+        now.year,
+        now.month,
+        min_day=min_day,
     )
 
 
@@ -134,8 +136,13 @@ def calculate_activity_deadline(
         max_day = calendar.monthrange(year, month)[1]
         day = min(effective_due_day, max_day)
         deadline = datetime(
-            year=year, month=month, day=day,
-            hour=18, minute=0, second=0, microsecond=0,
+            year=year,
+            month=month,
+            day=day,
+            hour=18,
+            minute=0,
+            second=0,
+            microsecond=0,
             tzinfo=timezone.utc,
         )
 
@@ -143,7 +150,8 @@ def calculate_activity_deadline(
 
 
 def should_generate_today(
-    tmpl: ActivityTemplate, activity: TemplateActivity,
+    tmpl: ActivityTemplate,
+    activity: TemplateActivity,
 ) -> Optional[datetime]:
     """Check if a task should be generated today for the given template+activity.
     Returns the deadline datetime if it should generate, None otherwise.
@@ -249,7 +257,11 @@ def next_weekday(weekday: int, after: Optional[datetime] = None) -> datetime:
 
 
 def _pre_generate_for_assignment(
-    repo, assignment, tmpl, activities, first_phase,
+    repo,
+    assignment,
+    tmpl,
+    activities,
+    first_phase,
 ) -> int:
     """Pre-generate tasks for next month (weekly, monthly, yearly recurrences).
     Returns count of generated tasks. Does NOT commit.
@@ -269,7 +281,9 @@ def _pre_generate_for_assignment(
 
     if tmpl.recurrence == "weekly":
         deadlines = get_weekly_deadlines_for_year_month(
-            tmpl.weekday_mask, next_year, next_month,
+            tmpl.weekday_mask,
+            next_year,
+            next_month,
         )
 
     elif tmpl.recurrence == "monthly":
@@ -282,7 +296,13 @@ def _pre_generate_for_assignment(
             max_day = calendar.monthrange(next_year, next_month)[1]
             day = min(effective_due_day, max_day)
             deadline = datetime(
-                next_year, next_month, day, 18, 0, 0, tzinfo=timezone.utc,
+                next_year,
+                next_month,
+                day,
+                18,
+                0,
+                0,
+                tzinfo=timezone.utc,
             )
             deadlines = [next_business_day(deadline)]
 
@@ -298,7 +318,13 @@ def _pre_generate_for_assignment(
                 max_day = calendar.monthrange(next_year, next_month)[1]
                 day = min(effective_due_day, max_day)
                 deadline = datetime(
-                    next_year, next_month, day, 18, 0, 0, tzinfo=timezone.utc,
+                    next_year,
+                    next_month,
+                    day,
+                    18,
+                    0,
+                    0,
+                    tzinfo=timezone.utc,
                 )
                 deadlines = [next_business_day(deadline)]
 
@@ -417,8 +443,7 @@ class TaskScheduler:
         """
         current = now if now is not None else datetime.now(timezone.utc)
         log.info(
-            f"⏰ Scheduler check starting "
-            f"(now={current.isoformat()}, mode={mode})..."
+            f"⏰ Scheduler check starting (now={current.isoformat()}, mode={mode})..."
         )
 
         apply_daily = False
@@ -436,9 +461,9 @@ class TaskScheduler:
             apply_yearly = True
         elif mode is None or mode == "all":
             # ── Auto-detect ──
-            if current.weekday() == 6:          # Sunday
+            if current.weekday() == 6:  # Sunday
                 apply_weekly = True
-            elif 0 <= current.weekday() <= 3:    # Mon–Thu
+            elif 0 <= current.weekday() <= 3:  # Mon–Thu
                 apply_daily = True
             # Friday (4) and Saturday (5) → no daily/weekly
 
@@ -485,37 +510,57 @@ class TaskScheduler:
                 # ── Weekly rule: generate for all marked weekdays this week ──
                 if apply_weekly and tmpl.recurrence == "weekly":
                     self._add_weekly_candidates(
-                        current, assignment, tmpl, activities, candidates,
+                        current,
+                        assignment,
+                        tmpl,
+                        activities,
+                        candidates,
                     )
 
                 # ── Weekly rule: also generate Monday's daily tasks ──
                 if apply_weekly and tmpl.recurrence == "daily":
                     self._add_weekly_monday_daily(
-                        current, assignment, activities, candidates,
+                        current,
+                        assignment,
+                        activities,
+                        candidates,
                     )
 
                 # ── Daily rule: generate for next business day ──
                 if apply_daily and tmpl.recurrence == "daily":
                     self._add_daily_candidates(
-                        current, assignment, activities, candidates,
+                        current,
+                        assignment,
+                        activities,
+                        candidates,
                     )
 
                 # ── Monthly rule ──
                 if apply_monthly and tmpl.recurrence == "monthly":
                     self._add_monthly_candidates(
-                        current, assignment, tmpl, activities, candidates,
+                        current,
+                        assignment,
+                        tmpl,
+                        activities,
+                        candidates,
                     )
 
                 # ── Yearly rule ──
                 if apply_yearly and tmpl.recurrence in ("yearly", "annual"):
                     self._add_yearly_candidates(
-                        current, assignment, tmpl, activities, candidates,
+                        current,
+                        assignment,
+                        tmpl,
+                        activities,
+                        candidates,
                     )
 
                 # ── Create tasks (with dedup via routine_instance_id) ──
                 for act, deadline, period_key in candidates:
                     instance_id = build_routine_instance_id(
-                        assignment.id, act.name, period_key,
+                        assignment.id,
+                        act.name,
+                        period_key,
                     )
                     if repo.task_exists_by_instance_id(instance_id):
                         skipped += 1
@@ -589,9 +634,7 @@ class TaskScheduler:
         if not tmpl.weekday_mask:
             return
         marked_days = [
-            int(d.strip()) - 1
-            for d in tmpl.weekday_mask.split(",")
-            if d.strip()
+            int(d.strip()) - 1 for d in tmpl.weekday_mask.split(",") if d.strip()
         ]
         # current is Sunday (weekday=6), so week runs from Mon(+1) to Sun(+7)
         for wd in marked_days:
@@ -650,7 +693,13 @@ class TaskScheduler:
         max_day = calendar.monthrange(current.year, current.month)[1]
         day = min(effective_due_day, max_day)
         deadline = datetime(
-            current.year, current.month, day, 18, 0, 0, tzinfo=timezone.utc,
+            current.year,
+            current.month,
+            day,
+            18,
+            0,
+            0,
+            tzinfo=timezone.utc,
         )
         deadline = next_business_day(deadline)
         period_key = f"{current.year}-{current.month:02d}"
@@ -675,7 +724,13 @@ class TaskScheduler:
         max_day = calendar.monthrange(current.year, due_month)[1]
         day = min(effective_due_day, max_day)
         deadline = datetime(
-            current.year, due_month, day, 18, 0, 0, tzinfo=timezone.utc,
+            current.year,
+            due_month,
+            day,
+            18,
+            0,
+            0,
+            tzinfo=timezone.utc,
         )
         deadline = next_business_day(deadline)
         period_key = str(current.year)

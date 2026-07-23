@@ -6,9 +6,13 @@ from src.core.config import get_settings
 
 from .repository import TeamRepository
 from .schemas import (
-    InviteCreate, InviteBatchResponse, InviteResult,
+    InviteCreate,
+    InviteBatchResponse,
+    InviteResult,
     TeamMemberResponse,
-    RoutineAccess, TeamListResponse, AcceptResponse,
+    RoutineAccess,
+    TeamListResponse,
+    AcceptResponse,
 )
 
 
@@ -43,7 +47,9 @@ class TeamService:
 
         for email in data.emails:
             email_clean = email.lower().strip()
-            result = self._invite_single(client_id, email_clean, data.template_ids, invited_by, client.name)
+            result = self._invite_single(
+                client_id, email_clean, data.template_ids, invited_by, client.name
+            )
             results.append(result)
 
         total_sent = sum(1 for r in results if r.status == "sent")
@@ -56,8 +62,12 @@ class TeamService:
         )
 
     def _invite_single(
-        self, client_id: UUID, email: str, template_ids: list[UUID],
-        invited_by: UUID, client_name: str
+        self,
+        client_id: UUID,
+        email: str,
+        template_ids: list[UUID],
+        invited_by: UUID,
+        client_name: str,
     ) -> InviteResult:
         """Process a single email invitation."""
         try:
@@ -65,16 +75,18 @@ class TeamService:
             existing = self.repo.get_pending_invitation_by_email(client_id, email)
             if existing:
                 return InviteResult(
-                    email=email, status="error",
-                    error="Já existe um convite pendente para este email neste cliente"
+                    email=email,
+                    status="error",
+                    error="Já existe um convite pendente para este email neste cliente",
                 )
 
             # Check if user is already a team member
             user = self.repo.get_user_by_email(email)
             if user and self.repo.is_team_member(client_id, user.id):
                 return InviteResult(
-                    email=email, status="error",
-                    error="Este usuário já é membro da equipe deste cliente"
+                    email=email,
+                    status="error",
+                    error="Este usuário já é membro da equipe deste cliente",
                 )
 
             # Create invitation
@@ -103,11 +115,14 @@ class TeamService:
         except Exception as e:
             log.error(f"Erro ao convidar {email}: {str(e)}")
             return InviteResult(
-                email=email, status="error",
+                email=email,
+                status="error",
                 error=str(e),
             )
 
-    def accept_invitation(self, token: str, user_id: Optional[UUID] = None) -> AcceptResponse:
+    def accept_invitation(
+        self, token: str, user_id: Optional[UUID] = None
+    ) -> AcceptResponse:
         """Accept an invitation. If user_id is None, return info for redirect."""
         invitation = self.repo.get_invitation_by_token(token)
         if not invitation:
@@ -123,14 +138,19 @@ class TeamService:
 
         # Verify the user's email matches the invitation
         user = self.repo.get_user_by_id(user_id)
-        if not user or user.email.lower().strip() != invitation.invited_email.lower().strip():
+        if (
+            not user
+            or user.email.lower().strip() != invitation.invited_email.lower().strip()
+        ):
             raise ValueError("Este email não corresponde ao convite")
 
         # Accept
         member = self.repo.accept_invitation_for_user(invitation, user_id)
         client = self.repo.get_client_by_id(member.client_id)
 
-        log.info(f"👥 Colaborador {user.email} aceitou convite para cliente {client.name}")
+        log.info(
+            f"👥 Colaborador {user.email} aceitou convite para cliente {client.name}"
+        )
 
         return AcceptResponse(
             status="accepted",
@@ -138,14 +158,18 @@ class TeamService:
             client_id=member.client_id,
         )
 
-    def get_team_members(self, client_id: UUID, current_user_id: UUID) -> TeamListResponse:
+    def get_team_members(
+        self, client_id: UUID, current_user_id: UUID
+    ) -> TeamListResponse:
         """List team members for a client."""
         client = self.repo.get_client_by_id(client_id)
         if not client:
             raise ValueError("Cliente não encontrado")
 
         # Only owner and members can view
-        if client.user_id != current_user_id and not self.repo.is_team_member(client_id, current_user_id):
+        if client.user_id != current_user_id and not self.repo.is_team_member(
+            client_id, current_user_id
+        ):
             raise ValueError("Acesso negado")
 
         members_raw = self.repo.get_team_members(client_id)
@@ -153,17 +177,23 @@ class TeamService:
         for m in members_raw:
             user = self.repo.get_user_by_id(m.user_id)
             routines = self.repo.get_routines_for_member(client_id, m.user_id)
-            members.append(TeamMemberResponse(
-                user_id=m.user_id,
-                name=user.name if user else None,
-                email=user.email if user else "",
-                joined_at=m.joined_at,
-                routines=[RoutineAccess(template_id=r.id, name=r.name) for r in routines],
-            ))
+            members.append(
+                TeamMemberResponse(
+                    user_id=m.user_id,
+                    name=user.name if user else None,
+                    email=user.email if user else "",
+                    joined_at=m.joined_at,
+                    routines=[
+                        RoutineAccess(template_id=r.id, name=r.name) for r in routines
+                    ],
+                )
+            )
 
         return TeamListResponse(members=members)
 
-    def remove_member(self, client_id: UUID, user_id: UUID, current_user_id: UUID) -> None:
+    def remove_member(
+        self, client_id: UUID, user_id: UUID, current_user_id: UUID
+    ) -> None:
         """Remove a team member."""
         client = self.repo.get_client_by_id(client_id)
         if not client:
@@ -177,7 +207,12 @@ class TeamService:
             raise ValueError("Membro não encontrado")
 
     def _send_invite_email(
-        self, to_email: str, client_name: str, inviter_name: str, token: str, user_exists: bool
+        self,
+        to_email: str,
+        client_name: str,
+        inviter_name: str,
+        token: str,
+        user_exists: bool,
     ) -> None:
         """Send invitation email."""
         if user_exists:

@@ -118,7 +118,9 @@ def test_upload_avatar_requires_auth(client):
 def test_update_profile_with_company_fields(client):
     """Tarefa 3.2: PATCH /auth/me atualiza todos os campos de perfil/empresa"""
     email = f"profile_{uuid4()}@cafe.com"
-    client.post("/auth/register", json={"email": email, "password": "StrongPassword123!"})
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -160,7 +162,9 @@ def test_update_profile_with_company_fields(client):
 def test_update_profile_partial_update(client):
     """PATCH /auth/me permite atualizar apenas um campo sem afetar outros"""
     email = f"partial_{uuid4()}@cafe.com"
-    client.post("/auth/register", json={"email": email, "password": "StrongPassword123!"})
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -188,16 +192,16 @@ def test_update_profile_partial_update(client):
 def test_update_profile_does_not_allow_email_change(client):
     """PATCH /auth/me NÃO permite alterar o email (campo rejeitado)"""
     email = f"noemail_{uuid4()}@cafe.com"
-    client.post("/auth/register", json={"email": email, "password": "StrongPassword123!"})
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
     token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    resp = client.patch(
-        "/auth/me", json={"email": "hacked@evil.com"}, headers=headers
-    )
+    resp = client.patch("/auth/me", json={"email": "hacked@evil.com"}, headers=headers)
     # email is not a valid field in ProfileUpdate, so it's ignored
     # resulting in empty update -> 400
     assert resp.status_code == 400
@@ -218,7 +222,9 @@ def test_upload_company_logo_success(client, monkeypatch):
     token = resp.json()["access_token"]
 
     # Mock Cloudinary upload
-    async def mock_upload(content: bytes, user_id: str, folder: str = "avatars") -> dict:
+    async def mock_upload(
+        content: bytes, user_id: str, folder: str = "avatars"
+    ) -> dict:
         return {
             "id": f"cafe_com_bpo/{folder}/{user_id}/logo_123456789",
             "url": f"https://res.cloudinary.com/test/logo_{folder}.png",
@@ -251,7 +257,9 @@ def test_upload_company_logo_requires_auth(client):
 def test_upload_company_logo_invalid_extension(client):
     """Extensão inválida → 400."""
     email = f"logo_inv_{uuid4()}@cafe.com"
-    client.post("/auth/register", json={"email": email, "password": "StrongPassword123!"})
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )

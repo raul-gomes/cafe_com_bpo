@@ -44,10 +44,12 @@ class TeamRepository:
         self.session.flush()
 
         for tid in template_ids:
-            self.session.add(ClientInvitationRoutine(
-                invitation_id=invitation.id,
-                template_id=tid,
-            ))
+            self.session.add(
+                ClientInvitationRoutine(
+                    invitation_id=invitation.id,
+                    template_id=tid,
+                )
+            )
 
         self.session.commit()
         self.session.refresh(invitation)
@@ -190,7 +192,7 @@ class TeamRepository:
     def get_client_owner_id(self, client_id: UUID) -> Optional[UUID]:
         client = (
             self.session.query(Client.user_id)
-            .filter(Client.id == client_id, Client.is_active == True)
+            .filter(Client.id == client_id, Client.is_active)
             .first()
         )
         return client[0] if client else None
@@ -198,15 +200,13 @@ class TeamRepository:
     def get_client_by_id(self, client_id: UUID) -> Optional[Client]:
         return (
             self.session.query(Client)
-            .filter(Client.id == client_id, Client.is_active == True)
+            .filter(Client.id == client_id, Client.is_active)
             .first()
         )
 
     def get_user_by_email(self, email: str) -> Optional[User]:
         return (
-            self.session.query(User)
-            .filter(User.email == email.lower().strip())
-            .first()
+            self.session.query(User).filter(User.email == email.lower().strip()).first()
         )
 
     def get_user_by_id(self, user_id: UUID) -> Optional[User]:

@@ -1,4 +1,13 @@
-from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File, Request, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    UploadFile,
+    File,
+    Request,
+    Response,
+)
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from typing import Annotated
@@ -25,7 +34,13 @@ from .service import AuthService, get_current_user
 from .oauth.service import OAuthStateService, GoogleOAuthProvider
 from .models import UserFile
 from .storage_service import CloudinaryService
-from src.core.rate_limit import limiter, AUTH_LOGIN_LIMIT, AUTH_REGISTER_LIMIT, AUTH_FORGOT_PASSWORD_LIMIT, AUTH_REFRESH_LIMIT
+from src.core.rate_limit import (
+    limiter,
+    AUTH_LOGIN_LIMIT,
+    AUTH_REGISTER_LIMIT,
+    AUTH_FORGOT_PASSWORD_LIMIT,
+    AUTH_REFRESH_LIMIT,
+)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -59,8 +74,10 @@ def register(user_data: UserCreate, service: AuthServiceDep, request: Request):
 @router.post("/login", response_model=TokenResponse)
 @limiter.limit(AUTH_LOGIN_LIMIT)
 def login(
-    form_data: Annotated[OAuth2PasswordRequestForm, Depends()], service: AuthServiceDep,
-    request: Request, response: Response
+    form_data: Annotated[OAuth2PasswordRequestForm, Depends()],
+    service: AuthServiceDep,
+    request: Request,
+    response: Response,
 ):
     tokens = service.authenticate_user(form_data.username, form_data.password)
     if not tokens:
@@ -86,8 +103,12 @@ def login(
 
 @router.post("/refresh", response_model=TokenResponse)
 @limiter.limit(AUTH_REFRESH_LIMIT)
-def refresh_token(data: RefreshTokenRequest, service: AuthServiceDep,
-                  request: Request, response: Response):
+def refresh_token(
+    data: RefreshTokenRequest,
+    service: AuthServiceDep,
+    request: Request,
+    response: Response,
+):
     try:
         # Try httpOnly cookie first, then fall back to request body
         refresh_token = request.cookies.get("refresh_token") or data.refresh_token
@@ -140,7 +161,9 @@ def update_me(updates: ProfileUpdate, user: CurrentUserDep, service: AuthService
 
 @router.post("/forgot-password", status_code=200)
 @limiter.limit(AUTH_FORGOT_PASSWORD_LIMIT)
-def forgot_password(data: ForgotPasswordRequest, service: AuthServiceDep, request: Request):
+def forgot_password(
+    data: ForgotPasswordRequest, service: AuthServiceDep, request: Request
+):
     user = service.user_repo.get_user_by_email(data.email)
     if not user:
         raise HTTPException(
@@ -264,10 +287,11 @@ async def upload_company_logo(
         raise HTTPException(status_code=404, detail="Usuário não encontrado")
 
     # Guardar URL antiga para limpeza depois
-    old_logo_url = db_user.company_logo_url
 
     try:
-        upload_res = await CloudinaryService.upload_file(content, str(user.id), folder="logos")
+        upload_res = await CloudinaryService.upload_file(
+            content, str(user.id), folder="logos"
+        )
         read_url = upload_res["url"]
 
         db_user.company_logo_url = read_url

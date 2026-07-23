@@ -296,9 +296,11 @@ export const TasksPage: React.FC = () => {
             if (tasks.length > 0) return cascadeModes[i];
         }
         return 'all';
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [userFilter, tasksList, dateFrom, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases]);
 
     const filteredTasks = useMemo(() => filterTasksForMode(effectiveFilter),
+        // eslint-disable-next-line react-hooks/exhaustive-deps
         [tasksList, effectiveFilter, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases]);
 
     // Sincroniza o botão de filtro visual com o efetivo (sem causar loop)
@@ -318,6 +320,7 @@ export const TasksPage: React.FC = () => {
             counts[mode] = filterTasksForMode(mode).length;
         }
         return counts;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [tasksList, firstPhaseId, lastPhaseId, phases, todayStart, todayEnd]);
 
     if (isLoading) {

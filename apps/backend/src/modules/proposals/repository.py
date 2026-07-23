@@ -35,7 +35,7 @@ class PricingScenarioRepository:
             self.session.query(PricingScenario)
             .filter(
                 PricingScenario.user_id == user_id,
-                PricingScenario.is_active == True,
+                PricingScenario.is_active,
             )
             .all()
         )
@@ -48,7 +48,7 @@ class PricingScenarioRepository:
             .filter(
                 PricingScenario.id == scenario_id,
                 PricingScenario.user_id == user_id,
-                PricingScenario.is_active == True,
+                PricingScenario.is_active,
             )
             .first()
         )
@@ -97,7 +97,7 @@ class ProposalRepository:
     ) -> List[PricingScenario]:
         query = self.session.query(PricingScenario).filter(
             PricingScenario.user_id == user_id,
-            PricingScenario.is_active == True,
+            PricingScenario.is_active,
         )
         return query.all()
 
@@ -109,7 +109,7 @@ class ProposalRepository:
             .filter(
                 PricingScenario.id == proposal_id,
                 PricingScenario.user_id == user_id,
-                PricingScenario.is_active == True,
+                PricingScenario.is_active,
             )
             .first()
         )

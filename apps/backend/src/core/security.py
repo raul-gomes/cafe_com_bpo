@@ -45,26 +45,20 @@ class TokenService:
         to_encode = {"sub": user_id, "exp": expire, "type": "access"}
         if subject:
             to_encode["subject"] = subject
-        return jwt.encode(
-            to_encode, s.jwt_secret, algorithm=s.jwt_algorithm
-        )
+        return jwt.encode(to_encode, s.jwt_secret, algorithm=s.jwt_algorithm)
 
     @staticmethod
     def create_refresh_token(user_id: str) -> str:
         s = TokenService._get_settings()
         expire = datetime.now(timezone.utc) + timedelta(days=7)
         to_encode = {"sub": user_id, "exp": expire, "type": "refresh"}
-        return jwt.encode(
-            to_encode, s.jwt_secret, algorithm=s.jwt_algorithm
-        )
+        return jwt.encode(to_encode, s.jwt_secret, algorithm=s.jwt_algorithm)
 
     @staticmethod
     def decode_access_token(token: str) -> dict:
         s = TokenService._get_settings()
         try:
-            payload = jwt.decode(
-                token, s.jwt_secret, algorithms=[s.jwt_algorithm]
-            )
+            payload = jwt.decode(token, s.jwt_secret, algorithms=[s.jwt_algorithm])
             if payload.get("type") != "access":
                 raise ValueError("Tipo de token inválido")
             return payload
@@ -75,9 +69,7 @@ class TokenService:
     def decode_refresh_token(token: str) -> dict:
         s = TokenService._get_settings()
         try:
-            payload = jwt.decode(
-                token, s.jwt_secret, algorithms=[s.jwt_algorithm]
-            )
+            payload = jwt.decode(token, s.jwt_secret, algorithms=[s.jwt_algorithm])
             if payload.get("type") != "refresh":
                 raise ValueError("Tipo de token inválido")
             return payload

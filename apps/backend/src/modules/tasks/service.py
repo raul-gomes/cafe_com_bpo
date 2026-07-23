@@ -633,10 +633,14 @@ class TaskService:
             for act in activities:
                 weekly_deadlines = self._get_weekly_deadlines_for_month(tmpl)
                 for deadline in weekly_deadlines:
-                    if self.repository.has_pending_task(assignment.id, act.name, deadline):
+                    if self.repository.has_pending_task(
+                        assignment.id, act.name, deadline
+                    ):
                         continue
                     instance_id = build_routine_instance_id(
-                        assignment.id, act.name, deadline.strftime("%Y-%m-%d"),
+                        assignment.id,
+                        act.name,
+                        deadline.strftime("%Y-%m-%d"),
                     )
                     task_data = TaskCreate(
                         title=act.name,
@@ -664,10 +668,14 @@ class TaskService:
                 daily_deadline = next_business_day(deadline)
 
                 for act in activities:
-                    if self.repository.has_pending_task(assignment.id, act.name, daily_deadline):
+                    if self.repository.has_pending_task(
+                        assignment.id, act.name, daily_deadline
+                    ):
                         continue
                     instance_id = build_routine_instance_id(
-                        assignment.id, act.name, daily_deadline.strftime("%Y-%m-%d"),
+                        assignment.id,
+                        act.name,
+                        daily_deadline.strftime("%Y-%m-%d"),
                     )
                     task_data = TaskCreate(
                         title=act.name,
@@ -691,7 +699,9 @@ class TaskService:
             # Default: one task per activity at the calculated deadline
             # (used by monthly, yearly, once)
             for act in activities:
-                deadline = self._calculate_activity_deadline(act, assignment.start_date, tmpl)
+                deadline = self._calculate_activity_deadline(
+                    act, assignment.start_date, tmpl
+                )
                 # Build routine_instance_id based on recurrence type
                 if tmpl.recurrence == "monthly":
                     period_key = deadline.strftime("%Y-%m")
@@ -700,7 +710,9 @@ class TaskService:
                 else:
                     period_key = deadline.strftime("%Y-%m-%d")
                 instance_id = build_routine_instance_id(
-                    assignment.id, act.name, period_key,
+                    assignment.id,
+                    act.name,
+                    period_key,
                 )
                 task_data = TaskCreate(
                     title=act.name,
@@ -741,14 +753,14 @@ class TaskService:
     ) -> Optional[int]:
         return get_effective_due_day(activity, tmpl)
 
-    def _get_weekly_deadlines_for_month(
-        self, tmpl: ActivityTemplate
-    ) -> list[datetime]:
+    def _get_weekly_deadlines_for_month(self, tmpl: ActivityTemplate) -> list[datetime]:
         return get_weekly_deadlines_for_month(tmpl)
 
     def _calculate_activity_deadline(
-        self, activity: TemplateActivityModel, start_date: Optional[datetime] = None,
-        tmpl: Optional[ActivityTemplate] = None
+        self,
+        activity: TemplateActivityModel,
+        start_date: Optional[datetime] = None,
+        tmpl: Optional[ActivityTemplate] = None,
     ) -> datetime:
         return calculate_activity_deadline(activity, start_date, tmpl)
 
@@ -809,7 +821,9 @@ class TaskService:
     # RoutineType Service Methods
     # ================================================================
 
-    def create_routine_type(self, user_id: UUID, data: RoutineTypeCreate) -> RoutineTypeResponse:
+    def create_routine_type(
+        self, user_id: UUID, data: RoutineTypeCreate
+    ) -> RoutineTypeResponse:
         obj = self.repository.create_routine_type(user_id, data)
         log.info(f"🏷️ Tipo de rotina criado: {obj.name} (user={user_id})")
         return RoutineTypeResponse.model_validate(obj)
@@ -824,7 +838,9 @@ class TaskService:
             raise ValueError(f"RoutineType {type_id} not found")
         return RoutineTypeResponse.model_validate(obj)
 
-    def update_routine_type(self, type_id: UUID, user_id: UUID, data: RoutineTypeUpdate) -> RoutineTypeResponse:
+    def update_routine_type(
+        self, type_id: UUID, user_id: UUID, data: RoutineTypeUpdate
+    ) -> RoutineTypeResponse:
         obj = self.repository.update_routine_type(type_id, user_id, data)
         if not obj:
             raise ValueError(f"RoutineType {type_id} not found")

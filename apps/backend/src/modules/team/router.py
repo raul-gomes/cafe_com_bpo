@@ -10,8 +10,10 @@ from src.modules.auth.service import get_current_user, get_optional_user
 from .repository import TeamRepository
 from .service import TeamService
 from .schemas import (
-    InviteCreate, InviteBatchResponse,
-    TeamListResponse, AcceptResponse,
+    InviteCreate,
+    InviteBatchResponse,
+    TeamListResponse,
+    AcceptResponse,
 )
 
 router = APIRouter(tags=["team"])
@@ -96,5 +98,9 @@ def remove_team_member(
     try:
         service.remove_member(client_id, user_id, current_user.id)
     except ValueError as e:
-        status_code = status.HTTP_403_FORBIDDEN if "Apenas o gestor" in str(e) else status.HTTP_400_BAD_REQUEST
+        status_code = (
+            status.HTTP_403_FORBIDDEN
+            if "Apenas o gestor" in str(e)
+            else status.HTTP_400_BAD_REQUEST
+        )
         raise HTTPException(status_code=status_code, detail=str(e))

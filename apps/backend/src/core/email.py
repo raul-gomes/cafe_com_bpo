@@ -10,7 +10,9 @@ settings = get_settings()
 
 class EmailService:
     @staticmethod
-    def _build_message(to_email: str, subject: str, text: str, html: str) -> MIMEMultipart:
+    def _build_message(
+        to_email: str, subject: str, text: str, html: str
+    ) -> MIMEMultipart:
         msg = MIMEMultipart("alternative")
         msg["Subject"] = subject
         msg["From"] = settings.smtp_from_email

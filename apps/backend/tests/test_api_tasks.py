@@ -492,7 +492,6 @@ def test_task_notes_default_none(client):
 def test_next_business_day_weekday():
     """Sábado avança para segunda-feira."""
     from src.core.utils import next_business_day
-    from datetime import date
 
     saturday = datetime(2026, 6, 6, 10, 0, 0)  # Sábado
     assert saturday.weekday() == 5
@@ -545,7 +544,11 @@ def test_create_template_with_due_days(client):
     # Criar template primeiro
     tmpl_resp = client.post(
         "/tasks/templates/",
-        json={"name": "Template Due Days", "process_type": "fiscal", "recurrence": "monthly"},
+        json={
+            "name": "Template Due Days",
+            "process_type": "fiscal",
+            "recurrence": "monthly",
+        },
         headers=auth,
     )
     assert tmpl_resp.status_code == 201
@@ -575,7 +578,11 @@ def test_create_template_activity_without_due_days(client):
 
     tmpl_resp = client.post(
         "/tasks/templates/",
-        json={"name": "Template Sem Due Days", "process_type": "contabil", "recurrence": "monthly"},
+        json={
+            "name": "Template Sem Due Days",
+            "process_type": "contabil",
+            "recurrence": "monthly",
+        },
         headers=auth,
     )
     assert tmpl_resp.status_code == 201
@@ -632,8 +639,16 @@ def test_list_routine_types(client):
     auth = get_auth_header(client, email)
 
     # Criar 2 tipos
-    client.post("/tasks/routine-types/", json={"name": "Tipo A", "color": "#ef4444"}, headers=auth)
-    client.post("/tasks/routine-types/", json={"name": "Tipo B", "color": "#10b981"}, headers=auth)
+    client.post(
+        "/tasks/routine-types/",
+        json={"name": "Tipo A", "color": "#ef4444"},
+        headers=auth,
+    )
+    client.post(
+        "/tasks/routine-types/",
+        json={"name": "Tipo B", "color": "#10b981"},
+        headers=auth,
+    )
 
     resp = client.get("/tasks/routine-types/", headers=auth)
     assert resp.status_code == 200
@@ -649,7 +664,11 @@ def test_update_routine_type(client):
     email = f"rt_update_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
 
-    create_resp = client.post("/tasks/routine-types/", json={"name": "Original", "color": "#000000"}, headers=auth)
+    create_resp = client.post(
+        "/tasks/routine-types/",
+        json={"name": "Original", "color": "#000000"},
+        headers=auth,
+    )
     rt_id = create_resp.json()["id"]
 
     update_resp = client.put(
@@ -667,7 +686,9 @@ def test_delete_routine_type(client):
     email = f"rt_delete_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
 
-    create_resp = client.post("/tasks/routine-types/", json={"name": "Vai ser deletado"}, headers=auth)
+    create_resp = client.post(
+        "/tasks/routine-types/", json={"name": "Vai ser deletado"}, headers=auth
+    )
     rt_id = create_resp.json()["id"]
 
     delete_resp = client.delete(f"/tasks/routine-types/{rt_id}", headers=auth)
@@ -700,11 +721,15 @@ def test_routine_type_404_on_other_user(client):
     auth_a = get_auth_header(client, email_a)
     auth_b = get_auth_header(client, email_b)
 
-    create_resp = client.post("/tasks/routine-types/", json={"name": "Tipo do A"}, headers=auth_a)
+    create_resp = client.post(
+        "/tasks/routine-types/", json={"name": "Tipo do A"}, headers=auth_a
+    )
     rt_id = create_resp.json()["id"]
 
     # Tentar atualizar com B
-    update_resp = client.put(f"/tasks/routine-types/{rt_id}", json={"name": "Hack"}, headers=auth_b)
+    update_resp = client.put(
+        f"/tasks/routine-types/{rt_id}", json={"name": "Hack"}, headers=auth_b
+    )
     assert update_resp.status_code == 404
 
     # Tentar deletar com B
@@ -766,7 +791,11 @@ def test_task_response_includes_template_name(client):
     # 1. Criar template
     tmpl_resp = client.post(
         "/tasks/templates/",
-        json={"name": "Template Nome Teste", "process_type": "dp", "recurrence": "monthly"},
+        json={
+            "name": "Template Nome Teste",
+            "process_type": "dp",
+            "recurrence": "monthly",
+        },
         headers=auth,
     )
     tmpl_id = tmpl_resp.json()["id"]
@@ -815,6 +844,7 @@ def test_task_template_name_null_when_manual(client):
 def _get_scheduler_result(now=None, mode=None):
     """Helper: create a one-off TaskScheduler and run daily check."""
     from src.modules.tasks.scheduler import TaskScheduler
+
     sched = TaskScheduler()
     kwargs = {}
     if now is not None:
@@ -846,7 +876,11 @@ def test_scheduler_daily_generates_on_weekday(client):
 
     tmpl_resp = client.post(
         "/tasks/templates/",
-        json={"name": "Diario Scheduler", "recurrence": "daily", "process_type": "fiscal"},
+        json={
+            "name": "Diario Scheduler",
+            "recurrence": "daily",
+            "process_type": "fiscal",
+        },
         headers=auth,
     )
     assert tmpl_resp.status_code == 201
@@ -868,9 +902,7 @@ def test_scheduler_daily_generates_on_weekday(client):
 
     # Executar scheduler com data fixa (segunda-feira)
     data = _get_scheduler_result(now=now)
-    assert data["tasks_generated"] >= 1, (
-        "Segunda-feira deveria gerar tarefa diaria"
-    )
+    assert data["tasks_generated"] >= 1, "Segunda-feira deveria gerar tarefa diaria"
 
 
 def test_scheduler_does_not_duplicate(client):
@@ -988,7 +1020,9 @@ def test_scheduler_weekly_skips_when_mask_mismatch(client):
 
 def test_scheduler_monthly_skips_existing_task(client):
     """Scheduler mensal gera no ultimo dia util do mes e nao duplica."""
-    now = datetime(2026, 7, 31, 0, 0, 0, tzinfo=timezone.utc)  # Last business day of July (Friday)
+    now = datetime(
+        2026, 7, 31, 0, 0, 0, tzinfo=timezone.utc
+    )  # Last business day of July (Friday)
 
     email = f"sched_monthly_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1070,7 +1104,9 @@ def test_scheduler_monthly_skips_wrong_day(client):
 
 def test_scheduler_yearly_skips_existing_task(client):
     """Scheduler anual gera no ultimo dia util de dezembro e nao duplica."""
-    now = datetime(2026, 12, 31, 0, 0, 0, tzinfo=timezone.utc)  # Last business day of year (Thu)
+    now = datetime(
+        2026, 12, 31, 0, 0, 0, tzinfo=timezone.utc
+    )  # Last business day of year (Thu)
 
     email = f"sched_yearly_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1100,7 +1136,9 @@ def test_scheduler_yearly_skips_existing_task(client):
     assert assign_resp.status_code == 201
 
     data = _get_scheduler_result(now=now)
-    assert data["tasks_generated"] >= 1, "Ultimo dia util de dezembro deve gerar task anual"
+    assert data["tasks_generated"] >= 1, (
+        "Ultimo dia util de dezembro deve gerar task anual"
+    )
 
     data2 = _get_scheduler_result(now=now)
     assert data2["tasks_generated"] == 0

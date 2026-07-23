@@ -2,6 +2,7 @@
 Test: assigning a template with 2 activities creates 2 task cards.
 Tests both the assign flow and the scheduler flow.
 """
+
 from uuid import uuid4
 from datetime import datetime, timezone
 from fastapi.testclient import TestClient
@@ -10,22 +11,35 @@ from fastapi.testclient import TestClient
 def get_auth_header(client: TestClient, email: str) -> dict:
     """Register + login a user and return the Authorization header."""
     password = "Str0ng!Pass"
-    client.post("/auth/register", json={
-        "email": email, "password": password, "name": "Test",
-    })
-    resp = client.post("/auth/login", data={
-        "username": email, "password": password,
-    })
+    client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "password": password,
+            "name": "Test",
+        },
+    )
+    resp = client.post(
+        "/auth/login",
+        data={
+            "username": email,
+            "password": password,
+        },
+    )
     token = resp.json()["access_token"]
     return {"Authorization": f"Bearer {token}"}
 
 
 def create_client(client: TestClient, auth: dict) -> dict:
     """Create a test client company."""
-    resp = client.post("/clients/", json={
-        "name": "Multi Activity Client",
-        "email": f"multi_{uuid4()}@client.com",
-    }, headers=auth)
+    resp = client.post(
+        "/clients/",
+        json={
+            "name": "Multi Activity Client",
+            "email": f"multi_{uuid4()}@client.com",
+        },
+        headers=auth,
+    )
     return resp.json()
 
 
@@ -39,9 +53,15 @@ class TestMultiActivity:
         cli = create_client(client, auth)
 
         # Create daily template
-        tmpl_resp = client.post("/tasks/templates/", json={
-            "name": "Multi Daily", "recurrence": "daily", "process_type": "fiscal",
-        }, headers=auth)
+        tmpl_resp = client.post(
+            "/tasks/templates/",
+            json={
+                "name": "Multi Daily",
+                "recurrence": "daily",
+                "process_type": "fiscal",
+            },
+            headers=auth,
+        )
         assert tmpl_resp.status_code == 201
         tmpl_id = tmpl_resp.json()["id"]
 
@@ -55,9 +75,14 @@ class TestMultiActivity:
             assert resp.status_code == 201
 
         # Assign template — should generate 2 tasks
-        assign_resp = client.post("/tasks/client-templates/", json={
-            "client_id": cli["id"], "template_id": tmpl_id,
-        }, headers=auth)
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={
+                "client_id": cli["id"],
+                "template_id": tmpl_id,
+            },
+            headers=auth,
+        )
         assert assign_resp.status_code == 201
         data = assign_resp.json()
 
@@ -79,9 +104,15 @@ class TestMultiActivity:
         cli = create_client(client, auth)
 
         # Create daily template with 2 activities
-        tmpl_resp = client.post("/tasks/templates/", json={
-            "name": "Relink Daily", "recurrence": "daily", "process_type": "fiscal",
-        }, headers=auth)
+        tmpl_resp = client.post(
+            "/tasks/templates/",
+            json={
+                "name": "Relink Daily",
+                "recurrence": "daily",
+                "process_type": "fiscal",
+            },
+            headers=auth,
+        )
         assert tmpl_resp.status_code == 201
         tmpl_id = tmpl_resp.json()["id"]
 
@@ -93,9 +124,14 @@ class TestMultiActivity:
             )
 
         # First assign
-        assign1 = client.post("/tasks/client-templates/", json={
-            "client_id": cli["id"], "template_id": tmpl_id,
-        }, headers=auth).json()
+        assign1 = client.post(
+            "/tasks/client-templates/",
+            json={
+                "client_id": cli["id"],
+                "template_id": tmpl_id,
+            },
+            headers=auth,
+        ).json()
         assign1_id = assign1["assignment_id"]
 
         now = datetime.now(timezone.utc)
@@ -105,9 +141,14 @@ class TestMultiActivity:
         client.delete(f"/tasks/client-templates/{assign1_id}", headers=auth)
 
         # Relink
-        assign2 = client.post("/tasks/client-templates/", json={
-            "client_id": cli["id"], "template_id": tmpl_id,
-        }, headers=auth).json()
+        assign2 = client.post(
+            "/tasks/client-templates/",
+            json={
+                "client_id": cli["id"],
+                "template_id": tmpl_id,
+            },
+            headers=auth,
+        ).json()
 
         if is_weekday:
             assert assign2["tasks_generated"] == 2, (
@@ -120,10 +161,16 @@ class TestMultiActivity:
         auth = get_auth_header(client, email)
         cli = create_client(client, auth)
 
-        tmpl_resp = client.post("/tasks/templates/", json={
-            "name": "Multi Monthly", "recurrence": "monthly",
-            "due_day": 15, "process_type": "fiscal",
-        }, headers=auth)
+        tmpl_resp = client.post(
+            "/tasks/templates/",
+            json={
+                "name": "Multi Monthly",
+                "recurrence": "monthly",
+                "due_day": 15,
+                "process_type": "fiscal",
+            },
+            headers=auth,
+        )
         assert tmpl_resp.status_code == 201
         tmpl_id = tmpl_resp.json()["id"]
 
@@ -134,9 +181,14 @@ class TestMultiActivity:
                 headers=auth,
             )
 
-        assign_resp = client.post("/tasks/client-templates/", json={
-            "client_id": cli["id"], "template_id": tmpl_id,
-        }, headers=auth)
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={
+                "client_id": cli["id"],
+                "template_id": tmpl_id,
+            },
+            headers=auth,
+        )
         assert assign_resp.status_code == 201
         data = assign_resp.json()
         assert data["tasks_generated"] == 2, (
@@ -153,9 +205,15 @@ class TestMultiActivity:
         auth = get_auth_header(client, email)
         cli = create_client(client, auth)
 
-        tmpl_resp = client.post("/tasks/templates/", json={
-            "name": "Sched Multi Daily", "recurrence": "daily", "process_type": "fiscal",
-        }, headers=auth)
+        tmpl_resp = client.post(
+            "/tasks/templates/",
+            json={
+                "name": "Sched Multi Daily",
+                "recurrence": "daily",
+                "process_type": "fiscal",
+            },
+            headers=auth,
+        )
         tmpl_id = tmpl_resp.json()["id"]
 
         for name in ["Sched Alpha", "Sched Beta"]:
@@ -166,9 +224,14 @@ class TestMultiActivity:
             )
 
         # Assign generates 2 tasks (with routine_instance_id) — deadline = Monday 18:00
-        assign = client.post("/tasks/client-templates/", json={
-            "client_id": cli["id"], "template_id": tmpl_id,
-        }, headers=auth).json()
+        assign = client.post(
+            "/tasks/client-templates/",
+            json={
+                "client_id": cli["id"],
+                "template_id": tmpl_id,
+            },
+            headers=auth,
+        ).json()
         assert assign["tasks_generated"] == 2
 
         # Primeira execucao do scheduler (Mon) — gera tasks para terca-feira

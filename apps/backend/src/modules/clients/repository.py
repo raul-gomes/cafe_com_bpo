@@ -17,7 +17,7 @@ class ClientRepository:
             .filter(
                 Client.id == client_id,
                 Client.user_id == user_id,
-                Client.is_active == True,
+                Client.is_active,
             )
             .first()
         )
@@ -25,7 +25,7 @@ class ClientRepository:
     def get_by_user(self, user_id: UUID) -> List[Client]:
         return (
             self.session.query(Client)
-            .filter(Client.user_id == user_id, Client.is_active == True)
+            .filter(Client.user_id == user_id, Client.is_active)
             .order_by(Client.name)
             .all()
         )
@@ -34,7 +34,7 @@ class ClientRepository:
         """Get client without filtering by user_id (for team access checks)."""
         return (
             self.session.query(Client)
-            .filter(Client.id == client_id, Client.is_active == True)
+            .filter(Client.id == client_id, Client.is_active)
             .first()
         )
 
@@ -81,17 +81,13 @@ class ClientRepository:
 
         # Cascade: soft delete de todas as tarefas vinculadas
         self.session.query(Task).filter(
-            Task.client_id == client.id, Task.is_active == True
-        ).update(
-            {"is_active": False, "deleted_at": now}, synchronize_session="fetch"
-        )
+            Task.client_id == client.id, Task.is_active
+        ).update({"is_active": False, "deleted_at": now}, synchronize_session="fetch")
 
         # Cascade: soft delete de todos os orçamentos vinculados via FK
         self.session.query(PricingScenario).filter(
             PricingScenario.client_id == client.id,
-            PricingScenario.is_active == True,
-        ).update(
-            {"is_active": False, "deleted_at": now}, synchronize_session="fetch"
-        )
+            PricingScenario.is_active,
+        ).update({"is_active": False, "deleted_at": now}, synchronize_session="fetch")
 
         self.session.commit()

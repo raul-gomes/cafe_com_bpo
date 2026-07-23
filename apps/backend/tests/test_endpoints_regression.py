@@ -699,9 +699,13 @@ class TestGallery:
         """Regular user cannot upload to common gallery."""
         email = f"galcommon_{_unique()}@cafe.com"
         auth = _register_and_login(client, email)["headers"]
-        resp = client.post("/gallery/common/upload", headers=auth, files={
-            "file": ("test.pdf", b"x", "application/pdf"),
-        })
+        resp = client.post(
+            "/gallery/common/upload",
+            headers=auth,
+            files={
+                "file": ("test.pdf", b"x", "application/pdf"),
+            },
+        )
         assert resp.status_code == 403
 
 

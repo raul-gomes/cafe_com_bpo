@@ -109,7 +109,9 @@ def test_update_client_address(client):
         headers=auth,
     )
     assert resp_upd.status_code == 200
-    assert resp_upd.json()["address"] == "Av. Paulista, 1000, Bela Vista, São Paulo - SP"
+    assert (
+        resp_upd.json()["address"] == "Av. Paulista, 1000, Bela Vista, São Paulo - SP"
+    )
 
 
 def test_clients_endpoints_require_authentication(client):

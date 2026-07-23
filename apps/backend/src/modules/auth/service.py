@@ -118,7 +118,9 @@ class AuthService:
 
         return token
 
-    def reset_password(self, token: str, new_password: str, email: str | None = None) -> bool:
+    def reset_password(
+        self, token: str, new_password: str, email: str | None = None
+    ) -> bool:
         reset_token = (
             self.user_repo.session.query(PasswordResetToken)
             .filter_by(token=token, used=False)
