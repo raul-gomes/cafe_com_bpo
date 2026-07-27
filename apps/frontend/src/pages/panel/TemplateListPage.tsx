@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList } from 'lucide-react';
+import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Clock, Calendar, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -67,6 +67,22 @@ export const TemplateListPage: React.FC = () => {
   const [showTypeManager, setShowTypeManager] = useState(false);
   const [typeEdit, setTypeEdit] = useState<{ id?: string; name: string; color: string }>({ name: '', color: '#3b82f6' });
   const confirm = useConfirm();
+
+  const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
+  const [sectionSearchOpen, setSectionSearchOpen] = useState<Record<string, boolean>>({});
+
+  const toggleSearch = (key: string) => {
+    setSectionSearchOpen(prev => {
+      const next = { ...prev };
+      if (next[key]) {
+        next[key] = false;
+        setSectionSearch(s => { const r = { ...s }; delete r[key]; return r; });
+      } else {
+        next[key] = true;
+      }
+      return next;
+    });
+  };
 
   const toggleWeekday = (day: number) => {
     setNewWeekdays(prev =>
@@ -248,11 +264,17 @@ export const TemplateListPage: React.FC = () => {
           </CardContent>
         </Card>
       ) : (
-        /* ── Card List ── */
+        /* ── Card List por seção ── */
         <div className="flex flex-col gap-3">
           {(() => {
-            const recurrent = templates.filter(t => t.recurrence !== 'once');
-            const once = templates.filter(t => t.recurrence === 'once');
+            const groups: { key: string; label: string; icon: React.ReactNode; color: string; bgColor: string }[] = [
+              { key: 'once',     label: 'Uma só vez',  icon: <FileText size={14} />,  color: 'text-blue-500',    bgColor: 'bg-blue-500/10' },
+              { key: 'daily',    label: 'Diário',      icon: <Clock size={14} />,     color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
+              { key: 'weekly',   label: 'Semanal',     icon: <Calendar size={14} />,  color: 'text-violet-500',  bgColor: 'bg-violet-500/10' },
+              { key: 'monthly',  label: 'Mensal',      icon: <Calendar size={14} />,  color: 'text-amber-500',  bgColor: 'bg-amber-500/10' },
+              { key: 'yearly',   label: 'Anual',       icon: <Calendar size={14} />,  color: 'text-rose-500',   bgColor: 'bg-rose-500/10' },
+            ];
+
             const renderCard = (tmpl: (typeof templates)[number]) => (
               <Card
                 key={tmpl.id}
@@ -273,7 +295,6 @@ export const TemplateListPage: React.FC = () => {
                   </div>
                   <div className="flex items-center gap-3 text-[12px] text-muted-foreground mt-1">
                     <span>{tmpl.activity_count} atividade(s)</span>
-                    {/* Recurrence details as compact chips */}
                     {tmpl.recurrence === 'once' && tmpl.due_days_from_start && (
                       <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_days_from_start} dias</span>
                     )}
@@ -318,22 +339,84 @@ export const TemplateListPage: React.FC = () => {
                 <ChevronRight size={16} className="text-muted-foreground mr-3 shrink-0" />
               </Card>
             );
-            return (
-              <>
-                {recurrent.length > 0 && (
-                  <>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2 mt-4 first:mt-0">📅 Recorrentes</h3>
-                    {recurrent.map(renderCard)}
-                  </>
-                )}
-                {once.length > 0 && (
-                  <>
-                    <h3 className="text-sm font-semibold text-muted-foreground mb-2 mt-6">📌 Pontuais</h3>
-                    {once.map(renderCard)}
-                  </>
-                )}
-              </>
-            );
+
+            return groups.map(({ key, label, icon, color, bgColor }) => {
+              const sectionTmpls = (templates || []).filter(t => t.recurrence === key);
+              if (sectionTmpls.length === 0) return null;
+
+              const query = (sectionSearch[key] || '').toLowerCase();
+              const filtered = query
+                ? sectionTmpls.filter(t =>
+                    t.name.toLowerCase().includes(query) ||
+                    (t.description || '').toLowerCase().includes(query) ||
+                    (t.routine_type_name || '').toLowerCase().includes(query)
+                  )
+                : sectionTmpls;
+
+              return (
+                <div key={key} className="flex flex-col gap-2">
+                  {/* Section header */}
+                  <div className="flex items-center justify-between group mt-5 first:mt-0">
+                    <div className="flex items-center gap-1.5">
+                      <div className={cn("size-6 rounded-md flex items-center justify-center", bgColor)}>
+                        <span className={color}>{icon}</span>
+                      </div>
+                      <h3 className="text-[13px] font-bold text-foreground">{label}</h3>
+                      <span className="text-[11px] text-muted-foreground font-semibold ml-1">
+                        ({sectionTmpls.length})
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => toggleSearch(key)}
+                      className={cn(
+                        "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition-all cursor-pointer",
+                        sectionSearchOpen[key]
+                          ? "bg-primary/10 text-primary border border-primary/30"
+                          : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground border border-transparent"
+                      )}
+                      title="Filtrar"
+                    >
+                      <Search size={13} />
+                      {sectionSearchOpen[key] ? 'Fechar' : 'Filtrar'}
+                    </button>
+                  </div>
+
+                  {/* Inline search input */}
+                  {sectionSearchOpen[key] && (
+                    <div className="flex items-center gap-2 pl-1">
+                      <Search size={13} className="text-muted-foreground shrink-0" />
+                      <input
+                        type="text"
+                        value={sectionSearch[key] || ''}
+                        onChange={e => setSectionSearch(prev => ({ ...prev, [key]: e.target.value }))}
+                        placeholder={`Buscar em ${label.toLowerCase()}...`}
+                        autoFocus
+                        className="flex-1 rounded-md border border-border bg-muted px-2.5 py-1.5 text-[13px] text-foreground outline-none transition-colors focus:border-primary"
+                      />
+                      {sectionSearch[key] && (
+                        <button
+                          onClick={() => setSectionSearch(prev => { const r = { ...prev }; delete r[key]; return r; })}
+                          className="cursor-pointer text-muted-foreground hover:text-foreground border-none bg-transparent"
+                        >
+                          <X size={14} />
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Cards */}
+                  {filtered.length === 0 ? (
+                    <div className="py-6 text-center text-[13px] text-muted-foreground">
+                      Nenhuma rotina encontrada para "{query}"
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-2">
+                      {filtered.map(renderCard)}
+                    </div>
+                  )}
+                </div>
+              );
+            });
           })()}
         </div>
       )}
