@@ -285,58 +285,62 @@ export const TemplateListPage: React.FC = () => {
                 onClick={() => navigate(`/painel/templates-atividades/${tmpl.id}`)}
               >
                 <CardContent className="flex-1 py-3.5 px-4 min-w-0">
-                  <div className="flex items-center gap-2.5">
-                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <LayoutList size={16} className="text-primary" />
+                  <div className="flex items-center gap-3">
+                    <div className="size-9 rounded-lg bg-foreground/[0.04] flex items-center justify-center shrink-0 border border-border/30">
+                      <LayoutList size={15} className="text-foreground/60" />
                     </div>
                     <div className="min-w-0 flex-1">
-                      <span className="text-base font-bold">{tmpl.name}</span>
+                      <span className="text-[15px] font-bold text-foreground leading-tight">{tmpl.name}</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-3 text-[12px] text-muted-foreground mt-1">
-                    <span>{tmpl.activity_count} atividade(s)</span>
+                  <div className="flex items-center gap-2 text-[12px] text-muted-foreground/70 ml-12 mt-1.5">
+                    <span className="font-medium">{tmpl.activity_count} {tmpl.activity_count === 1 ? 'atividade' : 'atividades'}</span>
+                    <span className="text-muted-foreground/20">·</span>
                     {tmpl.recurrence === 'once' && tmpl.due_days_from_start && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_days_from_start} dias</span>
+                      <span>{tmpl.due_days_from_start} dias</span>
                     )}
                     {tmpl.recurrence === 'weekly' && tmpl.weekday_mask && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{formatWeekdays(tmpl.weekday_mask)}</span>
+                      <span>{formatWeekdays(tmpl.weekday_mask)}</span>
                     )}
                     {tmpl.recurrence === 'monthly' && tmpl.due_day && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">Dia {tmpl.due_day}</span>
+                      <span>Dia {tmpl.due_day}</span>
                     )}
                     {tmpl.recurrence === 'yearly' && tmpl.due_day && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_day}/{tmpl.due_month}</span>
+                      <span>{tmpl.due_day}/{tmpl.due_month}</span>
                     )}
                     {tmpl.description && (
-                      <span className="truncate opacity-70">{tmpl.description}</span>
+                      <>
+                        <span className="text-muted-foreground/20">·</span>
+                        <span className="truncate max-w-[180px]">{tmpl.description}</span>
+                      </>
                     )}
                   </div>
                 </CardContent>
-                <div className="flex items-center gap-2 pr-3" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center gap-1.5 pr-2.5" onClick={(e) => e.stopPropagation()}>
                   {tmpl.routine_type_name && (
-                    <Badge variant="outline" className="gap-1 text-[11px] whitespace-nowrap">
-                      <span className="size-1.5 rounded-full shrink-0" style={{ background: tmpl.routine_type_color || '#3b82f6' }} />
-                      {tmpl.routine_type_name}
+                    <Badge variant="outline" className="gap-1.5 text-[11px] font-semibold h-6 rounded-md border-border/40 px-2.5">
+                      <span className="size-2 rounded-full shrink-0" style={{ background: tmpl.routine_type_color || '#3b82f6' }} />
+                      <span className="text-foreground/70">{tmpl.routine_type_name}</span>
                     </Badge>
                   )}
-                  <Badge variant="secondary" className="text-[11px] whitespace-nowrap">
-                    {RECURRENCE_LABELS[tmpl.recurrence] || tmpl.recurrence}
-                  </Badge>
                   {tmpl.is_overdue && (tmpl.days_overdue ?? 0) > 0 && (
-                    <Badge variant="destructive" className="gap-1 text-[11px] whitespace-nowrap">
+                    <Badge variant="destructive" className="gap-1 text-[11px] font-bold h-6 rounded-md px-2">
                       <AlertTriangle size={11} /> {tmpl.days_overdue ?? 0}d
                     </Badge>
                   )}
-                  <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
-                  <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={async (e) => {
-                    e.stopPropagation();
-                    const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
-                    if (ok) deleteTemplate.mutate(tmpl.id);
-                  }}>
-                    <X size={15} />
-                  </Button>
+                  <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} className="scale-75" />
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
+                      if (ok) deleteTemplate.mutate(tmpl.id);
+                    }}
+                    className="flex items-center justify-center size-7 rounded-md text-muted-foreground/40 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer border-none"
+                  >
+                    <X size={14} />
+                  </button>
+                  <ChevronRight size={15} className="text-muted-foreground/30 shrink-0" />
                 </div>
-                <ChevronRight size={16} className="text-muted-foreground mr-3 shrink-0" />
               </Card>
             );
 
@@ -354,34 +358,37 @@ export const TemplateListPage: React.FC = () => {
                 : sectionTmpls;
 
               return (
-                <div key={key} className="flex flex-col gap-2">
-                  {/* Section header */}
-                  <div className="flex items-center justify-between mt-6 first:mt-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-extrabold text-foreground">{label}</h3>
-                      <span className="text-[12px] text-muted-foreground font-semibold">
-                        {sectionTmpls.length} rotina(s)
+                <section key={key} className="group/section">
+                  {/* Section header band */}
+                  <div className={cn(
+                    "flex items-center justify-between rounded-lg px-4 py-2.5 mb-3 transition-colors",
+                    sectionSearchOpen[key]
+                      ? "bg-primary/[0.04] border border-primary/10"
+                      : "bg-muted/40 border border-border/30"
+                  )}>
+                    <div className="flex items-center gap-3">
+                      <h2 className="text-base font-bold text-foreground tracking-tight">{label}</h2>
+                      <span className="inline-flex items-center justify-center min-w-[1.5rem] h-5 rounded-full bg-foreground/10 px-2 text-[11px] font-bold text-muted-foreground">
+                        {sectionTmpls.length}
                       </span>
                     </div>
                     <button
                       onClick={() => toggleSearch(key)}
                       className={cn(
-                        "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition-all cursor-pointer border",
+                        "inline-flex items-center justify-center size-8 rounded-md transition-all cursor-pointer",
                         sectionSearchOpen[key]
-                          ? "bg-primary/10 text-primary border-primary/40"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted border-border/40"
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground/60 hover:text-foreground hover:bg-muted-foreground/10"
                       )}
                       title="Filtrar"
                     >
-                      <Search size={13} />
+                      <Search size={14} />
                     </button>
                   </div>
-                  {/* Separator */}
-                  <div className="border-b border-border/40" />
 
                   {/* Inline search input */}
                   {sectionSearchOpen[key] && (
-                    <div className="flex items-center gap-2 pl-1">
+                    <div className="flex items-center gap-2 mb-3 px-1">
                       <Search size={13} className="text-muted-foreground shrink-0" />
                       <input
                         type="text"
@@ -389,14 +396,14 @@ export const TemplateListPage: React.FC = () => {
                         onChange={e => setSectionSearch(prev => ({ ...prev, [key]: e.target.value }))}
                         placeholder={`Buscar em ${label.toLowerCase()}...`}
                         autoFocus
-                        className="flex-1 rounded-md border border-border bg-muted px-2.5 py-1.5 text-[13px] text-foreground outline-none transition-colors focus:border-primary"
+                        className="flex-1 rounded-md border border-border bg-background px-3 py-1.5 text-sm text-foreground outline-none transition-all focus:border-primary focus:ring-1 focus:ring-primary/20"
                       />
                       {sectionSearch[key] && (
                         <button
                           onClick={() => setSectionSearch(prev => { const r = { ...prev }; delete r[key]; return r; })}
-                          className="cursor-pointer text-muted-foreground hover:text-foreground border-none bg-transparent"
+                          className="cursor-pointer text-muted-foreground/60 hover:text-foreground transition-colors bg-transparent border-none"
                         >
-                          <X size={14} />
+                          <X size={15} />
                         </button>
                       )}
                     </div>
@@ -404,15 +411,17 @@ export const TemplateListPage: React.FC = () => {
 
                   {/* Cards */}
                   {filtered.length === 0 ? (
-                    <div className="py-6 text-center text-[13px] text-muted-foreground">
-                      Nenhuma rotina encontrada para "{query}"
+                    <div className="rounded-lg border border-dashed border-border/50 py-10 text-center">
+                      <p className="text-sm text-muted-foreground">
+                        {query ? `Nenhum resultado para "${query}"` : 'Nenhuma rotina cadastrada'}
+                      </p>
                     </div>
                   ) : (
-                    <div className="flex flex-col gap-2">
+                    <div className="flex flex-col gap-2 pl-1">
                       {filtered.map(renderCard)}
                     </div>
                   )}
-                </div>
+                </section>
               );
             });
           })()}
