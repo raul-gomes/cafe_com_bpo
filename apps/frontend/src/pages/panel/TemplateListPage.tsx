@@ -44,6 +44,27 @@ const MONTH_OPTIONS = [
   { value: 12, label: 'Dezembro' },
 ];
 
+/* ── Recurrence config chips ── */
+function RecurrenceChip({ tmpl }: { tmpl: any }) {
+  if (tmpl.recurrence === 'once' && tmpl.due_days_from_start) {
+    return <span className="text-[12px] text-muted-foreground">{tmpl.due_days_from_start} dias</span>;
+  }
+  if (tmpl.recurrence === 'weekly' && tmpl.weekday_mask) {
+    const days = tmpl.weekday_mask.split(',').map((d: string) =>
+      ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][Number(d)]
+    ).join(', ');
+    return <span className="text-[12px] text-muted-foreground">{days}</span>;
+  }
+  if (tmpl.recurrence === 'monthly' && tmpl.due_day) {
+    return <span className="text-[12px] text-muted-foreground">Dia {tmpl.due_day}</span>;
+  }
+  if (tmpl.recurrence === 'yearly' && tmpl.due_day) {
+    return <span className="text-[12px] text-muted-foreground">{tmpl.due_day}/{tmpl.due_month}</span>;
+  }
+  return null;
+}
+
+/* ── Page ── */
 export const TemplateListPage: React.FC = () => {
   const navigate = useNavigate();
   const { useTemplatesList, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useRoutineTypes, useCreateRoutineType, useUpdateRoutineType, useDeleteRoutineType } = useTasks();
@@ -128,27 +149,28 @@ export const TemplateListPage: React.FC = () => {
     });
   };
 
-  const formatWeekdays = (mask: string) =>
-    mask.split(',').map(d => ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][Number(d)]).join(', ');
-
+  /* ── Loading state ── */
   if (isLoading) {
     return (
-      <div className="tasks-page">
-        <Skeleton className="h-8 w-[200px] mb-10" />
-        <Skeleton className="h-[300px]" />
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-[300px]" />
+        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[400px] w-full" />
       </div>
     );
   }
 
   return (
-    <div className="tasks-page animate-[panelFadeIn_0.4s_ease-out]">
+    <div className="animate-[panelFadeIn_0.4s_ease-out]">
       <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Rotinas' }]} />
 
-      {/* Header */}
-      <div className="flex justify-between items-end mb-8">
+      {/* ── Page Header ── */}
+      <div className="flex justify-between items-end mb-10">
         <div>
-          <h1>Rotinas</h1>
-          <p className="mb-0">Atividades recorrentes que podem ser vinculadas a clientes.</p>
+          <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Rotinas</h1>
+          <p className="text-muted-foreground text-sm mt-1">
+            Atividades recorrentes que podem ser vinculadas a clientes.
+          </p>
         </div>
         <div className="flex gap-2">
           <Button variant="secondary" onClick={() => setShowTypeManager(true)}>
@@ -251,171 +273,165 @@ export const TemplateListPage: React.FC = () => {
 
       {/* ── Empty state ── */}
       {!templates || templates.length === 0 ? (
-        <Card className="p-0">
+        <Card>
           <CardContent className="flex flex-col items-center py-16">
-            <FileText size={48} className="text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-bold mb-2">Nenhuma rotina criada</h3>
-            <p className="text-muted-foreground text-sm mb-5">
-              Crie rotinas de atividades recorrentes para agilizar o onboarding de novos clientes.
+            <div className="size-14 rounded-xl bg-muted flex items-center justify-center mb-4">
+              <FileText size={28} className="text-muted-foreground/50" />
+            </div>
+            <h3 className="text-lg font-bold mb-1.5">Nenhuma rotina criada</h3>
+            <p className="text-muted-foreground text-sm mb-6 max-w-sm text-center">
+              Crie rotinas de atividades recorrentes para agilizar o onboarding de clientes.
             </p>
-              <Button onClick={() => setShowCreate(true)}>
-                <Plus size={16} /> Criar Primeira Rotina
-              </Button>
+            <Button onClick={() => setShowCreate(true)}>
+              <Plus size={16} /> Criar Primeira Rotina
+            </Button>
           </CardContent>
         </Card>
       ) : (
-        /* ── Card List por seção ── */
-        <div className="flex flex-col gap-3">
-          {(() => {
-            const groups: { key: string; label: string }[] = [
-              { key: 'once',     label: 'Uma só vez' },
-              { key: 'daily',    label: 'Diário' },
-              { key: 'weekly',   label: 'Semanal' },
-              { key: 'monthly',  label: 'Mensal' },
-              { key: 'yearly',   label: 'Anual' },
-            ];
+        /* ── Sections grouped by recurrence ── */
+        <div className="space-y-10">
+          {([
+            { key: 'once',     label: 'Uma só vez' },
+            { key: 'daily',    label: 'Diário' },
+            { key: 'weekly',   label: 'Semanal' },
+            { key: 'monthly',  label: 'Mensal' },
+            { key: 'yearly',   label: 'Anual' },
+          ] as const).map(({ key, label }) => {
+            const sectionTmpls = (templates || []).filter(t => t.recurrence === key);
+            if (sectionTmpls.length === 0) return null;
 
-            const renderCard = (tmpl: (typeof templates)[number]) => (
-              <Card
-                key={tmpl.id}
-                className={cn(
-                  "flex-row items-center gap-0 cursor-pointer transition-all hover:bg-muted/50",
-                  !tmpl.is_active && "opacity-50"
-                )}
-                onClick={() => navigate(`/painel/templates-atividades/${tmpl.id}`)}
-              >
-                <CardContent className="flex-1 py-3.5 px-4 min-w-0">
+            const query = (sectionSearch[key] || '').toLowerCase();
+            const filtered = query
+              ? sectionTmpls.filter(t =>
+                  t.name.toLowerCase().includes(query) ||
+                  (t.description || '').toLowerCase().includes(query) ||
+                  (t.routine_type_name || '').toLowerCase().includes(query)
+                )
+              : sectionTmpls;
+
+            return (
+              <section key={key}>
+                {/* ── Section header ── */}
+                <div className="flex items-center justify-between mb-3">
                   <div className="flex items-center gap-2.5">
-                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                      <LayoutList size={16} className="text-primary" />
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <span className="text-base font-bold">{tmpl.name}</span>
-                    </div>
+                    <h2 className="text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
+                      {label}
+                    </h2>
+                    <span className="inline-flex items-center justify-center size-5 rounded-full bg-muted text-[11px] font-bold text-muted-foreground/70">
+                      {sectionTmpls.length}
+                    </span>
                   </div>
-                  <div className="flex items-center gap-3 text-[12px] text-muted-foreground mt-1">
-                    <span>{tmpl.activity_count} atividade(s)</span>
-                    {tmpl.recurrence === 'once' && tmpl.due_days_from_start && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_days_from_start} dias</span>
+                  <button
+                    onClick={() => toggleSearch(key)}
+                    className={cn(
+                      "flex items-center justify-center size-7 rounded-lg transition-colors cursor-pointer border-none",
+                      sectionSearchOpen[key]
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground/50 hover:text-foreground hover:bg-muted"
                     )}
-                    {tmpl.recurrence === 'weekly' && tmpl.weekday_mask && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{formatWeekdays(tmpl.weekday_mask)}</span>
-                    )}
-                    {tmpl.recurrence === 'monthly' && tmpl.due_day && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">Dia {tmpl.due_day}</span>
-                    )}
-                    {tmpl.recurrence === 'yearly' && tmpl.due_day && (
-                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_day}/{tmpl.due_month}</span>
-                    )}
-                    {tmpl.description && (
-                      <span className="truncate opacity-70">{tmpl.description}</span>
-                    )}
-                  </div>
-                </CardContent>
-                <div className="flex items-center gap-2 pr-3" onClick={(e) => e.stopPropagation()}>
-                  {tmpl.routine_type_name && (
-                    <Badge variant="outline" className="gap-1 text-[11px] whitespace-nowrap">
-                      <span className="size-1.5 rounded-full shrink-0" style={{ background: tmpl.routine_type_color || '#3b82f6' }} />
-                      {tmpl.routine_type_name}
-                    </Badge>
-                  )}
-                  <Badge variant="secondary" className="text-[11px] whitespace-nowrap">
-                    {RECURRENCE_LABELS[tmpl.recurrence] || tmpl.recurrence}
-                  </Badge>
-                  {tmpl.is_overdue && (tmpl.days_overdue ?? 0) > 0 && (
-                    <Badge variant="destructive" className="gap-1 text-[11px] whitespace-nowrap">
-                      <AlertTriangle size={11} /> {tmpl.days_overdue ?? 0}d
-                    </Badge>
-                  )}
-                  <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
-                  <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={async (e) => {
-                    e.stopPropagation();
-                    const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
-                    if (ok) deleteTemplate.mutate(tmpl.id);
-                  }}>
-                    <X size={15} />
-                  </Button>
+                    title="Filtrar"
+                  >
+                    <Search size={14} />
+                  </button>
                 </div>
-                <ChevronRight size={16} className="text-muted-foreground mr-3 shrink-0" />
-              </Card>
+
+                {/* ── Separator ── */}
+                <div className="h-px bg-border/40 mb-3" />
+
+                {/* ── Inline search ── */}
+                {sectionSearchOpen[key] && (
+                  <div className="flex items-center gap-2 mb-3">
+                    <Search size={14} className="text-muted-foreground shrink-0" />
+                    <input
+                      type="text"
+                      value={sectionSearch[key] || ''}
+                      onChange={e => setSectionSearch(prev => ({ ...prev, [key]: e.target.value }))}
+                      placeholder={`Buscar em ${label.toLowerCase()}...`}
+                      autoFocus
+                      className="flex-1 h-8 rounded-md border border-border bg-muted px-2.5 text-[13px] text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring/30"
+                    />
+                    {sectionSearch[key] && (
+                      <button
+                        onClick={() => setSectionSearch(prev => { const r = { ...prev }; delete r[key]; return r; })}
+                        className="flex items-center justify-center size-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-colors cursor-pointer border-none bg-transparent"
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                )}
+
+                {/* ── Cards ── */}
+                {filtered.length === 0 ? (
+                  <div className="py-8 text-center">
+                    <p className="text-[13px] text-muted-foreground">
+                      Nenhuma rotina encontrada para "<span className="font-semibold">{query}</span>"
+                    </p>
+                  </div>
+                ) : (
+                  <div className="flex flex-col gap-2">
+                    {filtered.map((tmpl) => (
+                      <Card
+                        key={tmpl.id}
+                        className={cn(
+                          "flex-row items-center gap-0 cursor-pointer transition-all hover:bg-muted/30",
+                          !tmpl.is_active && "opacity-50"
+                        )}
+                        onClick={() => navigate(`/painel/templates-atividades/${tmpl.id}`)}
+                      >
+                        <CardContent className="flex-1 py-3.5 px-4 min-w-0">
+                          <div className="flex items-center gap-3">
+                            <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                              <LayoutList size={16} className="text-primary" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <span className="text-[15px] font-bold text-foreground leading-tight">{tmpl.name}</span>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2.5 text-[12px] text-muted-foreground/80 ml-12 mt-1.5">
+                            <span className="font-medium">{tmpl.activity_count} {tmpl.activity_count === 1 ? 'atividade' : 'atividades'}</span>
+                            <span className="text-muted-foreground/20">·</span>
+                            <RecurrenceChip tmpl={tmpl} />
+                            {tmpl.description && (
+                              <>
+                                <span className="text-muted-foreground/20">·</span>
+                                <span className="truncate max-w-[200px]">{tmpl.description}</span>
+                              </>
+                            )}
+                          </div>
+                        </CardContent>
+                        <div className="flex items-center gap-2 pr-3" onClick={(e) => e.stopPropagation()}>
+                          {tmpl.routine_type_name && (
+                            <Badge variant="outline" className="gap-1.5 text-[11px] font-semibold h-6 rounded-md border-border/40 px-2.5">
+                              <span className="size-2 rounded-full shrink-0" style={{ background: tmpl.routine_type_color || '#3b82f6' }} />
+                              <span className="text-foreground/70">{tmpl.routine_type_name}</span>
+                            </Badge>
+                          )}
+                          {tmpl.is_overdue && (tmpl.days_overdue ?? 0) > 0 && (
+                            <Badge variant="destructive" className="gap-1 text-[11px] font-bold h-6 rounded-md px-2">
+                              <AlertTriangle size={11} /> {tmpl.days_overdue ?? 0}d
+                            </Badge>
+                          )}
+                          <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
+                              if (ok) deleteTemplate.mutate(tmpl.id);
+                            }}
+                            className="flex items-center justify-center size-7 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer border-none bg-transparent"
+                          >
+                            <X size={14} />
+                          </button>
+                        </div>
+                        <ChevronRight size={16} className="text-muted-foreground/30 mr-3 shrink-0" />
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </section>
             );
-
-            return groups.map(({ key, label }) => {
-              const sectionTmpls = (templates || []).filter(t => t.recurrence === key);
-              if (sectionTmpls.length === 0) return null;
-
-              const query = (sectionSearch[key] || '').toLowerCase();
-              const filtered = query
-                ? sectionTmpls.filter(t =>
-                    t.name.toLowerCase().includes(query) ||
-                    (t.description || '').toLowerCase().includes(query) ||
-                    (t.routine_type_name || '').toLowerCase().includes(query)
-                  )
-                : sectionTmpls;
-
-              return (
-                <div key={key} className="flex flex-col gap-2">
-                  {/* Section header */}
-                  <div className="flex items-center justify-between mt-6 first:mt-0">
-                    <div className="flex items-center gap-2">
-                      <h3 className="text-[15px] font-extrabold text-foreground">{label}</h3>
-                      <span className="text-[12px] text-muted-foreground font-semibold">
-                        {sectionTmpls.length} rotina(s)
-                      </span>
-                    </div>
-                    <button
-                      onClick={() => toggleSearch(key)}
-                      className={cn(
-                        "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition-all cursor-pointer border",
-                        sectionSearchOpen[key]
-                          ? "bg-primary/10 text-primary border-primary/40"
-                          : "text-muted-foreground hover:text-foreground hover:bg-muted border-border/40"
-                      )}
-                      title="Filtrar"
-                    >
-                      <Search size={13} />
-                    </button>
-                  </div>
-                  {/* Separator */}
-                  <div className="border-b border-border/40" />
-
-                  {/* Inline search input */}
-                  {sectionSearchOpen[key] && (
-                    <div className="flex items-center gap-2 pl-1">
-                      <Search size={13} className="text-muted-foreground shrink-0" />
-                      <input
-                        type="text"
-                        value={sectionSearch[key] || ''}
-                        onChange={e => setSectionSearch(prev => ({ ...prev, [key]: e.target.value }))}
-                        placeholder={`Buscar em ${label.toLowerCase()}...`}
-                        autoFocus
-                        className="flex-1 rounded-md border border-border bg-muted px-2.5 py-1.5 text-[13px] text-foreground outline-none transition-colors focus:border-primary"
-                      />
-                      {sectionSearch[key] && (
-                        <button
-                          onClick={() => setSectionSearch(prev => { const r = { ...prev }; delete r[key]; return r; })}
-                          className="cursor-pointer text-muted-foreground hover:text-foreground border-none bg-transparent"
-                        >
-                          <X size={14} />
-                        </button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Cards */}
-                  {filtered.length === 0 ? (
-                    <div className="py-6 text-center text-[13px] text-muted-foreground">
-                      Nenhuma rotina encontrada para "{query}"
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-2">
-                      {filtered.map(renderCard)}
-                    </div>
-                  )}
-                </div>
-              );
-            });
-          })()}
+          })}
         </div>
       )}
 
