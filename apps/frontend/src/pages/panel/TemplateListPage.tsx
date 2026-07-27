@@ -312,14 +312,11 @@ export const TemplateListPage: React.FC = () => {
             return (
               <section key={key}>
                 {/* ── Section header + inline search ── */}
-                <div className={cn(
-                  "flex items-center mb-3 transition-all",
-                  sectionSearchOpen[key] ? "gap-2" : "justify-between"
-                )}>
-                  {sectionSearchOpen[key] ? (
-                    /* Search mode: input + x button inline */
-                    <>
-                      <div className="flex items-center gap-2 flex-1">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2 overflow-hidden">
+                    {sectionSearchOpen[key] ? (
+                      /* Search mode: input with grow animation */
+                      <div className="flex items-center gap-2 animate-[panelFadeIn_0.2s_ease-out]">
                         <Search size={16} className="text-muted-foreground shrink-0" />
                         <input
                           type="text"
@@ -327,7 +324,7 @@ export const TemplateListPage: React.FC = () => {
                           onChange={e => setSectionSearch(prev => ({ ...prev, [key]: e.target.value }))}
                           placeholder={`Buscar em ${label.toLowerCase()}...`}
                           autoFocus
-                          className="flex-1 h-8 rounded-md border border-border bg-muted px-2.5 text-[13px] text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring/30"
+                          className="w-2/5 min-w-[200px] h-8 rounded-md border border-border bg-muted px-2.5 text-[13px] text-foreground outline-none transition-all duration-200 focus:border-ring focus:ring-1 focus:ring-ring/30 focus:w-[45%]"
                         />
                         {sectionSearch[key] && (
                           <button
@@ -338,17 +335,8 @@ export const TemplateListPage: React.FC = () => {
                           </button>
                         )}
                       </div>
-                      <button
-                        onClick={() => toggleSearch(key)}
-                        className="flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border-none bg-primary/10 text-primary shrink-0"
-                        title="Fechar busca"
-                      >
-                        <X size={16} />
-                      </button>
-                    </>
-                  ) : (
-                    /* Normal mode: title + count + search toggle */
-                    <>
+                    ) : (
+                      /* Normal mode: title + count */
                       <div className="flex items-center gap-2">
                         <h2 className="text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
                           {label}
@@ -357,15 +345,20 @@ export const TemplateListPage: React.FC = () => {
                           {sectionTmpls.length}
                         </span>
                       </div>
-                      <button
-                        onClick={() => toggleSearch(key)}
-                        className="flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border-none text-muted-foreground/50 hover:text-foreground hover:bg-muted"
-                        title="Filtrar"
-                      >
-                        <Search size={16} />
-                      </button>
-                    </>
-                  )}
+                    )}
+                  </div>
+                  <button
+                    onClick={() => toggleSearch(key)}
+                    className={cn(
+                      "flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border-none shrink-0",
+                      sectionSearchOpen[key]
+                        ? "bg-primary/10 text-primary"
+                        : "text-muted-foreground/50 hover:text-foreground hover:bg-muted"
+                    )}
+                    title="Filtrar"
+                  >
+                    <Search size={16} />
+                  </button>
                 </div>
 
                 {/* ── Separator ── */}
