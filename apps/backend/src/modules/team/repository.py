@@ -7,7 +7,7 @@ from typing import Optional
 
 from .models import ClientInvitation, ClientInvitationRoutine, ClientTeamMember
 from src.modules.clients.models import Client
-from src.modules.tasks.models import ActivityTemplate
+from src.modules.task_manager.models import ActivityTemplate
 from src.modules.auth.models import User
 
 

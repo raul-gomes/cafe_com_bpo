@@ -174,6 +174,12 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
                 type="text"
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey && newName.trim()) {
+                    e.preventDefault();
+                    editingPhase ? handleUpdate() : handleCreate();
+                  }
+                }}
                 placeholder="Nome da fase"
                 className="mb-3 w-full rounded-sm border border-border bg-card px-3.5 py-2.5 text-[14px] text-foreground outline-none transition-colors focus:border-primary"
                 autoFocus

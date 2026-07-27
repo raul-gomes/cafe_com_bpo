@@ -60,9 +60,9 @@ const TaskKanbanInner: React.FC<Props> = ({
   const columns = sortedPhases.length > 0
     ? sortedPhases.map(p => ({ id: p.id, title: p.name, color: p.color }))
     : [
-        { id: 'todo', title: 'A Fazer', color: '#6b7280' },
-        { id: 'doing', title: 'Em Andamento', color: '#3b82f6' },
-        { id: 'done', title: 'Concluído', color: '#22c55e' },
+        { id: 'todo', title: 'a fazer', color: '#6b7280' },
+        { id: 'doing', title: 'em andamento', color: '#3b82f6' },
+        { id: 'done', title: 'concluido', color: '#22c55e' },
       ];
 
   const doneColumnId = sortedPhases.length > 0
@@ -83,9 +83,10 @@ const TaskKanbanInner: React.FC<Props> = ({
               {...provided.droppableProps}
               ref={provided.innerRef}
               className={cn(
-                'kanban-column flex min-h-[calc(100vh-250px)] max-h-[calc(100vh-200px)] flex-col overflow-y-auto rounded-lg border border-border bg-card p-4 transition-colors',
+                'kanban-column flex min-h-[calc(100vh-250px)] max-h-[calc(100vh-200px)] flex-col rounded-lg border border-border bg-card p-4 transition-colors',
                 snapshot.isDraggingOver && 'bg-white/[0.04]'
               )}
+              style={{ overflow: 'hidden' } as React.CSSProperties}
             >
               {/* Column header */}
               <div className="mb-3 flex items-center justify-between">
@@ -144,8 +145,8 @@ const TaskKanbanInner: React.FC<Props> = ({
                 />
               </div>
 
-              {/* Cards */}
-              <div className="flex flex-1 flex-col gap-3">
+              {/* Scrollable cards container (overflow em filho, não no Droppable ref) */}
+              <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
                 {sortTasksByUrgency(
                   tasks.filter(t => getTaskStatus(t) === col.id).filter(t => {
                     const q = (columnSearch[col.id] || '').toLowerCase();

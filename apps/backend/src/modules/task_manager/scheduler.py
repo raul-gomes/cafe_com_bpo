@@ -27,9 +27,11 @@ from rocketry.tasks import FuncTask
 from src.core.database import SessionLocal
 from src.core.utils import next_business_day
 from src.core.logger import log
-from src.modules.tasks.repository import TaskRepository
-from src.modules.tasks.models import ActivityTemplate, TemplateActivity
-from src.modules.tasks.schemas import TaskCreate
+from src.modules.task_manager.assignments.repository import AssignmentRepository
+from src.modules.task_manager.task.repository import TaskRepository
+from src.modules.task_manager.templates.repository import TemplateRepository
+from src.modules.task_manager.models import ActivityTemplate, TemplateActivity
+from src.modules.task_manager.schemas import TaskCreate
 
 # Silence Rocketry internal debug spam
 logging.getLogger("rocketry").setLevel(logging.WARNING)
@@ -120,8 +122,13 @@ def calculate_activity_deadline(
     if effective_due_day is None:
         effective_due_day = now.day
 
-    year = base.year
-    month = base.month
+    # For yearly/annual templates, use the template's due_month
+    if tmpl is not None and tmpl.recurrence in ("yearly", "annual") and tmpl.due_month is not None:
+        year = base.year
+        month = tmpl.due_month
+    else:
+        year = base.year
+        month = base.month
     max_day = calendar.monthrange(year, month)[1]
     day = min(effective_due_day, max_day)
 
@@ -480,25 +487,27 @@ class TaskScheduler:
         # ── DB work ──
         db = SessionLocal()
         try:
-            repo = TaskRepository(db)
-            assignments = repo.get_active_assignments()
+            task_repo = TaskRepository(db)
+            tmpl_repo = TemplateRepository(db)
+            assign_repo = AssignmentRepository(db)
+            assignments = assign_repo.get_active_assignments()
             total_generated = 0
             total_skipped = 0
             processed = 0
             errors: list[str] = []
 
             for assignment in assignments:
-                tmpl = repo.get_template_by_id(
+                tmpl = tmpl_repo.get_template_by_id(
                     assignment.template_id, assignment.user_id
                 )
                 if not tmpl or not tmpl.is_active:
                     continue
 
-                activities = repo.get_activities_by_template(tmpl.id)
+                activities = tmpl_repo.get_activities_by_template(tmpl.id)
                 if not activities:
                     continue
 
-                phases = repo.get_phases_by_user(assignment.user_id)
+                phases = task_repo.get_phases_by_user(assignment.user_id)
                 first_phase = phases[0] if phases else None
 
                 generated = 0
@@ -562,7 +571,7 @@ class TaskScheduler:
                         act.name,
                         period_key,
                     )
-                    if repo.task_exists_by_instance_id(instance_id):
+                    if assign_repo.task_exists_by_instance_id(instance_id):
                         skipped += 1
                         continue
 
@@ -579,14 +588,14 @@ class TaskScheduler:
                         assignment_id=assignment.id,
                         routine_instance_id=instance_id,
                     )
-                    task = repo.create(task_data, assignment.user_id)
+                    task = task_repo.create(task_data, assignment.user_id)
                     if first_phase:
                         task.phase_id = first_phase.id
                     generated += 1
 
                 if generated or skipped:
                     db.commit()
-                    repo.update_assignment_last_generated(assignment.id)
+                    assign_repo.update_assignment_last_generated(assignment.id)
                     log.info(
                         f"  ├ {generated} generated + {skipped} skipped "
                         f"for assignment {assignment.id} ({tmpl.name})"
@@ -684,17 +693,23 @@ class TaskScheduler:
         activities: list[TemplateActivity],
         candidates: list[tuple[TemplateActivity, datetime, str]],
     ) -> None:
-        """Build candidates for monthly rule: current month."""
+        """Build candidates for monthly rule: generate tasks for NEXT month."""
+        if current.month == 12:
+            next_year = current.year + 1
+            next_month = 1
+        else:
+            next_year = current.year
+            next_month = current.month + 1
         effective_due_day = None
         if activities:
             effective_due_day = get_effective_due_day(activities[0], tmpl)
         if effective_due_day is None:
             effective_due_day = 1
-        max_day = calendar.monthrange(current.year, current.month)[1]
+        max_day = calendar.monthrange(next_year, next_month)[1]
         day = min(effective_due_day, max_day)
         deadline = datetime(
-            current.year,
-            current.month,
+            next_year,
+            next_month,
             day,
             18,
             0,
@@ -702,7 +717,7 @@ class TaskScheduler:
             tzinfo=timezone.utc,
         )
         deadline = next_business_day(deadline)
-        period_key = f"{current.year}-{current.month:02d}"
+        period_key = f"{next_year}-{next_month:02d}"
         for act in activities:
             candidates.append((act, deadline, period_key))
 
@@ -714,17 +729,18 @@ class TaskScheduler:
         activities: list[TemplateActivity],
         candidates: list[tuple[TemplateActivity, datetime, str]],
     ) -> None:
-        """Build candidates for yearly rule: current year."""
+        """Build candidates for yearly rule: generate tasks for NEXT year."""
+        next_year = current.year + 1
         due_month = tmpl.due_month or 12
         effective_due_day = None
         if activities:
             effective_due_day = get_effective_due_day(activities[0], tmpl)
         if effective_due_day is None:
             effective_due_day = 1
-        max_day = calendar.monthrange(current.year, due_month)[1]
+        max_day = calendar.monthrange(next_year, due_month)[1]
         day = min(effective_due_day, max_day)
         deadline = datetime(
-            current.year,
+            next_year,
             due_month,
             day,
             18,
@@ -733,6 +749,68 @@ class TaskScheduler:
             tzinfo=timezone.utc,
         )
         deadline = next_business_day(deadline)
-        period_key = str(current.year)
+        period_key = str(next_year)
         for act in activities:
             candidates.append((act, deadline, period_key))
+
+
+# ================================================================
+# Trigger Router (scheduler manual-run endpoints)
+# ================================================================
+
+from fastapi import APIRouter, Depends, HTTPException
+from typing import Annotated
+from src.modules.auth.schemas import UserResponse
+from src.modules.auth.service import get_current_user
+
+# Module-level scheduler singleton (imported by main.py for lifespan)
+scheduler_instance: TaskScheduler = TaskScheduler()
+
+trigger_router = APIRouter(prefix="/tasks/scheduler", tags=["scheduler"])
+
+CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
+
+
+@trigger_router.post("/run")
+def run_scheduler(current_user: CurrentUserDep):
+    """Run the scheduler check (auto-detects rules based on today's date)."""
+    if not scheduler_instance.app:
+        raise HTTPException(status_code=503, detail="Scheduler not initialized")
+    result = scheduler_instance.run_daily_check(mode="all")
+    return result
+
+
+@trigger_router.post("/run-daily")
+def run_scheduler_daily(current_user: CurrentUserDep):
+    """Force run the daily rule (for testing)."""
+    if not scheduler_instance.app:
+        raise HTTPException(status_code=503, detail="Scheduler not initialized")
+    result = scheduler_instance.run_daily_check(mode="daily")
+    return result
+
+
+@trigger_router.post("/run-weekly")
+def run_scheduler_weekly(current_user: CurrentUserDep):
+    """Force run the weekly rule (for testing)."""
+    if not scheduler_instance.app:
+        raise HTTPException(status_code=503, detail="Scheduler not initialized")
+    result = scheduler_instance.run_daily_check(mode="weekly")
+    return result
+
+
+@trigger_router.post("/run-monthly")
+def run_scheduler_monthly(current_user: CurrentUserDep):
+    """Force run the monthly rule (for testing)."""
+    if not scheduler_instance.app:
+        raise HTTPException(status_code=503, detail="Scheduler not initialized")
+    result = scheduler_instance.run_daily_check(mode="monthly")
+    return result
+
+
+@trigger_router.post("/run-yearly")
+def run_scheduler_yearly(current_user: CurrentUserDep):
+    """Force run the yearly rule (for testing)."""
+    if not scheduler_instance.app:
+        raise HTTPException(status_code=503, detail="Scheduler not initialized")
+    result = scheduler_instance.run_daily_check(mode="yearly")
+    return result

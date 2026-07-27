@@ -771,7 +771,11 @@ def test_task_has_template_fk_after_assignment(client):
     assert assign_resp.status_code == 201
     assignment_id = assign_resp.json()["assignment_id"]
 
-    # 3. Verificar que as tasks geradas têm os FKs
+    # 3. Monthly tasks are deferred to scheduler — run the monthly rule
+    sched_resp = client.post("/tasks/scheduler/run-monthly", headers=auth)
+    assert sched_resp.status_code == 200
+
+    # 4. Verificar que as tasks geradas têm os FKs
     tasks_resp = client.get(f"/tasks/?client_id={cli['id']}", headers=auth)
     assert tasks_resp.status_code == 200
     tasks = tasks_resp.json()
@@ -813,7 +817,11 @@ def test_task_response_includes_template_name(client):
     )
     assert assign_resp.status_code == 201
 
-    # 3. Verificar template_name na task
+    # 3. Monthly tasks are deferred to scheduler — run the monthly rule
+    sched_resp = client.post("/tasks/scheduler/run-monthly", headers=auth)
+    assert sched_resp.status_code == 200
+
+    # 4. Verificar template_name na task
     tasks_resp = client.get(f"/tasks/?client_id={cli['id']}", headers=auth)
     tasks = tasks_resp.json()
     tmpl_tasks = [t for t in tasks if t.get("template_id") == tmpl_id]
@@ -843,7 +851,7 @@ def test_task_template_name_null_when_manual(client):
 
 def _get_scheduler_result(now=None, mode=None):
     """Helper: create a one-off TaskScheduler and run daily check."""
-    from src.modules.tasks.scheduler import TaskScheduler
+    from src.modules.task_manager.scheduler import TaskScheduler
 
     sched = TaskScheduler()
     kwargs = {}

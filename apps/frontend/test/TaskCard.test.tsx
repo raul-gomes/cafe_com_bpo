@@ -73,7 +73,7 @@ describe('TaskCard', () => {
 
   it('renders finalize button when status !== doneColumnId', () => {
     renderCard(<TaskCard {...defaultProps} />)
-    expect(screen.getByTitle('Mover para Concluído')).toBeInTheDocument()
+    expect(screen.getByTitle('Mover para concluido')).toBeInTheDocument()
   })
 
   it('does NOT render finalize button when status === doneColumnId', () => {
@@ -85,12 +85,12 @@ describe('TaskCard', () => {
         getTaskStatus={() => 'done'}
       />
     )
-    expect(screen.queryByTitle('Mover para Concluído')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Mover para concluido')).not.toBeInTheDocument()
   })
 
   it('does NOT render finalize button when onFinalize is undefined', () => {
     renderCard(<TaskCard {...defaultProps} onFinalize={undefined} />)
-    expect(screen.queryByTitle('Mover para Concluído')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Mover para concluido')).not.toBeInTheDocument()
   })
 
   it('renders cancel button when conditions met', () => {
@@ -201,7 +201,7 @@ describe('TaskCard', () => {
   it('calls onFinalize when finalize button is clicked', () => {
     const onFinalize = vi.fn()
     renderCard(<TaskCard {...defaultProps} onFinalize={onFinalize} />)
-    fireEvent.click(screen.getByTitle('Mover para Concluído'))
+    fireEvent.click(screen.getByTitle('Mover para concluido'))
     expect(onFinalize).toHaveBeenCalledWith('task-1')
   })
 
@@ -229,7 +229,7 @@ describe('TaskCard', () => {
     const onEdit = vi.fn()
     const onFinalize = vi.fn()
     renderCard(<TaskCard {...defaultProps} onEdit={onEdit} onFinalize={onFinalize} />)
-    fireEvent.click(screen.getByTitle('Mover para Concluído'))
+    fireEvent.click(screen.getByTitle('Mover para concluido'))
     expect(onEdit).not.toHaveBeenCalled()
     expect(onFinalize).toHaveBeenCalled()
   })

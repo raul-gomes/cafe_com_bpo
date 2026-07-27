@@ -13,6 +13,7 @@ import {
   TaskAttachmentResponse,
   ClientTimelineResponse,
   SLAAlertsResponse,
+  OverdueTemplateResponse,
 } from '../../schemas/tasks';
 
 export const useTasks = () => {
@@ -67,7 +68,19 @@ export const useTasks = () => {
         const previousTasks = queryClient.getQueryData<TaskResponse[]>(['tasks']);
         if (previousTasks) {
           queryClient.setQueryData<TaskResponse[]>(['tasks'], 
-            previousTasks.map(t => t.id === id ? { ...t, phase_id: phase_id || t.phase_id, status: status || t.status } : t)
+            previousTasks.map(t => {
+              if (t.id !== id) return t;
+              const newPhaseId = phase_id || t.phase_id;
+              const phaseChanged = phase_id && phase_id !== t.phase_id;
+              return {
+                ...t,
+                phase_id: newPhaseId,
+                status: status || t.status,
+                // Se a fase mudou, o backend limpa o completed_at
+                // (evita flicker no filtro entre optimistic update e refetch)
+                completed_at: phaseChanged ? undefined : t.completed_at,
+              };
+            })
           );
         }
         return { previousTasks };
@@ -579,6 +592,18 @@ export const useTasks = () => {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['tasks'] });
         },
+      });
+    },
+
+    // ── Overdue Templates ──
+    useOverdueTemplates: () => {
+      return useQuery<OverdueTemplateResponse[]>({
+        queryKey: ['overdueTemplates'],
+        queryFn: async () => {
+          const { data } = await apiClient.get('/tasks/templates/overdue/');
+          return data;
+        },
+        refetchInterval: 5 * 60 * 1000, // refresh every 5 min
       });
     },
 

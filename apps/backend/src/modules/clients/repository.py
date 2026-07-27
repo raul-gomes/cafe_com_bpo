@@ -3,7 +3,7 @@ from uuid import UUID
 from typing import List, Optional
 from .models import Client
 from .schemas import ClientCreate, ClientUpdate
-from src.modules.tasks.models import Task
+from src.modules.task_manager.models import Task
 from src.modules.proposals.models import PricingScenario
 
 

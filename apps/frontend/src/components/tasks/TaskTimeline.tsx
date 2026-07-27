@@ -8,7 +8,7 @@ type ConflictTaskItem = { id: string; title: string; time_estimate_minutes?: num
 
 type Props = {
   timeline: { date: string; tasks: TimelineTaskItem[]; total_minutes: number }[];
-  conflicts: { date: string; tasks: ConflictTaskItem[]; total_hours: number }[];
+  conflicts: { date: string; tasks: ConflictTaskItem[]; total_minutes: number }[];
   clients: any[];
   isLoading: boolean;
   onEdit: (t: TaskResponse) => void;
@@ -62,9 +62,9 @@ const TaskTimelineInner: React.FC<Props> = ({ timeline, conflicts, clients, isLo
                       }}
                     />
                   </div>
-                  <span className={cn('text-[11px] font-bold', day.total_minutes > 480 ? 'text-destructive' : 'text-muted-foreground')}>
-                    {(day.total_minutes / 60).toFixed(1)}h
-                  </span>
+                   <span className={cn('text-[11px] font-bold', day.total_minutes > 480 ? 'text-destructive' : 'text-muted-foreground')}>
+                     {day.total_minutes}min
+                   </span>
                 </div>
               </div>
               <div className="flex flex-wrap gap-2">

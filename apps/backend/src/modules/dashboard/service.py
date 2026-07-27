@@ -9,7 +9,7 @@ from uuid import UUID
 
 from src.modules.clients.repository import ClientRepository
 from src.modules.proposals.repository import ProposalRepository
-from src.modules.tasks.repository import TaskRepository
+from src.modules.task_manager.task.repository import TaskRepository
 
 
 class DashboardService:

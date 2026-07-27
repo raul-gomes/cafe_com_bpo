@@ -12,7 +12,7 @@ from src.modules.clients import router as clients_router
 from src.modules.dashboard import router as dashboard_router
 from src.modules.gallery import router as gallery_router
 from src.modules.network import router as network_router
-from src.modules.tasks import router as tasks_router
+from src.modules.task_manager import router as tasks_router
 
 __all__ = [
     "auth_router",

@@ -103,7 +103,7 @@ export interface ConflictTask {
 export interface ConflictResponse {
   date: string;
   tasks: ConflictTask[];
-  total_hours: number;
+  total_minutes: number;
 }
 
 export interface ConflictsResponse {
@@ -341,6 +341,26 @@ export interface ClientTimelineResponse {
   stats: ClientTimelineStats;
   slas: { process_type: string; sla_days: number; warning_threshold: number }[];
   tasks: ClientTimelineTask[];
+}
+
+// ── Overdue Templates ──
+
+export interface OverdueTemplateResponse {
+  id: string;
+  name: string;
+  description?: string;
+  process_type?: string;
+  recurrence: string;
+  weekday_mask?: string;
+  due_month?: number;
+  due_date?: string;
+  recurrence_end_date?: string;
+  is_active: boolean;
+  days_overdue: number;
+  activity_count: number;
+  routine_type_id?: string;
+  routine_type_name?: string;
+  routine_type_color?: string;
 }
 
 // ── Dashboard Alerts ──

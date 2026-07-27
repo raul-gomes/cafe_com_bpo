@@ -1,7 +1,7 @@
 import React, { useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { X, Trash2, Palette } from 'lucide-react';
+import { X, Trash2 } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
@@ -16,7 +16,6 @@ const taskSchema = z.object({
   status: z.enum(['todo', 'doing', 'done']),
   priority: z.enum(['low', 'medium', 'high']),
   deadline: z.string().optional(),
-  phase_id: z.string().uuid().optional().or(z.literal('')),
   time_estimate_minutes: z.number().optional().or(z.literal(0)),
 });
 
@@ -28,15 +27,11 @@ interface TaskModalProps {
   task?: TaskResponse | null;
 }
 
-const CONTRAST_PALETTE = ["#3b82f6", "#8b5cf6", "#d946ef", "#f43f5e", "#06b6d4", "#10b981", "#6366f1", "#f97316"];
-
 export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) => {
-  const { useCreateTask, useUpdateTask, useDeleteTask, useUpdateClient, usePhases } = useTasks();
+  const { useCreateTask, useUpdateTask, useDeleteTask } = useTasks();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
   const deleteTask = useDeleteTask();
-  const updateClient = useUpdateClient();
-  const { data: phases } = usePhases();
   const confirm = useConfirm();
 
   const { data: clients } = useQuery({
@@ -47,9 +42,7 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
     }
   });
 
-  const { register, handleSubmit, formState: { errors }, reset, watch } = useForm<TaskFormData>();
-  const selectedClientId = watch('client_id');
-  const selectedClient = clients?.find((c: any) => c.id === selectedClientId);
+  const { register, handleSubmit, formState: { errors }, reset } = useForm<TaskFormData>();
 
   useEffect(() => {
     if (isOpen) {
@@ -62,7 +55,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
           status: task.status as any,
           priority: task.priority as any,
           deadline: task.deadline ? task.deadline.split('T')[0] : '',
-          phase_id: task.phase_id || '',
           time_estimate_minutes: task.time_estimate_minutes || 0,
         });
       } else {
@@ -74,7 +66,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
           status: 'todo',
           priority: 'medium',
           deadline: '',
-          phase_id: '',
           time_estimate_minutes: 0,
         });
       }
@@ -91,7 +82,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
         status: data.status,
         priority: data.priority,
         deadline: data.deadline || undefined,
-        phase_id: data.phase_id || undefined,
         time_estimate_minutes: data.time_estimate_minutes || undefined,
       };
       if (task) {
@@ -102,12 +92,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
       onClose();
     } catch (err) {
       console.error('Erro ao salvar tarefa:', err);
-    }
-  };
-
-  const handleUpdateClientColor = async (color: string) => {
-    if (selectedClientId) {
-      await updateClient.mutateAsync({ id: selectedClientId, color });
     }
   };
 
@@ -126,8 +110,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
   };
 
   if (!isOpen) return null;
-
-  const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
 
   return (
     <div className="fixed inset-0 z-[1000] flex items-center justify-center bg-black/80 backdrop-blur-sm">
@@ -171,28 +153,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
               {errors.client_id && <span className="ds-error-msg">{errors.client_id.message}</span>}
             </div>
 
-            {selectedClientId && (
-              <div className="ds-form-group">
-                <label className="ds-label flex items-center gap-1.5">
-                  <Palette size={14} /> Cor da Empresa
-                </label>
-                <div className="mt-1 grid gap-1.5" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
-                  {CONTRAST_PALETTE.map(color => (
-                    <button
-                      key={color}
-                      type="button"
-                      onClick={() => handleUpdateClientColor(color)}
-                      className="size-6 cursor-pointer rounded-full border-2 outline-none transition-transform hover:scale-110"
-                      style={{
-                        background: color,
-                        borderColor: selectedClient?.color === color ? '#fff' : 'transparent',
-                      }}
-                      title="Alterar cor da empresa"
-                    />
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
 
           <div className="ds-form-group">
@@ -214,18 +174,6 @@ export const TaskModal: React.FC<TaskModalProps> = ({ isOpen, onClose, task }) =
               placeholder="Observações internas, lembretes, etc."
             />
           </div>
-
-          {sortedPhases.length > 0 && (
-            <div className="ds-form-group">
-              <label className="ds-label">Fase</label>
-              <select {...register('phase_id')} className="ds-input">
-                <option value="">Sem fase</option>
-                {sortedPhases.map(phase => (
-                  <option key={phase.id} value={phase.id}>{phase.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
 
           <div className="grid gap-4" style={{ gridTemplateColumns: '1fr 1fr 1fr' }}>
             <div className="ds-form-group">

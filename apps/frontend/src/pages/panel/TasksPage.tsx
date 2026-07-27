@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw, Users, ChevronDown } from 'lucide-react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
@@ -54,6 +54,19 @@ export const TasksPage: React.FC = () => {
 
     const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
+
+    // Tasks movidas recentemente por drag: ficam visíveis mesmo fora do período do filtro
+    const [recentlyMoved, setRecentlyMoved] = useState<Set<string>>(new Set());
+    const markRecentlyMoved = useCallback((taskId: string) => {
+        setRecentlyMoved(prev => new Set(prev).add(taskId));
+        setTimeout(() => {
+            setRecentlyMoved(prev => {
+                const next = new Set(prev);
+                next.delete(taskId);
+                return next;
+            });
+        }, 3000);
+    }, []);
 
     const [showTeamCards, setShowTeamCards] = useState(false);
     const [teamClientId, setTeamClientId] = useState<string | undefined>(undefined);
@@ -135,6 +148,8 @@ export const TasksPage: React.FC = () => {
         if (!result.destination) return;
         const { draggableId, destination } = result;
         if (destination.droppableId === result.source.droppableId) return;
+        // Marca como recentemente movida para garantir visibilidade no filtro
+        markRecentlyMoved(draggableId);
         updateTaskStatus.mutate(
             { id: draggableId, phase_id: destination.droppableId },
             {
@@ -264,6 +279,9 @@ export const TasksPage: React.FC = () => {
             const isFirstPhase = taskStatus === firstPhaseId || taskStatus === 'todo';
             const isLastPhase = taskStatus === lastPhaseId || taskStatus === 'done';
             const isMiddlePhase = !isFirstPhase && !isLastPhase && taskStatus !== 'cancelled';
+            // Tasks movidas por drag nos últimos 3s: sempre visíveis (evita flicker)
+            if (recentlyMoved.has(t.id)) return true;
+
             if (isFirstPhase) {
                 if (isOverdue(t)) return true;
                 if (p) return isInPeriod(t.deadline, p);
@@ -271,11 +289,17 @@ export const TasksPage: React.FC = () => {
                 return true;
             }
             if (isMiddlePhase) {
+                // Tasks atrasadas sempre visíveis em qualquer filtro
+                if (isOverdue(t)) return true;
                 if (!p) return true;
-                return isInPeriod(t.deadline, p);
+                // Mostrar se deadline está no período OU se foi completada no período
+                // (cobre o caso de arrastar de volta de "concluido" para fase intermediária)
+                return isInPeriod(t.deadline, p) || isCompletedInPeriod(t, p);
             }
             if (isLastPhase) {
                 if (mode === 'overdue') return false;
+                // Tasks atrasadas na última fase: mostrar se completadas no período
+                if (isOverdue(t)) return isCompletedInPeriod(t, p || { start: todayStart, end: todayEnd });
                 if (!p) return isCompletedInPeriod(t, { start: todayStart, end: todayEnd });
                 return isCompletedInPeriod(t, p);
             }
@@ -297,11 +321,11 @@ export const TasksPage: React.FC = () => {
         }
         return 'all';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userFilter, tasksList, dateFrom, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases]);
+    }, [userFilter, tasksList, dateFrom, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
 
     const filteredTasks = useMemo(() => filterTasksForMode(effectiveFilter),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [tasksList, effectiveFilter, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases]);
+        [tasksList, effectiveFilter, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
 
     // Sincroniza o botão de filtro visual com o efetivo (sem causar loop)
     const prevEffective = useRef(effectiveFilter);
@@ -321,7 +345,7 @@ export const TasksPage: React.FC = () => {
         }
         return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tasksList, firstPhaseId, lastPhaseId, phases, todayStart, todayEnd]);
+    }, [tasksList, firstPhaseId, lastPhaseId, phases, todayStart, todayEnd, recentlyMoved]);
 
     if (isLoading) {
         return (

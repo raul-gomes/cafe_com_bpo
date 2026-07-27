@@ -93,7 +93,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
     >
       {/* Top row: Client name + Template badge */}
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">
+        <span className="text-[12px] font-extrabold uppercase tracking-wide text-muted-foreground">
           {client?.name || 'Cliente'}
         </span>
         {task.template_name && (
@@ -170,7 +170,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
               onClick={(e) => { e.stopPropagation(); onFinalize(task.id); }}
               className="flex size-5 items-center justify-center rounded-sm border-none text-green-500 transition-all hover:brightness-110"
               style={{ background: 'rgba(34,197,94,0.12)' }}
-              title="Mover para Concluído"
+              title="Mover para concluido"
               aria-label="Finalizar tarefa"
             >
               <Check size={11} />

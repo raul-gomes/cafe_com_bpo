@@ -8,7 +8,7 @@ from src.core.database import get_db_session
 from src.modules.auth.service import get_current_user
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.models import User
-from src.modules.tasks.models import Task
+from src.modules.task_manager.models import Task
 from src.modules.clients.models import Client
 from src.modules.network.models import Notification, DiscussionComment
 from .schemas import DashboardSummary, UrgentTaskResponse, ActivityResponse

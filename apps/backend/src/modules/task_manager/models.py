@@ -17,10 +17,20 @@ from typing import Optional
 import uuid
 
 DEFAULT_PHASES = [
-    {"name": "A Fazer", "color": "#6b7280", "order": 0},
-    {"name": "Em Andamento", "color": "#3b82f6", "order": 1},
-    {"name": "Concluído", "color": "#22c55e", "order": 2},
+    {"name": "a fazer", "color": "#6b7280", "order": 0},
+    {"name": "em andamento", "color": "#3b82f6", "order": 1},
+    {"name": "concluido", "color": "#22c55e", "order": 2},
 ]
+
+
+def get_done_phase(phases: list) -> Optional["TaskPhase"]:
+    """Return the phase with the highest order (final/done column).
+    
+    Uses position (order) instead of name so renaming phases never breaks logic.
+    """
+    if not phases:
+        return None
+    return max(phases, key=lambda p: p.order)
 
 
 class TaskPhase(Base):

@@ -5,7 +5,7 @@ Tests for customizable Kanban columns/phases per user.
 
 from uuid import uuid4
 
-from src.modules.tasks.models import TaskPhase, Task
+from src.modules.task_manager.models import TaskPhase, Task
 
 
 class TestTaskPhaseModel:
@@ -52,9 +52,9 @@ class TestTaskPhaseRepository:
         assert len(phases) == 3
 
         names = [p["name"] for p in phases]
-        assert "A Fazer" in names
-        assert "Em Andamento" in names
-        assert "Concluído" in names
+        assert "a fazer" in names
+        assert "em andamento" in names
+        assert "concluido" in names
 
     def test_get_phases_returns_existing_phases(self, client):
         """Subsequent calls should return existing phases."""

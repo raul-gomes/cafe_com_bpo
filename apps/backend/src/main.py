@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Depends, HTTPException
+from fastapi import FastAPI, Request
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import JSONResponse
 import os
@@ -15,13 +15,12 @@ from src.core.logger import setup_logging, log
 from src.core.database import engine
 from src.modules.pricing.router import router as pricing_router
 from src.modules.auth.router import router as auth_router
-from src.modules.auth.schemas import UserResponse
-from src.modules.auth.service import get_current_user
 from src.modules.proposals.router import router as proposals_router
 from src.modules.gallery.router import router as gallery_router
 from src.modules.clients.router import router as clients_router
 from src.modules.network.router import router as network_router
-from src.modules.tasks.router import router as tasks_router
+from src.modules.task_manager import router as tasks_router
+from src.modules.task_manager.scheduler import scheduler_instance
 from src.modules.dashboard.router import router as dashboard_router
 from src.modules.payments.router import router as payments_router
 from src.modules.notifications.router import router as notifications_router
@@ -29,17 +28,14 @@ from src.modules.companies.router import router as companies_router
 from src.modules.calendar.router import router as calendar_router
 from src.modules.feedback.router import router as feedback_router
 from src.modules.team.router import router as team_router
-from src.modules.tasks.scheduler import TaskScheduler
-
-_scheduler = TaskScheduler()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("🚀 Iniciando aplicação...")
-    _scheduler.start()
+    scheduler_instance.start()
     yield
-    _scheduler.stop()
+    scheduler_instance.stop()
     log.info("🛑 Aplicação encerrada.")
 
 
@@ -112,48 +108,6 @@ def create_app() -> FastAPI:
 
     os.makedirs("storage/avatars", exist_ok=True)
     app.mount("/avatars", StaticFiles(directory="storage/avatars"), name="avatars")
-
-    # ── Scheduler endpoints ──
-
-    @app.post("/tasks/scheduler/run")
-    def run_scheduler(_current_user: UserResponse = Depends(get_current_user)):
-        """Run the scheduler check (auto-detects rules based on today's date)."""
-        if not _scheduler.app:
-            raise HTTPException(status_code=503, detail="Scheduler not initialized")
-        result = _scheduler.run_daily_check(mode="all")
-        return result
-
-    @app.post("/tasks/scheduler/run-daily")
-    def run_scheduler_daily(_current_user: UserResponse = Depends(get_current_user)):
-        """Force run the daily rule (for testing)."""
-        if not _scheduler.app:
-            raise HTTPException(status_code=503, detail="Scheduler not initialized")
-        result = _scheduler.run_daily_check(mode="daily")
-        return result
-
-    @app.post("/tasks/scheduler/run-weekly")
-    def run_scheduler_weekly(_current_user: UserResponse = Depends(get_current_user)):
-        """Force run the weekly rule (for testing)."""
-        if not _scheduler.app:
-            raise HTTPException(status_code=503, detail="Scheduler not initialized")
-        result = _scheduler.run_daily_check(mode="weekly")
-        return result
-
-    @app.post("/tasks/scheduler/run-monthly")
-    def run_scheduler_monthly(_current_user: UserResponse = Depends(get_current_user)):
-        """Force run the monthly rule (for testing)."""
-        if not _scheduler.app:
-            raise HTTPException(status_code=503, detail="Scheduler not initialized")
-        result = _scheduler.run_daily_check(mode="monthly")
-        return result
-
-    @app.post("/tasks/scheduler/run-yearly")
-    def run_scheduler_yearly(_current_user: UserResponse = Depends(get_current_user)):
-        """Force run the yearly rule (for testing)."""
-        if not _scheduler.app:
-            raise HTTPException(status_code=503, detail="Scheduler not initialized")
-        result = _scheduler.run_daily_check(mode="yearly")
-        return result
 
     @app.middleware("http")
     async def log_requests(request: Request, call_next):

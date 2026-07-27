@@ -250,71 +250,91 @@ export const TemplateListPage: React.FC = () => {
       ) : (
         /* ── Card List ── */
         <div className="flex flex-col gap-3">
-          {templates.map((tmpl) => (
-            <Card
-              key={tmpl.id}
-              className={cn(
-                "flex-row items-center gap-0 cursor-pointer transition-all hover:bg-muted/50",
-                !tmpl.is_active && "opacity-50"
-              )}
-              onClick={() => navigate(`/painel/templates-atividades/${tmpl.id}`)}
-            >
-              <CardContent className="flex-1 py-3.5 px-4">
-                <div className="flex items-center gap-2.5 mb-1">
-                  <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                    <LayoutList size={16} className="text-primary" />
+          {(() => {
+            const recurrent = templates.filter(t => t.recurrence !== 'once');
+            const once = templates.filter(t => t.recurrence === 'once');
+            const renderCard = (tmpl: (typeof templates)[number]) => (
+              <Card
+                key={tmpl.id}
+                className={cn(
+                  "flex-row items-center gap-0 cursor-pointer transition-all hover:bg-muted/50",
+                  !tmpl.is_active && "opacity-50"
+                )}
+                onClick={() => navigate(`/painel/templates-atividades/${tmpl.id}`)}
+              >
+                <CardContent className="flex-1 py-3.5 px-4 min-w-0">
+                  <div className="flex items-center gap-2.5">
+                    <div className="size-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
+                      <LayoutList size={16} className="text-primary" />
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <span className="text-base font-bold">{tmpl.name}</span>
+                    </div>
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <span className="text-base font-bold">{tmpl.name}</span>
+                  <div className="flex items-center gap-3 text-[12px] text-muted-foreground mt-1">
+                    <span>{tmpl.activity_count} atividade(s)</span>
+                    {/* Recurrence details as compact chips */}
+                    {tmpl.recurrence === 'once' && tmpl.due_days_from_start && (
+                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_days_from_start} dias</span>
+                    )}
+                    {tmpl.recurrence === 'weekly' && tmpl.weekday_mask && (
+                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{formatWeekdays(tmpl.weekday_mask)}</span>
+                    )}
+                    {tmpl.recurrence === 'monthly' && tmpl.due_day && (
+                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">Dia {tmpl.due_day}</span>
+                    )}
+                    {tmpl.recurrence === 'yearly' && tmpl.due_day && (
+                      <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_day}/{tmpl.due_month}</span>
+                    )}
+                    {tmpl.description && (
+                      <span className="truncate opacity-70">{tmpl.description}</span>
+                    )}
                   </div>
+                </CardContent>
+                <div className="flex items-center gap-2 pr-3" onClick={(e) => e.stopPropagation()}>
                   {tmpl.routine_type_name && (
-                    <Badge variant="outline" className="gap-1 text-[11px]">
+                    <Badge variant="outline" className="gap-1 text-[11px] whitespace-nowrap">
                       <span className="size-1.5 rounded-full shrink-0" style={{ background: tmpl.routine_type_color || '#3b82f6' }} />
                       {tmpl.routine_type_name}
                     </Badge>
                   )}
-                  <Badge variant="secondary" className="text-[11px]">
+                  <Badge variant="secondary" className="text-[11px] whitespace-nowrap">
                     {RECURRENCE_LABELS[tmpl.recurrence] || tmpl.recurrence}
                   </Badge>
                   {tmpl.is_overdue && (tmpl.days_overdue ?? 0) > 0 && (
-                    <Badge variant="destructive" className="gap-1 text-[11px]">
-                      <AlertTriangle size={11} /> Atrasado {tmpl.days_overdue ?? 0}d
+                    <Badge variant="destructive" className="gap-1 text-[11px] whitespace-nowrap">
+                      <AlertTriangle size={11} /> {tmpl.days_overdue ?? 0}d
                     </Badge>
                   )}
+                  <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
+                  <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={async (e) => {
+                    e.stopPropagation();
+                    const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
+                    if (ok) deleteTemplate.mutate(tmpl.id);
+                  }}>
+                    <X size={15} />
+                  </Button>
                 </div>
-                <div className="flex items-center gap-3 text-[12px] text-muted-foreground">
-                  <span>{tmpl.activity_count} atividade(s)</span>
-                  {/* Recurrence details as compact chips */}
-                  {tmpl.recurrence === 'once' && tmpl.due_days_from_start && (
-                    <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_days_from_start} dias</span>
-                  )}
-                  {tmpl.recurrence === 'weekly' && tmpl.weekday_mask && (
-                    <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{formatWeekdays(tmpl.weekday_mask)}</span>
-                  )}
-                  {tmpl.recurrence === 'monthly' && tmpl.due_day && (
-                    <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">Dia {tmpl.due_day}</span>
-                  )}
-                  {tmpl.recurrence === 'yearly' && tmpl.due_day && (
-                    <span className="px-2 py-0.5 rounded-full bg-muted font-semibold">{tmpl.due_day}/{tmpl.due_month}</span>
-                  )}
-                  {tmpl.description && (
-                    <span className="truncate opacity-70">{tmpl.description}</span>
-                  )}
-                </div>
-              </CardContent>
-              <div className="flex items-center gap-1 pr-3" onClick={(e) => e.stopPropagation()}>
-                <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
-                <Button variant="ghost" size="icon-sm" className="text-destructive" onClick={async (e) => {
-                  e.stopPropagation();
-                  const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
-                  if (ok) deleteTemplate.mutate(tmpl.id);
-                }}>
-                  <X size={15} />
-                </Button>
-              </div>
-              <ChevronRight size={16} className="text-muted-foreground mr-3 shrink-0" />
-            </Card>
-          ))}
+                <ChevronRight size={16} className="text-muted-foreground mr-3 shrink-0" />
+              </Card>
+            );
+            return (
+              <>
+                {recurrent.length > 0 && (
+                  <>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2 mt-4 first:mt-0">📅 Recorrentes</h3>
+                    {recurrent.map(renderCard)}
+                  </>
+                )}
+                {once.length > 0 && (
+                  <>
+                    <h3 className="text-sm font-semibold text-muted-foreground mb-2 mt-6">📌 Pontuais</h3>
+                    {once.map(renderCard)}
+                  </>
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 

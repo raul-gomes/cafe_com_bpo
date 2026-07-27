@@ -379,7 +379,7 @@ export const TemplateDetailPage: React.FC = () => {
 
           {/* Add Activity Form - inline, compact */}
           {showAdd && (
-            <div className="p-3 bg-muted rounded-lg mb-4 border border-primary/20 space-y-3">
+            <div className="p-3.5 bg-muted rounded-lg mb-4 border border-primary/20 space-y-3">
               <div className="flex gap-3 flex-wrap items-start">
                 <div className="flex-1 min-w-[180px]">
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Título</label>
@@ -416,7 +416,7 @@ export const TemplateDetailPage: React.FC = () => {
               Nenhuma atividade cadastrada. Adicione atividades para gerar tarefas automaticamente.
             </div>
           ) : (
-            <div className="flex flex-col gap-1.5">
+            <div className="flex flex-col gap-2">
               {sortedActivities.map((act, idx) => (
                 <div
                   key={act.id}
@@ -436,7 +436,7 @@ export const TemplateDetailPage: React.FC = () => {
                     setDraggedId(null);
                   }}
                   className={cn(
-                    "flex items-start gap-2.5 p-3 rounded-lg border transition-colors",
+                    "flex items-start gap-2.5 p-3.5 rounded-lg border transition-colors",
                     editingAct === act.id ? "bg-muted border-primary/30" : "bg-card border-border/60 hover:border-border",
                     draggedId === act.id && "opacity-40"
                   )}

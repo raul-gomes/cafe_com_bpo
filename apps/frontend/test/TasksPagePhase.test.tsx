@@ -27,10 +27,10 @@ vi.mock('../src/api/hooks/useTasks', () => {
     useUpdateTaskStatus: mockMutation,
     usePhases: () => ({
       data: [
-        { id: 'phase-1', name: 'A Fazer', color: '#6b7280', order: 0, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
-        { id: 'phase-2', name: 'Em Andamento', color: '#3b82f6', order: 1, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
-        { id: 'phase-3', name: 'Concluído', color: '#22c55e', order: 2, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
-        { id: 'phase-4', name: 'Em Revisão', color: '#f59e0b', order: 3, is_default: false, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'phase-1', name: 'a fazer', color: '#6b7280', order: 0, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'phase-2', name: 'em andamento', color: '#3b82f6', order: 1, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'phase-3', name: 'concluido', color: '#22c55e', order: 2, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'phase-4', name: 'em revisao', color: '#f59e0b', order: 3, is_default: false, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
       ],
       isLoading: false,
     }),
@@ -116,17 +116,17 @@ describe('TasksPage — Phases (Tarefa 5.2)', () => {
     renderPage()
 
     // All 4 phases should appear as column headers (h3 elements)
-    expect(screen.getAllByText('A Fazer').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Em Andamento').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Concluído').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('Em Revisão').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('a fazer').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('em andamento').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('concluido').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('em revisao').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows correct task count per phase column', async () => {
     renderPage()
 
-    // Task 1 has phase_id 'phase-1' (A Fazer) -> column should show count 1
-    // Task 2 has phase_id 'phase-2' (Em Andamento) -> column should show count 1
+    // Task 1 has phase_id 'phase-1' (a fazer) -> column should show count 1
+    // Task 2 has phase_id 'phase-2' (em andamento) -> column should show count 1
     const countBadges = screen.getAllByText('1')
     expect(countBadges.length).toBeGreaterThanOrEqual(2)
   })

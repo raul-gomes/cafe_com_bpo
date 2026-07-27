@@ -9,6 +9,7 @@ import {
   AlertCircle,
   Eye,
   ChevronDown,
+  FileText,
 } from 'lucide-react';
 import { useDashboard } from '../../api/hooks/useDashboard';
 import { useTasks } from '../../api/hooks/useTasks';
@@ -17,6 +18,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { TaskModal } from '../../components/tasks/TaskModal';
 import { SLAAlerts } from '../../components/dashboard/SLAAlerts';
+import { OverdueTemplatesAlert } from '../../components/dashboard/OverdueTemplatesAlert';
 import { TaskResponse } from '../../schemas/tasks';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -58,9 +60,9 @@ export const DashboardPage: React.FC = () => {
 
   const getStatusLabel = (status: string) => {
     switch (status) {
-      case 'todo': return 'A Fazer';
-      case 'doing': return 'Em Andamento';
-      case 'done': return 'Concluído';
+      case 'todo': return 'a fazer';
+      case 'doing': return 'em andamento';
+      case 'done': return 'concluido';
       default: return status;
     }
   };
@@ -215,6 +217,14 @@ export const DashboardPage: React.FC = () => {
           <AlertCircle size={16} /> Alertas de SLA
         </h2>
         <SLAAlerts />
+      </section>
+
+      {/* Overdue Templates Section */}
+      <section className="mb-10">
+        <h2 className="mb-4 flex items-center gap-2 text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
+          <FileText size={16} /> Templates Vencidos
+        </h2>
+        <OverdueTemplatesAlert />
       </section>
 
       {/* Activity Feed and Stats */}

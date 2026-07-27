@@ -156,7 +156,7 @@ class TestMultiActivity:
             )
 
     def test_monthly_two_activities_creates_two_tasks(self, client: TestClient):
-        """Monthly routine with 2 activities → both get task cards."""
+        """Monthly routine with 2 activities → scheduler generates both task cards."""
         email = f"multi_monthly_{uuid4()}@test.com"
         auth = get_auth_header(client, email)
         cli = create_client(client, auth)
@@ -191,13 +191,22 @@ class TestMultiActivity:
         )
         assert assign_resp.status_code == 201
         data = assign_resp.json()
-        assert data["tasks_generated"] == 2, (
-            f"Expected 2 monthly tasks, got {data['tasks_generated']}"
+        # Monthly tasks are NOT generated on assignment — scheduler handles them
+        assert data["tasks_generated"] == 0, (
+            f"Expected 0 monthly tasks on assignment, got {data['tasks_generated']}"
+        )
+
+        # Run monthly scheduler rule to generate the 2 tasks
+        sched_resp = client.post("/tasks/scheduler/run-monthly", headers=auth)
+        assert sched_resp.status_code == 200
+        result = sched_resp.json()
+        assert result["tasks_generated"] == 2, (
+            f"Expected 2 monthly tasks from scheduler, got {result['tasks_generated']}"
         )
 
     def test_scheduler_skips_both_activities_when_pending(self, client: TestClient):
         """Scheduler nao duplica tasks ja existentes (dedup via routine_instance_id)."""
-        from src.modules.tasks.scheduler import TaskScheduler
+        from src.modules.task_manager.scheduler import TaskScheduler
 
         # Pin to Monday to ensure daily rule fires
         now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)

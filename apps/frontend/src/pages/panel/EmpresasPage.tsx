@@ -52,6 +52,7 @@ export const EmpresasPage: React.FC = () => {
   const [showForm, setShowForm] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
+  const [customSegment, setCustomSegment] = useState('');
   const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment } = useTasks();
   const [linkClientId, setLinkClientId] = useState<string | null>(null);
   const [teamClientId, setTeamClientId] = useState<string | null>(null);
@@ -135,26 +136,35 @@ export const EmpresasPage: React.FC = () => {
 
   const resetForm = () => {
     setFormData({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
+    setCustomSegment('');
     setShowForm(false);
     setExpandedCardId(null);
   };
 
   const handleStartEdit = (client: ClientData) => {
     setExpandedCardId(client.id);
+    const seg = client.segment || '';
+    const isKnown = !seg || (BPO_SEGMENTS as readonly string[]).includes(seg);
     setFormData({
       name: client.name,
       cnpj: client.cnpj || '',
       phone: client.phone || '',
       email: client.email || '',
       description: client.description || '',
-      segment: client.segment || '',
+      segment: isKnown ? seg : 'Outro',
       color: client.color || '#4287f5',
     });
+    setCustomSegment(isKnown ? '' : seg);
     setShowForm(false);
   };
 
   const handleSubmit = async () => {
     if (!formData.name) return;
+
+    const resolvedSegment =
+      formData.segment === 'Outro' && customSegment.trim()
+        ? customSegment.trim()
+        : formData.segment || undefined;
 
     const payload = {
       name: formData.name,
@@ -162,7 +172,7 @@ export const EmpresasPage: React.FC = () => {
       phone: formData.phone || undefined,
       email: formData.email.trim() || undefined,
       description: formData.description || undefined,
-      segment: formData.segment || undefined,
+      segment: resolvedSegment,
       color: formData.color,
     };
 
@@ -286,6 +296,14 @@ export const EmpresasPage: React.FC = () => {
           <option value="">Selecione...</option>
           {BPO_SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
+        {formData.segment === 'Outro' && (
+          <Input
+            value={customSegment}
+            onChange={e => setCustomSegment(e.target.value)}
+            placeholder="Digite o segmento personalizado"
+            className="mt-1"
+          />
+        )}
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-[13px] font-medium text-foreground">Cor</label>
