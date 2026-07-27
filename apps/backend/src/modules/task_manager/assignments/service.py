@@ -4,15 +4,17 @@ Assignments Module - Service Layer
 Business logic for client-template assignment lifecycle (assign, unassign, regenerate).
 """
 
+import calendar
 from typing import Optional
 from uuid import UUID
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
 from ..scheduler import (
     calculate_activity_deadline,
     build_routine_instance_id,
     get_weekly_deadlines_for_year_month,
     next_business_day,
+    get_effective_due_day,
 )
 from ..schemas import (
     TaskCreate,
@@ -41,6 +43,41 @@ class AssignmentService:
         )
         self.task_repo = task_repo or TaskRepository(assignment_repo.session)
 
+    def _build_task(
+        self,
+        act,
+        deadline: datetime,
+        assignment,
+        assignment_in,
+        tmpl,
+        user_id: UUID,
+        first_phase,
+        period_key: str,
+    ):
+        """Create a single task from an activity, with dedup check via routine_instance_id."""
+        instance_id = build_routine_instance_id(
+            assignment.id, act.name, period_key,
+        )
+        if self.assignment_repo.task_exists_by_instance_id(instance_id):
+            return None
+        task_data = TaskCreate(
+            title=act.name,
+            description=act.description,
+            client_id=assignment_in.client_id,
+            status="todo",
+            priority="medium",
+            process_type=tmpl.process_type,
+            deadline=deadline,
+            time_estimate_minutes=act.estimated_minutes,
+            template_id=assignment_in.template_id,
+            assignment_id=assignment.id,
+            routine_instance_id=instance_id,
+        )
+        task = self.task_repo.create(task_data, user_id)
+        if first_phase:
+            task.phase_id = first_phase.id
+        return task
+
     def assign_template_to_client(
         self, assignment_in: ClientTemplateAssignmentCreate, user_id: UUID
     ) -> dict:
@@ -66,75 +103,136 @@ class AssignmentService:
 
         # Generate tasks for each activity
         generated_tasks = []
+        now = datetime.now(timezone.utc)
 
         if tmpl.recurrence == "daily":
-            # Daily: generate for next business day (short-term, OK to pre-generate)
-            now = datetime.now(timezone.utc)
+            # Daily: create task for today (scheduler will handle future days)
             if now.weekday() < 5:
                 deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
                 daily_deadline = nb_util(deadline)
 
                 for act in activities:
-                    if self.assignment_repo.has_pending_task(
-                        assignment.id, act.name, daily_deadline
-                    ):
-                        continue
-                    instance_id = build_routine_instance_id(
-                        assignment.id,
-                        act.name,
-                        daily_deadline.strftime("%Y-%m-%d"),
+                    task = self._build_task(
+                        act, daily_deadline, assignment, assignment_in,
+                        tmpl, user_id, first_phase,
+                        period_key=daily_deadline.strftime("%Y-%m-%d"),
                     )
-                    task_data = TaskCreate(
-                        title=act.name,
-                        description=act.description,
-                        client_id=assignment_in.client_id,
-                        status="todo",
-                        priority="medium",
-                        process_type=tmpl.process_type,
-                        deadline=daily_deadline,
-                        time_estimate_minutes=act.estimated_minutes,
-                        template_id=assignment_in.template_id,
-                        assignment_id=assignment.id,
-                        routine_instance_id=instance_id,
-                    )
-                    task = self.task_repo.create(task_data, user_id)
-                    if first_phase:
-                        task.phase_id = first_phase.id
-                    generated_tasks.append(task)
+                    if task:
+                        generated_tasks.append(task)
 
         elif tmpl.recurrence == "once":
             # Once: one-off tasks, generate immediately
+            # deadline = now + due_days (ou due_days_from_start)
             for act in activities:
                 deadline = calculate_activity_deadline(
                     act, assignment.start_date, tmpl
                 )
-                period_key = deadline.strftime("%Y-%m-%d")
-                instance_id = build_routine_instance_id(
-                    assignment.id,
-                    act.name,
-                    period_key,
+                task = self._build_task(
+                    act, deadline, assignment, assignment_in,
+                    tmpl, user_id, first_phase,
+                    period_key=deadline.strftime("%Y-%m-%d"),
                 )
-                task_data = TaskCreate(
-                    title=act.name,
-                    description=act.description,
-                    client_id=assignment_in.client_id,
-                    status="todo",
-                    priority="medium",
-                    process_type=tmpl.process_type,
-                    deadline=deadline,
-                    time_estimate_minutes=act.estimated_minutes,
-                    template_id=assignment_in.template_id,
-                    assignment_id=assignment.id,
-                    routine_instance_id=instance_id,
+                if task:
+                    generated_tasks.append(task)
+
+        elif tmpl.recurrence == "weekly":
+            # Weekly: se hoje está na máscara → cria de hoje até domingo
+            # Se hoje não está → cria do próximo dia válido até domingo
+            # Scheduler gera as semanas seguintes
+            if tmpl.weekday_mask:
+                marked_days = {
+                    int(d.strip()) - 1
+                    for d in tmpl.weekday_mask.split(",")
+                    if d.strip()
+                }
+                # Encontra o primeiro dia válido (hoje ou próximo)
+                start = None
+                for offset in range(7):
+                    candidate = now + timedelta(days=offset)
+                    if candidate.weekday() in marked_days:
+                        start = candidate
+                        break
+
+                if start is not None:
+                    days_until_sunday = 6 - start.weekday()
+                    for offset in range(days_until_sunday + 1):
+                        target = start + timedelta(days=offset)
+                        if target.weekday() not in marked_days:
+                            continue
+                        deadline = target.replace(
+                            hour=18, minute=0, second=0, microsecond=0
+                        )
+                        deadline = nb_util(deadline)
+                        period_key = target.strftime("%Y-%m-%d")
+                        for act in activities:
+                            task = self._build_task(
+                                act, deadline, assignment, assignment_in,
+                                tmpl, user_id, first_phase,
+                                period_key=period_key,
+                            )
+                            if task:
+                                generated_tasks.append(task)
+
+        elif tmpl.recurrence == "monthly":
+            # Monthly: ações baseadas no due_day relativo a hoje
+            effective_due_day = (
+                get_effective_due_day(activities[0], tmpl)
+                if activities else tmpl.due_day
+            )
+            if effective_due_day is not None:
+                today = now.day
+                max_day = calendar.monthrange(now.year, now.month)[1]
+                due_day = min(effective_due_day, max_day)
+
+                if due_day >= today:
+                    # Cria task para este mês (hoje ou data futura)
+                    deadline = now.replace(
+                        day=due_day, hour=18, minute=0, second=0, microsecond=0
+                    )
+                    deadline = nb_util(deadline)
+                    period_key = f"{now.year}-{now.month:02d}"
+                    for act in activities:
+                        task = self._build_task(
+                            act, deadline, assignment, assignment_in,
+                            tmpl, user_id, first_phase,
+                            period_key=period_key,
+                        )
+                        if task:
+                            generated_tasks.append(task)
+                # Se due_day já passou este mês → scheduler cria no próximo mês
+
+        elif tmpl.recurrence in ("yearly", "annual"):
+            # Yearly: ações baseadas no due_month + due_day relativos a hoje
+            due_month = tmpl.due_month
+            effective_due_day = (
+                get_effective_due_day(activities[0], tmpl)
+                if activities else tmpl.due_day
+            )
+            if due_month is not None and effective_due_day is not None:
+                max_day = calendar.monthrange(now.year, due_month)[1]
+                due_day = min(effective_due_day, max_day)
+
+                # Verifica se a data já passou este ano
+                deadline_this_year = now.replace(
+                    month=due_month, day=due_day,
+                    hour=18, minute=0, second=0, microsecond=0,
                 )
-                task = self.task_repo.create(task_data, user_id)
-                if first_phase:
-                    task.phase_id = first_phase.id
-                generated_tasks.append(task)
+
+                if deadline_this_year.date() >= now.date():
+                    # Ainda vai acontecer este ano (hoje ou futuro)
+                    deadline = nb_util(deadline_this_year)
+                    period_key = str(now.year)
+                    for act in activities:
+                        task = self._build_task(
+                            act, deadline, assignment, assignment_in,
+                            tmpl, user_id, first_phase,
+                            period_key=period_key,
+                        )
+                        if task:
+                            generated_tasks.append(task)
+                # Se já passou este ano → scheduler cria no próximo ano
 
         else:
-            # Weekly, monthly, yearly → do NOT generate on assignment.
-            # The Rocketry scheduler handles generation on schedule
             log.info(
                 f"⏳ Template '{tmpl.name}' ({tmpl.recurrence}) vinculado — "
                 f"tasks serão geradas pelo scheduler agendado"
