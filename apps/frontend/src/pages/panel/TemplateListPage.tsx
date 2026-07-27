@@ -401,9 +401,9 @@ export const TemplateListPage: React.FC = () => {
                         </CardContent>
                         <div className="flex items-center gap-2 pr-3" onClick={(e) => e.stopPropagation()}>
                           {tmpl.routine_type_name && (
-                            <Badge variant="outline" className="gap-1.5 text-[11px] font-semibold h-6 rounded-md border-border/40 px-2.5">
-                              <span className="size-2 rounded-full shrink-0" style={{ background: tmpl.routine_type_color || '#3b82f6' }} />
-                              <span className="text-foreground/70">{tmpl.routine_type_name}</span>
+                            <Badge variant="outline" className="gap-1 text-[11px] whitespace-nowrap">
+                              <span className="size-1.5 rounded-full shrink-0" style={{ background: tmpl.routine_type_color || '#3b82f6' }} />
+                              {tmpl.routine_type_name}
                             </Badge>
                           )}
                           {tmpl.is_overdue && (tmpl.days_overdue ?? 0) > 0 && (
