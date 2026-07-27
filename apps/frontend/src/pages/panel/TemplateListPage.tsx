@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Clock, Calendar, Search } from 'lucide-react';
+import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -267,12 +267,12 @@ export const TemplateListPage: React.FC = () => {
         /* ── Card List por seção ── */
         <div className="flex flex-col gap-3">
           {(() => {
-            const groups: { key: string; label: string; icon: React.ReactNode; color: string; bgColor: string }[] = [
-              { key: 'once',     label: 'Uma só vez',  icon: <FileText size={14} />,  color: 'text-blue-500',    bgColor: 'bg-blue-500/10' },
-              { key: 'daily',    label: 'Diário',      icon: <Clock size={14} />,     color: 'text-emerald-500', bgColor: 'bg-emerald-500/10' },
-              { key: 'weekly',   label: 'Semanal',     icon: <Calendar size={14} />,  color: 'text-violet-500',  bgColor: 'bg-violet-500/10' },
-              { key: 'monthly',  label: 'Mensal',      icon: <Calendar size={14} />,  color: 'text-amber-500',  bgColor: 'bg-amber-500/10' },
-              { key: 'yearly',   label: 'Anual',       icon: <Calendar size={14} />,  color: 'text-rose-500',   bgColor: 'bg-rose-500/10' },
+            const groups: { key: string; label: string }[] = [
+              { key: 'once',     label: 'Uma só vez' },
+              { key: 'daily',    label: 'Diário' },
+              { key: 'weekly',   label: 'Semanal' },
+              { key: 'monthly',  label: 'Mensal' },
+              { key: 'yearly',   label: 'Anual' },
             ];
 
             const renderCard = (tmpl: (typeof templates)[number]) => (
@@ -340,7 +340,7 @@ export const TemplateListPage: React.FC = () => {
               </Card>
             );
 
-            return groups.map(({ key, label, icon, color, bgColor }) => {
+            return groups.map(({ key, label }) => {
               const sectionTmpls = (templates || []).filter(t => t.recurrence === key);
               if (sectionTmpls.length === 0) return null;
 
@@ -356,30 +356,28 @@ export const TemplateListPage: React.FC = () => {
               return (
                 <div key={key} className="flex flex-col gap-2">
                   {/* Section header */}
-                  <div className="flex items-center justify-between group mt-5 first:mt-0">
-                    <div className="flex items-center gap-1.5">
-                      <div className={cn("size-6 rounded-md flex items-center justify-center", bgColor)}>
-                        <span className={color}>{icon}</span>
-                      </div>
-                      <h3 className="text-[13px] font-bold text-foreground">{label}</h3>
-                      <span className="text-[11px] text-muted-foreground font-semibold ml-1">
-                        ({sectionTmpls.length})
+                  <div className="flex items-center justify-between mt-6 first:mt-0">
+                    <div className="flex items-center gap-2">
+                      <h3 className="text-[15px] font-extrabold text-foreground">{label}</h3>
+                      <span className="text-[12px] text-muted-foreground font-semibold">
+                        {sectionTmpls.length} rotina(s)
                       </span>
                     </div>
                     <button
                       onClick={() => toggleSearch(key)}
                       className={cn(
-                        "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition-all cursor-pointer",
+                        "flex items-center gap-1.5 rounded-md px-2 py-1 text-[11px] font-bold transition-all cursor-pointer border",
                         sectionSearchOpen[key]
-                          ? "bg-primary/10 text-primary border border-primary/30"
-                          : "text-muted-foreground opacity-0 group-hover:opacity-100 hover:text-foreground border border-transparent"
+                          ? "bg-primary/10 text-primary border-primary/40"
+                          : "text-muted-foreground hover:text-foreground hover:bg-muted border-border/40"
                       )}
                       title="Filtrar"
                     >
                       <Search size={13} />
-                      {sectionSearchOpen[key] ? 'Fechar' : 'Filtrar'}
                     </button>
                   </div>
+                  {/* Separator */}
+                  <div className="border-b border-border/40" />
 
                   {/* Inline search input */}
                   {sectionSearchOpen[key] && (
