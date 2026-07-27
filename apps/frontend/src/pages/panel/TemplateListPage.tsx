@@ -313,11 +313,17 @@ export const TemplateListPage: React.FC = () => {
               <section key={key}>
                 {/* ── Section header + inline search ── */}
                 <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2 overflow-hidden">
-                    {sectionSearchOpen[key] ? (
-                      /* Search mode: input with grow animation */
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
+                      {label}
+                    </h2>
+                    <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-muted px-1.5 text-[10px] font-bold text-muted-foreground/70 leading-none">
+                      {sectionTmpls.length}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {sectionSearchOpen[key] && (
                       <div className="flex items-center gap-2 animate-[panelFadeIn_0.2s_ease-out]">
-                        <Search size={16} className="text-muted-foreground shrink-0" />
                         <input
                           type="text"
                           value={sectionSearch[key] || ''}
@@ -335,30 +341,20 @@ export const TemplateListPage: React.FC = () => {
                           </button>
                         )}
                       </div>
-                    ) : (
-                      /* Normal mode: title + count */
-                      <div className="flex items-center gap-2">
-                        <h2 className="text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
-                          {label}
-                        </h2>
-                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-muted px-1.5 text-[10px] font-bold text-muted-foreground/70 leading-none">
-                          {sectionTmpls.length}
-                        </span>
-                      </div>
                     )}
+                    <button
+                      onClick={() => toggleSearch(key)}
+                      className={cn(
+                        "flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border-none shrink-0",
+                        sectionSearchOpen[key]
+                          ? "bg-primary/10 text-primary"
+                          : "text-muted-foreground/50 hover:text-foreground hover:bg-muted"
+                      )}
+                      title="Filtrar"
+                    >
+                      <Search size={16} />
+                    </button>
                   </div>
-                  <button
-                    onClick={() => toggleSearch(key)}
-                    className={cn(
-                      "flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border-none shrink-0",
-                      sectionSearchOpen[key]
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground/50 hover:text-foreground hover:bg-muted"
-                    )}
-                    title="Filtrar"
-                  >
-                    <Search size={16} />
-                  </button>
                 </div>
 
                 {/* ── Separator ── */}
