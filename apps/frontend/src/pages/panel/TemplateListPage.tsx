@@ -311,55 +311,65 @@ export const TemplateListPage: React.FC = () => {
 
             return (
               <section key={key}>
-                {/* ── Section header ── */}
-                <div className="flex items-center justify-between mb-3">
-                  <div className="flex items-center gap-2.5">
-                    <h2 className="text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
-                      {label}
-                    </h2>
-                    <span className="inline-flex items-center justify-center size-5 rounded-full bg-muted text-[11px] font-bold text-muted-foreground/70">
-                      {sectionTmpls.length}
-                    </span>
-                  </div>
-                  <button
-                    onClick={() => toggleSearch(key)}
-                    className={cn(
-                      "flex items-center justify-center size-7 rounded-lg transition-colors cursor-pointer border-none",
-                      sectionSearchOpen[key]
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground/50 hover:text-foreground hover:bg-muted"
-                    )}
-                    title="Filtrar"
-                  >
-                    <Search size={14} />
-                  </button>
+                {/* ── Section header + inline search ── */}
+                <div className={cn(
+                  "flex items-center mb-3 transition-all",
+                  sectionSearchOpen[key] ? "gap-2" : "justify-between"
+                )}>
+                  {sectionSearchOpen[key] ? (
+                    /* Search mode: input + x button inline */
+                    <>
+                      <div className="flex items-center gap-2 flex-1">
+                        <Search size={16} className="text-muted-foreground shrink-0" />
+                        <input
+                          type="text"
+                          value={sectionSearch[key] || ''}
+                          onChange={e => setSectionSearch(prev => ({ ...prev, [key]: e.target.value }))}
+                          placeholder={`Buscar em ${label.toLowerCase()}...`}
+                          autoFocus
+                          className="flex-1 h-8 rounded-md border border-border bg-muted px-2.5 text-[13px] text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring/30"
+                        />
+                        {sectionSearch[key] && (
+                          <button
+                            onClick={() => setSectionSearch(prev => { const r = { ...prev }; delete r[key]; return r; })}
+                            className="flex items-center justify-center size-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-colors cursor-pointer border-none bg-transparent shrink-0"
+                          >
+                            <X size={14} />
+                          </button>
+                        )}
+                      </div>
+                      <button
+                        onClick={() => toggleSearch(key)}
+                        className="flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border-none bg-primary/10 text-primary shrink-0"
+                        title="Fechar busca"
+                      >
+                        <X size={16} />
+                      </button>
+                    </>
+                  ) : (
+                    /* Normal mode: title + count + search toggle */
+                    <>
+                      <div className="flex items-center gap-2">
+                        <h2 className="text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
+                          {label}
+                        </h2>
+                        <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-muted px-1.5 text-[10px] font-bold text-muted-foreground/70 leading-none">
+                          {sectionTmpls.length}
+                        </span>
+                      </div>
+                      <button
+                        onClick={() => toggleSearch(key)}
+                        className="flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border-none text-muted-foreground/50 hover:text-foreground hover:bg-muted"
+                        title="Filtrar"
+                      >
+                        <Search size={16} />
+                      </button>
+                    </>
+                  )}
                 </div>
 
                 {/* ── Separator ── */}
                 <div className="h-px bg-border/40 mb-3" />
-
-                {/* ── Inline search ── */}
-                {sectionSearchOpen[key] && (
-                  <div className="flex items-center gap-2 mb-3">
-                    <Search size={14} className="text-muted-foreground shrink-0" />
-                    <input
-                      type="text"
-                      value={sectionSearch[key] || ''}
-                      onChange={e => setSectionSearch(prev => ({ ...prev, [key]: e.target.value }))}
-                      placeholder={`Buscar em ${label.toLowerCase()}...`}
-                      autoFocus
-                      className="flex-1 h-8 rounded-md border border-border bg-muted px-2.5 text-[13px] text-foreground outline-none transition-colors focus:border-ring focus:ring-1 focus:ring-ring/30"
-                    />
-                    {sectionSearch[key] && (
-                      <button
-                        onClick={() => setSectionSearch(prev => { const r = { ...prev }; delete r[key]; return r; })}
-                        className="flex items-center justify-center size-6 rounded-md text-muted-foreground/50 hover:text-foreground hover:bg-muted transition-colors cursor-pointer border-none bg-transparent"
-                      >
-                        <X size={13} />
-                      </button>
-                    )}
-                  </div>
-                )}
 
                 {/* ── Cards ── */}
                 {filtered.length === 0 ? (
