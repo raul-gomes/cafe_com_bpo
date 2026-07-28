@@ -153,11 +153,19 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             <span className="size-1.5 rounded-full" style={{ background: priorityColor }} />
             {priorityLabel}
           </span>
-          <span>
-            {new Date(task.created_at).toLocaleDateString('pt-BR', {
-              day: '2-digit', month: '2-digit',
-            })}
-          </span>
+          {isDone && task.completed_at ? (
+            <span className="flex items-center gap-1 text-green-500 font-medium">
+              <Check size={10} /> {new Date(task.completed_at).toLocaleDateString('pt-BR', {
+                day: '2-digit', month: '2-digit',
+              })}
+            </span>
+          ) : (
+            <span>
+              {new Date(task.created_at).toLocaleDateString('pt-BR', {
+                day: '2-digit', month: '2-digit',
+              })}
+            </span>
+          )}
           {task.moved_by_name && (
             <span className="flex items-center gap-1 text-[9px] text-muted-foreground/70 font-medium">
               → {task.moved_by_name}
@@ -186,6 +194,15 @@ export const TaskCard: React.FC<TaskCardProps> = ({
             >
               <XCircle size={11} />
             </button>
+          )}
+          {isDone && task.completed_at && (
+            <span
+              className="flex size-5 items-center justify-center rounded-sm text-green-500"
+              style={{ background: 'rgba(34,197,94,0.12)' }}
+              title={new Date(task.completed_at).toLocaleString('pt-BR')}
+            >
+              <Check size={11} />
+            </span>
           )}
         </div>
       </div>
