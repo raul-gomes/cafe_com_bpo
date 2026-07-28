@@ -380,8 +380,8 @@ export const TemplateListPage: React.FC = () => {
                       >
                         <CardContent className="flex-1 py-3.5 px-4 min-w-0">
                           <div className="flex items-center gap-3">
-                            <div className="size-9 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                              <LayoutList size={16} className="text-primary" />
+                            <div className="size-9 rounded-lg bg-primary/10 grid place-items-center shrink-0 leading-none">
+                              <LayoutList size={18} className="text-primary" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <span className="text-[15px] font-bold text-foreground leading-tight">{tmpl.name}</span>

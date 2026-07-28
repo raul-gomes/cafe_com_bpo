@@ -174,10 +174,10 @@ export const TemplateDetailPage: React.FC = () => {
   // ── Loading state ──
   if (isLoading) {
     return (
-      <div className="tasks-page">
-        <Skeleton className="h-8 w-[250px] mb-6" />
-        <Skeleton className="h-10 w-[180px] mb-10" />
-        <Skeleton className="h-[300px]" />
+      <div className="space-y-6">
+        <Skeleton className="h-8 w-[300px]" />
+        <Skeleton className="h-[200px] w-full" />
+        <Skeleton className="h-[400px] w-full" />
       </div>
     );
   }
@@ -185,13 +185,16 @@ export const TemplateDetailPage: React.FC = () => {
   // ── Not found state ──
   if (!template) {
     return (
-      <div className="tasks-page">
-        <Card className="p-0">
+      <div className="animate-[panelFadeIn_0.4s_ease-out]">
+        <Card>
           <CardContent className="flex flex-col items-center py-16">
-            <AlertTriangle size={40} className="text-muted-foreground/30 mb-4" />
-            <h3 className="text-lg font-bold">Rotina não encontrada</h3>
-            <Button variant="outline" onClick={() => navigate('/painel/templates-atividades')} className="mt-4">
-              ← Voltar
+            <div className="size-14 rounded-xl bg-muted flex items-center justify-center mb-4">
+              <AlertTriangle size={28} className="text-muted-foreground/50" />
+            </div>
+            <h3 className="text-lg font-bold mb-1">Rotina não encontrada</h3>
+            <p className="text-muted-foreground text-sm mb-6">Essa rotina não existe ou foi removida.</p>
+            <Button variant="outline" onClick={() => navigate('/painel/templates-atividades')}>
+              ← Voltar para Rotinas
             </Button>
           </CardContent>
         </Card>
@@ -203,22 +206,21 @@ export const TemplateDetailPage: React.FC = () => {
   const routineType = routineTypes?.find(r => r.id === template.routine_type_id);
 
   return (
-    <div className="tasks-page animate-[panelFadeIn_0.4s_ease-out]">
+    <div className="animate-[panelFadeIn_0.4s_ease-out]">
       <Breadcrumb items={[
         { label: 'Painel', to: '/painel' },
         { label: 'Rotinas', to: '/painel/templates-atividades' },
         { label: template.name },
       ]} />
 
-      <div className="mb-4 flex justify-end">
-        <Button variant="ghost" size="sm" onClick={() => navigate('/painel/templates-atividades')} className="gap-1.5">
-          <ArrowLeft size={15} /> Voltar
-        </Button>
-      </div>
-
-      {/* ── Header ── */}
-      <div className="flex justify-between items-start mb-6">
+      {/* ── Page Header ── */}
+      <div className="flex justify-between items-start mb-8 mt-1">
         <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            <Button variant="ghost" size="sm" onClick={() => navigate('/painel/templates-atividades')} className="gap-1.5 text-muted-foreground -ml-2">
+              <ArrowLeft size={15} /> Voltar
+            </Button>
+          </div>
           {editingName ? (
             <div className="flex gap-2 items-center">
               <Input value={nameValue} onChange={(e) => setNameValue(e.target.value)} className="max-w-[300px] text-lg font-bold" autoFocus onKeyDown={(e) => { if (e.key === 'Enter') saveName(); }} />
@@ -227,7 +229,7 @@ export const TemplateDetailPage: React.FC = () => {
             </div>
           ) : (
             <div className="flex items-center gap-2.5">
-              <h1 className="text-2xl">{template.name}</h1>
+              <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">{template.name}</h1>
               <Button variant="ghost" size="icon-sm" onClick={() => { setEditingName(true); setNameValue(template.name); }}>
                 <Edit2 size={15} />
               </Button>
@@ -346,32 +348,27 @@ export const TemplateDetailPage: React.FC = () => {
       </div>
 
       {/* Recurrence details row */}
-      {template.recurrence === 'once' && template.due_days_from_start && (
-        <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
-          <Clock size={14} /> Prazo: <strong>{template.due_days_from_start} dias</strong> após o start
-        </div>
-      )}
-      {template.recurrence === 'weekly' && template.weekday_mask && (
-        <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
-          <Clock size={14} /> Dias: <strong>{template.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}</strong>
-        </div>
-      )}
-      {template.recurrence === 'monthly' && template.due_day && (
-        <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
-          <Clock size={14} /> Vencimento: <strong>dia {template.due_day}</strong> de cada mês
-        </div>
-      )}
-      {template.recurrence === 'yearly' && template.due_day && (
-        <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
-          <Clock size={14} /> Vencimento: <strong>dia {template.due_day}/{String(template.due_month).padStart(2, '0')}</strong> anualmente
-        </div>
-      )}
+      <div className="flex items-center gap-2 text-[13px] text-muted-foreground mb-6">
+        <Clock size={14} className="shrink-0" />
+        {template.recurrence === 'once' && template.due_days_from_start && (
+          <span>Prazo: <strong>{template.due_days_from_start} dias</strong> após o start</span>
+        )}
+        {template.recurrence === 'weekly' && template.weekday_mask && (
+          <span>Dias: <strong>{template.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}</strong></span>
+        )}
+        {template.recurrence === 'monthly' && template.due_day && (
+          <span>Vencimento: <strong>dia {template.due_day}</strong> de cada mês</span>
+        )}
+        {template.recurrence === 'yearly' && template.due_day && (
+          <span>Vencimento: <strong>dia {template.due_day}/{String(template.due_month).padStart(2, '0')}</strong> anualmente</span>
+        )}
+      </div>
 
       {/* ── Activities Section ── */}
       <Card>
         <CardContent>
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-base font-bold">Atividades</h3>
+            <h3 className="text-[14px] font-bold uppercase tracking-wide text-muted-foreground">Atividades</h3>
             <Button size="sm" onClick={() => setShowAdd(true)} disabled={showAdd}>
               <Plus size={15} /> Adicionar
             </Button>
@@ -505,7 +502,7 @@ export const TemplateDetailPage: React.FC = () => {
       </Card>
 
       {/* Usage info */}
-      <Card className="mt-5 bg-primary/[0.03]">
+      <Card>
         <CardContent className="py-4">
           <p className="text-[13px] text-muted-foreground leading-relaxed">
             Ao vincular esta rotina a um cliente, o sistema gera automaticamente {sortedActivities.length} atividade(s) como tarefas individuais com prazos calculados.
