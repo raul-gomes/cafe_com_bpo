@@ -365,8 +365,7 @@ def oauth_callback(
     state: str = Query(...),
 ):
     if not OAuthStateService.validate_state(state):
-        frontend_url = settings.cors_origins.split(",")[0]
-        return RedirectResponse(url=f"{frontend_url}/login?error=state_invalid")
+        return RedirectResponse(url=f"{settings.frontend_url}/login?error=state_invalid")
 
     try:
         if provider != "google":
@@ -382,9 +381,8 @@ def oauth_callback(
         tokens = service.authenticate_oauth_user(email=email, provider=provider)
         log.info(f"🌐 Login OAuth ({provider}) bem-sucedido: {email}")
 
-        frontend_url = settings.cors_origins.split(",")[0]
         redirect = RedirectResponse(
-            url=f"{frontend_url}/auth/callback?token={tokens['access_token']}"
+            url=f"{settings.frontend_url}/auth/callback?token={tokens['access_token']}"
         )
         redirect.set_cookie(
             key="refresh_token",
@@ -398,6 +396,5 @@ def oauth_callback(
         return redirect
     except Exception as e:
         log.error(f"❌ Erro crítico no fluxo OAuth ({provider}): {str(e)}")
-        frontend_url = settings.cors_origins.split(",")[0]
         error_msg = str(e).replace(" ", "_")
-        return RedirectResponse(url=f"{frontend_url}/login?error={error_msg}")
+        return RedirectResponse(url=f"{settings.frontend_url}/login?error={error_msg}")

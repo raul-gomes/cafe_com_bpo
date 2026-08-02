@@ -77,8 +77,8 @@ storage/
 # Development Environment
 .superpowers/
 
-# Random Assets
-docs/image copy.png
+# Docs locais (não versionar)
+docs/
 
 # Temp Files
 /tmp/
