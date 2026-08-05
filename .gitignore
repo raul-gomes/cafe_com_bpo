@@ -84,7 +84,6 @@ docs/
 node_modules/.vite/
 
 # Documentação local na raiz
-AGENTS.md
 MODULES.md
 deploy-hostinger.md
 testing-scheduler.md
