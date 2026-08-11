@@ -1,0 +1,10 @@
+Orçamento Café com BPO
+
+Cliente: $client_name
+Valor Total: $price_str
+
+$message
+
+Visualize o documento completo: $proposal_url
+
+Enviado via Café com BPO

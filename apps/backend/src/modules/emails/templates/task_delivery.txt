@@ -1,0 +1,5 @@
+Café com BPO - Entrega de Documento
+
+$message
+
+Cliente: $client_name

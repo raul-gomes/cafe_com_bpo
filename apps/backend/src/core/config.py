@@ -1,4 +1,5 @@
 from functools import lru_cache
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -35,6 +36,20 @@ class Settings(BaseSettings):
     smtp_from_email: str = ""
     smtp_use_tls: bool = True
 
+    # Resend Email Settings
+    resend_api_key: str = ""
+    resend_from_email: str = "onboarding@resend.dev"
+
+    # Email Queue / Delivery Settings
+    email_provider: str = "resend"  # resend | mailpit | noop
+    email_max_attempts: int = 5
+    email_worker_interval_seconds: int = 15
+    email_reset_token_ttl_minutes: int = 30
+    email_delivery_timeout_minutes: int = 10
+    email_reply_to: str = ""
+    mailpit_host: str = "mailpit"
+    mailpit_port: int = 1025
+
     # Frontend URL for email links
     frontend_url: str = "http://localhost:3000"
 
@@ -54,6 +69,6 @@ class Settings(BaseSettings):
     )
 
 
-@lru_cache()
+@lru_cache
 def get_settings() -> Settings:
     return Settings()

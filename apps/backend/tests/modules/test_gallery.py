@@ -176,8 +176,8 @@ def test_delete_gallery_file_rejects_other_user(client):
 
 def _create_admin_user(client, db_session):
     """Helper: cria um usuário admin diretamente no banco e retorna token."""
-    from src.modules.auth.models import User
     from src.core.security import PasswordService
+    from src.modules.auth.models import User
 
     email = f"admin_{uuid4()}@cafe.com"
     pw_hash = PasswordService.hash_password("Admin@123456")

@@ -1,10 +1,11 @@
-import pytest
-import os
 import json
+import os
+
+import pytest
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, Text, TypeDecorator
-from sqlalchemy.pool import StaticPool
+from sqlalchemy import Text, TypeDecorator, create_engine
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import StaticPool
 
 # 1. Configurar ambiente ANTES de qualquer import do projeto
 os.environ["MODE"] = "test"
@@ -38,7 +39,7 @@ class SQLiteArray(TypeDecorator):
 
 
 # Patch at the source: replace ARRAY in sqlalchemy.dialects.postgresql
-import sqlalchemy.dialects.postgresql as pg_dialect  # noqa: E402
+import sqlalchemy.dialects.postgresql as pg_dialect
 
 pg_dialect.ARRAY = SQLiteArray
 
@@ -52,7 +53,7 @@ test_engine = create_engine(
 )
 
 # 4. Patch IMEDIATO do src.core.database ANTES de importar o app
-import src.core.database  # noqa: E402
+import src.core.database
 
 src.core.database.engine = test_engine
 src.core.database.SessionLocal = sessionmaker(
@@ -60,9 +61,9 @@ src.core.database.SessionLocal = sessionmaker(
 )
 
 # 5. Agora importar o restante do projeto
-from src.core.config import get_settings  # noqa: E402
-from src.main import create_app  # noqa: E402
-from src.core.database import Base  # noqa: E402
+from src.core.config import get_settings
+from src.core.database import Base
+from src.main import create_app
 
 get_settings.cache_clear()
 
@@ -86,6 +87,25 @@ def client():
     app = create_app()
     with TestClient(app) as test_client:
         yield test_client
+
+
+@pytest.fixture(autouse=True)
+def _clean_db_between_tests():
+    """Isola cada teste no banco compartilhado (:memory: + StaticPool).
+
+    Sem essa limpeza as tabelas acumulam dados entre testes, o que torna
+    testes de agregação global (scheduler, dashboard, etc.) dependentes
+    da ordem de execução.
+    """
+    yield
+    session = Session(bind=test_engine)
+    try:
+        # Remove filhos primeiro (reverso da ordem topológica das FKs)
+        for table in reversed(Base.metadata.sorted_tables):
+            session.execute(table.delete())
+        session.commit()
+    finally:
+        session.close()
 
 
 @pytest.fixture

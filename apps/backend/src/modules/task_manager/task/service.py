@@ -5,43 +5,37 @@ Business logic for task CRUD, phases, timeline, conflicts, SLA alerts,
 client timeline, and email sending.
 """
 
-from typing import List, Optional
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
-from datetime import datetime, timezone, timedelta
 
-from ..scheduler import (
-    calculate_activity_deadline,
-    get_effective_due_day,
-)
-from ..models import ActivityTemplate, get_done_phase
-from ..schemas import (
-    TaskCreate,
-    TaskUpdate,
-    TaskResponse,
-    TaskPhaseCreate,
-    TaskPhaseUpdate,
-    TaskPhaseReorder,
-    TaskPhaseResponse,
-    TimelineResponse,
-    TimelineTaskResponse,
-    TimelineDayResponse,
-    ConflictsResponse,
-    ConflictResponse,
-    ClientSLAResponse,
-    ClientTimelineResponse,
-    ClientTimelineTask,
-    ClientTimelineStats,
-    SLAAlert,
-    SLAAlertsResponse,
-    TaskAttachmentResponse,
-)
-from ..task.repository import TaskRepository
-from ..sla.repository import SLARepository
-from ..attachments.repository import AttachmentRepository
+from src.core.config import get_settings
+from src.core.logger import log
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationCreate
-from src.core.logger import log
-from src.core.config import get_settings
+
+from ..attachments.repository import AttachmentRepository
+from ..models import get_done_phase
+from ..schemas import (
+    ClientTimelineResponse,
+    ClientTimelineStats,
+    ClientTimelineTask,
+    ConflictResponse,
+    ConflictsResponse,
+    SLAAlert,
+    SLAAlertsResponse,
+    TaskCreate,
+    TaskPhaseCreate,
+    TaskPhaseReorder,
+    TaskPhaseResponse,
+    TaskPhaseUpdate,
+    TaskResponse,
+    TaskUpdate,
+    TimelineDayResponse,
+    TimelineResponse,
+    TimelineTaskResponse,
+)
+from ..sla.repository import SLARepository
+from ..task.repository import TaskRepository
 
 
 class TaskService:
@@ -50,13 +44,15 @@ class TaskService:
     def __init__(
         self,
         repository: TaskRepository,
-        sla_repo: Optional[SLARepository] = None,
-        attachment_repo: Optional[AttachmentRepository] = None,
-        notification_repo: Optional[NotificationRepository] = None,
+        sla_repo: SLARepository | None = None,
+        attachment_repo: AttachmentRepository | None = None,
+        notification_repo: NotificationRepository | None = None,
     ):
         self.repository = repository
         self.sla_repo = sla_repo or SLARepository(repository.session)
-        self.attachment_repo = attachment_repo or AttachmentRepository(repository.session)
+        self.attachment_repo = attachment_repo or AttachmentRepository(
+            repository.session
+        )
         self.notification_repo = notification_repo
 
     def _notify(
@@ -65,8 +61,8 @@ class TaskService:
         title: str,
         message: str,
         notif_type: str,
-        entity_type: Optional[str] = None,
-        entity_id: Optional[UUID] = None,
+        entity_type: str | None = None,
+        entity_id: UUID | None = None,
     ):
         """Send a notification if notification repo is available."""
         if self.notification_repo:
@@ -84,9 +80,9 @@ class TaskService:
     def get_user_tasks(
         self,
         user_id: UUID,
-        status: Optional[str] = None,
-        process_type: Optional[str] = None,
-    ) -> List[TaskResponse]:
+        status: str | None = None,
+        process_type: str | None = None,
+    ) -> list[TaskResponse]:
         """Get all tasks for a user with optional filters."""
         return self.repository.get_by_user(
             user_id, status_filter=status, process_type_filter=process_type
@@ -173,7 +169,7 @@ class TaskService:
 
     # ── Phase operations ──
 
-    def get_phases(self, user_id: UUID) -> List[TaskPhaseResponse]:
+    def get_phases(self, user_id: UUID) -> list[TaskPhaseResponse]:
         """Get all phases for a user, creating defaults if none exist."""
         phases = self.repository.get_phases_by_user(user_id)
         if not phases:
@@ -218,7 +214,7 @@ class TaskService:
 
     def reorder_phases(
         self, user_id: UUID, phase_orders: TaskPhaseReorder
-    ) -> List[TaskPhaseResponse]:
+    ) -> list[TaskPhaseResponse]:
         """Reorder phases based on the provided order."""
         from uuid import UUID as UUIDType
 
@@ -239,8 +235,8 @@ class TaskService:
     def get_timeline(
         self,
         user_id: UUID,
-        start_date: Optional[datetime] = None,
-        end_date: Optional[datetime] = None,
+        start_date: datetime | None = None,
+        end_date: datetime | None = None,
     ) -> TimelineResponse:
         """Get timeline view of tasks grouped by deadline date."""
         if start_date and end_date:
@@ -397,7 +393,7 @@ class TaskService:
     # ── Client Timeline ──
 
     def get_client_timeline(
-        self, client_id: UUID, user_id: UUID, month: Optional[str] = None
+        self, client_id: UUID, user_id: UUID, month: str | None = None
     ) -> ClientTimelineResponse:
         """Get timeline for a specific client, month, with SLA status."""
         from src.modules.clients.repository import ClientRepository
@@ -478,11 +474,10 @@ class TaskService:
 
             if task.status == "done" or (
                 task.phase_id
-                and get_done_phase(self.repository.get_phases_by_user(user_id)) is not None
+                and get_done_phase(self.repository.get_phases_by_user(user_id))
+                is not None
                 and str(task.phase_id)
-                == str(
-                    get_done_phase(self.repository.get_phases_by_user(user_id)).id
-                )
+                == str(get_done_phase(self.repository.get_phases_by_user(user_id)).id)
             ):
                 stats.completed += 1
             else:
@@ -499,7 +494,7 @@ class TaskService:
             tasks=timeline_tasks,
         )
 
-    def _calculate_sla_status(self, task, slas: List) -> tuple:
+    def _calculate_sla_status(self, task, slas: list) -> tuple:
         """Calculate SLA status for a single task.
         Returns (sla_status: str, days_used: int, days_limit: int).
         """
@@ -557,7 +552,7 @@ class TaskService:
         user_id: UUID,
         subject: str,
         body: str,
-        attachment_ids: List[UUID],
+        attachment_ids: list[UUID],
     ) -> dict:
         """Send an email with task attachments to the client."""
         from src.modules.clients.repository import ClientRepository
@@ -584,17 +579,11 @@ class TaskService:
                 attachments.append(att)
 
         # Send email
-        settings = get_settings()
-        success = self._send_email_smtp(
+        success = self._send_email_resend(
             to_email=client_email,
             subject=subject or f"Entrega: {task.title}",
             body=body or f"Segue anexo referente à tarefa: {task.title}",
             attachments=attachments,
-            smtp_host=getattr(settings, "smtp_host", None),
-            smtp_port=getattr(settings, "smtp_port", 587),
-            smtp_user=getattr(settings, "smtp_user", None),
-            smtp_pass=getattr(settings, "smtp_password", None),
-            from_email=getattr(settings, "smtp_from_email", None),
         )
 
         if not success:
@@ -627,58 +616,52 @@ class TaskService:
             "attachments_sent": sent_count,
         }
 
-    def _send_email_smtp(
+    def _send_email_resend(
         self,
         to_email: str,
         subject: str,
         body: str,
         attachments: list,
-        smtp_host: Optional[str],
-        smtp_port: int,
-        smtp_user: Optional[str],
-        smtp_pass: Optional[str],
-        from_email: Optional[str],
     ) -> bool:
-        """Send email via SMTP. Returns True if successful."""
-        import smtplib
-        from email.mime.multipart import MIMEMultipart
-        from email.mime.text import MIMEText
-        from email.mime.base import MIMEBase
-        from email import encoders
+        """Send email via Resend. Returns True if successful."""
+        import base64
 
-        if not smtp_host:
-            log.warning("⚠️ SMTP não configurado. Email não enviado.")
+        import resend
+
+        from src.core.email import _get_api_key
+
+        if not _get_api_key():
+            log.warning("⚠️ Resend não configurado. Email não enviado.")
             return False
 
         try:
-            msg = MIMEMultipart()
-            msg["From"] = from_email or smtp_user or "noreply@cafecombpo.com.br"
-            msg["To"] = to_email
-            msg["Subject"] = subject
+            resend.api_key = _get_api_key()
 
-            msg.attach(MIMEText(body, "plain", "utf-8"))
-
+            send_attachments = []
             for att in attachments:
                 try:
                     with open(att.file_path, "rb") as f:
-                        part = MIMEBase("application", "octet-stream")
-                        part.set_payload(f.read())
-                        encoders.encode_base64(part)
-                        part.add_header(
-                            "Content-Disposition",
-                            f"attachment; filename={att.file_name}",
+                        content = f.read()
+                        send_attachments.append(
+                            {
+                                "filename": att.file_name,
+                                "content": base64.b64encode(content).decode(),
+                            }
                         )
-                        msg.attach(part)
                 except FileNotFoundError:
                     log.warning(f"Arquivo não encontrado: {att.file_path}")
                     continue
 
-            with smtplib.SMTP(smtp_host, smtp_port) as server:
-                server.starttls()
-                if smtp_user and smtp_pass:
-                    server.login(smtp_user, smtp_pass)
-                server.send_message(msg)
+            params: dict = {
+                "from": get_settings().resend_from_email,
+                "to": [to_email],
+                "subject": subject,
+                "text": body,
+            }
+            if send_attachments:
+                params["attachments"] = send_attachments
 
+            resend.Emails.send(params)
             return True
         except Exception as e:
             log.error(f"❌ Falha ao enviar email: {e}")

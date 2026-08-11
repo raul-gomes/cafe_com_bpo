@@ -1,31 +1,34 @@
 from logging.config import fileConfig
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
+from sqlalchemy import engine_from_config, pool
 
 from alembic import context
-
+from src.core.config import get_settings
 from src.core.database import Base
 from src.modules.auth.models import User  # noqa: F401
-from src.modules.proposals.models import PricingScenario  # noqa: F401
 from src.modules.clients.models import Client  # noqa: F401
+from src.modules.emails.models import EmailDelivery  # noqa: F401
 from src.modules.gallery.models import CommonGalleryItem  # noqa: F401
-from src.modules.network.models import DiscussionPost, DiscussionComment, Notification  # noqa: F401
+from src.modules.network.models import (  # noqa: F401
+    DiscussionComment,
+    DiscussionPost,
+    Notification,
+)
+from src.modules.proposals.models import PricingScenario  # noqa: F401
 from src.modules.task_manager.models import (  # noqa: F401
-    Task,
-    TaskPhase,
     ActivityTemplate,
-    TemplateActivity,
-    ClientTemplateAssignment,
     ClientSLA,
+    ClientTemplateAssignment,
+    Task,
     TaskAttachment,
+    TaskPhase,
+    TemplateActivity,
 )
 from src.modules.team.models import (  # noqa: F401
     ClientInvitation,
     ClientInvitationRoutine,
     ClientTeamMember,
 )
-from src.core.config import get_settings
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.

@@ -5,17 +5,16 @@ Business logic for proposal management, PDF generation, and sharing.
 """
 
 import math
-from typing import List, Optional
 from uuid import UUID
 
+from src.core.config import get_settings
+from src.core.email import EmailService
 from src.modules.proposals.repository import ProposalRepository
 from src.modules.proposals.schemas import (
     ProposalCreate,
-    ProposalUpdate,
     ProposalResponse,
+    ProposalUpdate,
 )
-from src.core.config import get_settings
-from src.core.email import EmailService
 
 settings = get_settings()
 
@@ -57,8 +56,8 @@ class ProposalService:
         return sanitize_value(result_payload)
 
     def get_user_proposals(
-        self, user_id: UUID, status: Optional[str] = None
-    ) -> List[ProposalResponse]:
+        self, user_id: UUID, status: str | None = None
+    ) -> list[ProposalResponse]:
         """Get all proposals for a user."""
         proposals = self.repository.get_by_user(user_id, status_filter=status)
         # Sanitize NaN values from result_payloads
@@ -169,12 +168,12 @@ Enviado via Café com BPO
             EmailService.send_email(
                 to_email=recipient_email,
                 subject=f"Orçamento Café com BPO — {client_name}",
-                body_html=body_html,
-                body_text=body_text,
+                text=body_text,
+                html=body_html,
             )
             return True
         except Exception as e:
-            raise RuntimeError(f"Falha ao enviar e-mail: {str(e)}")
+            raise RuntimeError(f"Falha ao enviar e-mail: {e!s}")
 
     def get_whatsapp_message(self, proposal_id: UUID, user_id: UUID) -> dict:
         """Generate WhatsApp share message for a proposal."""

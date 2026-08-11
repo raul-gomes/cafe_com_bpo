@@ -1,0 +1,9 @@
+Café com BPO - Convite para Equipe
+
+O(A) $inviter_name convidou você para fazer parte da equipe de $client_name.
+
+Acesse o link abaixo para aceitar:
+$accept_url
+
+Se você não conhece o remetente, ignore este e-mail.
+Este link expira em 7 dias.

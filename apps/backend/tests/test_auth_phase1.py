@@ -1,8 +1,10 @@
-import pytest
+import hashlib
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
-from datetime import datetime, timezone, timedelta
-import jwt
 from uuid import uuid4
+
+import jwt
+import pytest
 
 
 @pytest.fixture
@@ -172,18 +174,55 @@ def test_forgot_password_token_generation(client):
         response = client.post("/auth/forgot-password", json={"email": email})
 
         assert response.status_code == 200
-        assert "Instruções enviadas" in response.json()["message"]
+        assert "e-mail estiver cadastrado" in response.json()["message"]
         mock_send.assert_called_once()
 
 
-def test_forgot_password_nonexistent_email(client):
-    """Phase 1.3: Test forgot password with nonexistent email"""
-    response = client.post(
-        "/auth/forgot-password", json={"email": "nonexistent@cafe.com"}
+def test_forgot_password_nonexistent_email_response_is_generic(client):
+    """Phase 1.3: Nonexistent email must not reveal account existence"""
+
+    with patch("src.core.email.EmailService.send_reset_password_email") as mock_send:
+        response = client.post(
+            "/auth/forgot-password", json={"email": "nonexistent@cafe.com"}
+        )
+
+        assert response.status_code == 200
+        assert "e-mail estiver cadastrado" in response.json()["message"]
+        assert not mock_send.called
+
+
+def test_forgot_password_token_stored_as_hash(client):
+    """Phase 1.3: The reset token is never stored in plaintext (only SHA-256)."""
+    from src.core.database import SessionLocal
+    from src.modules.auth.models import PasswordResetToken, User
+    from src.modules.auth.service import AuthService
+
+    email = f"hash_test_{uuid4()}@cafe.com"
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
     )
 
-    assert response.status_code == 404
-    assert "Nenhuma conta encontrada" in response.json()["detail"]
+    session = SessionLocal()
+    user = session.query(User).filter_by(email=email).first()
+
+    token = AuthService(session).create_reset_token(email)
+    stored = (
+        session.query(PasswordResetToken).filter_by(user_id=user.id, used=False).one()
+    )
+
+    # stored token is the sha256 hash, not the plaintext
+    assert stored.token == hashlib.sha256(token.encode("utf-8")).hexdigest()
+    assert len(stored.token) == 64
+    int(stored.token, 16)  # raises if not hex
+
+    # plaintext token never appears in the database
+    plaintext_rows = (
+        session.query(PasswordResetToken)
+        .filter(PasswordResetToken.token == token)
+        .count()
+    )
+    assert plaintext_rows == 0
+    session.close()
 
 
 def test_reset_password_token_validation(client):
@@ -202,8 +241,8 @@ def test_reset_password_token_validation(client):
 
     # Get the token from the database
     from src.core.database import SessionLocal
-    from src.modules.auth.service import AuthService
     from src.modules.auth.models import User
+    from src.modules.auth.service import AuthService
 
     session = SessionLocal()
     user = session.query(User).filter_by(email=email).first()
@@ -235,19 +274,22 @@ def test_reset_password_expired_token(client):
     )
 
     # Get user and create expired token directly
-    from src.core.database import SessionLocal
-    from src.modules.auth.models import User, PasswordResetToken
     import secrets
+
+    from src.core.database import SessionLocal
+    from src.modules.auth.models import PasswordResetToken, User
 
     session = SessionLocal()
     user = session.query(User).filter_by(email=email).first()
     assert user is not None
 
-    # Create an expired token
+    # Create an expired token (stored as sha256, like the service does)
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) - timedelta(hours=1)
     reset_token = PasswordResetToken(
-        user_id=user.id, token=token, expires_at=expires_at
+        user_id=user.id,
+        token=hashlib.sha256(token.encode("utf-8")).hexdigest(),
+        expires_at=expires_at,
     )
     session.add(reset_token)
     session.commit()

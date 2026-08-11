@@ -3,8 +3,8 @@ Timeline/Scheduling Tests — TDD Approach
 Tests for timeline view and conflict detection.
 """
 
-from uuid import uuid4
 from datetime import datetime, timedelta
+from uuid import uuid4
 
 
 class TestTimelineAPI:

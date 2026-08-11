@@ -5,27 +5,25 @@ Business logic for client-template assignment lifecycle (assign, unassign, regen
 """
 
 import calendar
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
-from datetime import datetime, timezone, timedelta
 
+from src.core.logger import log
+from src.core.utils import next_business_day as nb_util
+
+from ..assignments.repository import AssignmentRepository
 from ..scheduler import (
-    calculate_activity_deadline,
     build_routine_instance_id,
-    get_weekly_deadlines_for_year_month,
-    next_business_day,
+    calculate_activity_deadline,
     get_effective_due_day,
 )
 from ..schemas import (
-    TaskCreate,
     ClientTemplateAssignmentCreate,
     ClientTemplateAssignmentResponse,
+    TaskCreate,
 )
-from ..assignments.repository import AssignmentRepository
-from ..templates.repository import TemplateRepository
 from ..task.repository import TaskRepository
-from src.core.utils import next_business_day as nb_util
-from src.core.logger import log
+from ..templates.repository import TemplateRepository
 
 
 class AssignmentService:
@@ -34,8 +32,8 @@ class AssignmentService:
     def __init__(
         self,
         assignment_repo: AssignmentRepository,
-        template_repo: Optional[TemplateRepository] = None,
-        task_repo: Optional[TaskRepository] = None,
+        template_repo: TemplateRepository | None = None,
+        task_repo: TaskRepository | None = None,
     ):
         self.assignment_repo = assignment_repo
         self.template_repo = template_repo or TemplateRepository(
@@ -56,7 +54,9 @@ class AssignmentService:
     ):
         """Create a single task from an activity, with dedup check via routine_instance_id."""
         instance_id = build_routine_instance_id(
-            assignment.id, act.name, period_key,
+            assignment.id,
+            act.name,
+            period_key,
         )
         if self.assignment_repo.task_exists_by_instance_id(instance_id):
             return None
@@ -83,9 +83,7 @@ class AssignmentService:
     ) -> dict:
         """Assign a template to a client and auto-generate tasks."""
         # Validate template exists
-        tmpl = self.template_repo.get_template_by_id(
-            assignment_in.template_id, user_id
-        )
+        tmpl = self.template_repo.get_template_by_id(assignment_in.template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {assignment_in.template_id} not found")
 
@@ -113,8 +111,13 @@ class AssignmentService:
 
                 for act in activities:
                     task = self._build_task(
-                        act, daily_deadline, assignment, assignment_in,
-                        tmpl, user_id, first_phase,
+                        act,
+                        daily_deadline,
+                        assignment,
+                        assignment_in,
+                        tmpl,
+                        user_id,
+                        first_phase,
                         period_key=daily_deadline.strftime("%Y-%m-%d"),
                     )
                     if task:
@@ -124,12 +127,15 @@ class AssignmentService:
             # Once: one-off tasks, generate immediately
             # deadline = now + due_days (ou due_days_from_start)
             for act in activities:
-                deadline = calculate_activity_deadline(
-                    act, assignment.start_date, tmpl
-                )
+                deadline = calculate_activity_deadline(act, assignment.start_date, tmpl)
                 task = self._build_task(
-                    act, deadline, assignment, assignment_in,
-                    tmpl, user_id, first_phase,
+                    act,
+                    deadline,
+                    assignment,
+                    assignment_in,
+                    tmpl,
+                    user_id,
+                    first_phase,
                     period_key=deadline.strftime("%Y-%m-%d"),
                 )
                 if task:
@@ -166,47 +172,33 @@ class AssignmentService:
                         period_key = target.strftime("%Y-%m-%d")
                         for act in activities:
                             task = self._build_task(
-                                act, deadline, assignment, assignment_in,
-                                tmpl, user_id, first_phase,
+                                act,
+                                deadline,
+                                assignment,
+                                assignment_in,
+                                tmpl,
+                                user_id,
+                                first_phase,
                                 period_key=period_key,
                             )
                             if task:
                                 generated_tasks.append(task)
 
         elif tmpl.recurrence == "monthly":
-            # Monthly: ações baseadas no due_day relativo a hoje
-            effective_due_day = (
-                get_effective_due_day(activities[0], tmpl)
-                if activities else tmpl.due_day
+            # Monthly: tasks são geradas pelo scheduler (4 regras) no último
+            # dia útil do mês, para o mês seguinte.
+            log.info(
+                f"⏳ Template '{tmpl.name}' (monthly) vinculado — "
+                f"tasks mensais serão geradas pelo scheduler agendado"
             )
-            if effective_due_day is not None:
-                today = now.day
-                max_day = calendar.monthrange(now.year, now.month)[1]
-                due_day = min(effective_due_day, max_day)
-
-                if due_day >= today:
-                    # Cria task para este mês (hoje ou data futura)
-                    deadline = now.replace(
-                        day=due_day, hour=18, minute=0, second=0, microsecond=0
-                    )
-                    deadline = nb_util(deadline)
-                    period_key = f"{now.year}-{now.month:02d}"
-                    for act in activities:
-                        task = self._build_task(
-                            act, deadline, assignment, assignment_in,
-                            tmpl, user_id, first_phase,
-                            period_key=period_key,
-                        )
-                        if task:
-                            generated_tasks.append(task)
-                # Se due_day já passou este mês → scheduler cria no próximo mês
 
         elif tmpl.recurrence in ("yearly", "annual"):
             # Yearly: ações baseadas no due_month + due_day relativos a hoje
             due_month = tmpl.due_month
             effective_due_day = (
                 get_effective_due_day(activities[0], tmpl)
-                if activities else tmpl.due_day
+                if activities
+                else tmpl.due_day
             )
             if due_month is not None and effective_due_day is not None:
                 max_day = calendar.monthrange(now.year, due_month)[1]
@@ -214,8 +206,12 @@ class AssignmentService:
 
                 # Verifica se a data já passou este ano
                 deadline_this_year = now.replace(
-                    month=due_month, day=due_day,
-                    hour=18, minute=0, second=0, microsecond=0,
+                    month=due_month,
+                    day=due_day,
+                    hour=18,
+                    minute=0,
+                    second=0,
+                    microsecond=0,
                 )
 
                 if deadline_this_year.date() >= now.date():
@@ -224,8 +220,13 @@ class AssignmentService:
                     period_key = str(now.year)
                     for act in activities:
                         task = self._build_task(
-                            act, deadline, assignment, assignment_in,
-                            tmpl, user_id, first_phase,
+                            act,
+                            deadline,
+                            assignment,
+                            assignment_in,
+                            tmpl,
+                            user_id,
+                            first_phase,
                             period_key=period_key,
                         )
                         if task:
@@ -285,9 +286,7 @@ class AssignmentService:
         activities = self.template_repo.get_activities_by_template(
             assignment.template_id
         )
-        tmpl = self.template_repo.get_template_by_id(
-            assignment.template_id, user_id
-        )
+        tmpl = self.template_repo.get_template_by_id(assignment.template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {assignment.template_id} not found")
 

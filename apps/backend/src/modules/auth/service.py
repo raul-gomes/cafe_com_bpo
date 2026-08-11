@@ -1,16 +1,25 @@
-import uuid
+import hashlib
 import secrets
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Annotated
-from sqlalchemy.orm import Session
-from sqlalchemy.exc import IntegrityError
-from fastapi import HTTPException, Depends, status, Request
+import uuid
+from datetime import datetime, timedelta, timezone
+from typing import Annotated
 
+from fastapi import Depends, HTTPException, Request, status
+from sqlalchemy.exc import IntegrityError
+from sqlalchemy.orm import Session
+
+from src.core.config import get_settings
 from src.core.database import get_db_session
 from src.core.security import PasswordService, TokenService, oauth2_scheme
+
+from .models import PasswordResetToken
 from .repository import UserRepository
 from .schemas import UserCreate, UserResponse
-from .models import PasswordResetToken
+
+
+def _hash_token(token: str) -> str:
+    """Retorna o hash SHA-256 do token (nunca armazenamos em texto puro)."""
+    return hashlib.sha256(token.encode("utf-8")).hexdigest()
 
 
 class AuthService:
@@ -37,7 +46,7 @@ class AuthService:
             self.user_repo.session.rollback()
             raise e
 
-    def authenticate_user(self, email: str, password: str) -> Optional[dict]:
+    def authenticate_user(self, email: str, password: str) -> dict | None:
         email = email.lower().strip()
         user = self.user_repo.get_user_by_email(email)
         if not user:
@@ -51,15 +60,13 @@ class AuthService:
             "refresh_token": TokenService.create_refresh_token(user_id=str(user.id)),
         }
 
-    def get_user_profile(self, user_id: uuid.UUID) -> Optional[UserResponse]:
+    def get_user_profile(self, user_id: uuid.UUID) -> UserResponse | None:
         user = self.user_repo.get_user_by_id(user_id)
         if not user:
             return None
         return UserResponse.from_user(user)
 
-    def update_user_profile(
-        self, user_id: uuid.UUID, **kwargs
-    ) -> Optional[UserResponse]:
+    def update_user_profile(self, user_id: uuid.UUID, **kwargs) -> UserResponse | None:
         user = self.user_repo.update_user(user_id, **kwargs)
         if not user:
             return None
@@ -106,11 +113,13 @@ class AuthService:
         ).update({"used": True})
 
         token = secrets.token_urlsafe(32)
-        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        expires_at = datetime.now(timezone.utc) + timedelta(
+            minutes=get_settings().email_reset_token_ttl_minutes
+        )
 
         reset_token = PasswordResetToken(
             user_id=user.id,
-            token=token,
+            token=_hash_token(token),
             expires_at=expires_at,
         )
         self.user_repo.session.add(reset_token)
@@ -123,7 +132,7 @@ class AuthService:
     ) -> bool:
         reset_token = (
             self.user_repo.session.query(PasswordResetToken)
-            .filter_by(token=token, used=False)
+            .filter_by(token=_hash_token(token), used=False)
             .first()
         )
 
@@ -189,7 +198,7 @@ async def require_admin(
 async def get_optional_user(
     request: Request,
     session: Annotated[Session, Depends(get_db_session)],
-) -> Optional[UserResponse]:
+) -> UserResponse | None:
     """Tenta obter o usuário logado, retorna None se não autenticado."""
     token = request.cookies.get("access_token")
     if not token:

@@ -1,0 +1,7 @@
+Café com BPO - Notificação do Sistema
+
+$message
+
+Acesse: $action_url
+
+Você está recebendo esta mensagem por ser usuário do Café com BPO.

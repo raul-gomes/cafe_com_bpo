@@ -5,7 +5,7 @@ Tests for customizable Kanban columns/phases per user.
 
 from uuid import uuid4
 
-from src.modules.task_manager.models import TaskPhase, Task
+from src.modules.task_manager.models import Task, TaskPhase
 
 
 class TestTaskPhaseModel:

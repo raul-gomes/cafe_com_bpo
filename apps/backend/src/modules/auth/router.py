@@ -1,46 +1,48 @@
+import os
+from typing import Annotated
+
 from fastapi import (
     APIRouter,
     Depends,
+    File,
     HTTPException,
     Query,
-    UploadFile,
-    File,
     Request,
     Response,
+    UploadFile,
 )
 from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
-from typing import Annotated
 from sqlalchemy.orm import Session
-import os
 
-from src.core.database import get_db_session
-from src.core.logger import log
 from src.core.config import get_settings
+from src.core.database import get_db_session
 from src.core.email import EmailService
+from src.core.logger import log
+from src.core.rate_limit import (
+    AUTH_FORGOT_PASSWORD_LIMIT,
+    AUTH_LOGIN_LIMIT,
+    AUTH_REFRESH_LIMIT,
+    AUTH_REGISTER_LIMIT,
+    limiter,
+)
+
+from .models import UserFile
+from .oauth.service import GoogleOAuthProvider, OAuthStateService
 from .schemas import (
-    UserCreate,
-    UserResponse,
-    ProfileUpdate,
-    TokenResponse,
-    RefreshTokenRequest,
     ForgotPasswordRequest,
+    ProfileUpdate,
+    RefreshTokenRequest,
     ResetPasswordRequest,
+    TokenResponse,
+    UserCreate,
+    UserLookupItem,
     UserLookupRequest,
     UserLookupResponse,
-    UserLookupItem,
+    UserResponse,
 )
 from .service import AuthService, get_current_user
-from .oauth.service import OAuthStateService, GoogleOAuthProvider
-from .models import UserFile
 from .storage_service import CloudinaryService
-from src.core.rate_limit import (
-    limiter,
-    AUTH_LOGIN_LIMIT,
-    AUTH_REGISTER_LIMIT,
-    AUTH_FORGOT_PASSWORD_LIMIT,
-    AUTH_REFRESH_LIMIT,
-)
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -67,7 +69,7 @@ def register(user_data: UserCreate, service: AuthServiceDep, request: Request):
         )
         return new_user
     except ValueError as e:
-        log.warning(f"⚠️ Falha de validação no registro ({user_data.email}): {str(e)}")
+        log.warning(f"⚠️ Falha de validação no registro ({user_data.email}): {e!s}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -164,22 +166,18 @@ def update_me(updates: ProfileUpdate, user: CurrentUserDep, service: AuthService
 def forgot_password(
     data: ForgotPasswordRequest, service: AuthServiceDep, request: Request
 ):
-    user = service.user_repo.get_user_by_email(data.email)
-    if not user:
-        raise HTTPException(
-            status_code=404, detail="Nenhuma conta encontrada com este e-mail."
-        )
+    user = service.user_repo.get_user_by_email(data.email.lower().strip())
+    if not user or user.auth_provider != "local":
+        # Resposta genérica para não revelar se o e-mail existe
+        log.info("🔑 Solicitação de redefinição de senha recebida")
+        return {
+            "message": "Se o e-mail estiver cadastrado, você receberá as instruções."
+        }
 
-    if user.auth_provider != "local":
-        raise HTTPException(
-            status_code=400,
-            detail=f"Esta conta usa login com {user.auth_provider.capitalize()}. Faça login pelo {user.auth_provider.capitalize()}.",
-        )
-
-    token = service.create_reset_token(data.email)
-    EmailService.send_reset_password_email(data.email, token)
-    log.info(f"🔑 Solicitação de redefinição de senha: {data.email}")
-    return {"message": "Instruções enviadas para seu e-mail."}
+    token = service.create_reset_token(user.email)
+    EmailService.send_reset_password_email(user.email, token)
+    log.info(f"🔑 Solicitação de redefinição de senha: {user.email}")
+    return {"message": "Se o e-mail estiver cadastrado, você receberá as instruções."}
 
 
 @router.post("/reset-password", status_code=200)
@@ -252,7 +250,7 @@ async def upload_avatar(
         new_file_record.status = "failed"
         service.user_repo.session.add(new_file_record)
         service.user_repo.session.commit()
-        log.error(f"❌ Falha no upload Cloudinary: {str(e)}")
+        log.error(f"❌ Falha no upload Cloudinary: {e!s}")
         raise HTTPException(
             status_code=500, detail="Falha ao processar upload no storage remoto."
         )
@@ -300,7 +298,7 @@ async def upload_company_logo(
 
     except Exception as e:
         service.user_repo.session.rollback()
-        log.error(f"❌ Falha no upload da logo: {str(e)}")
+        log.error(f"❌ Falha no upload da logo: {e!s}")
         raise HTTPException(
             status_code=500, detail="Falha ao processar upload no storage remoto."
         )
@@ -365,7 +363,9 @@ def oauth_callback(
     state: str = Query(...),
 ):
     if not OAuthStateService.validate_state(state):
-        return RedirectResponse(url=f"{settings.frontend_url}/login?error=state_invalid")
+        return RedirectResponse(
+            url=f"{settings.frontend_url}/login?error=state_invalid"
+        )
 
     try:
         if provider != "google":
@@ -395,6 +395,6 @@ def oauth_callback(
         )
         return redirect
     except Exception as e:
-        log.error(f"❌ Erro crítico no fluxo OAuth ({provider}): {str(e)}")
+        log.error(f"❌ Erro crítico no fluxo OAuth ({provider}): {e!s}")
         error_msg = str(e).replace(" ", "_")
         return RedirectResponse(url=f"{settings.frontend_url}/login?error={error_msg}")
