@@ -4,16 +4,16 @@ Routine Types Module - Service Layer
 Business logic for RoutineType CRUD.
 """
 
-from typing import List
 from uuid import UUID
 
+from src.core.logger import log
+
+from ..routine_types.repository import RoutineTypeRepository
 from ..schemas import (
     RoutineTypeCreate,
-    RoutineTypeUpdate,
     RoutineTypeResponse,
+    RoutineTypeUpdate,
 )
-from ..routine_types.repository import RoutineTypeRepository
-from src.core.logger import log
 
 
 class RoutineTypeService:
@@ -29,7 +29,7 @@ class RoutineTypeService:
         log.info(f"🏷️ Tipo de rotina criado: {obj.name} (user={user_id})")
         return RoutineTypeResponse.model_validate(obj)
 
-    def list_routine_types(self, user_id: UUID) -> List[RoutineTypeResponse]:
+    def list_routine_types(self, user_id: UUID) -> list[RoutineTypeResponse]:
         objs = self.repository.list_routine_types(user_id)
         return [RoutineTypeResponse.model_validate(o) for o in objs]
 

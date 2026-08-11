@@ -4,22 +4,22 @@ Notifications Module - Schemas
 Pydantic schemas for notification API.
 """
 
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 
 class NotificationCreate(BaseModel):
     title: str
     message: str
     type: str = "system"
-    related_entity_type: Optional[str] = None
-    related_entity_id: Optional[UUID] = None
+    related_entity_type: str | None = None
+    related_entity_id: UUID | None = None
 
 
 class NotificationUpdate(BaseModel):
-    is_read: Optional[bool] = None
+    is_read: bool | None = None
 
 
 class NotificationResponse(BaseModel):
@@ -29,10 +29,10 @@ class NotificationResponse(BaseModel):
     message: str
     type: str
     is_read: bool
-    related_entity_type: Optional[str] = None
-    related_entity_id: Optional[UUID] = None
+    related_entity_type: str | None = None
+    related_entity_id: UUID | None = None
     created_at: datetime
-    read_at: Optional[datetime] = None
+    read_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 

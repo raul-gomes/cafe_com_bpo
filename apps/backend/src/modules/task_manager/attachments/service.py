@@ -4,13 +4,13 @@ Attachments Module - Service Layer
 Business logic for task attachment management (upload, list, delete).
 """
 
-from typing import List, Optional
 from uuid import UUID
 
-from ..schemas import TaskAttachmentResponse
-from ..attachments.repository import AttachmentRepository
-from ..task.repository import TaskRepository
 from src.core.logger import log
+
+from ..attachments.repository import AttachmentRepository
+from ..schemas import TaskAttachmentResponse
+from ..task.repository import TaskRepository
 
 
 class AttachmentService:
@@ -19,14 +19,14 @@ class AttachmentService:
     def __init__(
         self,
         attachment_repo: AttachmentRepository,
-        task_repo: Optional[TaskRepository] = None,
+        task_repo: TaskRepository | None = None,
     ):
         self.attachment_repo = attachment_repo
         self.task_repo = task_repo or TaskRepository(attachment_repo.session)
 
     def get_task_attachments(
         self, task_id: UUID, user_id: UUID
-    ) -> List[TaskAttachmentResponse]:
+    ) -> list[TaskAttachmentResponse]:
         task = self.task_repo.get_by_id(task_id, user_id)
         if not task:
             raise ValueError(f"Task {task_id} not found")
@@ -39,8 +39,8 @@ class AttachmentService:
         user_id: UUID,
         file_name: str,
         file_path: str,
-        file_size: Optional[int],
-        content_type: Optional[str],
+        file_size: int | None,
+        content_type: str | None,
     ) -> TaskAttachmentResponse:
         task = self.task_repo.get_by_id(task_id, user_id)
         if not task:

@@ -1,26 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
-from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
+from ..routine_types.repository import RoutineTypeRepository
 from ..schemas import (
     ActivityTemplateCreate,
-    ActivityTemplateUpdate,
-    ActivityTemplateResponse,
     ActivityTemplateListItem,
+    ActivityTemplateResponse,
+    ActivityTemplateUpdate,
     OverdueTemplateResponse,
     TemplateActivityCreate,
-    TemplateActivityUpdate,
     TemplateActivityResponse,
+    TemplateActivityUpdate,
 )
 from ..templates.repository import TemplateRepository
 from ..templates.service import TemplateService
-from ..routine_types.repository import RoutineTypeRepository
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -41,10 +41,8 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 # ── Template endpoints ──
 
 
-@router.get("/templates/", response_model=List[ActivityTemplateListItem])
-def list_templates(
-    service: TemplateServiceDep, current_user: CurrentUserDep
-):
+@router.get("/templates/", response_model=list[ActivityTemplateListItem])
+def list_templates(service: TemplateServiceDep, current_user: CurrentUserDep):
     """Lista todos os templates de atividades do usuário."""
     return service.get_templates(current_user.id)
 
@@ -65,11 +63,9 @@ def create_template(
 
 @router.get(
     "/templates/overdue/",
-    response_model=List[OverdueTemplateResponse],
+    response_model=list[OverdueTemplateResponse],
 )
-def list_overdue_templates(
-    service: TemplateServiceDep, current_user: CurrentUserDep
-):
+def list_overdue_templates(service: TemplateServiceDep, current_user: CurrentUserDep):
     """Lista templates com due_date ou recurrence_end_date vencidos."""
     return service.get_overdue_templates(current_user.id)
 
@@ -108,7 +104,6 @@ def delete_template(
         service.delete_template(template_id, current_user.id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Template não encontrado")
-    return None
 
 
 # ── Template Activities (nested) ──
@@ -167,12 +162,11 @@ def delete_activity(
         service.delete_activity(template_id, activity_id, current_user.id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Atividade não encontrada")
-    return None
 
 
 @router.post(
     "/templates/{template_id}/activities/reorder",
-    response_model=List[TemplateActivityResponse],
+    response_model=list[TemplateActivityResponse],
 )
 def reorder_activities(
     template_id: UUID,

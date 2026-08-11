@@ -1,32 +1,33 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Annotated, List, Optional
 from datetime import datetime, timezone
-from sqlalchemy.orm import Session
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 from src.modules.notifications.repository import NotificationRepository
-from ..models import get_done_phase
 
+from ..models import get_done_phase
 from ..schemas import (
+    ClientTimelineResponse,
+    ConflictsResponse,
+    SLAAlertsResponse,
     TaskCreate,
-    TaskUpdate,
-    TaskResponse,
     TaskPhaseCreate,
-    TaskPhaseUpdate,
     TaskPhaseReorder,
     TaskPhaseResponse,
+    TaskPhaseUpdate,
+    TaskResponse,
+    TaskUpdate,
     TimelineResponse,
-    ConflictsResponse,
-    ClientTimelineResponse,
-    SLAAlertsResponse,
 )
+from ..sla.repository import SLARepository
 from ..task.repository import TaskRepository
 from ..task.service import TaskService
-from ..sla.repository import SLARepository
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -55,14 +56,14 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 # ── Task endpoints ──
 
 
-@router.get("/", response_model=List[TaskResponse])
+@router.get("/", response_model=list[TaskResponse])
 def get_tasks(
     repo: RepoDep,
     current_user: CurrentUserDep,
     session: Annotated[Session, Depends(get_db_session)],
     today: bool = False,
     overdue: bool = False,
-    client_id: Optional[UUID] = None,
+    client_id: UUID | None = None,
 ):
     """Retorna tarefas cadastradas pelo usuário atual.
 
@@ -194,7 +195,6 @@ def delete_task(task_id: UUID, repo: RepoDep, current_user: CurrentUserDep):
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
 
     repo.delete(task)
-    return None
 
 
 @router.put("/{task_id}/cancel", response_model=TaskResponse)
@@ -212,7 +212,7 @@ def cancel_task(task_id: UUID, repo: RepoDep, current_user: CurrentUserDep):
 # ── Phase endpoints ──
 
 
-@router.get("/phases/", response_model=List[TaskPhaseResponse])
+@router.get("/phases/", response_model=list[TaskPhaseResponse])
 def get_phases(service: ServiceDep, current_user: CurrentUserDep):
     """Retorna as fases/colunas Kanban do usuário, criando padrões se necessário"""
     return service.get_phases(current_user.id)
@@ -256,7 +256,6 @@ def delete_phase(phase_id: UUID, service: ServiceDep, current_user: CurrentUserD
                 status_code=400, detail="Cannot delete the last remaining phase"
             )
         raise HTTPException(status_code=404, detail="Fase não encontrada")
-    return None
 
 
 @router.post("/phases/reorder")
@@ -274,8 +273,8 @@ def reorder_phases(
 def get_timeline(
     service: ServiceDep,
     current_user: CurrentUserDep,
-    start_date: Optional[datetime] = None,
-    end_date: Optional[datetime] = None,
+    start_date: datetime | None = None,
+    end_date: datetime | None = None,
 ):
     """Retorna timeline de tarefas agrupadas por data de prazo."""
     return service.get_timeline(current_user.id, start_date, end_date)
@@ -299,7 +298,7 @@ def get_client_timeline(
     client_id: UUID,
     service: ServiceDep,
     current_user: CurrentUserDep,
-    month: Optional[str] = None,
+    month: str | None = None,
 ):
     """Retorna a timeline de tarefas de um cliente para um mês específico."""
     try:

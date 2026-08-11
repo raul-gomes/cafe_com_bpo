@@ -4,12 +4,11 @@ Gallery Module - Repository Layer
 Data access for gallery items.
 """
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from src.modules.gallery.models import GalleryItem, CommonGalleryItem
+from src.modules.gallery.models import CommonGalleryItem, GalleryItem
 
 
 class GalleryRepository:
@@ -34,7 +33,7 @@ class GalleryRepository:
         self.session.refresh(item)
         return item
 
-    def get_by_id(self, item_id: UUID, user_id: UUID) -> Optional[GalleryItem]:
+    def get_by_id(self, item_id: UUID, user_id: UUID) -> GalleryItem | None:
         """Get a gallery item by ID for a specific user."""
         return (
             self.session.query(GalleryItem)
@@ -42,7 +41,7 @@ class GalleryRepository:
             .first()
         )
 
-    def get_by_user(self, user_id: UUID) -> List[GalleryItem]:
+    def get_by_user(self, user_id: UUID) -> list[GalleryItem]:
         """Get all gallery items for a user."""
         return (
             self.session.query(GalleryItem)
@@ -77,7 +76,7 @@ class CommonGalleryRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def list_all(self) -> List[CommonGalleryItem]:
+    def list_all(self) -> list[CommonGalleryItem]:
         """List all common gallery items, newest first."""
         return (
             self.session.query(CommonGalleryItem)
@@ -93,7 +92,7 @@ class CommonGalleryRepository:
         self.session.refresh(item)
         return item
 
-    def get_by_id(self, item_id: UUID) -> Optional[CommonGalleryItem]:
+    def get_by_id(self, item_id: UUID) -> CommonGalleryItem | None:
         """Get a common gallery item by ID."""
         return (
             self.session.query(CommonGalleryItem)

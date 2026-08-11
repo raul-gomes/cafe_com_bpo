@@ -6,11 +6,10 @@ Currently using Repository pattern directly in router,
 but service layer added for future business logic.
 """
 
-from typing import List
 from uuid import UUID
 
 from src.modules.clients.repository import ClientRepository
-from src.modules.clients.schemas import ClientCreate, ClientUpdate, ClientResponse
+from src.modules.clients.schemas import ClientCreate, ClientResponse, ClientUpdate
 
 
 class ClientService:
@@ -19,7 +18,7 @@ class ClientService:
     def __init__(self, repository: ClientRepository):
         self.repository = repository
 
-    def get_user_clients(self, user_id: UUID) -> List[ClientResponse]:
+    def get_user_clients(self, user_id: UUID) -> list[ClientResponse]:
         """Get all clients for a specific user."""
         return self.repository.get_by_user(user_id)
 

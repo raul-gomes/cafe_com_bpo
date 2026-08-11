@@ -1,63 +1,63 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 
 class TaskBase(BaseModel):
     title: str
-    description: Optional[str] = None
+    description: str | None = None
     client_id: UUID
     status: str = "todo"
     priority: str = "medium"
-    process_type: Optional[str] = None
-    deadline: Optional[datetime] = None
-    time_estimate_minutes: Optional[int] = None
-    notes: Optional[str] = None
-    phase_id: Optional[UUID] = None
-    cancelled_at: Optional[datetime] = None
+    process_type: str | None = None
+    deadline: datetime | None = None
+    time_estimate_minutes: int | None = None
+    notes: str | None = None
+    phase_id: UUID | None = None
+    cancelled_at: datetime | None = None
     is_cancelled: bool = False
     is_active: bool = True
-    completed_at: Optional[datetime] = None
+    completed_at: datetime | None = None
 
 
 class TaskCreate(TaskBase):
-    template_id: Optional[UUID] = None
-    assignment_id: Optional[UUID] = None
-    routine_instance_id: Optional[UUID] = None
+    template_id: UUID | None = None
+    assignment_id: UUID | None = None
+    routine_instance_id: UUID | None = None
 
 
 class TaskUpdate(BaseModel):
-    title: Optional[str] = None
-    description: Optional[str] = None
-    client_id: Optional[UUID] = None
-    status: Optional[str] = None
-    priority: Optional[str] = None
-    process_type: Optional[str] = None
-    deadline: Optional[datetime] = None
-    time_estimate_minutes: Optional[int] = None
-    notes: Optional[str] = None
-    phase_id: Optional[UUID] = None
-    cancelled_at: Optional[datetime] = None
-    is_cancelled: Optional[bool] = None
+    title: str | None = None
+    description: str | None = None
+    client_id: UUID | None = None
+    status: str | None = None
+    priority: str | None = None
+    process_type: str | None = None
+    deadline: datetime | None = None
+    time_estimate_minutes: int | None = None
+    notes: str | None = None
+    phase_id: UUID | None = None
+    cancelled_at: datetime | None = None
+    is_cancelled: bool | None = None
 
 
 class TaskResponse(TaskBase):
     id: UUID
     user_id: UUID
-    phase_id: Optional[UUID] = None
-    template_id: Optional[UUID] = None
-    assignment_id: Optional[UUID] = None
-    routine_instance_id: Optional[UUID] = None
-    template_name: Optional[str] = None
-    moved_by: Optional[UUID] = None
-    moved_by_name: Optional[str] = None
+    phase_id: UUID | None = None
+    template_id: UUID | None = None
+    assignment_id: UUID | None = None
+    routine_instance_id: UUID | None = None
+    template_name: str | None = None
+    moved_by: UUID | None = None
+    moved_by_name: str | None = None
     created_at: datetime
     updated_at: datetime
-    cancelled_at: Optional[datetime] = None
+    cancelled_at: datetime | None = None
     is_cancelled: bool = False
-    completed_at: Optional[datetime] = None
-    deleted_at: Optional[datetime] = None
+    completed_at: datetime | None = None
+    deleted_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -73,9 +73,9 @@ class TaskPhaseCreate(TaskPhaseBase):
 
 
 class TaskPhaseUpdate(BaseModel):
-    name: Optional[str] = None
-    color: Optional[str] = None
-    order: Optional[int] = None
+    name: str | None = None
+    color: str | None = None
+    order: int | None = None
 
 
 class TaskPhaseReorder(BaseModel):
@@ -93,14 +93,14 @@ class TaskPhaseResponse(TaskPhaseBase):
 
 class TaskAIAnalyzeInput(BaseModel):
     title: str
-    description: Optional[str] = None
-    process_type: Optional[str] = None
+    description: str | None = None
+    process_type: str | None = None
 
 
 class TaskAIAnalyzeResponse(BaseModel):
     suggested_priority: str
-    suggested_process_type: Optional[str] = None
-    estimated_deadline_days: Optional[int] = None
+    suggested_process_type: str | None = None
+    estimated_deadline_days: int | None = None
     reasoning: str
 
 
@@ -112,10 +112,10 @@ class TimelineTaskResponse(BaseModel):
     id: UUID
     title: str
     client_id: UUID
-    deadline: Optional[datetime] = None
-    time_estimate_minutes: Optional[int] = None
+    deadline: datetime | None = None
+    time_estimate_minutes: int | None = None
     priority: str
-    process_type: Optional[str] = None
+    process_type: str | None = None
     status: str
 
 
@@ -151,8 +151,8 @@ class ConflictsResponse(BaseModel):
 
 class RoutineTypeBase(BaseModel):
     name: str
-    color: Optional[str] = None
-    suggestions: Optional[list[str]] = None
+    color: str | None = None
+    suggestions: list[str] | None = None
 
 
 class RoutineTypeCreate(RoutineTypeBase):
@@ -160,9 +160,9 @@ class RoutineTypeCreate(RoutineTypeBase):
 
 
 class RoutineTypeUpdate(BaseModel):
-    name: Optional[str] = None
-    color: Optional[str] = None
-    suggestions: Optional[list[str]] = None
+    name: str | None = None
+    color: str | None = None
+    suggestions: list[str] | None = None
 
 
 class RoutineTypeResponse(RoutineTypeBase):
@@ -175,13 +175,13 @@ class RoutineTypeResponse(RoutineTypeBase):
 
 class TemplateActivityBase(BaseModel):
     name: str
-    description: Optional[str] = None
+    description: str | None = None
     priority: str = "medium"  # low, medium, high
-    due_day: Optional[int] = None  # 1-31, opcional (usa do template se null)
-    due_days: Optional[int] = None  # dias após início (alternativa)
-    estimated_minutes: Optional[int] = None
+    due_day: int | None = None  # 1-31, opcional (usa do template se null)
+    due_days: int | None = None  # dias após início (alternativa)
+    estimated_minutes: int | None = None
     order: int = 0
-    phase_id: Optional[UUID] = None
+    phase_id: UUID | None = None
 
 
 class TemplateActivityCreate(TemplateActivityBase):
@@ -189,14 +189,14 @@ class TemplateActivityCreate(TemplateActivityBase):
 
 
 class TemplateActivityUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    priority: Optional[str] = None  # low, medium, high
-    due_day: Optional[int] = None
-    due_days: Optional[int] = None
-    estimated_minutes: Optional[int] = None
-    order: Optional[int] = None
-    phase_id: Optional[UUID] = None
+    name: str | None = None
+    description: str | None = None
+    priority: str | None = None  # low, medium, high
+    due_day: int | None = None
+    due_days: int | None = None
+    estimated_minutes: int | None = None
+    order: int | None = None
+    phase_id: UUID | None = None
 
 
 class TemplateActivityResponse(TemplateActivityBase):
@@ -209,17 +209,17 @@ class TemplateActivityResponse(TemplateActivityBase):
 
 class ActivityTemplateBase(BaseModel):
     name: str
-    description: Optional[str] = None
-    process_type: Optional[str] = None
+    description: str | None = None
+    process_type: str | None = None
     recurrence: str = "monthly"
-    weekday_mask: Optional[str] = None  # ex: "0,2,4" (dom=0, seg=1, ...)
-    due_day: Optional[int] = None  # dia do mês p/ mensal (1-31)
-    due_month: Optional[int] = None  # 1-12, para recorrência anual
-    due_days_from_start: Optional[int] = None  # dias p/ "once"
-    due_date: Optional[datetime] = None
-    recurrence_end_date: Optional[datetime] = None
+    weekday_mask: str | None = None  # ex: "0,2,4" (dom=0, seg=1, ...)
+    due_day: int | None = None  # dia do mês p/ mensal (1-31)
+    due_month: int | None = None  # 1-12, para recorrência anual
+    due_days_from_start: int | None = None  # dias p/ "once"
+    due_date: datetime | None = None
+    recurrence_end_date: datetime | None = None
     is_active: bool = True
-    routine_type_id: Optional[UUID] = None
+    routine_type_id: UUID | None = None
 
 
 class ActivityTemplateCreate(ActivityTemplateBase):
@@ -227,18 +227,18 @@ class ActivityTemplateCreate(ActivityTemplateBase):
 
 
 class ActivityTemplateUpdate(BaseModel):
-    name: Optional[str] = None
-    description: Optional[str] = None
-    process_type: Optional[str] = None
-    recurrence: Optional[str] = None
-    weekday_mask: Optional[str] = None
-    due_day: Optional[int] = None
-    due_month: Optional[int] = None
-    due_days_from_start: Optional[int] = None
-    due_date: Optional[datetime] = None
-    recurrence_end_date: Optional[datetime] = None
-    is_active: Optional[bool] = None
-    routine_type_id: Optional[UUID] = None
+    name: str | None = None
+    description: str | None = None
+    process_type: str | None = None
+    recurrence: str | None = None
+    weekday_mask: str | None = None
+    due_day: int | None = None
+    due_month: int | None = None
+    due_days_from_start: int | None = None
+    due_date: datetime | None = None
+    recurrence_end_date: datetime | None = None
+    is_active: bool | None = None
+    routine_type_id: UUID | None = None
 
 
 class ActivityTemplateResponse(ActivityTemplateBase):
@@ -247,8 +247,8 @@ class ActivityTemplateResponse(ActivityTemplateBase):
     created_at: datetime
     updated_at: datetime
     activities: list[TemplateActivityResponse] = []
-    routine_type_name: Optional[str] = None
-    routine_type_color: Optional[str] = None
+    routine_type_name: str | None = None
+    routine_type_color: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -258,22 +258,22 @@ class ActivityTemplateListItem(BaseModel):
 
     id: UUID
     name: str
-    description: Optional[str] = None
-    process_type: Optional[str] = None
+    description: str | None = None
+    process_type: str | None = None
     recurrence: str
-    weekday_mask: Optional[str] = None
-    due_day: Optional[int] = None
-    due_month: Optional[int] = None
-    due_days_from_start: Optional[int] = None
-    due_date: Optional[datetime] = None
-    recurrence_end_date: Optional[datetime] = None
+    weekday_mask: str | None = None
+    due_day: int | None = None
+    due_month: int | None = None
+    due_days_from_start: int | None = None
+    due_date: datetime | None = None
+    recurrence_end_date: datetime | None = None
     is_active: bool
     is_overdue: bool = False
     days_overdue: int = 0
     activity_count: int = 0
-    routine_type_id: Optional[UUID] = None
-    routine_type_name: Optional[str] = None
-    routine_type_color: Optional[str] = None
+    routine_type_id: UUID | None = None
+    routine_type_name: str | None = None
+    routine_type_color: str | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -285,19 +285,19 @@ class OverdueTemplateResponse(BaseModel):
 
     id: UUID
     name: str
-    description: Optional[str] = None
-    process_type: Optional[str] = None
+    description: str | None = None
+    process_type: str | None = None
     recurrence: str
-    weekday_mask: Optional[str] = None
-    due_month: Optional[int] = None
-    due_date: Optional[datetime] = None
-    recurrence_end_date: Optional[datetime] = None
+    weekday_mask: str | None = None
+    due_month: int | None = None
+    due_date: datetime | None = None
+    recurrence_end_date: datetime | None = None
     is_active: bool
     days_overdue: int
     activity_count: int = 0
-    routine_type_id: Optional[UUID] = None
-    routine_type_name: Optional[str] = None
-    routine_type_color: Optional[str] = None
+    routine_type_id: UUID | None = None
+    routine_type_name: str | None = None
+    routine_type_color: str | None = None
 
 
 # ──────────────────────────────────────────────
@@ -308,7 +308,7 @@ class OverdueTemplateResponse(BaseModel):
 class ClientTemplateAssignmentCreate(BaseModel):
     client_id: UUID
     template_id: UUID
-    start_date: Optional[datetime] = None
+    start_date: datetime | None = None
 
 
 class ClientTemplateAssignmentResponse(BaseModel):
@@ -316,9 +316,9 @@ class ClientTemplateAssignmentResponse(BaseModel):
     client_id: UUID
     template_id: UUID
     user_id: UUID
-    start_date: Optional[datetime] = None
+    start_date: datetime | None = None
     is_active: bool
-    last_generated_at: Optional[datetime] = None
+    last_generated_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
@@ -342,8 +342,8 @@ class ClientSLACreate(ClientSLABase):
 
 
 class ClientSLAUpdate(BaseModel):
-    sla_days: Optional[int] = None
-    warning_threshold: Optional[float] = None
+    sla_days: int | None = None
+    warning_threshold: float | None = None
 
 
 class ClientSLAResponse(ClientSLABase):
@@ -364,11 +364,11 @@ class TaskAttachmentResponse(BaseModel):
     id: UUID
     task_id: UUID
     file_name: str
-    file_size: Optional[int] = None
-    content_type: Optional[str] = None
-    uploaded_by: Optional[UUID] = None
+    file_size: int | None = None
+    content_type: str | None = None
+    uploaded_by: UUID | None = None
     sent_to_client: bool
-    sent_at: Optional[datetime] = None
+    sent_at: datetime | None = None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
@@ -382,16 +382,16 @@ class TaskAttachmentResponse(BaseModel):
 class ClientTimelineTask(BaseModel):
     id: UUID
     title: str
-    description: Optional[str] = None
-    phase_id: Optional[UUID] = None
+    description: str | None = None
+    phase_id: UUID | None = None
     status: str
     priority: str
-    process_type: Optional[str] = None
-    deadline: Optional[datetime] = None
-    time_estimate_minutes: Optional[int] = None
+    process_type: str | None = None
+    deadline: datetime | None = None
+    time_estimate_minutes: int | None = None
     sla_status: str = "on_time"  # on_time, warning, overdue
-    sla_days_used: Optional[int] = None
-    sla_days_limit: Optional[int] = None
+    sla_days_used: int | None = None
+    sla_days_limit: int | None = None
     attachment_count: int = 0
     created_at: datetime
     updated_at: datetime
@@ -411,7 +411,7 @@ class ClientTimelineStats(BaseModel):
 class ClientTimelineResponse(BaseModel):
     client_id: UUID
     client_name: str
-    client_email: Optional[str] = None
+    client_email: str | None = None
     month: str
     stats: ClientTimelineStats
     slas: list[dict] = []

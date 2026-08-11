@@ -6,16 +6,15 @@ Create Date: 2026-07-02 10:23:05.627950
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
 from alembic import op
 
-
 # revision identifiers, used by Alembic.
 revision: str = "88b38077df52"
-down_revision: Union[str, Sequence[str], None] = "890275f480f9"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = "890275f480f9"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -26,4 +25,3 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """No way to restore original case — data is idempotently lowercase."""
-    pass

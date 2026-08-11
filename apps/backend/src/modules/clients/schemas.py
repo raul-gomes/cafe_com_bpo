@@ -1,18 +1,18 @@
-from pydantic import BaseModel, EmailStr
-from typing import Optional
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, EmailStr
 
 
 class ClientBase(BaseModel):
     name: str
-    cnpj: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[EmailStr] = None
-    color: Optional[str] = None
-    description: Optional[str] = None
-    segment: Optional[str] = None
-    address: Optional[str] = None
+    cnpj: str | None = None
+    phone: str | None = None
+    email: EmailStr | None = None
+    color: str | None = None
+    description: str | None = None
+    segment: str | None = None
+    address: str | None = None
 
 
 class ClientCreate(ClientBase):
@@ -20,7 +20,7 @@ class ClientCreate(ClientBase):
 
 
 class ClientUpdate(ClientBase):
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class ClientResponse(ClientBase):

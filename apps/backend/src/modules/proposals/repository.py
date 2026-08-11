@@ -1,8 +1,9 @@
-from typing import List, Optional
+import uuid
+
 from sqlalchemy.orm import Session
+
 from .models import PricingScenario
 from .schemas import ProposalCreate, ProposalUpdate
-import uuid
 
 
 class PricingScenarioRepository:
@@ -30,7 +31,7 @@ class PricingScenarioRepository:
         self.session.flush()
         return scenario
 
-    def list_scenarios_by_user(self, user_id: uuid.UUID) -> List[PricingScenario]:
+    def list_scenarios_by_user(self, user_id: uuid.UUID) -> list[PricingScenario]:
         return (
             self.session.query(PricingScenario)
             .filter(
@@ -42,7 +43,7 @@ class PricingScenarioRepository:
 
     def get_scenario_by_id(
         self, user_id: uuid.UUID, scenario_id: uuid.UUID
-    ) -> Optional[PricingScenario]:
+    ) -> PricingScenario | None:
         return (
             self.session.query(PricingScenario)
             .filter(
@@ -60,7 +61,7 @@ class PricingScenarioRepository:
         client_name: str,
         input_payload: dict,
         result_payload: dict,
-    ) -> Optional[PricingScenario]:
+    ) -> PricingScenario | None:
         scenario = self.get_scenario_by_id(user_id=user_id, scenario_id=scenario_id)
         if not scenario:
             return None
@@ -93,8 +94,8 @@ class ProposalRepository:
         self.session = session
 
     def get_by_user(
-        self, user_id: uuid.UUID, status_filter: Optional[str] = None
-    ) -> List[PricingScenario]:
+        self, user_id: uuid.UUID, status_filter: str | None = None
+    ) -> list[PricingScenario]:
         query = self.session.query(PricingScenario).filter(
             PricingScenario.user_id == user_id,
             PricingScenario.is_active,
@@ -103,7 +104,7 @@ class ProposalRepository:
 
     def get_by_id(
         self, proposal_id: uuid.UUID, user_id: uuid.UUID
-    ) -> Optional[PricingScenario]:
+    ) -> PricingScenario | None:
         return (
             self.session.query(PricingScenario)
             .filter(

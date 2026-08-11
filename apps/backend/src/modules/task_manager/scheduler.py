@@ -15,23 +15,22 @@ on each active ClientTemplateAssignment's recurrence rules.
 import calendar
 import logging
 import threading
-from datetime import datetime, timezone, timedelta
-from typing import Optional
-from uuid import UUID
 import uuid as uuid_lib
+from datetime import datetime, timedelta, timezone
+from uuid import UUID
 
 from rocketry import Rocketry
 from rocketry.conds import cron
 from rocketry.tasks import FuncTask
 
 from src.core.database import SessionLocal
-from src.core.utils import next_business_day
 from src.core.logger import log
+from src.core.utils import next_business_day
 from src.modules.task_manager.assignments.repository import AssignmentRepository
-from src.modules.task_manager.task.repository import TaskRepository
-from src.modules.task_manager.templates.repository import TemplateRepository
 from src.modules.task_manager.models import ActivityTemplate, TemplateActivity
 from src.modules.task_manager.schemas import TaskCreate
+from src.modules.task_manager.task.repository import TaskRepository
+from src.modules.task_manager.templates.repository import TemplateRepository
 
 # Silence Rocketry internal debug spam
 logging.getLogger("rocketry").setLevel(logging.WARNING)
@@ -45,8 +44,8 @@ logging.getLogger("rocketry.core").setLevel(logging.WARNING)
 
 
 def get_effective_due_day(
-    activity: TemplateActivity, tmpl: Optional[ActivityTemplate] = None
-) -> Optional[int]:
+    activity: TemplateActivity, tmpl: ActivityTemplate | None = None
+) -> int | None:
     """Resolve effective due_day: activity level > template level."""
     if activity.due_day is not None:
         return activity.due_day
@@ -60,7 +59,7 @@ def get_weekly_deadlines_for_year_month(
     year: int,
     month: int,
     min_day: int = 1,
-    max_day: Optional[int] = None,
+    max_day: int | None = None,
 ) -> list[datetime]:
     """Generate deadlines for marked weekdays in a given year/month.
     Returns deadlines at 18:00 UTC, adjusted to next business day.
@@ -96,8 +95,8 @@ def get_weekly_deadlines_for_month(tmpl: ActivityTemplate) -> list[datetime]:
 
 def calculate_activity_deadline(
     activity: TemplateActivity,
-    start_date: Optional[datetime] = None,
-    tmpl: Optional[ActivityTemplate] = None,
+    start_date: datetime | None = None,
+    tmpl: ActivityTemplate | None = None,
 ) -> datetime:
     """Calculate the next deadline for an activity.
     Priority: due_days -> due_days_from_start -> due_day.
@@ -123,7 +122,11 @@ def calculate_activity_deadline(
         effective_due_day = now.day
 
     # For yearly/annual templates, use the template's due_month
-    if tmpl is not None and tmpl.recurrence in ("yearly", "annual") and tmpl.due_month is not None:
+    if (
+        tmpl is not None
+        and tmpl.recurrence in ("yearly", "annual")
+        and tmpl.due_month is not None
+    ):
         year = base.year
         month = tmpl.due_month
     else:
@@ -159,7 +162,7 @@ def calculate_activity_deadline(
 def should_generate_today(
     tmpl: ActivityTemplate,
     activity: TemplateActivity,
-) -> Optional[datetime]:
+) -> datetime | None:
     """Check if a task should be generated today for the given template+activity.
     Returns the deadline datetime if it should generate, None otherwise.
 
@@ -247,7 +250,7 @@ def is_last_business_day_of_year(dt: datetime) -> bool:
     return dt.month == 12 and is_last_business_day_of_month(dt)
 
 
-def next_weekday(weekday: int, after: Optional[datetime] = None) -> datetime:
+def next_weekday(weekday: int, after: datetime | None = None) -> datetime:
     """Return the next occurrence of `weekday` (0=Mon, 6=Sun) on or after `after`."""
     if after is None:
         after = datetime.now(timezone.utc)
@@ -393,8 +396,8 @@ class TaskScheduler:
     """
 
     def __init__(self):
-        self.app: Optional[Rocketry] = None
-        self._thread: Optional[threading.Thread] = None
+        self.app: Rocketry | None = None
+        self._thread: threading.Thread | None = None
 
     def start(self) -> None:
         """Start Rocketry with a single daily FuncTask at 00:00 UTC."""
@@ -431,12 +434,11 @@ class TaskScheduler:
 
     def sync_assignments(self) -> None:
         """No-op: assignments are queried from DB on each run (no per-assignment tasks)."""
-        pass
 
     # ── Core: run_daily_check ──
 
     def run_daily_check(
-        self, now: Optional[datetime] = None, mode: Optional[str] = None
+        self, now: datetime | None = None, mode: str | None = None
     ) -> dict:
         """Run scheduler logic — determine which rules to apply and generate tasks.
 
@@ -758,8 +760,10 @@ class TaskScheduler:
 # Trigger Router (scheduler manual-run endpoints)
 # ================================================================
 
-from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 

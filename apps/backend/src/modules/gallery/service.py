@@ -4,14 +4,13 @@ Gallery Module - Service Layer
 Business logic for gallery/media management.
 """
 
-from typing import List
 from uuid import UUID
 
 from src.modules.gallery.repository import GalleryRepository
 from src.modules.gallery.schemas import (
     GalleryItemCreate,
-    GalleryItemUpdate,
     GalleryItemResponse,
+    GalleryItemUpdate,
 )
 
 
@@ -21,7 +20,7 @@ class GalleryService:
     def __init__(self, repository: GalleryRepository):
         self.repository = repository
 
-    def get_user_items(self, user_id: UUID) -> List[GalleryItemResponse]:
+    def get_user_items(self, user_id: UUID) -> list[GalleryItemResponse]:
         """Get all gallery items for a user."""
         return self.repository.get_by_user(user_id)
 

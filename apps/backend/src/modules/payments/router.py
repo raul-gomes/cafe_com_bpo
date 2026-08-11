@@ -1,18 +1,19 @@
-from fastapi import APIRouter, Depends, HTTPException, Request, BackgroundTasks
-from typing import Annotated, List
-from sqlalchemy.orm import Session
 import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request
+from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.core.logger import log
-from src.modules.auth.service import get_current_user
 from src.modules.auth.schemas import UserResponse
+from src.modules.auth.service import get_current_user
+from src.modules.payments.repository import PaymentRepository
 from src.modules.payments.schemas import (
     CreateCustomerInput,
     CreatePaymentInput,
     PaymentResponse,
 )
-from src.modules.payments.repository import PaymentRepository
 from src.modules.payments.service import PaymentService
 
 router = APIRouter(prefix="/payments", tags=["payments"])
@@ -37,7 +38,7 @@ async def create_customer(
         result = await service.create_customer_for_user(current_user.id, customer_data)
         return result
     except Exception as e:
-        log.error(f"Erro ao criar cliente Asaas: {str(e)}")
+        log.error(f"Erro ao criar cliente Asaas: {e!s}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -61,11 +62,11 @@ async def create_payment(
 
         return payment
     except Exception as e:
-        log.error(f"Erro ao criar pagamento: {str(e)}")
+        log.error(f"Erro ao criar pagamento: {e!s}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/", response_model=List[PaymentResponse])
+@router.get("/", response_model=list[PaymentResponse])
 def list_payments(
     service: ServiceDep,
     current_user: CurrentUserDep,
@@ -101,5 +102,5 @@ async def asaas_webhook(
 
         return {"status": "ok", "payment_id": str(payment.id) if payment else None}
     except Exception as e:
-        log.error(f"Erro ao processar webhook Asaas: {str(e)}")
+        log.error(f"Erro ao processar webhook Asaas: {e!s}")
         return {"status": "error", "message": str(e)}

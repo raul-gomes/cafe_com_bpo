@@ -1,0 +1,23 @@
+# Ruff config — convenções de lint/format do backend.
+#
+# Sem `select` explícito: usa o conjunto default do ruff (E, F, I, UP, B,
+# TRY, DTZ, ...). As regras opinativas que contrariam o estilo atual do repo
+# ficam em `ignore`. A versão do ruff é pinada no CI (ruff==0.16.2) para o
+# build ser reproduzível mesmo com releases futuras.
+line-length = 88
+
+[lint]
+ignore = [
+    "BLE001",   # except Exception cego é convenção do repo (log + seguir)
+    "B008",     # Depends()/File() como default — estilo FastAPI do repo
+    "B006",     # default mutável pontual (campos pydantic)
+    "TRY002",   # raise Exception em pontos específicos (rede/serviços)
+    "TRY201",
+    "DTZ001",   # datetimes "ingênuos" herdados — refatoração de tz adiada
+    "DTZ003",
+    "DTZ005",
+    "ASYNC230", # open() em função async — exigiria aiofiles (dep nova)
+    "RUF012",   # atributo de classe mutável (vale ser auditado depois)
+    "RUF015",
+    "SIM103",
+]

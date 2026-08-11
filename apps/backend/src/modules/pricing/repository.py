@@ -4,7 +4,6 @@ Pricing Module - Repository Layer
 Data access for pricing scenarios.
 """
 
-from typing import List, Optional
 from uuid import UUID
 
 from sqlalchemy.orm import Session
@@ -26,7 +25,7 @@ class PricingRepository:
         self.session.refresh(scenario)
         return scenario
 
-    def get_by_id(self, scenario_id: UUID, user_id: UUID) -> Optional[PricingScenario]:
+    def get_by_id(self, scenario_id: UUID, user_id: UUID) -> PricingScenario | None:
         """Get a scenario by ID for a specific user."""
         return (
             self.session.query(PricingScenario)
@@ -36,7 +35,7 @@ class PricingRepository:
             .first()
         )
 
-    def get_by_user(self, user_id: UUID) -> List[PricingScenario]:
+    def get_by_user(self, user_id: UUID) -> list[PricingScenario]:
         """Get all scenarios for a user."""
         return (
             self.session.query(PricingScenario)

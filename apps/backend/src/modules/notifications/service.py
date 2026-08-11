@@ -5,12 +5,11 @@ Business logic for notification management.
 Decoupled dispatcher architecture for future email/WhatsApp integration.
 """
 
-from typing import List, Optional
 from uuid import UUID
 
+from src.core.logger import log
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationCreate, NotificationResponse
-from src.core.logger import log
 
 
 class NotificationDispatcher:
@@ -28,8 +27,8 @@ class NotificationDispatcher:
         title: str,
         message: str,
         notif_type: str,
-        related_entity_type: Optional[str] = None,
-        related_entity_id: Optional[UUID] = None,
+        related_entity_type: str | None = None,
+        related_entity_id: UUID | None = None,
     ) -> NotificationResponse:
         """Create and persist an in-app notification."""
         notif_data = NotificationCreate(
@@ -90,9 +89,9 @@ class NotificationService:
     def get_notifications(
         self,
         user_id: UUID,
-        type_filter: Optional[str] = None,
+        type_filter: str | None = None,
         unread_only: bool = False,
-    ) -> List[NotificationResponse]:
+    ) -> list[NotificationResponse]:
         """Get all notifications for a user."""
         return self.repository.get_by_user(user_id, type_filter, unread_only)
 

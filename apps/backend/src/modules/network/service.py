@@ -4,7 +4,6 @@ Network Module - Service Layer
 Business logic for network/connections management.
 """
 
-from typing import List
 from uuid import UUID
 
 from src.modules.network.repository import NetworkRepository
@@ -21,7 +20,7 @@ class NetworkService:
     def __init__(self, repository: NetworkRepository):
         self.repository = repository
 
-    def get_user_connections(self, user_id: UUID) -> List[ConnectionResponse]:
+    def get_user_connections(self, user_id: UUID) -> list[ConnectionResponse]:
         """Get all connections for a user."""
         return self.repository.get_connections(user_id)
 
@@ -31,7 +30,7 @@ class NetworkService:
         """Send a connection request to another user."""
         return self.repository.create_request(request_data, requester_id)
 
-    def get_pending_requests(self, user_id: UUID) -> List[NetworkRequestResponse]:
+    def get_pending_requests(self, user_id: UUID) -> list[NetworkRequestResponse]:
         """Get pending connection requests for a user."""
         return self.repository.get_pending_requests(user_id)
 

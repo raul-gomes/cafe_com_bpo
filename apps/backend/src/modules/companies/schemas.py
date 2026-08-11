@@ -1,13 +1,13 @@
-from pydantic import BaseModel
-from typing import Optional
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel
 
 
 class CompanyBase(BaseModel):
     name: str
-    segment: Optional[str] = None
-    description: Optional[str] = None
+    segment: str | None = None
+    description: str | None = None
 
 
 class CompanyCreate(CompanyBase):
@@ -15,7 +15,7 @@ class CompanyCreate(CompanyBase):
 
 
 class CompanyUpdate(CompanyBase):
-    name: Optional[str] = None
+    name: str | None = None
 
 
 class CompanyResponse(CompanyBase):

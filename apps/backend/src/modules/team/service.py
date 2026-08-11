@@ -1,20 +1,19 @@
 from uuid import UUID
-from typing import Optional
-from src.core.logger import log
-from src.core.email import EmailService
+
 from src.core.config import get_settings
+from src.core.email import EmailService
+from src.core.logger import log
 
 from .repository import TeamRepository
 from .schemas import (
-    InviteCreate,
+    AcceptResponse,
     InviteBatchResponse,
+    InviteCreate,
     InviteResult,
-    TeamMemberResponse,
     RoutineAccess,
     TeamListResponse,
-    AcceptResponse,
+    TeamMemberResponse,
 )
-
 
 settings = get_settings()
 
@@ -113,7 +112,7 @@ class TeamService:
             )
 
         except Exception as e:
-            log.error(f"Erro ao convidar {email}: {str(e)}")
+            log.error(f"Erro ao convidar {email}: {e!s}")
             return InviteResult(
                 email=email,
                 status="error",
@@ -121,7 +120,7 @@ class TeamService:
             )
 
     def accept_invitation(
-        self, token: str, user_id: Optional[UUID] = None
+        self, token: str, user_id: UUID | None = None
     ) -> AcceptResponse:
         """Accept an invitation. If user_id is None, return info for redirect."""
         invitation = self.repo.get_invitation_by_token(token)

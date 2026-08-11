@@ -4,18 +4,19 @@ Notifications Module - Router
 API endpoints for notification management.
 """
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import Annotated, List, Optional
-from sqlalchemy.orm import Session
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
-from .schemas import NotificationCreate, NotificationResponse, UnreadCountResponse
 from .repository import NotificationRepository
+from .schemas import NotificationCreate, NotificationResponse, UnreadCountResponse
 from .service import NotificationService
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -52,11 +53,11 @@ def create_notification(
     return new_notif
 
 
-@router.get("/", response_model=List[NotificationResponse])
+@router.get("/", response_model=list[NotificationResponse])
 def get_notifications(
     service: ServiceDep,
     current_user: CurrentUserDep,
-    type: Optional[str] = Query(None, description="Filter by notification type"),
+    type: str | None = Query(None, description="Filter by notification type"),
     unread_only: bool = Query(False, description="Only return unread notifications"),
 ):
     """Retorna notificações do usuário atual."""
@@ -95,4 +96,3 @@ def delete_notification(
         log.info(f"🗑️ Notificação excluída: {notif_id} por {current_user.email}")
     except ValueError:
         raise HTTPException(status_code=404, detail="Notificação não encontrada")
-    return None

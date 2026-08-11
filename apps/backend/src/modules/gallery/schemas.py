@@ -4,17 +4,17 @@ Gallery Module - Schemas
 Pydantic schemas for gallery item validation.
 """
 
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 
 class GalleryItemBase(BaseModel):
     """Base schema for gallery items."""
 
-    title: Optional[str] = None
-    description: Optional[str] = None
+    title: str | None = None
+    description: str | None = None
 
 
 class GalleryItemCreate(GalleryItemBase):
@@ -27,8 +27,6 @@ class GalleryItemCreate(GalleryItemBase):
 
 class GalleryItemUpdate(GalleryItemBase):
     """Schema for updating a gallery item."""
-
-    pass
 
 
 class GalleryItemResponse(GalleryItemBase):
@@ -52,9 +50,9 @@ class CommonGalleryItemResponse(BaseModel):
     file_name: str
     file_type: str
     file_size: int
-    title: Optional[str] = None
-    description: Optional[str] = None
-    created_by: Optional[UUID] = None
+    title: str | None = None
+    description: str | None = None
+    created_by: UUID | None = None
     created_at: datetime
     updated_at: datetime
 

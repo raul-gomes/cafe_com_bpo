@@ -1,6 +1,8 @@
-from sqlalchemy import Column, String, Text, DateTime, func, UUID, ForeignKey, Boolean
-from src.core.database import Base
 import uuid
+
+from sqlalchemy import UUID, Boolean, Column, DateTime, ForeignKey, String, Text, func
+
+from src.core.database import Base
 
 
 class Client(Base):

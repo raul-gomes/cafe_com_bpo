@@ -45,11 +45,11 @@ class EmailScheduler:
                     stats = worker.run_once()
                     if stats["processed"]:
                         log.info(f"📬 Email worker cycle: {stats}")
-                except Exception as e:  # noqa: BLE001
+                except Exception as e:
                     log.error(f"📬 Email worker cycle error: {e}")
                 finally:
                     db.close()
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.error(f"Email worker fatal: {e}")
 
         task = FuncTask(
@@ -71,7 +71,7 @@ class EmailScheduler:
             try:
                 self.app.session.shut_down()
                 log.info("🛑 Email worker shut down")
-            except Exception as e:  # noqa: BLE001
+            except Exception as e:
                 log.warning(f"Email worker shutdown warning: {e}")
 
 

@@ -1,7 +1,7 @@
-from pydantic import BaseModel, ConfigDict
-from typing import Optional
-from uuid import UUID
 from datetime import datetime
+from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict
 
 
 class InviteCreate(BaseModel):
@@ -12,8 +12,8 @@ class InviteCreate(BaseModel):
 class InviteResult(BaseModel):
     email: str
     status: str
-    invitation_id: Optional[UUID] = None
-    error: Optional[str] = None
+    invitation_id: UUID | None = None
+    error: str | None = None
 
 
 class InviteBatchResponse(BaseModel):
@@ -31,7 +31,7 @@ class RoutineAccess(BaseModel):
 
 class TeamMemberResponse(BaseModel):
     user_id: UUID
-    name: Optional[str] = None
+    name: str | None = None
     email: str
     joined_at: datetime
     routines: list[RoutineAccess] = []
@@ -45,7 +45,7 @@ class TeamListResponse(BaseModel):
 
 class AcceptResponse(BaseModel):
     status: str
-    client_name: Optional[str] = None
-    client_id: Optional[UUID] = None
+    client_name: str | None = None
+    client_id: UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)

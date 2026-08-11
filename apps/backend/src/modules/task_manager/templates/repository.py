@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Optional
+
+from sqlalchemy.orm import Session
+
 from ..models import ActivityTemplate, TemplateActivity
 from ..schemas import (
     ActivityTemplateCreate,
@@ -16,7 +17,7 @@ class TemplateRepository:
 
     # ── ActivityTemplate CRUD ──
 
-    def get_templates_by_user(self, user_id: UUID) -> List[ActivityTemplate]:
+    def get_templates_by_user(self, user_id: UUID) -> list[ActivityTemplate]:
         return (
             self.session.query(ActivityTemplate)
             .filter(ActivityTemplate.user_id == user_id)
@@ -26,7 +27,7 @@ class TemplateRepository:
 
     def get_template_by_id(
         self, template_id: UUID, user_id: UUID
-    ) -> Optional[ActivityTemplate]:
+    ) -> ActivityTemplate | None:
         return (
             self.session.query(ActivityTemplate)
             .filter(
@@ -61,7 +62,7 @@ class TemplateRepository:
 
     # ── TemplateActivity CRUD ──
 
-    def get_activities_by_template(self, template_id: UUID) -> List[TemplateActivity]:
+    def get_activities_by_template(self, template_id: UUID) -> list[TemplateActivity]:
         return (
             self.session.query(TemplateActivity)
             .filter(TemplateActivity.template_id == template_id)
@@ -69,7 +70,7 @@ class TemplateRepository:
             .all()
         )
 
-    def get_activity_by_id(self, activity_id: UUID) -> Optional[TemplateActivity]:
+    def get_activity_by_id(self, activity_id: UUID) -> TemplateActivity | None:
         return (
             self.session.query(TemplateActivity)
             .filter(TemplateActivity.id == activity_id)

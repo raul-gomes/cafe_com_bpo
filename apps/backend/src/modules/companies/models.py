@@ -1,7 +1,9 @@
-from sqlalchemy import Column, String, Text, DateTime, func, UUID, ForeignKey
-from sqlalchemy.orm import relationship
-from src.core.database import Base
 import uuid
+
+from sqlalchemy import UUID, Column, DateTime, ForeignKey, String, Text, func
+from sqlalchemy.orm import relationship
+
+from src.core.database import Base
 
 
 class Company(Base):

@@ -1,6 +1,7 @@
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import declarative_base, sessionmaker
 from sqlalchemy.pool import QueuePool
+
 from src.core.config import get_settings
 from src.core.logger import log
 

@@ -5,11 +5,12 @@ Database models for storing pricing scenarios.
 The calculation engine is in domain/engine.py (domain-driven design).
 """
 
-from sqlalchemy import Column, String, Float, Integer, DateTime, ForeignKey
-from sqlalchemy.dialects.postgresql import UUID as PGUUID
-from sqlalchemy.orm import relationship
 from datetime import datetime
 from uuid import uuid4
+
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.orm import relationship
 
 from src.core.database import Base
 

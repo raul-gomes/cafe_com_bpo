@@ -1,19 +1,21 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 from uuid import UUID
 
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
+
 from src.core.database import get_db_session
-from src.modules.auth.service import get_current_user
 from src.modules.auth.models import User
+from src.modules.auth.service import get_current_user
+
+from .repository import NetworkRepository
 from .schemas import (
-    PostCreate,
-    PostResponse,
-    PaginatedPosts,
     CommentCreate,
     CommentResponse,
     PaginatedNotifications,
+    PaginatedPosts,
+    PostCreate,
+    PostResponse,
 )
-from .repository import NetworkRepository
 
 router = APIRouter(prefix="/network", tags=["Network"])
 
@@ -128,7 +130,6 @@ def mark_notification_read(
 ):
     repo = NetworkRepository(db)
     repo.mark_notification_read(current_user.id, notification_id)
-    return None
 
 
 @router.patch("/notifications/read", status_code=status.HTTP_204_NO_CONTENT)
@@ -138,4 +139,3 @@ def mark_notifications_read(
 ):
     repo = NetworkRepository(db)
     repo.mark_notifications_read(current_user.id)
-    return None

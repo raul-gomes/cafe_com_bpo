@@ -1,17 +1,19 @@
-from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Optional
+
+from sqlalchemy.orm import Session
+
+from src.modules.proposals.models import PricingScenario
+from src.modules.task_manager.models import Task
+
 from .models import Client
 from .schemas import ClientCreate, ClientUpdate
-from src.modules.task_manager.models import Task
-from src.modules.proposals.models import PricingScenario
 
 
 class ClientRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_id(self, client_id: UUID, user_id: UUID) -> Optional[Client]:
+    def get_by_id(self, client_id: UUID, user_id: UUID) -> Client | None:
         return (
             self.session.query(Client)
             .filter(
@@ -22,7 +24,7 @@ class ClientRepository:
             .first()
         )
 
-    def get_by_user(self, user_id: UUID) -> List[Client]:
+    def get_by_user(self, user_id: UUID) -> list[Client]:
         return (
             self.session.query(Client)
             .filter(Client.user_id == user_id, Client.is_active)
@@ -30,7 +32,7 @@ class ClientRepository:
             .all()
         )
 
-    def get_by_id_unchecked(self, client_id: UUID) -> Optional[Client]:
+    def get_by_id_unchecked(self, client_id: UUID) -> Client | None:
         """Get client without filtering by user_id (for team access checks)."""
         return (
             self.session.query(Client)

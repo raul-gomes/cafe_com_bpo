@@ -13,7 +13,6 @@ Testa TODOS os endpoints da aplicação para garantir que:
 
 from uuid import uuid4
 
-
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 
 

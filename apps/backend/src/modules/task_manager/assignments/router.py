@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
@@ -8,14 +9,14 @@ from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
+from ..assignments.repository import AssignmentRepository
+from ..assignments.service import AssignmentService
 from ..schemas import (
     ClientTemplateAssignmentCreate,
     ClientTemplateAssignmentResponse,
 )
-from ..assignments.repository import AssignmentRepository
-from ..assignments.service import AssignmentService
-from ..templates.repository import TemplateRepository
 from ..task.repository import TaskRepository
+from ..templates.repository import TemplateRepository
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -53,7 +54,7 @@ def assign_template(
 
 @router.get(
     "/client-templates/",
-    response_model=List[ClientTemplateAssignmentResponse],
+    response_model=list[ClientTemplateAssignmentResponse],
 )
 def list_client_assignments(
     client_id: UUID, service: AssignmentServiceDep, current_user: CurrentUserDep
@@ -73,7 +74,6 @@ def remove_client_assignment(
         service.remove_client_assignment(assignment_id, current_user.id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Vínculo não encontrado")
-    return None
 
 
 @router.post("/client-templates/{assignment_id}/regenerate")

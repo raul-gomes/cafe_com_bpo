@@ -1,14 +1,15 @@
-import uuid
 import hashlib
-from datetime import datetime, timezone, timedelta
-from sqlalchemy.orm import Session
+import uuid
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
-from typing import Optional
 
-from .models import ClientInvitation, ClientInvitationRoutine, ClientTeamMember
+from sqlalchemy.orm import Session
+
+from src.modules.auth.models import User
 from src.modules.clients.models import Client
 from src.modules.task_manager.models import ActivityTemplate
-from src.modules.auth.models import User
+
+from .models import ClientInvitation, ClientInvitationRoutine, ClientTeamMember
 
 
 def _hash_token(token: str) -> str:
@@ -55,7 +56,7 @@ class TeamRepository:
         self.session.refresh(invitation)
         return invitation, raw_token
 
-    def get_invitation_by_token(self, raw_token: str) -> Optional[ClientInvitation]:
+    def get_invitation_by_token(self, raw_token: str) -> ClientInvitation | None:
         token_hash = _hash_token(raw_token)
         return (
             self.session.query(ClientInvitation)
@@ -69,7 +70,7 @@ class TeamRepository:
 
     def get_pending_invitation_by_email(
         self, client_id: UUID, email: str
-    ) -> Optional[ClientInvitation]:
+    ) -> ClientInvitation | None:
         return (
             self.session.query(ClientInvitation)
             .filter(
@@ -189,7 +190,7 @@ class TeamRepository:
 
     # ── Helpers ──
 
-    def get_client_owner_id(self, client_id: UUID) -> Optional[UUID]:
+    def get_client_owner_id(self, client_id: UUID) -> UUID | None:
         client = (
             self.session.query(Client.user_id)
             .filter(Client.id == client_id, Client.is_active)
@@ -197,22 +198,22 @@ class TeamRepository:
         )
         return client[0] if client else None
 
-    def get_client_by_id(self, client_id: UUID) -> Optional[Client]:
+    def get_client_by_id(self, client_id: UUID) -> Client | None:
         return (
             self.session.query(Client)
             .filter(Client.id == client_id, Client.is_active)
             .first()
         )
 
-    def get_user_by_email(self, email: str) -> Optional[User]:
+    def get_user_by_email(self, email: str) -> User | None:
         return (
             self.session.query(User).filter(User.email == email.lower().strip()).first()
         )
 
-    def get_user_by_id(self, user_id: UUID) -> Optional[User]:
+    def get_user_by_id(self, user_id: UUID) -> User | None:
         return self.session.query(User).filter(User.id == user_id).first()
 
-    def get_template_by_id(self, template_id: UUID) -> Optional[ActivityTemplate]:
+    def get_template_by_id(self, template_id: UUID) -> ActivityTemplate | None:
         return (
             self.session.query(ActivityTemplate)
             .filter(ActivityTemplate.id == template_id)

@@ -3,12 +3,11 @@ Notifications Module - Repository
 
 Data access layer for notifications.
 """
-# ruff: noqa: E712 - SQLAlchemy requires == False for boolean column comparisons
+
+from datetime import datetime, timezone
+from uuid import UUID
 
 from sqlalchemy.orm import Session
-from uuid import UUID
-from typing import List, Optional
-from datetime import datetime, timezone
 
 from .models import AppNotification
 from .schemas import NotificationCreate
@@ -18,7 +17,7 @@ class NotificationRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_id(self, notif_id: UUID, user_id: UUID) -> Optional[AppNotification]:
+    def get_by_id(self, notif_id: UUID, user_id: UUID) -> AppNotification | None:
         """Get a specific notification for a user."""
         return (
             self.session.query(AppNotification)
@@ -29,9 +28,9 @@ class NotificationRepository:
     def get_by_user(
         self,
         user_id: UUID,
-        type_filter: Optional[str] = None,
+        type_filter: str | None = None,
         unread_only: bool = False,
-    ) -> List[AppNotification]:
+    ) -> list[AppNotification]:
         """Get all notifications for a user, optionally filtered."""
         query = self.session.query(AppNotification).filter(
             AppNotification.user_id == user_id

@@ -6,17 +6,18 @@ GET  /calendar/auth-url   — Get Google OAuth authorization URL
 GET  /calendar/status     — Check Google Calendar connection status
 """
 
-from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
 
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
 from .schemas import (
+    CalendarAuthUrlResponse,
     CalendarSyncRequest,
     CalendarSyncResponse,
-    CalendarAuthUrlResponse,
     TokenStatusResponse,
 )
 from .service import GoogleCalendarService

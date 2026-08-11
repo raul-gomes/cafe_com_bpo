@@ -1,14 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, Body
-from typing import Annotated, List
-from sqlalchemy.orm import Session
 import uuid
+from typing import Annotated
+
+from fastapi import APIRouter, Body, Depends, HTTPException
+from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.core.logger import log
-from src.modules.auth.service import get_current_user
 from src.modules.auth.schemas import UserResponse
-from .schemas import ProposalCreate, ProposalResponse
+from src.modules.auth.service import get_current_user
+
 from .repository import PricingScenarioRepository
+from .schemas import ProposalCreate, ProposalResponse
 from .service import ProposalService
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
@@ -50,11 +52,11 @@ def create_proposal(
         return new_scenario
     except Exception as e:
         repo.session.rollback()
-        log.error(f"❌ Erro ao salvar proposta para {current_user.email}: {str(e)}")
+        log.error(f"❌ Erro ao salvar proposta para {current_user.email}: {e!s}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/", response_model=List[ProposalResponse])
+@router.get("/", response_model=list[ProposalResponse])
 def list_proposals(repo: RepoDep, current_user: CurrentUserDep):
     proposals = repo.list_scenarios_by_user(current_user.id)
     log.debug(
@@ -109,7 +111,7 @@ def update_proposal(
         raise
     except Exception as e:
         repo.session.rollback()
-        log.error(f"❌ Erro ao atualizar proposta {proposal_id}: {str(e)}")
+        log.error(f"❌ Erro ao atualizar proposta {proposal_id}: {e!s}")
         raise HTTPException(status_code=400, detail=str(e))
 
 
@@ -128,7 +130,6 @@ def delete_proposal(proposal_id: str, repo: RepoDep, current_user: CurrentUserDe
 
     repo.session.commit()
     log.info(f"🗑️ Proposta excluída: {proposal_id} por {current_user.email}")
-    return None
 
 
 @router.get("/{proposal_id}/pdf-url")
@@ -168,7 +169,7 @@ def send_proposal_email(
         )
         return {"message": "E-mail enviado com sucesso."}
     except RuntimeError as e:
-        log.error(f"❌ Erro ao enviar e-mail: {str(e)}")
+        log.error(f"❌ Erro ao enviar e-mail: {e!s}")
         raise HTTPException(status_code=500, detail=str(e))
 
 

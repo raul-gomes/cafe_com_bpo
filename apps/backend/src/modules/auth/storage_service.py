@@ -1,9 +1,10 @@
-import httpx
-import time
 import hashlib
+import time
+
 import cloudinary
 import cloudinary.uploader
-from typing import Dict, Tuple
+import httpx
+
 from src.core.config import get_settings
 from src.core.logger import log
 
@@ -22,7 +23,7 @@ class CloudinaryService:
     @classmethod
     async def upload_file(
         cls, content: bytes, user_id: str, folder: str = "avatars"
-    ) -> Dict:
+    ) -> dict:
         """
         Faz o upload de um arquivo para o Cloudinary com ID único para evitar conflitos.
 
@@ -50,7 +51,7 @@ class CloudinaryService:
                 "url": upload_result["secure_url"],
             }
         except Exception as e:
-            log.error(f"❌ Erro no upload para Cloudinary: {str(e)}")
+            log.error(f"❌ Erro no upload para Cloudinary: {e!s}")
             raise e
 
     @classmethod
@@ -62,11 +63,11 @@ class CloudinaryService:
             cloudinary.uploader.destroy(public_id)
             log.info(f"🗑️ Arquivo Cloudinary removido: {public_id}")
         except Exception as e:
-            log.error(f"❌ Erro ao deletar arquivo no Cloudinary: {str(e)}")
+            log.error(f"❌ Erro ao deletar arquivo no Cloudinary: {e!s}")
 
 
 class OneDriveService:
-    _token_cache: Dict[str, Tuple[str, float]] = {}
+    _token_cache: dict[str, tuple[str, float]] = {}
 
     @classmethod
     async def _get_access_token(cls) -> str:
@@ -100,7 +101,7 @@ class OneDriveService:
                 cls._token_cache["token"] = (token, now + expires_in)
                 return token
             except Exception as e:
-                log.error(f"❌ Falha ao obter token Microsoft: {str(e)}")
+                log.error(f"❌ Falha ao obter token Microsoft: {e!s}")
                 raise Exception("Erro na autenticação com provedor de storage.")
 
     @classmethod
@@ -108,7 +109,7 @@ class OneDriveService:
         return hashlib.sha256(content).hexdigest()[:16]
 
     @classmethod
-    async def upload_file(cls, content: bytes, user_id: str, extension: str) -> Dict:
+    async def upload_file(cls, content: bytes, user_id: str, extension: str) -> dict:
         """
         Faz o upload de um arquivo para o OneDrive.
         Retorna o itemId e metadados.
@@ -132,7 +133,7 @@ class OneDriveService:
                 response.raise_for_status()
                 return response.json()
             except Exception as e:
-                log.error(f"❌ Erro no upload para OneDrive: {str(e)}")
+                log.error(f"❌ Erro no upload para OneDrive: {e!s}")
                 raise e
 
     @classmethod
@@ -156,7 +157,7 @@ class OneDriveService:
                 response.raise_for_status()
                 return response.json()["link"]["webUrl"]
             except Exception as e:
-                log.error(f"❌ Erro ao criar link no OneDrive: {str(e)}")
+                log.error(f"❌ Erro ao criar link no OneDrive: {e!s}")
                 return ""
 
     @classmethod
@@ -178,4 +179,4 @@ class OneDriveService:
                         f"⚠️ Resposta inesperada ao deletar item {item_id}: {response.status_code}"
                     )
             except Exception as e:
-                log.error(f"❌ Erro ao deletar arquivo no OneDrive: {str(e)}")
+                log.error(f"❌ Erro ao deletar arquivo no OneDrive: {e!s}")

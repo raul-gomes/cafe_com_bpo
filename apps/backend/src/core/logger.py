@@ -1,6 +1,8 @@
-import sys
 import logging
+import sys
+
 from loguru import logger
+
 from src.core.config import get_settings
 
 settings = get_settings()

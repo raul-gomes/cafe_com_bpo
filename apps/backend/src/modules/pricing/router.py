@@ -1,8 +1,11 @@
-from fastapi import APIRouter, Depends, HTTPException
 from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+
+from src.core.logger import log
+
 from .schemas import PricingCalculateRequest, PricingCalculateResponse
 from .service import PricingService
-from src.core.logger import log
 
 router = APIRouter(prefix="/pricing", tags=["pricing"])
 
@@ -33,5 +36,5 @@ def calculate_pricing_endpoint(
             status_code=501, detail="O cálculo do motor ainda não foi implementado."
         )
     except Exception as e:
-        log.error(f"❌ Erro na simulação: {str(e)}")
+        log.error(f"❌ Erro na simulação: {e!s}")
         raise HTTPException(status_code=400, detail=str(e))

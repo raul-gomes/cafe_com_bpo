@@ -1,8 +1,8 @@
-from pydantic import BaseModel, Field, EmailStr
-from decimal import Decimal
-from typing import List, Optional
-from uuid import UUID
 from datetime import datetime
+from decimal import Decimal
+from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field
 
 
 class OperationContextSchema(BaseModel):
@@ -42,7 +42,7 @@ class ServiceItemSchema(BaseModel):
     monthly_quantity: int = Field(
         ..., ge=0, description="Volume da requisição estimado no mês."
     )
-    fixed_value: Optional[Decimal] = Field(
+    fixed_value: Decimal | None = Field(
         default=None,
         ge=0,
         description="Proteção de Forçar Preço Fixo absoluto que substitui o calculo de tempo por minuto.",
@@ -55,7 +55,7 @@ class PricingCalculateRequest(BaseModel):
     """
 
     operation: OperationContextSchema
-    services: List[ServiceItemSchema] = Field(
+    services: list[ServiceItemSchema] = Field(
         ..., min_length=1, description="Listagem de no mínimo um serviço orçado."
     )
     desired_profit_margin: Decimal = Field(
@@ -72,7 +72,7 @@ class PricingBreakdownSchema(BaseModel):
 
     cost_per_hour: Decimal
     cost_per_minute: Decimal
-    service_costs: List[Decimal]
+    service_costs: list[Decimal]
     total_service_cost: Decimal
     profit_amount: Decimal
     tax_amount: Decimal
@@ -91,10 +91,10 @@ class PricingCalculateResponse(BaseModel):
 class UserCreate(BaseModel):
     email: EmailStr = Field(..., description="E-mail principal do usuário.")
     password: str = Field(..., min_length=8, description="Senha forte.")
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None, max_length=150, description="Nome completo do usuário."
     )
-    company: Optional[str] = Field(
+    company: str | None = Field(
         default=None, max_length=150, description="Empresa do usuário."
     )
 
@@ -102,8 +102,8 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
-    name: Optional[str] = None
-    company: Optional[str] = None
+    name: str | None = None
+    company: str | None = None
 
 
 class TokenResponse(BaseModel):

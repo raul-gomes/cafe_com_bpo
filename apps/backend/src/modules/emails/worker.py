@@ -42,7 +42,7 @@ class EmailWorker:
             try:
                 self._process_one(repo, delivery, provider)
                 stats["sent"] += 1
-            except Exception as error:  # noqa: BLE001
+            except Exception as error:
                 self._handle_error(repo, delivery, error, stats)
             finally:
                 duration_ms = (time.time() - start) * 1000

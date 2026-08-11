@@ -1,19 +1,20 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
-from ..schemas import (
-    RoutineTypeCreate,
-    RoutineTypeUpdate,
-    RoutineTypeResponse,
-)
 from ..routine_types.repository import RoutineTypeRepository
 from ..routine_types.service import RoutineTypeService
+from ..schemas import (
+    RoutineTypeCreate,
+    RoutineTypeResponse,
+    RoutineTypeUpdate,
+)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -28,7 +29,7 @@ RTServiceDep = Annotated[RoutineTypeService, Depends(get_routine_type_service)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
-@router.get("/routine-types/", response_model=List[RoutineTypeResponse])
+@router.get("/routine-types/", response_model=list[RoutineTypeResponse])
 def list_routine_types(service: RTServiceDep, current_user: CurrentUserDep):
     """Lista os tipos de rotina do usuário."""
     return service.list_routine_types(current_user.id)

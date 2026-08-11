@@ -14,13 +14,14 @@ Models and schemas are shared at this root level.
 """
 
 from fastapi import APIRouter
+
+from .assignments.router import router as assignments_router
+from .attachments.router import router as attachments_router
+from .routine_types.router import router as routine_types_router
+from .scheduler import trigger_router
+from .sla.router import router as sla_router
 from .task.router import router as task_router
 from .templates.router import router as templates_router
-from .assignments.router import router as assignments_router
-from .routine_types.router import router as routine_types_router
-from .sla.router import router as sla_router
-from .attachments.router import router as attachments_router
-from .scheduler import trigger_router
 
 router = APIRouter()
 router.include_router(task_router)

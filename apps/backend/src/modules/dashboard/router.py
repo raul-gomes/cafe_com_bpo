@@ -1,17 +1,19 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import and_, or_
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
+from fastapi import APIRouter, Depends
+from sqlalchemy import and_, or_
+from sqlalchemy.orm import Session
+
 from src.core.database import get_db_session
-from src.modules.auth.service import get_current_user
-from src.modules.auth.schemas import UserResponse
 from src.modules.auth.models import User
-from src.modules.task_manager.models import Task
+from src.modules.auth.schemas import UserResponse
+from src.modules.auth.service import get_current_user
 from src.modules.clients.models import Client
-from src.modules.network.models import Notification, DiscussionComment
-from .schemas import DashboardSummary, UrgentTaskResponse, ActivityResponse
+from src.modules.network.models import DiscussionComment, Notification
+from src.modules.task_manager.models import Task
+
+from .schemas import ActivityResponse, DashboardSummary, UrgentTaskResponse
 
 router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 

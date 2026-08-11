@@ -1,7 +1,8 @@
-import jwt
-from datetime import datetime, timezone, timedelta
-from typing import Dict
+from datetime import datetime, timedelta, timezone
+
 import httpx
+import jwt
+
 from src.config import get_settings
 
 settings = get_settings()
@@ -47,7 +48,7 @@ class GoogleOAuthProvider:
         )
 
     @staticmethod
-    def exchange_code_for_token(code: str) -> Dict[str, str]:
+    def exchange_code_for_token(code: str) -> dict[str, str]:
         data = {
             "client_id": settings.google_client_id,
             "client_secret": settings.google_client_secret,

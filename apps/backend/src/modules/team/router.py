@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from typing import Annotated, Optional
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
@@ -8,13 +9,13 @@ from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user, get_optional_user
 
 from .repository import TeamRepository
-from .service import TeamService
 from .schemas import (
-    InviteCreate,
-    InviteBatchResponse,
-    TeamListResponse,
     AcceptResponse,
+    InviteBatchResponse,
+    InviteCreate,
+    TeamListResponse,
 )
+from .service import TeamService
 
 router = APIRouter(tags=["team"])
 
@@ -25,7 +26,7 @@ def get_repo(session: Annotated[Session, Depends(get_db_session)]) -> TeamReposi
 
 RepoDep = Annotated[TeamRepository, Depends(get_repo)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
-OptionalUserDep = Annotated[Optional[UserResponse], Depends(get_optional_user)]
+OptionalUserDep = Annotated[UserResponse | None, Depends(get_optional_user)]
 
 
 @router.post(

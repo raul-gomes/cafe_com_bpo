@@ -1,19 +1,19 @@
-from pydantic import BaseModel, ConfigDict, Field
-from typing import List, Optional
 from datetime import datetime
 from uuid import UUID
+
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class UserPublic(BaseModel):
     id: UUID
-    name: Optional[str] = None
+    name: str | None = None
     email: str
 
 
 class PostCreate(BaseModel):
     title: str = Field(..., max_length=180)
     message: str
-    tags: List[str] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
 
 
 class PostResponse(BaseModel):
@@ -22,7 +22,7 @@ class PostResponse(BaseModel):
     author: UserPublic
     title: str
     message: str
-    tags: List[str]
+    tags: list[str]
     status: str
     comments_count: int
     views_count: int
@@ -35,7 +35,7 @@ class PostResponse(BaseModel):
 
 
 class PaginatedPosts(BaseModel):
-    items: List[PostResponse]
+    items: list[PostResponse]
     total: int
 
 
@@ -65,12 +65,12 @@ class NotificationResponse(BaseModel):
     comment_id: UUID
     triggered_by_user_id: UUID
     is_read: bool
-    read_at: Optional[datetime]
+    read_at: datetime | None
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class PaginatedNotifications(BaseModel):
-    items: List[NotificationResponse]
+    items: list[NotificationResponse]
     total: int

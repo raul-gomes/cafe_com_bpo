@@ -1,6 +1,8 @@
-from sqlalchemy import Column, String, DateTime, func, ForeignKey, UUID, Text
-from src.core.database import Base
 import uuid
+
+from sqlalchemy import UUID, Column, DateTime, ForeignKey, String, Text, func
+
+from src.core.database import Base
 
 
 class UserGoogleToken(Base):

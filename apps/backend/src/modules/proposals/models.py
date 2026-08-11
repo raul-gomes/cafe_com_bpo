@@ -1,6 +1,8 @@
-from sqlalchemy import Column, String, Boolean, DateTime, func, ForeignKey, JSON, UUID
-from src.core.database import Base
 import uuid
+
+from sqlalchemy import JSON, UUID, Boolean, Column, DateTime, ForeignKey, String, func
+
+from src.core.database import Base
 
 
 class PricingScenario(Base):

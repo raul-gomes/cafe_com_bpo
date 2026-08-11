@@ -4,24 +4,23 @@ Templates Module - Service Layer
 Business logic for ActivityTemplate and TemplateActivity CRUD.
 """
 
-from typing import List, Optional
-from uuid import UUID
 from datetime import datetime, timezone
+from uuid import UUID
 
+from src.core.logger import log
+
+from ..routine_types.repository import RoutineTypeRepository
 from ..schemas import (
     ActivityTemplateCreate,
-    ActivityTemplateUpdate,
-    ActivityTemplateResponse,
     ActivityTemplateListItem,
+    ActivityTemplateResponse,
+    ActivityTemplateUpdate,
     OverdueTemplateResponse,
     TemplateActivityCreate,
-    TemplateActivityUpdate,
     TemplateActivityResponse,
+    TemplateActivityUpdate,
 )
-from ..models import ActivityTemplate
 from ..templates.repository import TemplateRepository
-from ..routine_types.repository import RoutineTypeRepository
-from src.core.logger import log
 
 
 class TemplateService:
@@ -30,7 +29,7 @@ class TemplateService:
     def __init__(
         self,
         repository: TemplateRepository,
-        routine_type_repo: Optional[RoutineTypeRepository] = None,
+        routine_type_repo: RoutineTypeRepository | None = None,
     ):
         self.repository = repository
         self.routine_type_repo = routine_type_repo or RoutineTypeRepository(
@@ -69,7 +68,7 @@ class TemplateService:
             return (now - end).days
         return 0
 
-    def get_templates(self, user_id: UUID) -> List[ActivityTemplateListItem]:
+    def get_templates(self, user_id: UUID) -> list[ActivityTemplateListItem]:
         """List all templates for a user with activity count and overdue status."""
         templates = self.repository.get_templates_by_user(user_id)
         result = []
@@ -111,7 +110,7 @@ class TemplateService:
             )
         return result
 
-    def get_overdue_templates(self, user_id: UUID) -> List[OverdueTemplateResponse]:
+    def get_overdue_templates(self, user_id: UUID) -> list[OverdueTemplateResponse]:
         """Return only overdue templates for dashboard alerts."""
         templates = self.repository.get_templates_by_user(user_id)
         result = []
@@ -138,7 +137,7 @@ class TemplateService:
 
     def get_template(
         self, template_id: UUID, user_id: UUID
-    ) -> Optional[ActivityTemplateResponse]:
+    ) -> ActivityTemplateResponse | None:
         """Get a single template with all its activities."""
         tmpl = self.repository.get_template_by_id(template_id, user_id)
         if not tmpl:
@@ -147,9 +146,7 @@ class TemplateService:
         rt_name = None
         rt_color = None
         if tmpl.routine_type_id:
-            rt = self.routine_type_repo.get_routine_type(
-                tmpl.routine_type_id, user_id
-            )
+            rt = self.routine_type_repo.get_routine_type(tmpl.routine_type_id, user_id)
             if rt:
                 rt_name = rt.name
                 rt_color = rt.color
@@ -183,9 +180,7 @@ class TemplateService:
         rt_name = None
         rt_color = None
         if tmpl.routine_type_id:
-            rt = self.routine_type_repo.get_routine_type(
-                tmpl.routine_type_id, user_id
-            )
+            rt = self.routine_type_repo.get_routine_type(tmpl.routine_type_id, user_id)
             if rt:
                 rt_name = rt.name
                 rt_color = rt.color
@@ -247,9 +242,7 @@ class TemplateService:
             routine_type_color=rt_color,
             created_at=updated.created_at,
             updated_at=updated.updated_at,
-            activities=[
-                TemplateActivityResponse.model_validate(a) for a in activities
-            ],
+            activities=[TemplateActivityResponse.model_validate(a) for a in activities],
         )
 
     def delete_template(self, template_id: UUID, user_id: UUID) -> None:
@@ -303,7 +296,7 @@ class TemplateService:
 
     def reorder_activities(
         self, template_id: UUID, user_id: UUID, ordered_ids: list[UUID]
-    ) -> List[TemplateActivityResponse]:
+    ) -> list[TemplateActivityResponse]:
         tmpl = self.repository.get_template_by_id(template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {template_id} not found")

@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status, UploadFile
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
-from ..schemas import TaskAttachmentResponse
 from ..attachments.repository import AttachmentRepository
 from ..attachments.service import AttachmentService
+from ..schemas import TaskAttachmentResponse
 from ..task.repository import TaskRepository
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -75,11 +76,7 @@ async def upload_attachment(
     """Faz upload de arquivo como anexo de tarefa."""
     import os
 
-    ext = (
-        os.path.splitext(file.filename or "file")[1].lower()
-        if file.filename
-        else ""
-    )
+    ext = os.path.splitext(file.filename or "file")[1].lower() if file.filename else ""
     if ext not in ALLOWED_EXTENSIONS:
         raise HTTPException(
             status_code=400,
@@ -135,7 +132,7 @@ async def upload_attachment(
         raise HTTPException(status_code=404, detail=str(e))
 
 
-@router.get("/{task_id}/attachments/", response_model=List[TaskAttachmentResponse])
+@router.get("/{task_id}/attachments/", response_model=list[TaskAttachmentResponse])
 def list_attachments(
     task_id: UUID, service: AttachmentServiceDep, current_user: CurrentUserDep
 ):
@@ -161,4 +158,3 @@ def delete_attachment(
         service.delete_attachment(attachment_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e))
-    return None

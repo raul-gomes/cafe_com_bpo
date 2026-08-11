@@ -1,17 +1,19 @@
+import uuid
+
 from sqlalchemy import (
-    Column,
-    String,
-    DateTime,
-    func,
     UUID,
-    ForeignKey,
     BigInteger,
     Boolean,
+    Column,
+    DateTime,
+    ForeignKey,
+    String,
     Text,
+    func,
 )
 from sqlalchemy.orm import relationship
+
 from src.core.database import Base
-import uuid
 
 
 class UserFile(Base):

@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Annotated, List
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
@@ -9,8 +10,8 @@ from src.modules.auth.service import get_current_user
 
 from ..schemas import (
     ClientSLACreate,
-    ClientSLAUpdate,
     ClientSLAResponse,
+    ClientSLAUpdate,
 )
 from ..sla.repository import SLARepository
 from ..sla.service import SLAService
@@ -28,7 +29,7 @@ SLAServiceDep = Annotated[SLAService, Depends(get_sla_service)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
-@router.get("/sla/", response_model=List[ClientSLAResponse])
+@router.get("/sla/", response_model=list[ClientSLAResponse])
 def list_client_slas(
     client_id: UUID, service: SLAServiceDep, current_user: CurrentUserDep
 ):
@@ -67,4 +68,3 @@ def delete_sla(sla_id: UUID, service: SLAServiceDep, current_user: CurrentUserDe
         service.delete_sla(sla_id)
     except ValueError:
         raise HTTPException(status_code=404, detail="SLA não encontrado")
-    return None

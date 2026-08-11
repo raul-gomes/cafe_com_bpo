@@ -4,10 +4,12 @@ Notifications Module - Models
 In-app notification system with decoupled dispatcher architecture.
 """
 
-from sqlalchemy import Column, String, DateTime, func, ForeignKey, UUID, Boolean
-from sqlalchemy.orm import relationship
-from src.core.database import Base
 import uuid
+
+from sqlalchemy import UUID, Boolean, Column, DateTime, ForeignKey, String, func
+from sqlalchemy.orm import relationship
+
+from src.core.database import Base
 
 
 class AppNotification(Base):

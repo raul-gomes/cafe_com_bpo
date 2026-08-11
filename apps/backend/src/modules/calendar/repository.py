@@ -1,6 +1,6 @@
-from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import Optional
+
+from sqlalchemy.orm import Session
 
 from .models import UserGoogleToken
 
@@ -9,7 +9,7 @@ class GoogleTokenRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_user_id(self, user_id: UUID) -> Optional[UserGoogleToken]:
+    def get_by_user_id(self, user_id: UUID) -> UserGoogleToken | None:
         return (
             self.session.query(UserGoogleToken)
             .filter(UserGoogleToken.user_id == user_id)

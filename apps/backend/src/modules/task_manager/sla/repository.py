@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Optional
+
+from sqlalchemy.orm import Session
+
 from ..models import ClientSLA
 from ..schemas import ClientSLACreate, ClientSLAUpdate
 
@@ -9,17 +10,17 @@ class SLARepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_slas_by_client(self, client_id: UUID) -> List[ClientSLA]:
+    def get_slas_by_client(self, client_id: UUID) -> list[ClientSLA]:
         return (
             self.session.query(ClientSLA).filter(ClientSLA.client_id == client_id).all()
         )
 
-    def get_sla_by_id(self, sla_id: UUID) -> Optional[ClientSLA]:
+    def get_sla_by_id(self, sla_id: UUID) -> ClientSLA | None:
         return self.session.query(ClientSLA).filter(ClientSLA.id == sla_id).first()
 
     def get_sla_by_client_and_process(
         self, client_id: UUID, process_type: str
-    ) -> Optional[ClientSLA]:
+    ) -> ClientSLA | None:
         return (
             self.session.query(ClientSLA)
             .filter(

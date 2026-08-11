@@ -4,18 +4,21 @@ Gallery Module - Models
 Database models for gallery/media items.
 """
 
+from uuid import uuid4
+
 from sqlalchemy import (
     Column,
-    String,
-    Text,
     DateTime,
     ForeignKey,
     Integer,
+    String,
+    Text,
+)
+from sqlalchemy import (
     func as sa_func,
 )
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import relationship
-from uuid import uuid4
 
 from src.core.database import Base
 

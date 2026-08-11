@@ -1,6 +1,7 @@
-from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Optional
+
+from sqlalchemy.orm import Session
+
 from .models import Company
 from .schemas import CompanyCreate, CompanyUpdate
 
@@ -9,14 +10,14 @@ class CompanyRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_id(self, company_id: UUID, user_id: UUID) -> Optional[Company]:
+    def get_by_id(self, company_id: UUID, user_id: UUID) -> Company | None:
         return (
             self.session.query(Company)
             .filter(Company.id == company_id, Company.user_id == user_id)
             .first()
         )
 
-    def get_by_user(self, user_id: UUID) -> List[Company]:
+    def get_by_user(self, user_id: UUID) -> list[Company]:
         return (
             self.session.query(Company)
             .filter(Company.user_id == user_id)

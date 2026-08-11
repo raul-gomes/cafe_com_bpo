@@ -1,7 +1,7 @@
 """Tests for Dashboard API endpoints (Tarefa 5.1)."""
 
-from uuid import uuid4
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 
 def get_auth_header(client, email):

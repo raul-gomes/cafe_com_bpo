@@ -16,4 +16,3 @@ def test_alembic_upgrade_applies_schema_successfully():
     Testa se as migrations do banco passam sem erro (Alembic).
     SKIPPED: Alembic migrations are PostgreSQL-specific and cannot run against SQLite.
     """
-    pass

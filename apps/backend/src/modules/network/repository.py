@@ -1,11 +1,12 @@
-from sqlalchemy.orm import Session
-from sqlalchemy import desc
-from uuid import UUID
-from datetime import datetime, timezone
 import re
+from datetime import datetime, timezone
+from uuid import UUID
 
-from .models import DiscussionPost, DiscussionComment, Notification
-from .schemas import PostCreate, CommentCreate
+from sqlalchemy import desc
+from sqlalchemy.orm import Session
+
+from .models import DiscussionComment, DiscussionPost, Notification
+from .schemas import CommentCreate, PostCreate
 
 
 def sanitize_html(html_str: str) -> str:

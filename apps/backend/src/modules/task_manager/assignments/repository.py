@@ -1,7 +1,8 @@
-from sqlalchemy.orm import Session
-from uuid import UUID
-from typing import List, Optional
 from datetime import datetime, timezone
+from uuid import UUID
+
+from sqlalchemy.orm import Session
+
 from ..models import ClientTemplateAssignment, Task
 from ..schemas import ClientTemplateAssignmentCreate
 
@@ -12,7 +13,9 @@ class AssignmentRepository:
 
     # ── ClientTemplateAssignment CRUD ──
 
-    def get_assignments_by_client(self, client_id: UUID) -> List[ClientTemplateAssignment]:
+    def get_assignments_by_client(
+        self, client_id: UUID
+    ) -> list[ClientTemplateAssignment]:
         return (
             self.session.query(ClientTemplateAssignment)
             .filter(ClientTemplateAssignment.client_id == client_id)
@@ -21,7 +24,7 @@ class AssignmentRepository:
 
     def get_assignment_by_id(
         self, assignment_id: UUID
-    ) -> Optional[ClientTemplateAssignment]:
+    ) -> ClientTemplateAssignment | None:
         return (
             self.session.query(ClientTemplateAssignment)
             .filter(ClientTemplateAssignment.id == assignment_id)
@@ -42,14 +45,14 @@ class AssignmentRepository:
         self.session.delete(assignment)
         self.session.commit()
 
-    def get_assignments_by_user(self, user_id: UUID) -> List[ClientTemplateAssignment]:
+    def get_assignments_by_user(self, user_id: UUID) -> list[ClientTemplateAssignment]:
         return (
             self.session.query(ClientTemplateAssignment)
             .filter(ClientTemplateAssignment.user_id == user_id)
             .all()
         )
 
-    def get_active_assignments(self) -> List[ClientTemplateAssignment]:
+    def get_active_assignments(self) -> list[ClientTemplateAssignment]:
         all_assignments = self.session.query(ClientTemplateAssignment).all()
         return [a for a in all_assignments if a.is_active is True]
 
@@ -87,7 +90,7 @@ class AssignmentRepository:
 
     def get_tasks_by_assignment_and_deadline(
         self, assignment_id: UUID, deadline_start: datetime, deadline_end: datetime
-    ) -> List[Task]:
+    ) -> list[Task]:
         """Get tasks for an assignment with deadline in a given range."""
         return (
             self.session.query(Task)
@@ -104,7 +107,7 @@ class AssignmentRepository:
         self,
         assignment_id: UUID,
         title: str,
-        deadline: Optional[datetime] = None,
+        deadline: datetime | None = None,
     ) -> bool:
         """Check if there is a pending (not done/cancelled) task for this assignment
         with the given title, optionally filtered by deadline.
@@ -144,7 +147,7 @@ class AssignmentRepository:
         return existing is not None
 
     def update_assignment_last_generated(
-        self, assignment_id: UUID, timestamp: Optional[datetime] = None
+        self, assignment_id: UUID, timestamp: datetime | None = None
     ) -> None:
         """Update last_generated_at on an assignment."""
         assignment = self.get_assignment_by_id(assignment_id)

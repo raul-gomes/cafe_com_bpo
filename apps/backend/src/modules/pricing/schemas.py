@@ -1,6 +1,6 @@
-from pydantic import BaseModel, Field
 from decimal import Decimal
-from typing import List, Optional
+
+from pydantic import BaseModel, Field
 
 
 class OperationContextSchema(BaseModel):
@@ -40,7 +40,7 @@ class ServiceItemSchema(BaseModel):
     monthly_quantity: int = Field(
         ..., ge=0, description="Volume da requisição estimado no mês."
     )
-    fixed_value: Optional[Decimal] = Field(
+    fixed_value: Decimal | None = Field(
         default=None,
         ge=0,
         description="Proteção de Forçar Preço Fixo absoluto que substitui o calculo de tempo por minuto.",
@@ -53,7 +53,7 @@ class PricingCalculateRequest(BaseModel):
     """
 
     operation: OperationContextSchema
-    services: List[ServiceItemSchema] = Field(
+    services: list[ServiceItemSchema] = Field(
         ..., min_length=1, description="Listagem de no mínimo um serviço orçado."
     )
     desired_profit_margin: Decimal = Field(
@@ -70,7 +70,7 @@ class PricingBreakdownSchema(BaseModel):
 
     cost_per_hour: Decimal
     cost_per_minute: Decimal
-    service_costs: List[Decimal]
+    service_costs: list[Decimal]
     total_service_cost: Decimal
     profit_amount: Decimal
     tax_amount: Decimal

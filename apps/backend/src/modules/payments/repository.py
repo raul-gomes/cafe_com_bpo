@@ -1,5 +1,5 @@
-from typing import List, Optional
 from uuid import UUID
+
 from sqlalchemy.orm import Session
 
 from src.modules.payments.models import Payment
@@ -15,7 +15,7 @@ class PaymentRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    def get_by_user(self, user_id: UUID) -> List[Payment]:
+    def get_by_user(self, user_id: UUID) -> list[Payment]:
         return (
             self.session.query(Payment)
             .filter(Payment.user_id == user_id)
@@ -23,21 +23,21 @@ class PaymentRepository:
             .all()
         )
 
-    def get_by_id(self, payment_id: UUID, user_id: UUID) -> Optional[Payment]:
+    def get_by_id(self, payment_id: UUID, user_id: UUID) -> Payment | None:
         return (
             self.session.query(Payment)
             .filter(Payment.id == payment_id, Payment.user_id == user_id)
             .first()
         )
 
-    def get_by_asaas_id(self, asaas_payment_id: str) -> Optional[Payment]:
+    def get_by_asaas_id(self, asaas_payment_id: str) -> Payment | None:
         return (
             self.session.query(Payment)
             .filter(Payment.asaas_payment_id == asaas_payment_id)
             .first()
         )
 
-    def get_customer_by_user(self, user_id: UUID) -> Optional[UserCustomer]:
+    def get_customer_by_user(self, user_id: UUID) -> UserCustomer | None:
         from sqlalchemy import text
 
         result = self.session.execute(
@@ -65,13 +65,13 @@ class PaymentRepository:
         self,
         user_id: UUID,
         amount: float,
-        description: Optional[str],
+        description: str | None,
         payment_method: str,
         due_date: str,
         asaas_customer_id: str,
         asaas_payment_id: str,
-        success_url: Optional[str] = None,
-        error_url: Optional[str] = None,
+        success_url: str | None = None,
+        error_url: str | None = None,
     ) -> Payment:
         payment = Payment(
             user_id=user_id,
@@ -90,7 +90,7 @@ class PaymentRepository:
         return payment
 
     def update_status(
-        self, payment_id: UUID, status: str, webhook_data: Optional[dict] = None
+        self, payment_id: UUID, status: str, webhook_data: dict | None = None
     ) -> Payment:
         payment = self.session.query(Payment).filter(Payment.id == payment_id).first()
         if payment:

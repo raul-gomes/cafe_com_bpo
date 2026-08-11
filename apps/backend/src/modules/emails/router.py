@@ -27,7 +27,7 @@ async def email_provider_webhook(request: Request):
     """Recebe evento do provedor e atualiza a entrega correspondente."""
     try:
         payload = await request.json()
-    except Exception:  # noqa: BLE001
+    except Exception:
         return {"status": "ignored", "reason": "corpo inválido"}
 
     event_type = payload.get("type", "")

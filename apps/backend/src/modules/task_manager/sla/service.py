@@ -4,16 +4,16 @@ SLA Module - Service Layer
 Business logic for ClientSLA CRUD.
 """
 
-from typing import List
 from uuid import UUID
+
+from src.core.logger import log
 
 from ..schemas import (
     ClientSLACreate,
-    ClientSLAUpdate,
     ClientSLAResponse,
+    ClientSLAUpdate,
 )
 from ..sla.repository import SLARepository
-from src.core.logger import log
 
 
 class SLAService:
@@ -22,7 +22,7 @@ class SLAService:
     def __init__(self, repository: SLARepository):
         self.repository = repository
 
-    def get_client_slas(self, client_id: UUID) -> List[ClientSLAResponse]:
+    def get_client_slas(self, client_id: UUID) -> list[ClientSLAResponse]:
         slas = self.repository.get_slas_by_client(client_id)
         return [ClientSLAResponse.model_validate(s) for s in slas]
 

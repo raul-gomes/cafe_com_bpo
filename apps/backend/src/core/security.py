@@ -1,9 +1,10 @@
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import datetime, timedelta, timezone
 from functools import lru_cache
-import jwt
+
 import bcrypt
+import jwt
 from fastapi.security import OAuth2PasswordBearer
+
 from src.core.config import get_settings
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
@@ -37,7 +38,7 @@ class TokenService:
         return _get_jwt_settings()
 
     @staticmethod
-    def create_access_token(user_id: str, subject: Optional[str] = None) -> str:
+    def create_access_token(user_id: str, subject: str | None = None) -> str:
         s = TokenService._get_settings()
         expire = datetime.now(timezone.utc) + timedelta(
             minutes=s.access_token_expire_minutes

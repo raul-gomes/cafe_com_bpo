@@ -1,6 +1,7 @@
-from pydantic import BaseModel, Field, EmailStr, field_validator
-from typing import Optional, TYPE_CHECKING
+from typing import TYPE_CHECKING
 from uuid import UUID
+
+from pydantic import BaseModel, EmailStr, Field, field_validator
 
 if TYPE_CHECKING:
     from .models import User
@@ -9,10 +10,10 @@ if TYPE_CHECKING:
 class UserCreate(BaseModel):
     email: EmailStr = Field(..., description="E-mail principal do usuário.")
     password: str = Field(..., min_length=8, description="Senha forte.")
-    name: Optional[str] = Field(
+    name: str | None = Field(
         default=None, max_length=150, description="Nome completo do usuário."
     )
-    company: Optional[str] = Field(
+    company: str | None = Field(
         default=None, max_length=150, description="Empresa do usuário."
     )
 
@@ -25,23 +26,23 @@ class UserCreate(BaseModel):
 class UserResponse(BaseModel):
     id: UUID
     email: EmailStr
-    name: Optional[str] = None
-    company: Optional[str] = None
-    company_name: Optional[str] = None
-    company_segment: Optional[str] = None
-    company_description: Optional[str] = None
+    name: str | None = None
+    company: str | None = None
+    company_name: str | None = None
+    company_segment: str | None = None
+    company_description: str | None = None
     avatar_url: str | None = None
     role: str = "user"
-    whatsapp: Optional[str] = None
-    company_razao_social: Optional[str] = None
-    company_nome_fantasia: Optional[str] = None
-    company_cnpj: Optional[str] = None
-    company_address: Optional[str] = None
-    company_professional_email: Optional[str] = None
-    company_commercial_phone: Optional[str] = None
-    company_logo_url: Optional[str] = None
-    company_color_code: Optional[str] = None
-    company_color_secondary: Optional[str] = None
+    whatsapp: str | None = None
+    company_razao_social: str | None = None
+    company_nome_fantasia: str | None = None
+    company_cnpj: str | None = None
+    company_address: str | None = None
+    company_professional_email: str | None = None
+    company_commercial_phone: str | None = None
+    company_logo_url: str | None = None
+    company_color_code: str | None = None
+    company_color_secondary: str | None = None
 
     @classmethod
     def from_user(cls, user: "User") -> "UserResponse":
@@ -72,21 +73,21 @@ class UserResponse(BaseModel):
 
 
 class ProfileUpdate(BaseModel):
-    name: Optional[str] = None
-    company: Optional[str] = None
-    company_name: Optional[str] = None
-    company_segment: Optional[str] = None
-    company_description: Optional[str] = None
-    whatsapp: Optional[str] = None
-    company_razao_social: Optional[str] = None
-    company_nome_fantasia: Optional[str] = None
-    company_cnpj: Optional[str] = None
-    company_address: Optional[str] = None
-    company_professional_email: Optional[str] = None
-    company_commercial_phone: Optional[str] = None
-    company_logo_url: Optional[str] = None
-    company_color_code: Optional[str] = None
-    company_color_secondary: Optional[str] = None
+    name: str | None = None
+    company: str | None = None
+    company_name: str | None = None
+    company_segment: str | None = None
+    company_description: str | None = None
+    whatsapp: str | None = None
+    company_razao_social: str | None = None
+    company_nome_fantasia: str | None = None
+    company_cnpj: str | None = None
+    company_address: str | None = None
+    company_professional_email: str | None = None
+    company_commercial_phone: str | None = None
+    company_logo_url: str | None = None
+    company_color_code: str | None = None
+    company_color_secondary: str | None = None
 
 
 class TokenResponse(BaseModel):
@@ -101,8 +102,8 @@ class UserLookupRequest(BaseModel):
 
 class UserLookupItem(BaseModel):
     email: str
-    name: Optional[str] = None
-    avatar_url: Optional[str] = None
+    name: str | None = None
+    avatar_url: str | None = None
 
 
 class UserLookupResponse(BaseModel):

@@ -1,6 +1,5 @@
 from dataclasses import dataclass, field
 from decimal import Decimal
-from typing import List, Optional
 
 
 @dataclass
@@ -28,7 +27,7 @@ class ServiceItem:
     name: str
     minutes_per_execution: Decimal
     monthly_quantity: int
-    fixed_value: Optional[Decimal] = None
+    fixed_value: Decimal | None = None
 
 
 @dataclass
@@ -40,7 +39,7 @@ class PricingInput:
     """
 
     operation: OperationContext
-    services: List[ServiceItem]
+    services: list[ServiceItem]
     desired_profit_margin: Decimal
 
 
@@ -54,7 +53,7 @@ class PricingBreakdown:
 
     cost_per_hour: Decimal
     cost_per_minute: Decimal
-    service_costs: List[Decimal]
+    service_costs: list[Decimal]
     total_service_cost: Decimal
     profit_amount: Decimal
     tax_amount: Decimal
@@ -94,11 +93,11 @@ class PricingCalculator:
         Raises:
             ValueError: Se os atributos de quantidade e divisor (Tempo, Pessoas) resultarem em divisões por zero ou forem inválidos.
         """
-        if getattr(operation, "total_cost", Decimal("0")) < Decimal("0"):
+        if getattr(operation, "total_cost", Decimal(0)) < Decimal(0):
             raise ValueError("O custo total da operação não pode ser negativo.")
         if getattr(operation, "people_count", 0) <= 0:
             raise ValueError("A quantidade de pessoas deve ser maior que zero.")
-        if getattr(operation, "hours_per_month", Decimal("0")) <= Decimal("0"):
+        if getattr(operation, "hours_per_month", Decimal(0)) <= Decimal(0):
             raise ValueError("A quantidade de horas por mês deve ser maior que zero.")
 
         total_hours = Decimal(str(operation.people_count)) * operation.hours_per_month
@@ -116,7 +115,7 @@ class PricingCalculator:
             Decimal: O custo decimal médio representativo para 1 minuto de atividade.
         """
         cost_per_hour = PricingCalculator.calculate_cost_per_hour(operation)
-        return cost_per_hour / Decimal("60")
+        return cost_per_hour / Decimal(60)
 
     @staticmethod
     def calculate_service_cost(
@@ -143,7 +142,7 @@ class PricingCalculator:
 
     @staticmethod
     def calculate_total_service_cost(
-        services: List[ServiceItem], cost_per_minute: Decimal
+        services: list[ServiceItem], cost_per_minute: Decimal
     ) -> Decimal:
         """
         Acumulador bruto de uma grade modular de N serviços de BPO para extração contábil do pacote.
@@ -160,7 +159,7 @@ class PricingCalculator:
                 PricingCalculator.calculate_service_cost(s, cost_per_minute)
                 for s in services
             ),
-            Decimal("0"),
+            Decimal(0),
         )
 
     @staticmethod
@@ -191,11 +190,11 @@ class PricingCalculator:
         Returns:
             Decimal: Quantia fiscal referente a impostos deduzidos nesta negociação.
         """
-        if tax_rate >= Decimal("1"):
+        if tax_rate >= Decimal(1):
             raise ValueError("A taxa de imposto deve ser menor que 1 (100%).")
         # Formula convencional de mark-up para absorcao de imposto:
         # Price_Before_Tax / (1 - Tax_Rate) acha o valor total bruto, subtraindo acha só o tributo embutido nele.
-        final_price_with_tax = price_before_tax / (Decimal("1") - tax_rate)
+        final_price_with_tax = price_before_tax / (Decimal(1) - tax_rate)
         return final_price_with_tax - price_before_tax
 
     @staticmethod
@@ -223,7 +222,7 @@ class PricingCalculator:
             PricingCalculator.calculate_service_cost(s, cost_per_minute)
             for s in pricing_input.services
         ]
-        total_service_cost = sum(service_costs, Decimal("0"))
+        total_service_cost = sum(service_costs, Decimal(0))
 
         profit_amount = PricingCalculator.calculate_profit_amount(
             total_service_cost, pricing_input.desired_profit_margin

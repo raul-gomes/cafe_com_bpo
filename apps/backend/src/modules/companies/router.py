@@ -1,15 +1,16 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Annotated, List
-from sqlalchemy.orm import Session
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
-from .schemas import CompanyCreate, CompanyUpdate, CompanyResponse
 from .repository import CompanyRepository
+from .schemas import CompanyCreate, CompanyResponse, CompanyUpdate
 
 router = APIRouter(prefix="/companies", tags=["companies"])
 
@@ -24,7 +25,7 @@ CompanyRepoDep = Annotated[CompanyRepository, Depends(get_company_repository)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
-@router.get("/", response_model=List[CompanyResponse])
+@router.get("/", response_model=list[CompanyResponse])
 def get_companies(repo: CompanyRepoDep, current_user: CurrentUserDep):
     """Retorna empresas do usuário atual"""
     return repo.get_by_user(current_user.id)
@@ -66,4 +67,3 @@ def delete_company(
         raise HTTPException(status_code=404, detail="Empresa não encontrada")
 
     repo.delete(company)
-    return None

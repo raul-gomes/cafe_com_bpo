@@ -6,18 +6,18 @@ using the official google-api-python-client library.
 """
 
 import logging
-from uuid import UUID
 from datetime import datetime, timedelta, timezone
-from typing import Optional
+from uuid import UUID
 
-from google.oauth2.credentials import Credentials
+import httpx
 from google.auth.transport.requests import Request
+from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
-import httpx
 
 from src.core.config import get_settings
 from src.core.database import SessionLocal
+
 from .repository import GoogleTokenRepository
 
 log = logging.getLogger(__name__)
@@ -67,7 +67,7 @@ class GoogleCalendarService:
             else None,
         )
 
-    def _ensure_valid_credentials(self, user_id: UUID) -> Optional[Credentials]:
+    def _ensure_valid_credentials(self, user_id: UUID) -> Credentials | None:
         """
         Return valid Credentials for the user, refreshing if necessary.
 
@@ -125,7 +125,7 @@ class GoogleCalendarService:
         email = self._fetch_email(creds)
         return {"connected": True, "email": email}
 
-    def _fetch_email(self, creds: Credentials) -> Optional[str]:
+    def _fetch_email(self, creds: Credentials) -> str | None:
         """Fetch the user's Google email using the OAuth2 userinfo endpoint."""
         try:
             oauth2_service = build(

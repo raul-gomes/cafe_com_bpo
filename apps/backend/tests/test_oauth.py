@@ -1,7 +1,9 @@
-import pytest
 from unittest.mock import patch
-from src.modules.auth.models import User
 from uuid import uuid4
+
+import pytest
+
+from src.modules.auth.models import User
 
 
 @pytest.fixture

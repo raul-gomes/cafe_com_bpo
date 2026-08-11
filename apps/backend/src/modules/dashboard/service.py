@@ -4,7 +4,7 @@ Dashboard Module - Service Layer
 Aggregates data from multiple modules for dashboard display.
 """
 
-from typing import Dict, Any
+from typing import Any
 from uuid import UUID
 
 from src.modules.clients.repository import ClientRepository
@@ -25,7 +25,7 @@ class DashboardService:
         self.proposal_repo = proposal_repo
         self.task_repo = task_repo
 
-    def get_dashboard_stats(self, user_id: UUID) -> Dict[str, Any]:
+    def get_dashboard_stats(self, user_id: UUID) -> dict[str, Any]:
         """Get summary statistics for the dashboard."""
         clients = self.client_repo.get_by_user(user_id)
         proposals = self.proposal_repo.get_by_user(user_id)

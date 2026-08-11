@@ -1,20 +1,22 @@
+import uuid
+from typing import Optional
+
 from sqlalchemy import (
-    Column,
-    String,
-    DateTime,
-    func,
-    ForeignKey,
-    UUID,
-    Text,
-    Integer,
-    Boolean,
-    Float,
     JSON,
+    UUID,
+    Boolean,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    func,
 )
 from sqlalchemy.orm import relationship
+
 from src.core.database import Base
-from typing import Optional
-import uuid
 
 DEFAULT_PHASES = [
     {"name": "a fazer", "color": "#6b7280", "order": 0},
@@ -25,7 +27,7 @@ DEFAULT_PHASES = [
 
 def get_done_phase(phases: list) -> Optional["TaskPhase"]:
     """Return the phase with the highest order (final/done column).
-    
+
     Uses position (order) instead of name so renaming phases never breaks logic.
     """
     if not phases:
@@ -145,11 +147,11 @@ class Task(Base):
     mover = relationship("User", foreign_keys=[moved_by])
 
     @property
-    def template_name(self) -> Optional[str]:
+    def template_name(self) -> str | None:
         return self.template.name if self.template else None
 
     @property
-    def moved_by_name(self) -> Optional[str]:
+    def moved_by_name(self) -> str | None:
         return self.mover.name if self.mover else None
 
 

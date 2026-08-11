@@ -1,6 +1,6 @@
-from pydantic import BaseModel
-from typing import Optional
 from uuid import UUID
+
+from pydantic import BaseModel
 
 
 class CalendarSyncRequest(BaseModel):
@@ -19,4 +19,4 @@ class CalendarAuthUrlResponse(BaseModel):
 
 class TokenStatusResponse(BaseModel):
     connected: bool
-    email: Optional[str] = None
+    email: str | None = None

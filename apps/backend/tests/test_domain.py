@@ -1,10 +1,12 @@
-import pytest
 from decimal import Decimal
+
+import pytest
+
 from src.modules.pricing.domain.engine import (
     OperationContext,
-    ServiceItem,
-    PricingInput,
     PricingCalculator,
+    PricingInput,
+    ServiceItem,
 )
 
 
@@ -37,7 +39,7 @@ def test_calculate_cost_per_minute_from_hour_cost():
 
 def test_calculate_single_service_cost():
     svc = ServiceItem(
-        name="Task test", minutes_per_execution=Decimal("10"), monthly_quantity=5
+        name="Task test", minutes_per_execution=Decimal(10), monthly_quantity=5
     )
     cost = PricingCalculator.calculate_service_cost(
         svc, cost_per_minute=Decimal("0.52")
@@ -47,11 +49,11 @@ def test_calculate_single_service_cost():
 
 def test_calculate_total_service_cost_from_multiple_services():
     svc1 = ServiceItem(
-        name="Task 1", minutes_per_execution=Decimal("10"), monthly_quantity=5
+        name="Task 1", minutes_per_execution=Decimal(10), monthly_quantity=5
     )
     svc2 = ServiceItem(
         name="Task 2",
-        minutes_per_execution=Decimal("0"),
+        minutes_per_execution=Decimal(0),
         monthly_quantity=1,
         fixed_value=Decimal("100.00"),
     )
@@ -78,7 +80,7 @@ def test_calculate_tax_amount_from_tax_rate():
 def test_calculate_final_price_matches_expected_result():
     op = build_dummy_operation(tax_rate="0.10")
     svc1 = ServiceItem(
-        name="Task 1", minutes_per_execution=Decimal("10"), monthly_quantity=5
+        name="Task 1", minutes_per_execution=Decimal(10), monthly_quantity=5
     )
     pin = PricingInput(
         operation=op, services=[svc1], desired_profit_margin=Decimal("0.10")
@@ -93,14 +95,14 @@ def test_calculate_pricing_matches_reference_spreadsheet_case():
         total_cost="9500", people_count=2, hours_per_month="160", tax_rate="0.06"
     )
     svc = ServiceItem(
-        name="Reference Task", minutes_per_execution=Decimal("15"), monthly_quantity=30
+        name="Reference Task", minutes_per_execution=Decimal(15), monthly_quantity=30
     )
     pin = PricingInput(
         operation=op, services=[svc], desired_profit_margin=Decimal("0.20")
     )
 
     res = PricingCalculator.calculate_final_price(pin)
-    assert res.final_price > Decimal("0")
+    assert res.final_price > Decimal(0)
     assert len(res.breakdown.service_costs) == 1
 
 

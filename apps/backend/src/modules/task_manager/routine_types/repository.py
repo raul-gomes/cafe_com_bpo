@@ -1,7 +1,8 @@
-from sqlalchemy.orm import Session
 from uuid import UUID
-from typing import List, Optional
-from ..models import RoutineType, ActivityTemplate
+
+from sqlalchemy.orm import Session
+
+from ..models import ActivityTemplate, RoutineType
 from ..schemas import RoutineTypeCreate, RoutineTypeUpdate
 
 
@@ -18,7 +19,7 @@ class RoutineTypeRepository:
         self.session.refresh(obj)
         return obj
 
-    def list_routine_types(self, user_id: UUID) -> List[RoutineType]:
+    def list_routine_types(self, user_id: UUID) -> list[RoutineType]:
         return (
             self.session.query(RoutineType)
             .filter(RoutineType.user_id == user_id)
@@ -26,7 +27,7 @@ class RoutineTypeRepository:
             .all()
         )
 
-    def get_routine_type(self, type_id: UUID, user_id: UUID) -> Optional[RoutineType]:
+    def get_routine_type(self, type_id: UUID, user_id: UUID) -> RoutineType | None:
         return (
             self.session.query(RoutineType)
             .filter(RoutineType.id == type_id, RoutineType.user_id == user_id)
@@ -35,7 +36,7 @@ class RoutineTypeRepository:
 
     def update_routine_type(
         self, type_id: UUID, user_id: UUID, data: RoutineTypeUpdate
-    ) -> Optional[RoutineType]:
+    ) -> RoutineType | None:
         obj = self.get_routine_type(type_id, user_id)
         if not obj:
             return None

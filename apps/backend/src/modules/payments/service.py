@@ -1,12 +1,12 @@
-from typing import List, Optional, Dict
 from uuid import UUID
+
 import httpx
 
-from src.modules.payments.models import Payment
-from src.modules.payments.schemas import CreateCustomerInput, CreatePaymentInput
-from src.modules.payments.repository import PaymentRepository
 from src.core.config import get_settings
 from src.core.logger import log
+from src.modules.payments.models import Payment
+from src.modules.payments.repository import PaymentRepository
+from src.modules.payments.schemas import CreateCustomerInput, CreatePaymentInput
 
 settings = get_settings()
 
@@ -19,8 +19,8 @@ class AsaasClient:
         self.base_url = self.BASE_URL
 
     async def _request(
-        self, method: str, endpoint: str, json_data: Optional[Dict] = None
-    ) -> Dict:
+        self, method: str, endpoint: str, json_data: dict | None = None
+    ) -> dict:
         headers = {
             "Content-Type": "application/json",
             "access_token": self.api_key,
@@ -35,7 +35,7 @@ class AsaasClient:
             response.raise_for_status()
             return response.json()
 
-    async def create_customer(self, customer_data: CreateCustomerInput) -> Dict:
+    async def create_customer(self, customer_data: CreateCustomerInput) -> dict:
         payload = {
             "name": customer_data.name,
             "email": customer_data.email,
@@ -59,12 +59,12 @@ class AsaasClient:
 
         return await self._request("POST", "/customers", payload)
 
-    async def get_customer(self, customer_id: str) -> Dict:
+    async def get_customer(self, customer_id: str) -> dict:
         return await self._request("GET", f"/customers/{customer_id}")
 
     async def create_payment(
         self, customer_id: str, payment_data: CreatePaymentInput
-    ) -> Dict:
+    ) -> dict:
         payload = {
             "customer": customer_id,
             "billingType": payment_data.payment_method.upper(),
@@ -77,15 +77,15 @@ class AsaasClient:
 
         return await self._request("POST", "/payments", payload)
 
-    async def get_payment(self, payment_id: str) -> Dict:
+    async def get_payment(self, payment_id: str) -> dict:
         return await self._request("GET", f"/payments/{payment_id}")
 
-    async def get_payment_status(self, payment_id: str) -> Dict:
+    async def get_payment_status(self, payment_id: str) -> dict:
         return await self._request("GET", f"/payments/{payment_id}/status")
 
     async def list_payments(
         self, customer_id: str, limit: int = 20, offset: int = 0
-    ) -> Dict:
+    ) -> dict:
         params = {"customer": customer_id, "limit": limit, "offset": offset}
         return await self._request("GET", "/payments", params)
 
@@ -95,15 +95,15 @@ class PaymentService:
         self.repository = repository
         self.asaas = AsaasClient()
 
-    def get_user_payments(self, user_id: UUID) -> List[Payment]:
+    def get_user_payments(self, user_id: UUID) -> list[Payment]:
         return self.repository.get_by_user(user_id)
 
-    def get_payment(self, payment_id: UUID, user_id: UUID) -> Optional[Payment]:
+    def get_payment(self, payment_id: UUID, user_id: UUID) -> Payment | None:
         return self.repository.get_by_id(payment_id, user_id)
 
     async def create_customer_for_user(
         self, user_id: UUID, customer_data: CreateCustomerInput
-    ) -> Dict:
+    ) -> dict:
         existing = self.repository.get_customer_by_user(user_id)
         if existing:
             return await self.asaas.get_customer(existing.asaas_customer_id)
@@ -148,7 +148,7 @@ class PaymentService:
 
         return payment
 
-    def process_webhook(self, event_data: Dict) -> Optional[Payment]:
+    def process_webhook(self, event_data: dict) -> Payment | None:
         event_type = event_data.get("event")
         if event_type not in (
             "PAYMENT_RECEIVED",

@@ -1,8 +1,10 @@
-from sqlalchemy import Column, String, Float, DateTime, ForeignKey, Text, JSON, func
+import uuid
+
+from sqlalchemy import JSON, Column, DateTime, Float, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import relationship
+
 from src.core.database import Base
-import uuid
 
 
 class Payment(Base):

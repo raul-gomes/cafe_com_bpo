@@ -1,7 +1,8 @@
-from typing import Optional
-from sqlalchemy.orm import Session
-from .models import User
 import uuid
+
+from sqlalchemy.orm import Session
+
+from .models import User
 
 
 class UserRepository:
@@ -17,8 +18,8 @@ class UserRepository:
         email: str,
         password_hash: str,
         auth_provider: str = "local",
-        name: Optional[str] = None,
-        company: Optional[str] = None,
+        name: str | None = None,
+        company: str | None = None,
     ) -> User:
         user = User(
             email=email,
@@ -31,17 +32,17 @@ class UserRepository:
         self.session.flush()
         return user
 
-    def get_user_by_email(self, email: str) -> Optional[User]:
+    def get_user_by_email(self, email: str) -> User | None:
         return self.session.query(User).filter(User.email == email).first()
 
     def get_users_by_emails(self, emails: list[str]) -> list[User]:
         normalized = [e.lower().strip() for e in emails]
         return self.session.query(User).filter(User.email.in_(normalized)).all()
 
-    def get_user_by_id(self, user_id: uuid.UUID) -> Optional[User]:
+    def get_user_by_id(self, user_id: uuid.UUID) -> User | None:
         return self.session.query(User).filter(User.id == user_id).first()
 
-    def update_user(self, user_id: uuid.UUID, **kwargs) -> Optional[User]:
+    def update_user(self, user_id: uuid.UUID, **kwargs) -> User | None:
         user = self.get_user_by_id(user_id)
         if not user:
             return None

@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
-from typing import Annotated, List
-from sqlalchemy.orm import Session
+from typing import Annotated
 from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.core.logger import log
@@ -9,8 +10,8 @@ from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 from src.modules.team.repository import TeamRepository
 
-from .schemas import ClientCreate, ClientUpdate, ClientResponse
 from .repository import ClientRepository
+from .schemas import ClientCreate, ClientResponse, ClientUpdate
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -25,7 +26,7 @@ ClientRepoDep = Annotated[ClientRepository, Depends(get_client_repository)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
-@router.get("/", response_model=List[ClientResponse])
+@router.get("/", response_model=list[ClientResponse])
 def get_clients(
     repo: ClientRepoDep,
     current_user: CurrentUserDep,
@@ -99,4 +100,3 @@ def delete_client(client_id: UUID, repo: ClientRepoDep, current_user: CurrentUse
         raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
     repo.delete(client)
-    return None

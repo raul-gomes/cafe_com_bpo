@@ -1,23 +1,23 @@
 import os
 import uuid
-from fastapi import APIRouter, HTTPException, Depends, UploadFile, File, Query
-from fastapi.responses import FileResponse
-from typing import List
 from typing import Annotated
+
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
-from src.core.database import get_db_session
 from src.core.config import get_settings
+from src.core.database import get_db_session
 from src.core.logger import log
-from src.modules.auth.service import get_current_user, require_admin
 from src.modules.auth.schemas import UserResponse
+from src.modules.auth.service import get_current_user, require_admin
+from src.modules.gallery.repository import CommonGalleryRepository, GalleryRepository
 from src.modules.gallery.schemas import (
+    CommonGalleryItemResponse,
     GalleryItemCreate,
     GalleryItemResponse,
-    CommonGalleryItemResponse,
 )
 from src.modules.gallery.service import GalleryService
-from src.modules.gallery.repository import GalleryRepository, CommonGalleryRepository
 
 router = APIRouter(prefix="/gallery", tags=["gallery"])
 
@@ -54,7 +54,7 @@ def get_gallery_service(
     return GalleryRepository(session)
 
 
-@router.get("/", response_model=List[GalleryItemResponse])
+@router.get("/", response_model=list[GalleryItemResponse])
 def list_gallery_files(
     user: CurrentUserDep, session: Annotated[Session, Depends(get_db_session)]
 ):
@@ -174,7 +174,7 @@ def get_common_repo(
     return CommonGalleryRepository(session)
 
 
-@router.get("/common", response_model=List[CommonGalleryItemResponse])
+@router.get("/common", response_model=list[CommonGalleryItemResponse])
 def list_common_files(
     repo: Annotated[CommonGalleryRepository, Depends(get_common_repo)],
 ):
