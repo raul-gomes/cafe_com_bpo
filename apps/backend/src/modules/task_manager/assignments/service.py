@@ -185,12 +185,38 @@ class AssignmentService:
                                 generated_tasks.append(task)
 
         elif tmpl.recurrence == "monthly":
-            # Monthly: tasks são geradas pelo scheduler (4 regras) no último
-            # dia útil do mês, para o mês seguinte.
-            log.info(
-                f"⏳ Template '{tmpl.name}' (monthly) vinculado — "
-                f"tasks mensais serão geradas pelo scheduler agendado"
+            # Monthly: ações baseadas no due_day relativo a hoje
+            effective_due_day = (
+                get_effective_due_day(activities[0], tmpl)
+                if activities
+                else tmpl.due_day
             )
+            if effective_due_day is not None:
+                today = now.day
+                max_day = calendar.monthrange(now.year, now.month)[1]
+                due_day = min(effective_due_day, max_day)
+
+                if due_day >= today:
+                    # Cria task para este mês (hoje ou data futura)
+                    deadline = now.replace(
+                        day=due_day, hour=18, minute=0, second=0, microsecond=0
+                    )
+                    deadline = nb_util(deadline)
+                    period_key = f"{now.year}-{now.month:02d}"
+                    for act in activities:
+                        task = self._build_task(
+                            act,
+                            deadline,
+                            assignment,
+                            assignment_in,
+                            tmpl,
+                            user_id,
+                            first_phase,
+                            period_key=period_key,
+                        )
+                        if task:
+                            generated_tasks.append(task)
+                # Se due_day já passou este mês → scheduler cria no próximo mês
 
         elif tmpl.recurrence in ("yearly", "annual"):
             # Yearly: ações baseadas no due_month + due_day relativos a hoje

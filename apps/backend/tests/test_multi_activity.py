@@ -3,8 +3,9 @@ Test: assigning a template with 2 activities creates 2 task cards.
 Tests both the assign flow and the scheduler flow.
 """
 
-from uuid import uuid4
 from datetime import datetime, timezone
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 
 
@@ -191,12 +192,18 @@ class TestMultiActivity:
         )
         assert assign_resp.status_code == 201
         data = assign_resp.json()
-        # Monthly tasks are NOT generated on assignment — scheduler handles them
-        assert data["tasks_generated"] == 0, (
-            f"Expected 0 monthly tasks on assignment, got {data['tasks_generated']}"
+
+        # Monthly: se o due_day ainda está por vir neste mês, o vínculo já
+        # cria as tasks do mês corrente; se já passou, fica para o scheduler.
+        today = datetime.now(timezone.utc).day
+        expected_on_assign = 2 if 15 >= today else 0
+        assert data["tasks_generated"] == expected_on_assign, (
+            f"Expected {expected_on_assign} monthly tasks on assignment "
+            f"(due_day=15, today={today}), got {data['tasks_generated']}"
         )
 
-        # Run monthly scheduler rule to generate the 2 tasks
+        # Scheduler mensal gera as tasks do PRÓXIMO mês (período distinto) —
+        # sempre 2 novas, independente da branch acima.
         sched_resp = client.post("/tasks/scheduler/run-monthly", headers=auth)
         assert sched_resp.status_code == 200
         result = sched_resp.json()

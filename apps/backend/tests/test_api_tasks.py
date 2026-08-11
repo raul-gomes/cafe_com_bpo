@@ -1042,9 +1042,11 @@ def test_scheduler_monthly_skips_existing_task(client):
         headers=auth,
     )
     tmpl_id = tmpl_resp.json()["id"]
+    # due_day=1 já passou no mês corrente → o vínculo não gera nada
+    # e a geração fica a cargo do scheduler (que roda no último dia útil).
     client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Mensal", "due_day": 31},
+        json={"name": "Task Mensal", "due_day": 1},
         headers=auth,
     )
     assign_resp = client.post(
@@ -1053,6 +1055,9 @@ def test_scheduler_monthly_skips_existing_task(client):
         headers=auth,
     )
     assert assign_resp.status_code == 201
+    assert assign_resp.json()["tasks_generated"] == 0, (
+        "due_day já passou este mês → vínculo não deve gerar tasks mensais"
+    )
 
     data = _get_scheduler_result(now=now)
     assert data["tasks_generated"] >= 1, "Ultimo dia util do mes deve gerar task mensal"
