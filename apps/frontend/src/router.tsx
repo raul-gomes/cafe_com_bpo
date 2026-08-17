@@ -32,6 +32,7 @@ function SuspenseWrapper({ children }: { children: React.ReactNode }) {
 export async function buildRouter() {
   // Named-export pages are loaded dynamically inside the async function
   const { OAuthCallbackPage } = await import('./pages/OAuthCallbackPage')
+  const { InvitationAcceptPage } = await import('./pages/InvitationAcceptPage')
   const { ForgotPasswordPage } = await import('./pages/ForgotPasswordPage')
   const { ResetPasswordPage } = await import('./pages/ResetPasswordPage')
   const { DashboardPage } = await import('./pages/panel/DashboardPage')
@@ -72,6 +73,10 @@ export async function buildRouter() {
     {
       path: '/redefinir-senha',
       element: <SuspenseWrapper><ResetPasswordPage /></SuspenseWrapper>,
+    },
+    {
+      path: '/invitations/accept',
+      element: <SuspenseWrapper><InvitationAcceptPage /></SuspenseWrapper>,
     },
     {
       path: '/simulador',

@@ -3,7 +3,8 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { registerSchema, RegisterFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { acceptInvitation } from '../../api/team';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -14,6 +15,8 @@ import logo from '../../assets/logo.png';
 export const RegisterForm: React.FC = () => {
   const { register: authRegister } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite_token');
   const [showPw, setShowPw] = useState(false);
   const [showCPw, setShowCPw] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
@@ -31,6 +34,17 @@ export const RegisterForm: React.FC = () => {
         company: data.company || '',
         password: data.password,
       });
+
+      if (inviteToken) {
+        try {
+          await acceptInvitation(inviteToken);
+        } catch (inviteError: any) {
+          setServerError(inviteError.response?.data?.detail || 'Erro ao aceitar o convite.');
+          return;
+        }
+        navigate('/painel/tarefas');
+        return;
+      }
 
       navigate('/painel');
     } catch (err: any) {

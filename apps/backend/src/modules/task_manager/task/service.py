@@ -90,6 +90,10 @@ class TaskService:
 
     def create_task(self, task_data: TaskCreate, user_id: UUID) -> TaskResponse:
         """Create a new task."""
+        if task_data.phase_id is None:
+            phases = self.get_phases(user_id)
+            if phases:
+                task_data.phase_id = phases[0].id
         new_task = self.repository.create(task_data, user_id)
         self._notify(
             user_id,

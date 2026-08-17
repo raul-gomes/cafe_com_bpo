@@ -25,9 +25,11 @@ from src.modules.task_manager.models import (  # noqa: F401
     TemplateActivity,
 )
 from src.modules.team.models import (  # noqa: F401
-    ClientInvitation,
-    ClientInvitationRoutine,
-    ClientTeamMember,
+    InvitationRoutine,
+    Role,
+    Team,
+    TeamInvitation,
+    TeamMember,
 )
 
 # this is the Alembic Config object, which provides

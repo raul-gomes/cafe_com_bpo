@@ -11,6 +11,8 @@ from src.modules.auth.service import get_current_user, get_optional_user
 from .repository import TeamRepository
 from .schemas import (
     AcceptResponse,
+    InvitationListResponse,
+    InvitationResponse,
     InviteBatchResponse,
     InviteCreate,
     TeamListResponse,
@@ -70,6 +72,41 @@ def accept_invitation(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
+@router.post(
+    "/invitations/{invitation_id}/accept",
+    response_model=AcceptResponse,
+)
+def accept_invitation_by_id(
+    invitation_id: UUID,
+    repo: RepoDep,
+    current_user: CurrentUserDep,
+):
+    """Aceitar um convite pelo ID (usado na dashboard). Requer login."""
+    service = TeamService(repo)
+    try:
+        return service.accept_invitation_by_id(invitation_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
+@router.post(
+    "/invitations/{invitation_id}/decline",
+    status_code=status.HTTP_200_OK,
+)
+def decline_invitation_by_id(
+    invitation_id: UUID,
+    repo: RepoDep,
+    current_user: CurrentUserDep,
+):
+    """Recusar um convite pelo ID (usado na dashboard). Requer login."""
+    service = TeamService(repo)
+    try:
+        service.decline_invitation_by_id(invitation_id, current_user.id)
+        return {"status": "declined"}
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+
 @router.get("/clients/{client_id}/team", response_model=TeamListResponse)
 def list_team_members(
     client_id: UUID,
@@ -82,6 +119,43 @@ def list_team_members(
         return service.get_team_members(client_id, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.get("/clients/{client_id}/invitations", response_model=InvitationListResponse)
+def list_invitations(
+    client_id: UUID,
+    repo: RepoDep,
+    current_user: CurrentUserDep,
+):
+    """Listar convites do cliente (pendente/aceito/declinado/expirado)."""
+    service = TeamService(repo)
+    try:
+        return service.list_invitations(client_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
+
+
+@router.post(
+    "/clients/{client_id}/invitations/{invitation_id}/resend",
+    response_model=InvitationResponse,
+)
+def resend_invitation(
+    client_id: UUID,
+    invitation_id: UUID,
+    repo: RepoDep,
+    current_user: CurrentUserDep,
+):
+    """Reenviar o email de um convite (renova token + expiração)."""
+    service = TeamService(repo)
+    try:
+        return service.resend_invitation(client_id, invitation_id, current_user.id)
+    except ValueError as e:
+        status_code = (
+            status.HTTP_403_FORBIDDEN
+            if "Acesso negado" in str(e)
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=str(e))
 
 
 @router.delete(

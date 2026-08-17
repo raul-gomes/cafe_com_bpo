@@ -145,6 +145,7 @@ class Task(Base):
     )
     template = relationship("ActivityTemplate", foreign_keys=[template_id])
     mover = relationship("User", foreign_keys=[moved_by])
+    assignee = relationship("User", foreign_keys=[user_id])
 
     @property
     def template_name(self) -> str | None:
@@ -153,6 +154,10 @@ class Task(Base):
     @property
     def moved_by_name(self) -> str | None:
         return self.mover.name if self.mover else None
+
+    @property
+    def assignee_name(self) -> str | None:
+        return self.assignee.name if self.assignee else None
 
 
 # ──────────────────────────────────────────────

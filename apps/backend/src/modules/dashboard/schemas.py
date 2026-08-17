@@ -30,8 +30,20 @@ class ActivityResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class PendingInvitation(BaseModel):
+    invitation_id: UUID
+    client_id: UUID | None = None
+    client_name: str | None = None
+    inviter_name: str | None = None
+    created_at: datetime
+    expires_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class DashboardSummary(BaseModel):
     user_name: str
     urgent_tasks: list[UrgentTaskResponse]
     activities: list[ActivityResponse]
+    pending_invitations: list[PendingInvitation] = []
     stats: dict = {}

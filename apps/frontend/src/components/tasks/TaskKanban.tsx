@@ -8,6 +8,7 @@ type Props = {
   tasks: TaskResponse[];
   phases: TaskPhaseResponse[];
   clients: any[];
+  currentUserId?: string;
   onEdit: (t: TaskResponse) => void;
   getTaskStatus: (t: TaskResponse) => string;
   onFinalize?: (id: string) => void;
@@ -53,7 +54,7 @@ const sortTasksByUrgency = (tasksToSort: TaskResponse[], doneColumnId: string, g
 };
 
 const TaskKanbanInner: React.FC<Props> = ({
-  tasks, phases, clients, onEdit, getTaskStatus, onFinalize, onCancel,
+  tasks, phases, clients, currentUserId, onEdit, getTaskStatus, onFinalize, onCancel,
   columnSearch, setColumnSearch, handleBulkComplete, handleBulkCancel, bulkLoading,
 }) => {
   const sortedPhases = [...phases].sort((a, b) => a.order - b.order);
@@ -165,6 +166,7 @@ const TaskKanbanInner: React.FC<Props> = ({
                           client={client}
                           colColor={col.color}
                           doneColumnId={doneColumnId}
+                          currentUserId={currentUserId}
                           onEdit={onEdit}
                           onFinalize={onFinalize}
                           onCancel={onCancel}

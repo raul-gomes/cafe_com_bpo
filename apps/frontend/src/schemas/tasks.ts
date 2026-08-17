@@ -16,6 +16,7 @@ export interface TaskResponse {
   template_name?: string;
   moved_by?: string;
   moved_by_name?: string;
+  assignee_name?: string;
   cancelled_at?: string;
   is_cancelled: boolean;
   completed_at?: string;

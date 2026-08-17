@@ -19,6 +19,7 @@ import { ptBR } from 'date-fns/locale';
 import { TaskModal } from '../../components/tasks/TaskModal';
 import { SLAAlerts } from '../../components/dashboard/SLAAlerts';
 import { OverdueTemplatesAlert } from '../../components/dashboard/OverdueTemplatesAlert';
+import { PendingInvitationCard } from '../../components/dashboard/PendingInvitationCard';
 import { TaskResponse } from '../../schemas/tasks';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -115,6 +116,15 @@ export const DashboardPage: React.FC = () => {
           Olá, {summary?.user_name || 'Usuário'}
         </h1>
       </div>
+
+      {/* Pending Team Invitations */}
+      {summary?.pending_invitations && summary.pending_invitations.length > 0 && (
+        <section className="mb-10">
+          {summary.pending_invitations.map((invitation) => (
+            <PendingInvitationCard key={invitation.invitation_id} invitation={invitation} />
+          ))}
+        </section>
+      )}
 
       {/* Urgent Tasks Section */}
       <section className="mb-10">

@@ -509,7 +509,7 @@ class TaskScheduler:
                 if not activities:
                     continue
 
-                phases = task_repo.get_phases_by_user(assignment.user_id)
+                phases = task_repo.get_or_create_phases(assignment.user_id)
                 first_phase = phases[0] if phases else None
 
                 generated = 0

@@ -68,10 +68,23 @@ def get_clients(
 
 @router.post("/", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)
 def create_client(
-    client_in: ClientCreate, repo: ClientRepoDep, current_user: CurrentUserDep
+    client_in: ClientCreate,
+    repo: ClientRepoDep,
+    current_user: CurrentUserDep,
+    session: Annotated[Session, Depends(get_db_session)],
 ):
     """Cria um novo cliente para o usuário atual"""
     new_client = repo.create(client_in, current_user.id)
+
+    # Todo cliente nasce com um time próprio (1:1). O time reúne os membros
+    # e convites que acessam as rotinas do cliente.
+    from src.modules.team.repository import TeamRepository
+
+    team_repo = TeamRepository(session)
+    team_repo.ensure_default_roles()
+    team_repo.get_or_create_team(new_client.id, current_user.id)
+    session.commit()
+
     log.info(f"🏢 Cliente criado: {client_in.name} por usuário {current_user.email}")
     return new_client
 

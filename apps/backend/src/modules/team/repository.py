@@ -9,7 +9,16 @@ from src.modules.auth.models import User
 from src.modules.clients.models import Client
 from src.modules.task_manager.models import ActivityTemplate
 
-from .models import ClientInvitation, ClientInvitationRoutine, ClientTeamMember
+from .models import (
+    InvitationRoutine,
+    Role,
+    Team,
+    TeamInvitation,
+    TeamMember,
+)
+
+ROLE_ADMIN = "admin"
+ROLE_MEMBER = "member"
 
 
 def _hash_token(token: str) -> str:
@@ -20,21 +29,60 @@ class TeamRepository:
     def __init__(self, session: Session):
         self.session = session
 
+    # ── Roles ──
+
+    def ensure_default_roles(self) -> None:
+        """Seed as roles padrão (admin | member) caso não existam."""
+        existing = {r.role for r in self.session.query(Role).all()}
+        for name in (ROLE_ADMIN, ROLE_MEMBER):
+            if name not in existing:
+                self.session.add(Role(role=name))
+        if not existing or existing != {ROLE_ADMIN, ROLE_MEMBER}:
+            self.session.flush()
+
+    def get_role_by_name(self, role: str) -> Role | None:
+        return self.session.query(Role).filter(Role.role == role).first()
+
+    # ── Teams ──
+
+    def get_or_create_team(self, client_id: UUID, owner_id: UUID) -> Team:
+        """Recupera o time de um cliente, criando-o se não existir (1:1)."""
+        team = self.session.query(Team).filter(Team.client_id == client_id).first()
+        if not team:
+            team = Team(client_id=client_id, owner_id=owner_id)
+            self.session.add(team)
+            self.session.flush()
+        return team
+
+    def get_team_by_client_id(self, client_id: UUID) -> Team | None:
+        return self.session.query(Team).filter(Team.client_id == client_id).first()
+
+    def get_team_by_id(self, team_id: UUID) -> Team | None:
+        return self.session.query(Team).filter(Team.id == team_id).first()
+
+    def get_client_id_by_team_id(self, team_id: UUID) -> UUID | None:
+        team = self.session.query(Team.client_id).filter(Team.id == team_id).first()
+        return team[0] if team else None
+
+    def get_team_id_by_client_id(self, client_id: UUID) -> UUID | None:
+        team = self.session.query(Team.id).filter(Team.client_id == client_id).first()
+        return team[0] if team else None
+
     # ── Invitations ──
 
     def create_invitation(
         self,
-        client_id: UUID,
+        team_id: UUID,
         invited_by: UUID,
         invited_email: str,
         template_ids: list[UUID],
-    ) -> tuple[ClientInvitation, str]:
+    ) -> tuple[TeamInvitation, str]:
         """Create invitation with raw token. Returns (invitation, raw_token)."""
         raw_token = str(uuid.uuid4())
         token_hash = _hash_token(raw_token)
 
-        invitation = ClientInvitation(
-            client_id=client_id,
+        invitation = TeamInvitation(
+            team_id=team_id,
             invited_by=invited_by,
             invited_email=invited_email.lower().strip(),
             token_hash=token_hash,
@@ -46,7 +94,7 @@ class TeamRepository:
 
         for tid in template_ids:
             self.session.add(
-                ClientInvitationRoutine(
+                InvitationRoutine(
                     invitation_id=invitation.id,
                     template_id=tid,
                 )
@@ -56,100 +104,196 @@ class TeamRepository:
         self.session.refresh(invitation)
         return invitation, raw_token
 
-    def get_invitation_by_token(self, raw_token: str) -> ClientInvitation | None:
+    def get_invitation_by_token(self, raw_token: str) -> TeamInvitation | None:
         token_hash = _hash_token(raw_token)
         return (
-            self.session.query(ClientInvitation)
+            self.session.query(TeamInvitation)
             .filter(
-                ClientInvitation.token_hash == token_hash,
-                ClientInvitation.status == "pending",
-                ClientInvitation.expires_at > datetime.now(timezone.utc),
+                TeamInvitation.token_hash == token_hash,
+                TeamInvitation.status == "pending",
+                TeamInvitation.expires_at > datetime.now(timezone.utc),
             )
             .first()
         )
 
     def get_pending_invitation_by_email(
-        self, client_id: UUID, email: str
-    ) -> ClientInvitation | None:
+        self, team_id: UUID, email: str
+    ) -> TeamInvitation | None:
         return (
-            self.session.query(ClientInvitation)
+            self.session.query(TeamInvitation)
             .filter(
-                ClientInvitation.client_id == client_id,
-                ClientInvitation.invited_email == email.lower().strip(),
-                ClientInvitation.status == "pending",
+                TeamInvitation.team_id == team_id,
+                TeamInvitation.invited_email == email.lower().strip(),
+                TeamInvitation.status == "pending",
             )
             .first()
         )
 
+    def list_invitations(self, team_id: UUID) -> list[TeamInvitation]:
+        """Lista os convites de um time, do mais recente para o mais antigo."""
+        return (
+            self.session.query(TeamInvitation)
+            .filter(TeamInvitation.team_id == team_id)
+            .order_by(TeamInvitation.created_at.desc())
+            .all()
+        )
+
+    def get_invitation_by_id(self, invitation_id: UUID) -> TeamInvitation | None:
+        return (
+            self.session.query(TeamInvitation)
+            .filter(TeamInvitation.id == invitation_id)
+            .first()
+        )
+
+    def refresh_invitation(
+        self, invitation: TeamInvitation
+    ) -> tuple[TeamInvitation, str]:
+        """Renova o token de um convite (novo raw token + nova expiração).
+
+        Reabre um convite que expirou ou foi declinado, mantendo status 'pending'.
+        Returns (invitation, raw_token).
+        """
+        raw_token = str(uuid.uuid4())
+        invitation.token_hash = _hash_token(raw_token)
+        invitation.status = "pending"
+        invitation.expires_at = datetime.now(timezone.utc) + timedelta(days=7)
+        invitation.accepted_at = None
+        self.session.commit()
+        self.session.refresh(invitation)
+        return invitation, raw_token
+
     def accept_invitation_for_user(
-        self, invitation: ClientInvitation, user_id: UUID
-    ) -> ClientTeamMember:
+        self, invitation: TeamInvitation, user_id: UUID
+    ) -> TeamMember:
         """Accept an invitation and create a team member entry."""
         invitation.status = "accepted"
         invitation.accepted_at = datetime.now(timezone.utc)
 
-        member = ClientTeamMember(
-            client_id=invitation.client_id,
+        self.ensure_default_roles()
+        member_role = self.get_role_by_name(ROLE_MEMBER) or Role(role=ROLE_MEMBER)
+
+        member = TeamMember(
+            team_id=invitation.team_id,
             user_id=user_id,
-            invited_by=invitation.invited_by,
+            role_id=member_role.id,
+            is_active=True,
         )
         self.session.add(member)
         self.session.commit()
         self.session.refresh(member)
         return member
 
+    def decline_invitation(self, invitation: TeamInvitation) -> None:
+        """Mark an invitation as declined (recusado pelo convidado)."""
+        invitation.status = "declined"
+        self.session.commit()
+
     # ── Team Members ──
 
-    def get_team_members(self, client_id: UUID) -> list[ClientTeamMember]:
+    def get_team_members(self, client_id: UUID) -> list[TeamMember]:
+        """Members ativos de um time (resolvido pelo client_id do time)."""
+        team = self.get_team_by_client_id(client_id)
+        if not team:
+            return []
         return (
-            self.session.query(ClientTeamMember)
-            .filter(ClientTeamMember.client_id == client_id)
+            self.session.query(TeamMember)
+            .filter(TeamMember.team_id == team.id, TeamMember.is_active)
             .all()
         )
 
     def is_team_member(self, client_id: UUID, user_id: UUID) -> bool:
+        """Verifica se o usuário é membro ativo do time deste cliente."""
+        team = self.get_team_by_client_id(client_id)
+        if not team:
+            return False
         return (
-            self.session.query(ClientTeamMember.id)
+            self.session.query(TeamMember.id)
             .filter(
-                ClientTeamMember.client_id == client_id,
-                ClientTeamMember.user_id == user_id,
+                TeamMember.team_id == team.id,
+                TeamMember.user_id == user_id,
+                TeamMember.is_active,
             )
             .first()
             is not None
         )
 
+    def get_member_role(self, client_id: UUID, user_id: UUID) -> str | None:
+        """Retorna a role ('admin' | 'member') do usuário no time do cliente."""
+        team = self.get_team_by_client_id(client_id)
+        if not team:
+            return None
+        result = (
+            self.session.query(Role.role)
+            .join(TeamMember, TeamMember.role_id == Role.id)
+            .filter(
+                TeamMember.team_id == team.id,
+                TeamMember.user_id == user_id,
+                TeamMember.is_active,
+            )
+            .first()
+        )
+        return result[0] if result else None
+
     def get_team_client_ids(self, user_id: UUID) -> list[UUID]:
-        """Return all client IDs where the user is a team member."""
+        """Return all client IDs where the user is an active team member."""
         results = (
-            self.session.query(ClientTeamMember.client_id)
-            .filter(ClientTeamMember.user_id == user_id)
+            self.session.query(Team.client_id)
+            .join(TeamMember, TeamMember.team_id == Team.id)
+            .filter(TeamMember.user_id == user_id, TeamMember.is_active)
             .all()
         )
         return [r[0] for r in results]
 
-    def remove_member(self, client_id: UUID, user_id: UUID) -> bool:
+    def remove_member(self, team_id: UUID, user_id: UUID) -> bool:
+        """Desvincula o membro do time (is_active = False)."""
         member = (
-            self.session.query(ClientTeamMember)
+            self.session.query(TeamMember)
             .filter(
-                ClientTeamMember.client_id == client_id,
-                ClientTeamMember.user_id == user_id,
+                TeamMember.team_id == team_id,
+                TeamMember.user_id == user_id,
+                TeamMember.is_active,
             )
             .first()
         )
         if not member:
             return False
-        self.session.delete(member)
+        member.is_active = False
         self.session.commit()
         return True
+
+    def get_inactive_member(self, team_id: UUID, user_id: UUID) -> TeamMember | None:
+        return (
+            self.session.query(TeamMember)
+            .filter(
+                TeamMember.team_id == team_id,
+                TeamMember.user_id == user_id,
+                ~TeamMember.is_active,
+            )
+            .first()
+        )
+
+    def reactivate_member(self, team_id: UUID, user_id: UUID) -> TeamMember:
+        """Reativa um membro desvinculado do time."""
+        member = self.get_inactive_member(team_id, user_id)
+        if not member:
+            raise ValueError("Membro não encontrado para reativação")
+        member.is_active = True
+        self.session.commit()
+        self.session.refresh(member)
+        return member
+
+    def get_role_name_by_id(self, role_id: UUID) -> str | None:
+        role = self.session.query(Role.role).filter(Role.id == role_id).first()
+        return role[0] if role else None
 
     # ── Routines for a member ──
 
     def get_routines_for_invitation(
         self, invitation_id: UUID
-    ) -> list[ClientInvitationRoutine]:
+    ) -> list[InvitationRoutine]:
         return (
-            self.session.query(ClientInvitationRoutine)
-            .filter(ClientInvitationRoutine.invitation_id == invitation_id)
+            self.session.query(InvitationRoutine)
+            .filter(InvitationRoutine.invitation_id == invitation_id)
             .all()
         )
 
@@ -157,16 +301,18 @@ class TeamRepository:
         self, client_id: UUID, user_id: UUID
     ) -> list[ActivityTemplate]:
         """Get all templates that a member has access to for a client."""
-        # Find the accepted invitation for this user+client
+        team = self.get_team_by_client_id(client_id)
+        if not team:
+            return []
         user = self.get_user_by_id(user_id)
         if not user:
             return []
         invitation = (
-            self.session.query(ClientInvitation)
+            self.session.query(TeamInvitation)
             .filter(
-                ClientInvitation.client_id == client_id,
-                ClientInvitation.invited_email == user.email,
-                ClientInvitation.status == "accepted",
+                TeamInvitation.team_id == team.id,
+                TeamInvitation.invited_email == user.email,
+                TeamInvitation.status == "accepted",
             )
             .first()
         )
@@ -174,8 +320,8 @@ class TeamRepository:
             return []
 
         routines = (
-            self.session.query(ClientInvitationRoutine)
-            .filter(ClientInvitationRoutine.invitation_id == invitation.id)
+            self.session.query(InvitationRoutine)
+            .filter(InvitationRoutine.invitation_id == invitation.id)
             .all()
         )
         template_ids = [r.template_id for r in routines]

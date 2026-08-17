@@ -19,10 +19,20 @@ export interface UrgentTaskItem extends TaskResponse {
     is_overdue?: boolean;
 }
 
+export interface PendingInvitation {
+    invitation_id: string;
+    client_id?: string;
+    client_name?: string;
+    inviter_name?: string;
+    created_at: string;
+    expires_at: string;
+}
+
 export interface DashboardSummary {
     user_name: string;
     urgent_tasks: UrgentTaskItem[];
     activities: ActivityResponse[];
+    pending_invitations: PendingInvitation[];
     stats: {
         pending_tasks_count?: number;
         unread_notifications_count?: number;

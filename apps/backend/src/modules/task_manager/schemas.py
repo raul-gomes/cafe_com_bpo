@@ -52,6 +52,7 @@ class TaskResponse(TaskBase):
     template_name: str | None = None
     moved_by: UUID | None = None
     moved_by_name: str | None = None
+    assignee_name: str | None = None
     created_at: datetime
     updated_at: datetime
     cancelled_at: datetime | None = None

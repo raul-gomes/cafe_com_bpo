@@ -65,10 +65,11 @@ def get_tasks(
     overdue: bool = False,
     client_id: UUID | None = None,
 ):
-    """Retorna tarefas cadastradas pelo usuário atual.
+    """Retorna as tarefas visíveis ao usuário atual.
 
-    Se client_id for informado e o usuário for membro da equipe,
-    retorna também as tarefas dos demais membros para aquele cliente.
+    - Owner do cliente: vê todas as tarefas do cliente (dele e dos membros).
+    - Membro da equipe: vê as próprias tarefas individuais mais as tarefas
+      das rotinas (templates) que foram liberadas a ele no convite.
     """
     if client_id:
         from src.modules.team.repository import TeamRepository
@@ -85,33 +86,83 @@ def get_tasks(
                     for m in team_repo.get_team_members(client_id)
                     if m.user_id != current_user.id
                 ]
-            else:
-                user_ids = [current_user.id]
-                if owner_id:
-                    user_ids.append(owner_id)
 
-            all_tasks = []
-            for uid in user_ids:
-                all_tasks.extend(
-                    repo.get_by_user(
-                        uid,
-                        today_filter=today,
-                        overdue_filter=overdue,
+                all_tasks = []
+                for uid in user_ids:
+                    all_tasks.extend(
+                        repo.get_by_user(
+                            uid,
+                            today_filter=today,
+                            overdue_filter=overdue,
+                        )
                     )
-                )
-            all_tasks = [t for t in all_tasks if str(t.client_id) == str(client_id)]
-            seen = set()
-            unique = []
-            for t in all_tasks:
-                if t.id not in seen:
-                    seen.add(t.id)
-                    unique.append(t)
-            return unique
+                all_tasks = [t for t in all_tasks if str(t.client_id) == str(client_id)]
+                seen = set()
+                unique = []
+                for t in all_tasks:
+                    if t.id not in seen:
+                        seen.add(t.id)
+                        unique.append(t)
+                return unique
 
-    return repo.get_by_user(
-        current_user.id,
-        today_filter=today,
-        overdue_filter=overdue,
+            # Membro: próprias tarefas + tarefas das rotinas liberadas
+            granted = team_repo.get_routines_for_member(client_id, current_user.id)
+            granted_template_ids = [r.id for r in granted]
+            all_tasks = repo.get_tasks_for_member(
+                current_user.id,
+                granted_template_ids,
+                today_filter=today,
+                overdue_filter=overdue,
+            )
+            return [t for t in all_tasks if str(t.client_id) == str(client_id)]
+
+    # ── Visão geral (sem client_id): agrega clientes do usuário ──
+    from src.modules.clients.repository import ClientRepository
+    from src.modules.team.repository import TeamRepository
+
+    team_repo = TeamRepository(session)
+    client_repo = ClientRepository(session)
+
+    all_tasks: list = []
+    seen: set = set()
+
+    # 1) Clientes onde o usuário é OWNER → vê todas as tarefas (dele + membros)
+    owned_clients = client_repo.get_by_user(current_user.id)
+    for c in owned_clients:
+        cid = c.id
+        user_ids = [current_user.id] + [
+            m.user_id
+            for m in team_repo.get_team_members(cid)
+            if m.user_id != current_user.id
+        ]
+        for uid in user_ids:
+            for t in repo.get_by_user(uid, today_filter=today, overdue_filter=overdue):
+                if str(t.client_id) == str(cid) and t.id not in seen:
+                    seen.add(t.id)
+                    all_tasks.append(t)
+
+    # 2) Clientes onde o usuário é MEMBER → próprias + rotinas liberadas
+    for cid in team_repo.get_team_client_ids(current_user.id):
+        if any(str(c.id) == str(cid) for c in owned_clients):
+            continue  # já tratado como owner
+        granted = team_repo.get_routines_for_member(cid, current_user.id)
+        granted_template_ids = [r.id for r in granted]
+        for t in repo.get_tasks_for_member(
+            current_user.id,
+            granted_template_ids,
+            today_filter=today,
+            overdue_filter=overdue,
+        ):
+            if str(t.client_id) == str(cid) and t.id not in seen:
+                seen.add(t.id)
+                all_tasks.append(t)
+
+    return sorted(
+        all_tasks,
+        key=lambda t: (
+            t.deadline is None,
+            t.deadline or datetime.min.replace(tzinfo=timezone.utc),
+        ),
     )
 
 

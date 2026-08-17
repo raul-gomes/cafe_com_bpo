@@ -6,6 +6,9 @@ Implementações: ResendProvider (produção), MailpitProvider (dev local)
 e NoopProvider (testes/CI).
 """
 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 from typing import Protocol
 
 import resend
@@ -105,11 +108,19 @@ class MailpitProvider:
     """
     Provedor de desenvolvimento local.
 
-    Não envia e-mail real: registra a tentativa nos logs e retorna um id fake.
-    Mantém o fluxo completo (fila → worker → status 'sent') sem dependências.
+    Envia via SMTP para o container do Mailpit (mailpit:1025), que mantém
+    uma caixa de entrada web (http://localhost:8025) para inspecionar os
+    e-mails sem entregar de verdade. Mantém o fluxo completo
+    (fila → worker → status 'sent').
     """
 
     name = "mailpit"
+
+    def __init__(self):
+        settings = get_settings()
+        self.host = settings.mailpit_host
+        self.port = settings.mailpit_port
+        self.from_email = settings.resend_from_email or settings.smtp_from_email
 
     def send(
         self,
@@ -121,6 +132,22 @@ class MailpitProvider:
         idempotency_key: str,
         attachments: list[dict] | None = None,
     ) -> str:
+        msg = MIMEMultipart("alternative")
+        msg["From"] = self.from_email
+        msg["To"] = to
+        msg["Subject"] = subject
+
+        if text:
+            msg.attach(MIMEText(text, "plain", "utf-8"))
+        if html:
+            msg.attach(MIMEText(html, "html", "utf-8"))
+
+        try:
+            with smtplib.SMTP(self.host, self.port, timeout=10) as client:
+                client.sendmail(self.from_email, [to], msg.as_string())
+        except Exception as e:
+            raise RetryableError(f"Erro ao conectar no Mailpit: {e}") from e
+
         log.info(
             f"📬 [MAILPIT] Para: {to} | Assunto: {subject} | "
             f"Idempotency: {idempotency_key}"

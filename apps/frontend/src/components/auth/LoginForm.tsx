@@ -2,10 +2,11 @@ import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { loginSchema, LoginFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
+import { acceptInvitation } from '../../api/team';
 import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
@@ -23,6 +24,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
   const [genericError, setGenericError] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const inviteToken = searchParams.get('invite_token');
 
   const onSubmit = async (data: LoginFormData) => {
     setGenericError(null);
@@ -34,7 +37,18 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
         headers: { 'Content-Type': 'application/x-www-form-urlencoded' }
       });
       const res = await login(response.data.access_token);
-      
+
+      if (inviteToken) {
+        try {
+          await acceptInvitation(inviteToken);
+        } catch (inviteError: any) {
+          setGenericError(inviteError.response?.data?.detail || 'Erro ao aceitar o convite.');
+          return;
+        }
+        navigate('/painel/tarefas');
+        return;
+      }
+
       if (res && (res as any).syncedProposalId) {
         navigate(`/painel/orcamento/${(res as any).syncedProposalId}`);
       } else {

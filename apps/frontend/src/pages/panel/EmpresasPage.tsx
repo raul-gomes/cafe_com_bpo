@@ -5,12 +5,15 @@ import { maskCNPJ, maskPhone } from '../../lib/formatters';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Link, Unlink, FileText } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { Users, UserPlus, Trash2, Check } from 'lucide-react';
+import { Users, UserPlus, Trash2, Check, Send, Clock } from 'lucide-react';
 import {
   inviteCollaborator,
   listTeamMembers,
   removeTeamMember,
+  listInvitations,
+  resendInvitation,
   TeamMemberResponse,
+  InvitationResponse,
 } from '../../api/team';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -57,6 +60,8 @@ export const EmpresasPage: React.FC = () => {
   const [linkClientId, setLinkClientId] = useState<string | null>(null);
   const [teamClientId, setTeamClientId] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
+  const [invitations, setInvitations] = useState<InvitationResponse[]>([]);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmails, setInviteEmails] = useState<EmailChip[]>([]);
   const [inviteTemplateIds, setInviteTemplateIds] = useState<string[]>([]);
@@ -86,6 +91,7 @@ export const EmpresasPage: React.FC = () => {
     setShowInvite(false);
     setInviteEmails([]);
     setInviteTemplateIds([]);
+    setInvitations([]);
     setLookedUpEmails(new Set());
     setUserDataMap(new Map());
   }, [teamClientId]);
@@ -213,12 +219,30 @@ export const EmpresasPage: React.FC = () => {
   const loadTeam = async (clientId: string) => {
     setLoadingTeam(true);
     try {
-      const { data } = await listTeamMembers(clientId);
-      setTeamMembers(data.members);
+      const [{ data: teamData }, { data: invData }] = await Promise.all([
+        listTeamMembers(clientId),
+        listInvitations(clientId),
+      ]);
+      setTeamMembers(teamData.members);
+      setInvitations(invData.invitations);
     } catch {
       toast.error('Erro ao carregar equipe');
     } finally {
       setLoadingTeam(false);
+    }
+  };
+
+  const handleResend = async (invitationId: string, email: string) => {
+    if (!teamClientId) return;
+    setResendingId(invitationId);
+    try {
+      await resendInvitation(teamClientId, invitationId);
+      toast.success(`Convite reenviado para ${email}`);
+      loadTeam(teamClientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Erro ao reenviar convite');
+    } finally {
+      setResendingId(null);
     }
   };
 
@@ -620,10 +644,78 @@ export const EmpresasPage: React.FC = () => {
               </div>
             )}
 
+            {/* Invitations list — hide accepted ones (they appear as team members) */}
+            {!loadingTeam &&
+              invitations.filter(inv => inv.status !== 'accepted').length > 0 && (
+              <div className="mb-4">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground mb-2">
+                  <Clock size={13} /> Convites enviados
+                </div>
+                <div className="flex flex-col gap-2">
+                  {invitations
+                    .filter(inv => inv.status !== 'accepted')
+                    .map((inv) => {
+                    const isPending = inv.status === 'pending';
+                    const isExpired = inv.status === 'expired';
+                    const isDeclined = inv.status === 'declined';
+                    const isAccepted = inv.status === 'accepted';
+                    return (
+                      <div
+                        key={inv.invitation_id}
+                        className="flex items-center gap-3 rounded-md border border-border p-3"
+                      >
+                        <div className={cn(
+                          'flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold',
+                          isPending ? 'bg-amber-500/15 text-amber-500'
+                            : isAccepted ? 'bg-emerald-500/15 text-emerald-500'
+                            : isExpired ? 'bg-muted text-muted-foreground'
+                            : 'bg-red-500/15 text-red-500'
+                        )}>
+                          {inv.email[0].toUpperCase()}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-medium truncate">{inv.email}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {isPending && (
+                              <span className="text-amber-500 font-medium">
+                                Aguardando aceite · expira {new Date(inv.expires_at).toLocaleDateString('pt-BR')}
+                              </span>
+                            )}
+                            {isAccepted && (
+                              <span className="text-emerald-500 font-medium">
+                                Aceito{inv.accepted_at ? ` em ${new Date(inv.accepted_at).toLocaleDateString('pt-BR')}` : ''}
+                              </span>
+                            )}
+                            {isDeclined && (
+                              <span className="text-red-500 font-medium">Recusado</span>
+                            )}
+                            {isExpired && (
+                              <span className="text-muted-foreground">Expirado</span>
+                            )}
+                          </div>
+                        </div>
+                        {(isPending || isExpired || isDeclined) && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => handleResend(inv.invitation_id, inv.email)}
+                            disabled={resendingId === inv.invitation_id}
+                          >
+                            <Send size={13} />
+                            {resendingId === inv.invitation_id ? 'Reenviando...' : 'Reenviar'}
+                          </Button>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             {/* Team members list */}
             {loadingTeam ? (
               <div className="py-6 text-center text-sm text-muted-foreground">Carregando...</div>
-            ) : teamMembers.length === 0 ? (
+            ) : teamMembers.length === 0 && invitations.length === 0 ? (
               <div className="py-6 text-center text-sm text-muted-foreground">
                 Nenhum colaborador na equipe ainda.
               </div>

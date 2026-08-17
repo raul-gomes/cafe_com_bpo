@@ -37,8 +37,19 @@ class TestMailpitProvider:
     def test_returns_mailpit_id(self):
         provider = MailpitProvider()
         assert provider.name == "mailpit"
-        mid = provider.send(**_payload())
+        with patch("smtplib.SMTP") as mock_smtp:
+            mid = provider.send(**_payload())
         assert mid == "mailpit-key-123"
+        mock_smtp.assert_called_once()
+        mock_smtp.return_value.__enter__.return_value.sendmail.assert_called_once()
+
+    def test_smtp_connection_error_is_retryable(self):
+        provider = MailpitProvider()
+        with (
+            patch("smtplib.SMTP", side_effect=ConnectionError("no route to host")),
+            pytest.raises(RetryableError),
+        ):
+            provider.send(**_payload())
 
 
 class TestResendProviderErrorMapping:

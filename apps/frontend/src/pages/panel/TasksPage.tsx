@@ -168,7 +168,20 @@ export const TasksPage: React.FC = () => {
             return 'cancelled';
         }
         if (task.phase_id && phases) {
-            return task.phase_id;
+            const knownPhase = phases.some(p => p.id === task.phase_id);
+            // Fase pertence a outro usuário (team / owner diferente)? Normaliza
+            // para a coluna equivalente usando o status legado.
+            if (knownPhase) return task.phase_id;
+        }
+        // Sem phase_id (ou fase de outro dono): mapeia o status legado
+        // ('todo'/'doing'/'done') para a coluna equivalente, garantindo que
+        // a task nunca some do kanban.
+        if (phases && phases.length > 0) {
+            if (task.status === 'done') return lastPhaseId;
+            if (task.status === 'doing' || task.status === 'in_progress') {
+                return sortedPhases[1]?.id ?? firstPhaseId;
+            }
+            return firstPhaseId;
         }
         return task.status;
     };
@@ -559,7 +572,7 @@ export const TasksPage: React.FC = () => {
                             </Card>
                         ) : (
                             <DragDropContext onDragEnd={handleDragEnd}>
-                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} onEdit={handleEditTask}
+                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} currentUserId={user?.id} onEdit={handleEditTask}
                                     getTaskStatus={getTaskStatus} columnSearch={columnSearch} setColumnSearch={setColumnSearch}
                                     onFinalize={(id) => {
                                         if (phases && phases.length > 0) {

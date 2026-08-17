@@ -96,7 +96,7 @@ class AssignmentService:
         )
 
         # Get first phase (order=0, inicial) for default placement
-        phases = self.task_repo.get_phases_by_user(user_id)
+        phases = self.task_repo.get_or_create_phases(user_id)
         first_phase = phases[0] if phases else None
 
         # Generate tasks for each activity
@@ -316,7 +316,7 @@ class AssignmentService:
         if not tmpl:
             raise ValueError(f"Template {assignment.template_id} not found")
 
-        phases = self.task_repo.get_phases_by_user(user_id)
+        phases = self.task_repo.get_or_create_phases(user_id)
         first_phase = phases[0] if phases else None
 
         generated = 0

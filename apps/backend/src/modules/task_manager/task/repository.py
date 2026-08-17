@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models import Task, TaskPhase
@@ -54,9 +55,42 @@ class TaskRepository:
             query = query.filter(
                 Task.deadline < day_start,
                 Task.status != "done",
-                not Task.is_cancelled,
+                Task.is_cancelled == False,
             )
+        return query.order_by(Task.deadline.asc().nullslast()).all()
 
+    def get_tasks_for_member(
+        self,
+        user_id: UUID,
+        granted_template_ids: list[UUID],
+        today_filter: bool = False,
+        overdue_filter: bool = False,
+    ) -> list[Task]:
+        """Get a member's visible tasks: their own tasks plus tasks from
+        the routines (templates) they were granted access to via invitation."""
+        own_cond = Task.user_id == user_id
+        if granted_template_ids:
+            cond = or_(own_cond, Task.template_id.in_(granted_template_ids))
+        else:
+            cond = own_cond
+
+        query = self.session.query(Task).filter(Task.is_active, cond)
+        if today_filter:
+            now = datetime.now(timezone.utc)
+            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_end = day_start + timedelta(days=1)
+            query = query.filter(
+                Task.deadline >= day_start,
+                Task.deadline < day_end,
+            )
+        if overdue_filter:
+            now = datetime.now(timezone.utc)
+            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            query = query.filter(
+                Task.deadline < day_start,
+                Task.status != "done",
+                Task.is_cancelled == False,
+            )
         return query.order_by(Task.deadline.asc().nullslast()).all()
 
     def create(self, task_in: TaskCreate, user_id: UUID) -> Task:
@@ -100,6 +134,13 @@ class TaskRepository:
             .order_by(TaskPhase.order.asc())
             .all()
         )
+
+    def get_or_create_phases(self, user_id: UUID) -> list[TaskPhase]:
+        """Get phases for a user, creating the defaults when none exist."""
+        phases = self.get_phases_by_user(user_id)
+        if not phases:
+            phases = self.create_default_phases(user_id)
+        return phases
 
     def get_phase_by_id(self, phase_id: UUID, user_id: UUID) -> TaskPhase | None:
         """Get a specific phase for a user."""

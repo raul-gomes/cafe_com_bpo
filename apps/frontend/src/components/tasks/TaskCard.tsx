@@ -9,6 +9,7 @@ interface TaskCardProps {
   client?: { id: string; name: string; color?: string };
   colColor: string;
   doneColumnId: string;
+  currentUserId?: string;
   onEdit: (task: TaskResponse) => void;
   onFinalize?: (id: string) => void;
   onCancel?: (id: string) => void;
@@ -27,6 +28,7 @@ export const TaskCard: React.FC<TaskCardProps> = ({
   client,
   colColor,
   doneColumnId,
+  currentUserId,
   onEdit,
   onFinalize,
   onCancel,
@@ -107,6 +109,16 @@ export const TaskCard: React.FC<TaskCardProps> = ({
       <div className="text-[15px] font-bold leading-[1.3] text-foreground">
         {task.title}
       </div>
+
+      {/* Assignee: mostra o nome de quem é a tarefa quando é de outra pessoa (time) */}
+      {task.user_id !== currentUserId && task.assignee_name && (
+        <div className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground">
+          <span className="flex size-4 items-center justify-center rounded-full bg-card text-[9px] font-bold text-muted-foreground">
+            {task.assignee_name.slice(0, 1).toUpperCase()}
+          </span>
+          {task.assignee_name}
+        </div>
+      )}
 
       {/* Description (clamped to 1 line) */}
       {task.description && (

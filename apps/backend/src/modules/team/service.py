@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from src.core.config import get_settings
@@ -7,6 +8,8 @@ from src.core.logger import log
 from .repository import TeamRepository
 from .schemas import (
     AcceptResponse,
+    InvitationListResponse,
+    InvitationResponse,
     InviteBatchResponse,
     InviteCreate,
     InviteResult,
@@ -42,12 +45,21 @@ class TeamService:
         if not data.emails:
             raise ValueError("Pelo menos um email deve ser informado")
 
+        # Garante time do cliente + roles seedadas
+        self.repo.ensure_default_roles()
+        team = self.repo.get_or_create_team(client_id, invited_by)
+
         results: list[InviteResult] = []
 
         for email in data.emails:
             email_clean = email.lower().strip()
             result = self._invite_single(
-                client_id, email_clean, data.template_ids, invited_by, client.name
+                team.id,
+                client_id,
+                email_clean,
+                data.template_ids,
+                invited_by,
+                client.name,
             )
             results.append(result)
 
@@ -62,6 +74,7 @@ class TeamService:
 
     def _invite_single(
         self,
+        team_id: UUID,
         client_id: UUID,
         email: str,
         template_ids: list[UUID],
@@ -71,7 +84,7 @@ class TeamService:
         """Process a single email invitation."""
         try:
             # Check for existing pending invitation
-            existing = self.repo.get_pending_invitation_by_email(client_id, email)
+            existing = self.repo.get_pending_invitation_by_email(team_id, email)
             if existing:
                 return InviteResult(
                     email=email,
@@ -90,7 +103,7 @@ class TeamService:
 
             # Create invitation
             invitation, raw_token = self.repo.create_invitation(
-                client_id=client_id,
+                team_id=team_id,
                 invited_by=invited_by,
                 invited_email=email,
                 template_ids=template_ids,
@@ -127,9 +140,11 @@ class TeamService:
         if not invitation:
             raise ValueError("Convite inválido ou expirado")
 
+        client_id = self.repo.get_client_id_by_team_id(invitation.team_id)
+
         if user_id is None:
             # User not logged in — return info for redirect
-            client = self.repo.get_client_by_id(invitation.client_id)
+            client = self.repo.get_client_by_id(client_id)
             return AcceptResponse(
                 status="redirect",
                 client_name=client.name if client else None,
@@ -141,21 +156,89 @@ class TeamService:
             not user
             or user.email.lower().strip() != invitation.invited_email.lower().strip()
         ):
-            raise ValueError("Este email não corresponde ao convite")
+            raise ValueError(
+                f"Este convite foi enviado para {invitation.invited_email}. "
+                "Faça login com essa conta para aceitar."
+            )
 
-        # Accept
-        member = self.repo.accept_invitation_for_user(invitation, user_id)
-        client = self.repo.get_client_by_id(member.client_id)
+        # Se o usuário já foi membro deste time e foi desvinculado,
+        # reativa a participação em vez de duplicar.
+        if self._get_inactive_member(invitation.team_id, user_id):
+            self.repo.reactivate_member(invitation.team_id, user_id)
+        else:
+            self.repo.accept_invitation_for_user(invitation, user_id)
+
+        client = self.repo.get_client_by_id(client_id)
 
         log.info(
-            f"👥 Colaborador {user.email} aceitou convite para cliente {client.name}"
+            f"👥 Colaborador {user.email} aceitou convite para cliente "
+            f"{client.name if client else client_id}"
         )
 
         return AcceptResponse(
             status="accepted",
             client_name=client.name if client else None,
-            client_id=member.client_id,
+            client_id=client_id,
         )
+
+    def _get_inactive_member(self, team_id: UUID, user_id: UUID):
+        return self.repo.get_inactive_member(team_id, user_id)
+
+    def accept_invitation_by_id(
+        self, invitation_id: UUID, user_id: UUID
+    ) -> AcceptResponse:
+        """Accept a pending invitation for the logged-in user."""
+        invitation = self.repo.get_invitation_by_id(invitation_id)
+        if not invitation or invitation.status != "pending":
+            raise ValueError("Convite inválido ou não está mais pendente")
+        expires_at = invitation.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=timezone.utc)
+        if expires_at < datetime.now(timezone.utc):
+            raise ValueError("Este convite expirou")
+
+        user = self.repo.get_user_by_id(user_id)
+        if (
+            not user
+            or user.email.lower().strip() != invitation.invited_email.lower().strip()
+        ):
+            raise ValueError(
+                f"Este convite foi enviado para {invitation.invited_email}. "
+                "Faça login com essa conta para aceitar."
+            )
+
+        client_id = self.repo.get_client_id_by_team_id(invitation.team_id)
+        if self._get_inactive_member(invitation.team_id, user_id):
+            self.repo.reactivate_member(invitation.team_id, user_id)
+        else:
+            self.repo.accept_invitation_for_user(invitation, user_id)
+
+        client = self.repo.get_client_by_id(client_id)
+        log.info(
+            f"👥 Colaborador {user.email} aceitou convite para cliente "
+            f"{client.name if client else client_id}"
+        )
+        return AcceptResponse(
+            status="accepted",
+            client_name=client.name if client else None,
+            client_id=client_id,
+        )
+
+    def decline_invitation_by_id(self, invitation_id: UUID, user_id: UUID) -> None:
+        """Decline a pending invitation for the logged-in user."""
+        invitation = self.repo.get_invitation_by_id(invitation_id)
+        if not invitation or invitation.status != "pending":
+            raise ValueError("Convite inválido ou não está mais pendente")
+
+        user = self.repo.get_user_by_id(user_id)
+        if (
+            not user
+            or user.email.lower().strip() != invitation.invited_email.lower().strip()
+        ):
+            raise ValueError("Você não pode recusar este convite")
+
+        self.repo.decline_invitation(invitation)
+        log.info(f"🙅 {user.email} recusou um convite para equipe")
 
     def get_team_members(
         self, client_id: UUID, current_user_id: UUID
@@ -176,12 +259,15 @@ class TeamService:
         for m in members_raw:
             user = self.repo.get_user_by_id(m.user_id)
             routines = self.repo.get_routines_for_member(client_id, m.user_id)
+            role_name = self.repo.get_role_name_by_id(m.role_id)
             members.append(
                 TeamMemberResponse(
                     user_id=m.user_id,
                     name=user.name if user else None,
                     email=user.email if user else "",
-                    joined_at=m.joined_at,
+                    joined_at=m.created_at,
+                    role=role_name,
+                    is_active=m.is_active,
                     routines=[
                         RoutineAccess(template_id=r.id, name=r.name) for r in routines
                     ],
@@ -189,6 +275,99 @@ class TeamService:
             )
 
         return TeamListResponse(members=members)
+
+    def list_invitations(
+        self, client_id: UUID, current_user_id: UUID
+    ) -> InvitationListResponse:
+        """Lista os convites do cliente (pendente, aceito, declinado, expirado)."""
+        client = self.repo.get_client_by_id(client_id)
+        if not client:
+            raise ValueError("Cliente não encontrado")
+        if client.user_id != current_user_id:
+            raise ValueError("Acesso negado")
+
+        team = self.repo.get_team_by_client_id(client_id)
+        if not team:
+            return InvitationListResponse(invitations=[])
+
+        invitations = []
+        for inv in self.repo.list_invitations(team.id):
+            routines = self.repo.get_routines_for_invitation(inv.id)
+            invitations.append(
+                InvitationResponse(
+                    invitation_id=inv.id,
+                    email=inv.invited_email,
+                    status=inv.status,
+                    expires_at=inv.expires_at,
+                    accepted_at=inv.accepted_at,
+                    created_at=inv.created_at,
+                    routines=[
+                        RoutineAccess(
+                            template_id=r.template_id,
+                            name=(
+                                self.repo.get_template_by_id(r.template_id).name or ""
+                            )
+                            if self.repo.get_template_by_id(r.template_id)
+                            else "",
+                        )
+                        for r in routines
+                    ],
+                )
+            )
+        return InvitationListResponse(invitations=invitations)
+
+    def resend_invitation(
+        self, client_id: UUID, invitation_id: UUID, current_user_id: UUID
+    ) -> InvitationResponse:
+        """Reenvia o email de um convite, renovando o token e a expiração."""
+        client = self.repo.get_client_by_id(client_id)
+        if not client:
+            raise ValueError("Cliente não encontrado")
+        if client.user_id != current_user_id:
+            raise ValueError("Acesso negado")
+
+        team = self.repo.get_team_by_client_id(client_id)
+        if not team:
+            raise ValueError("Time não encontrado para este cliente")
+
+        invitation = self.repo.get_invitation_by_id(invitation_id)
+        if not invitation or invitation.team_id != team.id:
+            raise ValueError("Convite não encontrado")
+
+        if invitation.status == "accepted":
+            raise ValueError("Este convite já foi aceito")
+
+        inviter = self.repo.get_user_by_id(invitation.invited_by)
+        inviter_name = inviter.name if inviter else "Um usuário"
+        user_exists = self.repo.get_user_by_email(invitation.invited_email) is not None
+
+        invitation, raw_token = self.repo.refresh_invitation(invitation)
+        self._send_invite_email(
+            to_email=invitation.invited_email,
+            client_name=client.name,
+            inviter_name=inviter_name,
+            token=raw_token,
+            user_exists=user_exists,
+        )
+
+        routines = self.repo.get_routines_for_invitation(invitation.id)
+        return InvitationResponse(
+            invitation_id=invitation.id,
+            email=invitation.invited_email,
+            status=invitation.status,
+            expires_at=invitation.expires_at,
+            accepted_at=invitation.accepted_at,
+            created_at=invitation.created_at,
+            routines=[
+                RoutineAccess(
+                    template_id=r.template_id,
+                    name=(self.repo.get_template_by_id(r.template_id).name or "")
+                    if self.repo.get_template_by_id(r.template_id)
+                    else "",
+                )
+                for r in routines
+            ],
+        )
 
     def remove_member(
         self, client_id: UUID, user_id: UUID, current_user_id: UUID
@@ -202,7 +381,8 @@ class TeamService:
         if user_id == current_user_id:
             raise ValueError("Você não pode remover a si mesmo")
 
-        if not self.repo.remove_member(client_id, user_id):
+        team = self.repo.get_or_create_team(client_id, client.user_id)
+        if not self.repo.remove_member(team.id, user_id):
             raise ValueError("Membro não encontrado")
 
     def _send_invite_email(
