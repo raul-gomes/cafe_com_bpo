@@ -10,7 +10,7 @@ import logoAsset from '../../assets/logo.png';
 import { getClients, createClient, ClientData } from '../../api/clients';
 import { useAuth } from '../../context/AuthContext';
 import { toast } from 'sonner';
-import { maskCNPJ, maskPhone } from '../../lib/formatters';
+import { maskCNPJ, maskPhone, onlyNumbers } from '../../lib/formatters';
 
 // ─── Catálogo de Serviços Inicial (Metodologia BPO v4) ─────────────────────────
 const INITIAL_SERVICES = [
@@ -42,6 +42,7 @@ interface PricingCalculatorLayoutProps {
   isSaving?: boolean;
   onSave?: (data: PricingFormData, clientName: string) => void;
   saveButtonLabel?: string;
+  isEditing?: boolean;
 }
 
 export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = ({
@@ -49,11 +50,12 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   initialClientName = '',
   isSaving = false,
   onSave,
-  saveButtonLabel = 'Salvar Proposta'
+  saveButtonLabel = 'Salvar Proposta',
+  isEditing = false
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { generate: generatePDF, isGenerating } = useGeneratePDF();
+  const { generate: generatePDF, isGenerating, error: pdfError } = useGeneratePDF();
   const [clientName, setClientName] = useState(initialClientName);
 
   const [clients, setClients] = useState<ClientData[]>([]);
@@ -301,7 +303,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
     // Simplificado: useGeneratePDF agora trata a URL absoluta
     const finalLogoUrl = user?.company_logo_url || user?.avatar_url || logoAsset;
 
-    await generatePDF({
+    const ok = await generatePDF({
       form: getValues(),
       pricing,
       logoUrl: finalLogoUrl,
@@ -309,12 +311,22 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
       clientEmail: selectedClient?.email || '', // Busca o email do cliente selecionado
       provider: user
     });
+
+    if (ok) {
+      toast.success('Proposta gerada em PDF!');
+    } else {
+      toast.error('Não foi possível gerar o PDF. Tente novamente.');
+    }
   };
 
   const handleAddNewClient = async () => {
     if (!newClient.name) return;
     try {
-      const created = await createClient(newClient);
+      const created = await createClient({
+        ...newClient,
+        cnpj: onlyNumbers(newClient.cnpj),
+        phone: onlyNumbers(newClient.phone),
+      });
       setClients([...clients, created]);
       setClientName(created.name);
       setShowNewClientForm(false);
@@ -391,7 +403,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                           >
                             <div style={{ fontWeight: 600, color: 'var(--ds-white)', fontSize: '14px' }}>{c.name}</div>
-                            {(c.cnpj || c.email) && <div style={{ fontSize: '11px', color: 'var(--ds-text-subtle)' }}>{c.cnpj} {c.email}</div>}
+                            {(c.cnpj || c.email) && <div style={{ fontSize: '11px', color: 'var(--ds-text-subtle)' }}>{c.cnpj ? maskCNPJ(c.cnpj) : ''} {c.email}</div>}
                           </div>
                         ))}
                       </div>
@@ -690,36 +702,72 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
         </div>
 
         <div className="summary-bar__actions" style={{ display: 'flex', alignItems: 'center' }}>
+          {pdfError && (
+             <div style={{ color: '#ef4444', fontSize: '13px', marginRight: '16px', fontWeight: 600 }}>
+               ⚠️ {pdfError}
+             </div>
+          )}
           {!hasActiveService && (
              <div style={{ color: '#ef4444', fontSize: '13px', marginRight: '16px', fontWeight: 600 }}>
                ⚠️ Ative pelo menos um serviço
              </div>
           )}
-          <button 
-            className="ds-btn ds-btn-ghost" 
-            onClick={handleDownload}
-            disabled={!pricing || isGenerating || !hasActiveService || !isClientValid}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
-              <polyline points="7 10 12 15 17 10" />
-              <line x1="12" y1="15" x2="12" y2="3" />
-            </svg>
-            {isGenerating ? 'Gerando...' : 'Baixar Proposta'}
-          </button>
-          
-          <button 
-            className="ds-btn ds-btn-primary" 
-            onClick={handlePrimaryAction}
-            disabled={!pricing || isSaving || !hasActiveService || !isClientValid}
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
-              <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-              <polyline points="17 21 17 13 7 13 7 21" />
-              <polyline points="7 3 7 8 15 8" />
-            </svg>
-            {isSaving ? 'Salvando...' : saveButtonLabel}
-          </button>
+          {isEditing ? (
+            <>
+              <button
+                className="ds-btn ds-btn-ghost"
+                onClick={handlePrimaryAction}
+                disabled={!pricing || isSaving || !hasActiveService || !isClientValid}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                {isSaving ? 'Salvando...' : saveButtonLabel}
+              </button>
+              <button
+                className="ds-btn ds-btn-primary"
+                onClick={handleDownload}
+                disabled={!pricing || isGenerating || !hasActiveService || !isClientValid}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {isGenerating ? 'Gerando...' : 'Baixar Proposta'}
+              </button>
+            </>
+          ) : (
+            <>
+              <button
+                className="ds-btn ds-btn-ghost"
+                onClick={handleDownload}
+                disabled={!pricing || isGenerating || !hasActiveService || !isClientValid}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                {isGenerating ? 'Gerando...' : 'Baixar Proposta'}
+              </button>
+
+              <button
+                className="ds-btn ds-btn-primary"
+                onClick={handlePrimaryAction}
+                disabled={!pricing || isSaving || !hasActiveService || !isClientValid}
+              >
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ marginRight: '8px' }}>
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+                  <polyline points="17 21 17 13 7 13 7 21" />
+                  <polyline points="7 3 7 8 15 8" />
+                </svg>
+                {isSaving ? 'Salvando...' : saveButtonLabel}
+              </button>
+            </>
+          )}
         </div>
       </div>
 

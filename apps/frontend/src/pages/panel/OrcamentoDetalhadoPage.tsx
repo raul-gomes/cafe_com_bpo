@@ -9,15 +9,6 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
-import { Input } from '../../components/ui/input';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
-} from '../../components/ui/dialog';
 import { MessageSquare } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -34,11 +25,9 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
-  const [whatsappModalOpen, setWhatsappModalOpen] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('+55');
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { generate: generatePDF } = useGeneratePDF();
+  const { generate: generatePDF, isGenerating, error: pdfError } = useGeneratePDF();
 
   const fetchData = useCallback(async () => {
     try {
@@ -72,7 +61,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
       c => c.name.trim().toLowerCase() === proposal.client_name.trim().toLowerCase()
     );
 
-    await generatePDF({
+    const ok = await generatePDF({
       form: proposal.input_payload,
       pricing: proposal.result_payload,
       logoUrl: finalLogoUrl,
@@ -80,16 +69,28 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
       clientEmail: client?.email || '',
       provider: user,
     });
+
+    if (ok) {
+      toast.success('Proposta gerada em PDF!');
+    } else {
+      toast.error('Não foi possível gerar o PDF. Tente novamente.');
+    }
   };
 
   const handleEmail = async () => {
     if (!proposal) return;
 
-    const clientEmail = clients.find(
+    const client = clients.find(
       c => c.name.trim().toLowerCase() === proposal.client_name.trim().toLowerCase()
-    )?.email;
-    const email = clientEmail || prompt('Digite o e-mail do destinatário:');
-    if (!email) return;
+    );
+    const email = client?.email;
+
+    if (!email) {
+      toast.error(
+        `Nenhum e-mail cadastrado para ${proposal.client_name}. Cadastre o contato em Meus Clientes.`
+      );
+      return;
+    }
 
     try {
       await apiClient.post(`/proposals/${id}/send-email`, {
@@ -97,24 +98,33 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
         client_name: proposal.client_name,
         message: 'Olá, segue o orçamento detalhado da nossa proposta de serviços BPO.',
       });
-      toast.success('E-mail enviado com sucesso!');
+      toast.success(`E-mail enviado para ${email}!`);
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Erro ao enviar e-mail.');
     }
   };
 
   const handleWhatsApp = () => {
-    setWhatsappModalOpen(true);
-  };
-
-  const handleSendWhatsApp = () => {
     if (!proposal) return;
-    const cleanPhone = phoneNumber.replace(/\D/g, '');
+
+    const client = clients.find(
+      c => c.name.trim().toLowerCase() === proposal.client_name.trim().toLowerCase()
+    );
+    const phone = client?.phone;
+
+    if (!phone || phone.replace(/\D/g, '').length < 10) {
+      toast.error(
+        `Nenhum telefone cadastrado para ${proposal.client_name}. Cadastre o contato em Meus Clientes.`
+      );
+      return;
+    }
+
+    handlePrint();
+    const cleanPhone = phone.replace(/\D/g, '');
     const value = formatPrice(proposal.result_payload?.final_price || 0);
     const message = `Olá ${proposal.client_name}, seguem os detalhes do orçamento: Valor: ${value}. Acesse o painel para mais informações.`;
     const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
-    setWhatsappModalOpen(false);
   };
 
   const safeNumber = (value: unknown): number => {
@@ -188,6 +198,9 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
           <p className="mt-1 text-[13px] text-muted-foreground">
             Criado em {formatDate(proposal.created_at)}
           </p>
+          {pdfError && (
+            <p className="mt-2 text-[13px] font-semibold text-red-500">⚠️ {pdfError}</p>
+          )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <Button
@@ -209,7 +222,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
             </svg>
             Editar Orçamento
           </Button>
-          <Button variant="outline" onClick={handlePrint}>
+          <Button variant="outline" onClick={handlePrint} disabled={isGenerating}>
             <svg
               width="16"
               height="16"
@@ -224,7 +237,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
               <path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" />
               <rect x="6" y="14" width="12" height="8" />
             </svg>
-            Imprimir PDF
+            {isGenerating ? 'Gerando...' : 'Imprimir PDF'}
           </Button>
           <Button variant="outline" onClick={handleEmail}>
             <svg
@@ -340,44 +353,6 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
           </div>
         </Card>
       </div>
-
-      {/* WhatsApp Dialog */}
-      <Dialog
-        open={whatsappModalOpen}
-        onOpenChange={(open) => {
-          if (!open) setWhatsappModalOpen(false);
-        }}
-      >
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Enviar via WhatsApp</DialogTitle>
-            <DialogDescription>
-              Digite o número do WhatsApp para {proposal?.client_name}:
-            </DialogDescription>
-          </DialogHeader>
-          <div className="px-6">
-            <Input
-              type="tel"
-              value={phoneNumber}
-              onChange={(e) => setPhoneNumber(e.target.value)}
-              placeholder="+55 (11) 99999-9999"
-              className="w-full"
-            />
-          </div>
-          <DialogFooter showCloseButton={false}>
-            <Button variant="ghost" onClick={() => setWhatsappModalOpen(false)}>
-              Cancelar
-            </Button>
-            <Button
-              variant="default"
-              onClick={handleSendWhatsApp}
-              disabled={phoneNumber.replace(/\D/g, '').length < 10}
-            >
-              <MessageSquare size={16} /> Enviar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 };

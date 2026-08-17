@@ -107,6 +107,7 @@ export const OrcamentoNovoPage: React.FC = () => {
           onSave={handleSave}
           isSaving={saving}
           saveButtonLabel={id ? 'Salvar Alterações' : 'Criar Orçamento'}
+          isEditing={!!id}
         />
       </div>
     </div>

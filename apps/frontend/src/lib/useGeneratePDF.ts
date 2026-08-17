@@ -24,7 +24,7 @@ interface GeneratePDFOptions {
 }
 
 interface UseGeneratePDFReturn {
-  generate: (opts: GeneratePDFOptions) => Promise<void>;
+  generate: (opts: GeneratePDFOptions) => Promise<boolean>;
   isGenerating: boolean;
   error: string | null;
 }
@@ -33,12 +33,43 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const generate = useCallback(async (opts: GeneratePDFOptions) => {
+  const generate = useCallback(async (opts: GeneratePDFOptions): Promise<boolean> => {
     setIsGenerating(true);
     setError(null);
 
+    const renderAndDownload = async (logoUrl: string): Promise<boolean> => {
+      const { form, pricing, clientName = 'Cliente', clientEmail = '', provider = null } = opts;
+
+      const doc = React.createElement(ProposalDocument, {
+        form,
+        pricing,
+        logoUrl,
+        clientName,
+        clientEmail,
+        provider,
+        generatedAt: new Date().toLocaleDateString('pt-BR', {
+          day: '2-digit',
+          month: 'long',
+          year: 'numeric',
+        }),
+      });
+
+      const blob = await pdf(doc as any).toBlob();
+
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const dateSlug = new Date().toISOString().split('T')[0];
+      link.href = url;
+      link.download = `proposta-bpo-${clientName.toLowerCase().replace(/\s+/g, '-')}-${dateSlug}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return true;
+    };
+
     try {
-      const { form, pricing, logoUrl: inputUrl, clientName = 'Cliente', clientEmail = '', provider = null } = opts;
+      const { logoUrl: inputUrl } = opts;
 
       // 1. Normalização da URL
       // Remove possíveis prefixos duplicados como "/apihttps://..." ou "/api/api/..."
@@ -72,39 +103,19 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
         }
       }
 
-      console.log('[PDF] Gerando documento com logo final:', logoUrl);
+      try {
+        await renderAndDownload(logoUrl);
+      } catch (err) {
+        // Falhou com logo remota: tenta regerar sem o logo externo para não travar o download.
+        console.warn('[useGeneratePDF] Falha com logo, regerando sem logo:', err);
+        await renderAndDownload('');
+      }
 
-      // Renderiza o documento React como blob PDF
-      const doc = React.createElement(ProposalDocument, {
-        form,
-        pricing,
-        logoUrl,
-        clientName,
-        clientEmail,
-        provider,
-        generatedAt: new Date().toLocaleDateString('pt-BR', {
-          day: '2-digit',
-          month: 'long',
-          year: 'numeric',
-        }),
-      });
-
-      const blob = await pdf(doc as any).toBlob();
-
-      // Gera o download automático no browser
-      const url = URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      const dateSlug = new Date().toISOString().split('T')[0];
-      link.href = url;
-      link.download = `proposta-bpo-${clientName.toLowerCase().replace(/\s+/g, '-')}-${dateSlug}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
-
+      return true;
     } catch (err) {
       console.error('[useGeneratePDF] Error:', err);
       setError('Erro ao gerar o PDF. Tente novamente.');
+      return false;
     } finally {
       setIsGenerating(false);
     }
