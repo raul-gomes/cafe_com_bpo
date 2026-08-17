@@ -181,4 +181,29 @@ describe('PerfilPage', () => {
       expect(screen.getByDisplayValue('#3b82f6')).toBeInTheDocument()
     })
   })
+
+  it('uses theme tokens (not hardcoded colors) on the segment select (regressão s08)', async () => {
+    mockUser(BASE_USER)
+    const { container } = renderPage()
+
+    await screen.findByDisplayValue('Raul Gomes')
+
+    const companyTab = screen.getByText('Empresa')
+    fireEvent.click(companyTab)
+
+    await waitFor(() => {
+      const segmentSelect = container.querySelector<HTMLSelectElement>('select[name="company_segment"]')
+      expect(segmentSelect).not.toBeNull()
+      if (segmentSelect) {
+        const className = segmentSelect.className
+
+        // Deve usar tokens de tema (text-foreground + dark bg), nunca cores fixas brancas/pretas
+        expect(className).toContain('text-foreground')
+        expect(className).toContain('bg-transparent')
+        expect(className).toContain('dark:bg-input/30')
+        expect(className).toContain('[&>option]:bg-background')
+        expect(className).not.toMatch(/bg-white|text-black|#fff|#ffffff/)
+      }
+    })
+  })
 })

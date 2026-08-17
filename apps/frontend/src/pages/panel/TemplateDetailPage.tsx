@@ -272,7 +272,7 @@ export const TemplateDetailPage: React.FC = () => {
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Tipo de Processo</label>
                   <select value={cfgProcessType} onChange={(e) => setCfgProcessType(e.target.value)}
-                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                     <option value="">Selecione</option>
                     {Object.entries(PROCESS_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                   </select>
@@ -280,7 +280,7 @@ export const TemplateDetailPage: React.FC = () => {
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Tipo de Rotina</label>
                   <select value={cfgRoutineTypeId} onChange={(e) => setCfgRoutineTypeId(e.target.value)}
-                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                     <option value="">Sem tipo</option>
                     {routineTypes?.map(rt => <option key={rt.id} value={rt.id}>{rt.name}</option>)}
                   </select>
@@ -290,7 +290,7 @@ export const TemplateDetailPage: React.FC = () => {
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Periodicidade</label>
                 <select value={cfgRecurrence} onChange={(e) => { setCfgRecurrence(e.target.value); setCfgDueDaysFromStart(''); setCfgDueDay(''); setCfgDueMonth(''); setCfgWeekdays([1, 2, 3, 4, 5]); }}
-                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                   {Object.entries(RECURRENCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
@@ -331,7 +331,7 @@ export const TemplateDetailPage: React.FC = () => {
                   <div>
                     <label className="text-xs font-semibold text-muted-foreground block mb-1">Mês</label>
                     <select value={cfgDueMonth} onChange={(e) => setCfgDueMonth(e.target.value === '' ? '' : Number(e.target.value))}
-                      className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                      className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                       <option value="">Selecione</option>
                       {MONTH_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                     </select>
@@ -385,7 +385,7 @@ export const TemplateDetailPage: React.FC = () => {
                 <div className="w-[120px]">
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Prioridade</label>
                   <select value={newActPriority} onChange={(e) => setNewActPriority(e.target.value)}
-                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                     <option value="low">🔵 Baixa</option>
                     <option value="medium">🟡 Média</option>
                     <option value="high">🔴 Alta</option>
@@ -446,7 +446,7 @@ export const TemplateDetailPage: React.FC = () => {
                           <Input value={editName} onChange={(e) => setEditName(e.target.value)} placeholder="Nome da atividade" />
                         </div>
                         <select value={editPriority} onChange={(e) => setEditPriority(e.target.value)}
-                          className="flex h-9 w-[110px] rounded-lg border border-input bg-transparent px-2 py-1 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                          className="flex h-9 w-[110px] rounded-lg border border-input bg-transparent px-2 py-1 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                           <option value="low">🔵 Baixa</option>
                           <option value="medium">🟡 Média</option>
                           <option value="high">🔴 Alta</option>

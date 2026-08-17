@@ -313,7 +313,7 @@ export const PerfilPage: React.FC = () => {
                     name="company_segment"
                     value={formData.company_segment}
                     onChange={handleChange}
-                    className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30"
+                    className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900"
                   >
                     {SEGMENT_OPTIONS.map(option => (
                       <option key={option.value} value={option.value}>

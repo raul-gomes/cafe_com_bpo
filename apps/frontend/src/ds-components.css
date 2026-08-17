@@ -71,6 +71,10 @@
 .ds-input:focus {
   border-color: var(--ds-primary);
 }
+.ds-input option {
+  background: var(--ds-surface);
+  color: var(--ds-text);
+}
 .ds-input::placeholder { color: var(--ds-text-subtle); }
 .ds-input.error { border-color: var(--ds-error); }
 .ds-input:disabled {

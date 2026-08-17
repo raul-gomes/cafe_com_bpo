@@ -211,15 +211,24 @@ const s = StyleSheet.create({
     fontSize: 8,
     color: C.grey,
   },
-  footerSub: {
-    fontSize: 8,
-    color: C.greyLight,
-  },
 });
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (v: number) =>
   v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 2 });
+
+// Formata um telefone cru (somente dígitos) para exibição amigável no PDF.
+const fmtPhone = (v: string): string => {
+  const digits = v.replace(/\D/g, '');
+  if (digits.length < 10) return v;
+  if (digits.length === 10) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 6)}-${digits.slice(6)}`;
+  }
+  if (digits.length === 11) {
+    return `(${digits.slice(0, 2)}) ${digits.slice(2, 7)}-${digits.slice(7)}`;
+  }
+  return `+${digits.slice(0, 2)} (${digits.slice(2, 4)}) ${digits.slice(4, 9)}-${digits.slice(9, 13)}`;
+};
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 interface ProposalDocumentProps {
@@ -248,7 +257,8 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
   const providerCompany = provider?.company || 'Minha empresa';
   const providerName = provider?.name || 'Meu nome';
   const providerEmail = provider?.email || 'meu@email.com';
-  const providerPhone = '111111111111111';
+  const providerPhone =
+    provider?.company_commercial_phone || provider?.whatsapp || '';
 
   return (
     <Document
@@ -279,7 +289,7 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
           <View style={s.providerRight}>
             <Text style={s.providerName}>{providerName}</Text>
             <Text style={s.providerDetail}>{providerEmail}</Text>
-            <Text style={s.providerDetail}>{providerPhone}</Text>
+            {providerPhone && <Text style={s.providerDetail}>{fmtPhone(providerPhone)}</Text>}
           </View>
         </View>
 
@@ -334,9 +344,10 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
         {/* FOOTER */}
         <View style={s.footer}>
           <Text style={s.footerMain}>
-            {providerCompany} · {providerEmail} · {providerPhone}
+            {providerCompany}
+            {providerEmail && ` · ${providerEmail}`}
+            {providerPhone && ` · ${fmtPhone(providerPhone)}`}
           </Text>
-          <Text style={s.footerSub}>Desenvolvido com Café com BPO</Text>
         </View>
       </Page>
     </Document>

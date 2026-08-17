@@ -197,7 +197,7 @@ export const TemplateListPage: React.FC = () => {
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Tipo</label>
                 <select value={newRoutineTypeId} onChange={(e) => setNewRoutineTypeId(e.target.value)}
-                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                   <option value="">Sem tipo</option>
                   {routineTypes?.map((rt) => (
                     <option key={rt.id} value={rt.id}>{rt.name}</option>
@@ -207,7 +207,7 @@ export const TemplateListPage: React.FC = () => {
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Periodicidade</label>
                 <select value={newRecurrence} onChange={(e) => { setNewRecurrence(e.target.value); setNewDaysFromStart(''); setNewDueDay(''); setNewDueMonth(''); setNewWeekdays([1, 2, 3, 4, 5]); }}
-                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                  className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                   {Object.entries(RECURRENCE_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
                   ))}
@@ -253,7 +253,7 @@ export const TemplateListPage: React.FC = () => {
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Mês</label>
                   <select value={newDueMonth} onChange={(e) => setNewDueMonth(e.target.value === '' ? '' : Number(e.target.value))}
-                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30">
+                    className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                     <option value="">Selecione</option>
                     {MONTH_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
                   </select>
