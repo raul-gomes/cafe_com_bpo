@@ -297,6 +297,8 @@ export const TasksPage: React.FC = () => {
 
             if (isFirstPhase) {
                 if (isOverdue(t)) return true;
+                // Sem deadline: sempre visível na primeira fase (não tem período)
+                if (!t.deadline) return true;
                 if (p) return isInPeriod(t.deadline, p);
                 if (mode === 'overdue') return false;
                 return true;
@@ -304,6 +306,8 @@ export const TasksPage: React.FC = () => {
             if (isMiddlePhase) {
                 // Tasks atrasadas sempre visíveis em qualquer filtro
                 if (isOverdue(t)) return true;
+                // Sem deadline: sempre visível na fase intermediária
+                if (!t.deadline) return true;
                 if (!p) return true;
                 // Mostrar se deadline está no período OU se foi completada no período
                 // (cobre o caso de arrastar de volta de "concluido" para fase intermediária)

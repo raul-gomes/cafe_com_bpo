@@ -21,6 +21,7 @@ vi.mock('../src/api/hooks/useTasks', () => {
       data: [
         { id: 'task-1', title: 'Task 1', client_id: 'c1', status: 'todo', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
         { id: 'task-2', title: 'Task 2', client_id: 'c1', status: 'doing', priority: 'medium', phase_id: 'phase-2', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
+        { id: 'task-3', title: 'Task 3', client_id: 'c1', status: 'todo', priority: 'low', phase_id: 'phase-1', deadline: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
       ],
       isLoading: false,
     }),
@@ -125,10 +126,10 @@ describe('TasksPage — Phases (Tarefa 5.2)', () => {
   it('shows correct task count per phase column', async () => {
     renderPage()
 
-    // Task 1 has phase_id 'phase-1' (a fazer) -> column should show count 1
+    // Task 1 + Task 3 have phase_id 'phase-1' (a fazer) -> column should show count 2
     // Task 2 has phase_id 'phase-2' (em andamento) -> column should show count 1
-    const countBadges = screen.getAllByText('1')
-    expect(countBadges.length).toBeGreaterThanOrEqual(2)
+    expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders Fases button to open PhaseManager', async () => {
@@ -136,5 +137,13 @@ describe('TasksPage — Phases (Tarefa 5.2)', () => {
 
     const fasesBtn = screen.getByText('Fases')
     expect(fasesBtn).toBeInTheDocument()
+  })
+
+  it('keeps a task without deadline visible in the kanban under today filter (regressão s30)', () => {
+    // Mock includes a task (task-3) WITHOUT deadline in the first phase.
+    // filterTasksForMode('today') must not hide it (no period to match).
+    renderPage()
+
+    expect(screen.getByText('Task 3')).toBeInTheDocument()
   })
 })
