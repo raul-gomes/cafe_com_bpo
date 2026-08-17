@@ -52,8 +52,10 @@ def create_proposal(
         return new_scenario
     except Exception as e:
         repo.session.rollback()
-        log.error(f"❌ Erro ao salvar proposta para {current_user.email}: {e!s}")
-        raise HTTPException(status_code=400, detail=str(e))
+        log.exception(f"❌ Erro ao salvar proposta para {current_user.email}")
+        raise HTTPException(
+            status_code=400, detail="Não foi possível salvar o orçamento."
+        ) from e
 
 
 @router.get("/", response_model=list[ProposalResponse])
@@ -111,8 +113,10 @@ def update_proposal(
         raise
     except Exception as e:
         repo.session.rollback()
-        log.error(f"❌ Erro ao atualizar proposta {proposal_id}: {e!s}")
-        raise HTTPException(status_code=400, detail=str(e))
+        log.exception(f"❌ Erro ao atualizar proposta {proposal_id}")
+        raise HTTPException(
+            status_code=400, detail="Não foi possível atualizar o orçamento."
+        ) from e
 
 
 @router.delete("/{proposal_id}", status_code=204)

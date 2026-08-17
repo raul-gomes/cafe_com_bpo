@@ -9,7 +9,7 @@ from uuid import UUID
 
 from src.core.config import get_settings
 from src.core.email import EmailService
-from src.modules.proposals.repository import ProposalRepository
+from src.modules.proposals.repository import PricingScenarioRepository
 from src.modules.proposals.schemas import (
     ProposalCreate,
     ProposalResponse,
@@ -22,7 +22,7 @@ settings = get_settings()
 class ProposalService:
     """Service layer for proposal operations."""
 
-    def __init__(self, repository: ProposalRepository):
+    def __init__(self, repository: PricingScenarioRepository):
         self.repository = repository
 
     @staticmethod
@@ -70,7 +70,9 @@ class ProposalService:
 
     def get_proposal(self, proposal_id: UUID, user_id: UUID) -> ProposalResponse:
         """Get a specific proposal."""
-        proposal = self.repository.get_by_id(proposal_id, user_id)
+        proposal = self.repository.get_scenario_by_id(
+            user_id=user_id, scenario_id=proposal_id
+        )
         if not proposal:
             raise ValueError(f"Proposal {proposal_id} not found")
         # Sanitize NaN values from result_payload
@@ -88,27 +90,38 @@ class ProposalService:
             proposal_data.result_payload = self._sanitize_result_payload(
                 proposal_data.result_payload
             )
-        return self.repository.create(proposal_data, user_id)
+        return self.repository.create_scenario(
+            user_id=user_id,
+            client_name=proposal_data.client_name,
+            input_payload=proposal_data.input_payload,
+            result_payload=proposal_data.result_payload,
+        )
 
     def update_proposal(
         self, proposal_id: UUID, user_id: UUID, proposal_data: ProposalUpdate
     ) -> ProposalResponse:
         """Update an existing proposal."""
-        proposal = self.repository.get_by_id(proposal_id, user_id)
-        if not proposal:
-            raise ValueError(f"Proposal {proposal_id} not found")
         if proposal_data.result_payload:
             proposal_data.result_payload = self._sanitize_result_payload(
                 proposal_data.result_payload
             )
-        return self.repository.update(proposal, proposal_data)
+        updated = self.repository.update_scenario(
+            user_id=user_id,
+            scenario_id=proposal_id,
+            client_name=proposal_data.client_name,
+            input_payload=proposal_data.input_payload,
+            result_payload=proposal_data.result_payload,
+        )
+        if not updated:
+            raise ValueError(f"Proposal {proposal_id} not found")
+        return updated
 
     def delete_proposal(self, proposal_id: UUID, user_id: UUID) -> None:
         """Delete a proposal."""
-        proposal = self.repository.get_by_id(proposal_id, user_id)
-        if not proposal:
+        if not self.repository.delete_scenario(
+            user_id=user_id, scenario_id=proposal_id
+        ):
             raise ValueError(f"Proposal {proposal_id} not found")
-        self.repository.delete(proposal)
 
     def get_pdf_download_url(self, proposal_id: UUID, user_id: UUID) -> str:
         """Get frontend URL for PDF download (PDF is generated client-side)."""

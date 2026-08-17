@@ -108,3 +108,50 @@ def test_update_scenario_modifies_record(db_session):
     assert updated.client_name == "New Name"
     assert updated.input_payload == {"v": 2}
     assert updated.result_payload == {"p": 200}
+
+
+def test_scenario_payloads_stored_as_text_are_deserialized(db_session):
+    """Regressão s29: colunas TEXT (Postgres) devem voltar como dict.
+
+    Simula o cenário de produção onde a migration criou as colunas como
+    TEXT (o driver devolve str). O TypeDecorator JSONText deve aplicar
+    json.loads, senão a listagem/leitura de propostas retornaria 500
+    (ResponseValidationError: 'Input should be a valid dictionary').
+    """
+    user_repo = UserRepository(db_session)
+    user = user_repo.create_user(email="sc_json@test.com", password_hash="hash")
+
+    import json as _json
+
+    from sqlalchemy import text
+
+    raw_input = _json.dumps({"operation": {"total_cost": 3500, "people_count": 1}})
+    raw_result = _json.dumps({"final_price": 381.06, "breakdown": {"tax_amount": 22.86}})
+
+    scenario_id = "0123456789abcdef0123456789abcdef"
+    db_session.execute(
+        text(
+            "INSERT INTO pricing_scenarios "
+            "(id, user_id, client_name, input_payload, result_payload, is_active)"
+            " VALUES (:id, :uid, :name, :inp, :res, :active)"
+        ),
+        {
+            "id": scenario_id,
+            "uid": user.id.hex,
+            "name": "Cliente 1",
+            "inp": raw_input,
+            "res": raw_result,
+            "active": True,
+        },
+    )
+    db_session.commit()
+
+    repo = PricingScenarioRepository(db_session)
+    scenarios = repo.list_scenarios_by_user(user.id)
+
+    assert len(scenarios) == 1
+    assert scenarios[0].input_payload == {
+        "operation": {"total_cost": 3500, "people_count": 1}
+    }
+    assert scenarios[0].result_payload == {"final_price": 381.06, "breakdown": {"tax_amount": 22.86}}
+    assert isinstance(scenarios[0].result_payload, dict)
