@@ -27,7 +27,7 @@ def test_create_client_success(client):
     assert resp.status_code == 201
     data = resp.json()
     assert data["name"] == "Super Empresa"
-    assert data["cnpj"] == "12.345.678/0001-99"
+    assert data["cnpj"] == "12345678000199"
     assert "id" in data
 
 
@@ -86,6 +86,7 @@ def test_create_client_with_address(client):
     assert resp.status_code == 201
     data = resp.json()
     assert data["address"] == "Rua Example, 123, Centro, São Paulo - SP, 01001-000"
+    assert data["cnpj"] == "98765432000110"
 
     # GET should also return address
     resp_get = client.get("/clients/", headers=auth)
@@ -112,6 +113,25 @@ def test_update_client_address(client):
     assert (
         resp_upd.json()["address"] == "Av. Paulista, 1000, Bela Vista, São Paulo - SP"
     )
+
+
+def test_update_client_sanitizes_cnpj_and_phone(client):
+    email = f"client_sani_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = client.post(
+        "/clients/",
+        json={
+            "name": "Empresa Sanitizada",
+            "cnpj": "12.345.678/0001-99",
+            "phone": "(11) 98888-7777",
+        },
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["cnpj"] == "12345678000199"
+    assert data["phone"] == "11988887777"
 
 
 def test_clients_endpoints_require_authentication(client):

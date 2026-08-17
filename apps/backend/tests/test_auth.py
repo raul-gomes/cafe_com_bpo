@@ -146,7 +146,7 @@ def test_update_profile_with_company_fields(client):
     assert data["whatsapp"] == "11988887777"
     assert data["company_razao_social"] == "Minha Empresa Ltda"
     assert data["company_nome_fantasia"] == "Minha Empresa"
-    assert data["company_cnpj"] == "12.345.678/0001-99"
+    assert data["company_cnpj"] == "12345678000199"
     assert data["company_address"] == "Rua Exemplo, 123"
     assert data["company_professional_email"] == "contato@minhaempresa.com"
     assert data["company_commercial_phone"] == "1133334444"
@@ -157,6 +157,72 @@ def test_update_profile_with_company_fields(client):
     resp_get = client.get("/auth/me", headers=headers)
     assert resp_get.status_code == 200
     assert resp_get.json()["whatsapp"] == "11988887777"
+
+
+def test_update_profile_sanitizes_cnpj_and_phones(client):
+    """PATCH /auth/me normaliza CNPJ e telefones (remove máscara/pontuação)."""
+    email = f"sani_{uuid4()}@cafe.com"
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.patch(
+        "/auth/me",
+        json={
+            "whatsapp": "(11) 98888-7777",
+            "company_cnpj": "12.345.678/0001-99",
+            "company_commercial_phone": "+55 11 3333-4444",
+        },
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["whatsapp"] == "11988887777"
+    assert data["company_cnpj"] == "12345678000199"
+    assert data["company_commercial_phone"] == "551133334444"
+
+
+def test_update_profile_rejects_empty_sanitized_field(client):
+    """PATCH /auth/me rejeita campo que fica vazio após remover não-dígitos."""
+    email = f"sani_empty_{uuid4()}@cafe.com"
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.patch(
+        "/auth/me", json={"whatsapp": "abc-()/"}, headers=headers
+    )
+    assert resp.status_code == 422
+
+
+def test_update_profile_accepts_empty_phone_and_cnpj(client):
+    """PATCH /auth/me aceita telefone/CNPJ vazios (ex.: aba Personalização)."""
+    email = f"sani_empty_ok_{uuid4()}@cafe.com"
+    client.post(
+        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
+    )
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    token = resp.json()["access_token"]
+    headers = {"Authorization": f"Bearer {token}"}
+
+    resp = client.patch(
+        "/auth/me",
+        json={"whatsapp": "", "company_cnpj": "", "company_commercial_phone": ""},
+        headers=headers,
+    )
+    assert resp.status_code == 200
 
 
 def test_update_profile_partial_update(client):

@@ -1,3 +1,4 @@
+import re
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -88,6 +89,26 @@ class ProfileUpdate(BaseModel):
     company_logo_url: str | None = None
     company_color_code: str | None = None
     company_color_secondary: str | None = None
+
+    @field_validator("whatsapp", "company_commercial_phone")
+    @classmethod
+    def sanitize_phone(cls, v: str | None) -> str | None:
+        if v is None or not v.strip():
+            return v
+        cleaned = re.sub(r"\D", "", v)
+        if not cleaned:
+            raise ValueError("Informe um telefone válido")
+        return cleaned
+
+    @field_validator("company_cnpj")
+    @classmethod
+    def sanitize_cnpj(cls, v: str | None) -> str | None:
+        if v is None or not v.strip():
+            return v
+        cleaned = re.sub(r"\D", "", v)
+        if not cleaned:
+            raise ValueError("Informe um CNPJ válido")
+        return cleaned
 
 
 class TokenResponse(BaseModel):
