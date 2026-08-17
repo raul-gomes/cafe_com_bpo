@@ -247,7 +247,7 @@ export const EmpresasPage: React.FC = () => {
   };
 
   const handleInvite = async () => {
-    if (inviteEmails.length === 0 || inviteTemplateIds.length === 0 || !teamClientId) return;
+    if (inviteEmails.length === 0 || !teamClientId) return;
     setInviting(true);
     try {
       const { data } = await inviteCollaborator(teamClientId, {
@@ -313,7 +313,7 @@ export const EmpresasPage: React.FC = () => {
       <div className="flex flex-col gap-1.5">
         <label className="text-[13px] font-medium text-foreground">Segmento</label>
         <select
-          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-[13px] text-foreground outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50"
+          className="h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-[13px] text-foreground outline-none transition-colors focus:border-ring focus:ring-3 focus:ring-ring/50 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900"
           value={formData.segment}
           onChange={e => setFormData({ ...formData, segment: e.target.value })}
         >
@@ -588,10 +588,10 @@ export const EmpresasPage: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Rotinas com acesso</label>
+                  <label className="text-xs font-semibold text-muted-foreground block mb-1">Rotinas com acesso <span className="text-muted-foreground/60">(opcional)</span></label>
                   {linkedTemplates.length === 0 ? (
                     <p className="text-[12px] text-muted-foreground py-2">
-                      Nenhuma rotina vinculada a este cliente. Vincule rotinas primeiro em <strong>Rotinas</strong>.
+                      Nenhuma rotina vinculada a este cliente. O convite será enviado sem rotinas.
                     </p>
                   ) : (
                     <div className="flex flex-col gap-1.5 max-h-[200px] overflow-y-auto">
@@ -636,7 +636,7 @@ export const EmpresasPage: React.FC = () => {
                   <Button
                     size="sm"
                     onClick={handleInvite}
-                    disabled={inviteEmails.length === 0 || inviteTemplateIds.length === 0 || inviting}
+                    disabled={inviteEmails.length === 0 || inviting}
                   >
                     {inviting ? 'Enviando...' : `Enviar Convite${inviteEmails.length > 1 ? `s (${inviteEmails.length})` : ''}`}
                   </Button>
