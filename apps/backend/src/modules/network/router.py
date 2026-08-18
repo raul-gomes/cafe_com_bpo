@@ -11,7 +11,6 @@ from .repository import NetworkRepository
 from .schemas import (
     CommentCreate,
     CommentResponse,
-    PaginatedNotifications,
     PaginatedPosts,
     PostCreate,
     PostResponse,
@@ -107,35 +106,3 @@ def get_post_comments(
 ):
     repo = NetworkRepository(db)
     return repo.get_comments(post_id)
-
-
-@router.get("/notifications", response_model=PaginatedNotifications)
-def get_notifications(
-    limit: int = 20,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session),
-):
-    repo = NetworkRepository(db)
-    items, total = repo.get_notifications(current_user.id, limit)
-    return {"items": items, "total": total}
-
-
-@router.patch(
-    "/notifications/{notification_id}/read", status_code=status.HTTP_204_NO_CONTENT
-)
-def mark_notification_read(
-    notification_id: UUID,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session),
-):
-    repo = NetworkRepository(db)
-    repo.mark_notification_read(current_user.id, notification_id)
-
-
-@router.patch("/notifications/read", status_code=status.HTTP_204_NO_CONTENT)
-def mark_notifications_read(
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db_session),
-):
-    repo = NetworkRepository(db)
-    repo.mark_notifications_read(current_user.id)

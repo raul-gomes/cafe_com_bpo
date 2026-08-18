@@ -255,6 +255,10 @@ export interface ClientTemplateAssignmentCreate {
   start_date?: string;
 }
 
+export interface ClientTemplateAssignmentUpdate {
+  is_active?: boolean;
+}
+
 export interface ClientTemplateAssignmentResponse {
   id: string;
   client_id: string;

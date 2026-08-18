@@ -135,7 +135,7 @@ export const InvitationAcceptPage = () => {
                   Entrar com outra conta
                 </Button>
               )}
-              <Link to="/" className="text-primary no-underline text-sm">Voltar ao início</Link>
+              <Link to="/" className="text-primary-strong no-underline text-sm">Voltar ao início</Link>
             </>
           )}
         </CardContent>

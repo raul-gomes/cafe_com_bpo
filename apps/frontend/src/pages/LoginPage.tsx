@@ -37,7 +37,7 @@ export default function LoginPage() {
 
       <span className="login-bpo-watermark">BPO</span>
 
-      <main className="flex-1 flex items-center justify-center px-6 pt-14">
+      <main className="flex-1 flex items-center justify-center px-6 py-8">
         <div className="w-full max-w-[420px]">
           {errorParam && (
             <Alert variant="destructive" className="mb-5">
@@ -52,7 +52,7 @@ export default function LoginPage() {
           <LoginForm onForgotPassword={() => setShowForgotPw(true)} />
           <div className="text-center mt-5 text-[13px] text-muted-foreground">
             Não possui conta?{' '}
-            <button type="button" onClick={() => setShowRegister(true)} className="text-primary no-underline font-medium bg-transparent border-none cursor-pointer hover:underline">
+            <button type="button" onClick={() => setShowRegister(true)} className="text-primary-strong no-underline font-medium bg-transparent border-none cursor-pointer hover:underline">
               Cadastre-se
             </button>
           </div>

@@ -67,9 +67,9 @@ export const SLAAlerts: React.FC = () => {
           onClick={() => navigate('/painel/tarefas')}
         >
           <CardContent className="p-0 flex gap-2.5 items-start">
-            <AlertTriangle size={18} className="text-amber-500 shrink-0 mt-0.5" />
+            <AlertTriangle size={18} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div>
-              <div className="font-bold text-[13px] text-amber-500">{alert.message}</div>
+              <div className="font-bold text-[13px] text-amber-600 dark:text-amber-400">{alert.message}</div>
               <div className="text-[11px] text-muted-foreground mt-1">
                 {alert.tasks.map(t => t.title).join(', ')}
               </div>

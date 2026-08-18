@@ -33,9 +33,18 @@ class AppNotification(Base):
     related_entity_type = Column(String(50), nullable=True)
     related_entity_id = Column(UUID(as_uuid=True), nullable=True)
 
+    # Optional reference to the user who triggered this notification
+    # (e.g. the author of a forum comment)
+    triggered_by_user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=True
+    )
+
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     read_at = Column(DateTime(timezone=True), nullable=True)
 
-    user = relationship("User", back_populates="notifications")
+    user = relationship(
+        "User", back_populates="notifications", foreign_keys=[user_id]
+    )
+    triggered_by_user = relationship("User", foreign_keys=[triggered_by_user_id])

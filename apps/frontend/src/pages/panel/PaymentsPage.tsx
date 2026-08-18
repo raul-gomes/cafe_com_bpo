@@ -100,7 +100,7 @@ export const PaymentsPage: React.FC = () => {
       case 'overdue':
         return <AlertCircle size={16} className="text-destructive" />;
       default:
-        return <Clock size={16} className="text-amber-500" />;
+        return <Clock size={16} className="text-amber-600 dark:text-amber-400" />;
     }
   };
 
@@ -296,7 +296,7 @@ export const PaymentsPage: React.FC = () => {
                 </div>
               </div>
               <div className="text-right">
-                <div className="text-[20px] font-extrabold text-primary">
+                <div className="text-[20px] font-extrabold text-primary-strong">
                   {formatPrice(payment.amount)}
                 </div>
                 <div
@@ -304,7 +304,7 @@ export const PaymentsPage: React.FC = () => {
                     payment.status === 'confirmed' ||
                     payment.status === 'received'
                       ? 'text-[11px] font-semibold text-emerald-500'
-                      : 'text-[11px] font-semibold text-amber-500'
+                      : 'text-[11px] font-semibold text-amber-600 dark:text-amber-400'
                   }
                 >
                   {getStatusLabel(payment.status)}

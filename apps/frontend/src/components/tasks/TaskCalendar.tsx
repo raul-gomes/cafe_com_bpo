@@ -55,7 +55,7 @@ const TaskCalendarInner: React.FC<Props> = ({ tasks, clients, onEdit, isMacro })
               <div className={cn(
                 'mb-0.5 text-right font-extrabold',
                 isMacro ? 'text-[10px]' : 'text-[12px]',
-                isToday ? 'text-primary' : 'text-muted-foreground'
+                isToday ? 'text-primary-strong' : 'text-muted-foreground'
               )}>
                 {day}
               </div>

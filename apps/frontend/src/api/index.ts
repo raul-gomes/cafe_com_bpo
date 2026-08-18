@@ -11,7 +11,7 @@ export { useCalculatePricing } from './hooks/usePricing'
 export { useDashboard } from './hooks/useDashboard'
 
 // Notifications hooks
-export { useNotifications } from './hooks/useNotifications'
+export { useAppNotifications } from './hooks/useAppNotifications'
 
 // Tasks hooks
 export { useTasks } from './hooks/useTasks'

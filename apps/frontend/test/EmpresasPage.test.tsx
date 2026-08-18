@@ -28,6 +28,7 @@ vi.mock('../src/api/hooks/useTasks', () => ({
     useAssignTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useClientAssignments: () => ({ data: [], refetch: vi.fn() }),
     useRemoveAssignment: () => ({ mutateAsync: vi.fn() }),
+    useUpdateAssignment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   }),
 }))
 

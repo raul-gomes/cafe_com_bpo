@@ -8,6 +8,7 @@ import {
   ActivityTemplateCreate, ActivityTemplateUpdate,
   TemplateActivityCreate, TemplateActivityUpdate,
   ClientTemplateAssignmentCreate, ClientTemplateAssignmentResponse,
+  ClientTemplateAssignmentUpdate,
   RoutineTypeResponse, RoutineTypeCreate, RoutineTypeUpdate,
   ClientSLAResponse, ClientSLACreate, ClientSLAUpdate,
   TaskAttachmentResponse,
@@ -359,6 +360,19 @@ export const useTasks = () => {
     });
   };
 
+  const useUpdateAssignment = () => {
+    return useMutation({
+      mutationFn: async ({ id, ...assignment }: ClientTemplateAssignmentUpdate & { id: string }) => {
+        const { data } = await apiClient.patch(`/tasks/client-templates/${id}`, assignment);
+        return data;
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['client-assignments'] });
+        queryClient.invalidateQueries({ queryKey: ['tasks'] });
+      },
+    });
+  };
+
   const useRegenerateClientTasks = () => {
     return useMutation({
       mutationFn: async (id: string) => {
@@ -533,6 +547,7 @@ export const useTasks = () => {
     useAssignTemplate,
     useClientAssignments,
     useRemoveAssignment,
+    useUpdateAssignment,
     useRegenerateClientTasks,
     useClientSLAs,
     useCreateSLA,

@@ -16,6 +16,7 @@ class NotificationCreate(BaseModel):
     type: str = "system"
     related_entity_type: str | None = None
     related_entity_id: UUID | None = None
+    triggered_by_user_id: UUID | None = None
 
 
 class NotificationUpdate(BaseModel):
@@ -31,6 +32,7 @@ class NotificationResponse(BaseModel):
     is_read: bool
     related_entity_type: str | None = None
     related_entity_id: UUID | None = None
+    triggered_by_user_id: UUID | None = None
     created_at: datetime
     read_at: datetime | None = None
 

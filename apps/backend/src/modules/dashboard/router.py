@@ -10,7 +10,7 @@ from src.modules.auth.models import User
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 from src.modules.clients.models import Client
-from src.modules.network.models import DiscussionComment, Notification
+from src.modules.notifications.models import AppNotification
 from src.modules.task_manager.models import Task
 from src.modules.team.models import Team, TeamInvitation
 
@@ -86,30 +86,37 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
     # 2. Fetch recent unread activities
     notifications_query = (
         db.query(
-            Notification,
+            AppNotification,
             User.name.label("triggerer_name"),
-            DiscussionComment.message.label("comment_message"),
         )
-        .join(User, Notification.triggered_by_user_id == User.id)
-        .outerjoin(DiscussionComment, Notification.comment_id == DiscussionComment.id)
+        .outerjoin(User, AppNotification.triggered_by_user_id == User.id)
         .filter(
-            Notification.user_id == current_user.id, Notification.is_read.is_(False)
+            AppNotification.user_id == current_user.id,
+            AppNotification.is_read.is_(False),
         )
-        .order_by(Notification.created_at.desc())
+        .order_by(AppNotification.created_at.desc())
         .limit(20)
         .all()
     )
 
     activities = [
         ActivityResponse(
-            id=n.Notification.id,
-            type=n.Notification.type,
-            created_at=n.Notification.created_at,
-            is_read=n.Notification.is_read,
-            post_id=n.Notification.post_id,
-            comment_id=n.Notification.comment_id,
+            id=n.AppNotification.id,
+            type=n.AppNotification.type,
+            created_at=n.AppNotification.created_at,
+            is_read=n.AppNotification.is_read,
+            post_id=(
+                n.AppNotification.related_entity_id
+                if n.AppNotification.related_entity_type == "discussion_post"
+                else None
+            ),
+            comment_id=None,
             triggered_by_name=n.triggerer_name,
-            message_snippet=n.comment_message[:100] if n.comment_message else None,
+            message_snippet=(
+                n.AppNotification.message[:100]
+                if n.AppNotification.message
+                else None
+            ),
         )
         for n in notifications_query
     ]

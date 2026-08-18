@@ -26,7 +26,7 @@ export const Navbar: React.FC = () => {
         <Link to="/" className="flex items-center gap-2.5 no-underline">
           <img src={logo} alt="Café com BPO" className="h-7 w-auto" />
           <span className="text-[15px] font-bold tracking-tight text-white">
-            Café com <span className="text-primary">BPO</span>
+            Café com <span className="text-primary-strong">BPO</span>
           </span>
         </Link>
 

@@ -20,6 +20,7 @@ export const NotificationBell: React.FC = () => {
     task_overdue: '🚨',
     phase_change: '🔄',
     proposal: '💰',
+    post_commented: '💬',
     system: 'ℹ️',
   };
 

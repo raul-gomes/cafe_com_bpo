@@ -314,9 +314,9 @@ export const TasksPage: React.FC = () => {
                 return isInPeriod(t.deadline, p) || isCompletedInPeriod(t, p);
             }
             if (isLastPhase) {
-                if (mode === 'overdue') return false;
-                // Tasks atrasadas na última fase: mostrar se completadas no período
-                if (isOverdue(t)) return isCompletedInPeriod(t, p || { start: todayStart, end: todayEnd });
+                // Tasks na fase concluído NÃO são contabilizadas em filtros de período
+                // (apenas no filtro "Todas", mostrando as concluídas hoje)
+                if (mode !== 'all') return false;
                 if (!p) return isCompletedInPeriod(t, { start: todayStart, end: todayEnd });
                 return isCompletedInPeriod(t, p);
             }
@@ -394,7 +394,7 @@ export const TasksPage: React.FC = () => {
                             variant="ghost"
                             size="sm"
                             onClick={() => setShowMacroCalendar(!showMacroCalendar)}
-                            className={showMacroCalendar ? 'text-primary' : ''}
+                            className={showMacroCalendar ? 'text-primary-strong' : ''}
                         >
                             <Eye size={16} /> {showMacroCalendar ? 'Ocultar Calendário' : 'Visão Macro'}
                         </Button>
@@ -548,7 +548,7 @@ export const TasksPage: React.FC = () => {
                     {/* Clear all filters */}
                     {(userFilter !== 'all' || dateFrom) && (
                         <button onClick={() => { setUserFilter('today'); setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
-                            className="cursor-pointer border-none bg-transparent text-[10px] font-bold text-primary underline underline-offset-2">
+                            className="cursor-pointer border-none bg-transparent text-[10px] font-bold text-primary-strong underline underline-offset-2">
                             Limpar
                         </button>
                     )}

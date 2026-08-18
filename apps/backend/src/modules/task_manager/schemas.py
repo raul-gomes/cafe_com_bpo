@@ -312,6 +312,10 @@ class ClientTemplateAssignmentCreate(BaseModel):
     start_date: datetime | None = None
 
 
+class ClientTemplateAssignmentUpdate(BaseModel):
+    is_active: bool | None = None
+
+
 class ClientTemplateAssignmentResponse(BaseModel):
     id: UUID
     client_id: UUID

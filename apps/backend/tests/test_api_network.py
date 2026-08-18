@@ -87,13 +87,15 @@ def test_create_comment_increments_count_and_sends_notification(client):
     assert fetch_resp.json()["comments_count"] == 1
 
     # Verify notification was created for Author
-    notif_resp = client.get("/network/notifications", headers=auth_author)
+    notif_resp = client.get("/notifications/", headers=auth_author)
     assert notif_resp.status_code == 200
-    notifs = notif_resp.json()["items"]
+    notifs = notif_resp.json()
     assert len(notifs) >= 1
     assert notifs[0]["user_id"] == post_resp.json()["author_id"]
     assert notifs[0]["type"] == "post_commented"
     assert notifs[0]["is_read"] is False
+    assert notifs[0]["related_entity_type"] == "discussion_post"
+    assert notifs[0]["related_entity_id"] == post_id
 
 
 def test_cannot_delete_post_with_comments(client):

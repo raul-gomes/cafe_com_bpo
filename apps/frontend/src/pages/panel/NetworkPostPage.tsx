@@ -134,7 +134,7 @@ export const NetworkPostPage: React.FC = () => {
             {post.tags.map(tag => (
               <span
                 key={tag}
-                className="rounded bg-primary/10 px-2 py-0.5 text-[12px] font-bold text-primary"
+                className="rounded bg-primary/10 px-2 py-0.5 text-[12px] font-bold text-primary-strong"
               >
                 #{tag}
               </span>
@@ -183,7 +183,7 @@ export const NetworkPostPage: React.FC = () => {
             style={{ marginLeft: post.author_id === c.author_id ? 0 : 32 }}
           >
             <div className="flex items-center gap-3 border-b border-border px-6 py-4">
-              <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-[12px] font-bold text-primary">
+              <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-[12px] font-bold text-primary-strong">
                 {c.author.name?.slice(0, 2).toUpperCase() || 'U'}
               </div>
               <div>

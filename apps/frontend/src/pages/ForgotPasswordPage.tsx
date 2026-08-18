@@ -45,7 +45,7 @@ export const ForgotPasswordPage: React.FC = () => {
           <p className="text-sm text-muted-foreground mb-6">
             Enviamos instruções para redefinir sua senha.
           </p>
-          <a href="/login" className="text-primary no-underline inline-flex items-center gap-2 text-sm">
+          <a href="/login" className="text-primary-strong no-underline inline-flex items-center gap-2 text-sm">
             <ArrowLeft size={16} />
             Voltar ao login
           </a>
@@ -98,7 +98,7 @@ export const ForgotPasswordPage: React.FC = () => {
         </form>
 
         <div className="text-center mt-5">
-          <a href="/login" className="text-primary no-underline inline-flex items-center gap-2 text-sm">
+          <a href="/login" className="text-primary-strong no-underline inline-flex items-center gap-2 text-sm">
             <ArrowLeft size={16} />
             Voltar ao login
           </a>

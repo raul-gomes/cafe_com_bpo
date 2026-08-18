@@ -480,7 +480,7 @@ export const PublicPricingSimulator: React.FC = () => {
             <h2>Guia de Precificação</h2>
             <p>Metodologia oficial Café com BPO</p>
           </div>
-          <button onClick={() => setShowTutorial(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px' }}>
+          <button onClick={() => setShowTutorial(false)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: '4px' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
@@ -514,7 +514,7 @@ export const PublicPricingSimulator: React.FC = () => {
         </div>
 
         <div className="tutorial-panel__footer">
-          <div style={{ color: '#64748b', fontSize: '13px' }}>Passo {currentStep} de {tutorialSteps.length}</div>
+          <div style={{ color: '#475569', fontSize: '13px' }}>Passo {currentStep} de {tutorialSteps.length}</div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button 
               className="ds-btn ds-btn-ghost ds-btn-sm" 

@@ -67,7 +67,7 @@ export const ResetPasswordPage: React.FC = () => {
       <Card className="mx-auto max-w-[420px] text-center">
         <CardContent className="pt-9">
           <p className="text-muted-foreground">Link de redefinição inválido ou expirado. Solicite um novo.</p>
-          <a href="/esqueci-minha-senha" className="text-primary no-underline text-sm">
+          <a href="/esqueci-minha-senha" className="text-primary-strong no-underline text-sm">
             Solicitar novo link
           </a>
         </CardContent>

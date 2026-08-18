@@ -55,22 +55,3 @@ class CommentResponse(BaseModel):
     is_active: bool = True
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class NotificationResponse(BaseModel):
-    id: UUID
-    user_id: UUID
-    type: str
-    post_id: UUID
-    comment_id: UUID
-    triggered_by_user_id: UUID
-    is_read: bool
-    read_at: datetime | None
-    created_at: datetime
-
-    model_config = ConfigDict(from_attributes=True)
-
-
-class PaginatedNotifications(BaseModel):
-    items: list[NotificationResponse]
-    total: int

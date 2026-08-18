@@ -168,7 +168,7 @@ export const OrcamentosPage: React.FC = () => {
           </Card>
           <Card className="items-start p-5">
             <span className="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Valor Total</span>
-            <span className="text-[24px] font-extrabold text-primary">{loading ? '—' : formatPrice(totalValue)}</span>
+            <span className="text-[24px] font-extrabold text-primary-strong">{loading ? '—' : formatPrice(totalValue)}</span>
           </Card>
           <Card className="items-start p-5">
             <span className="mb-1 text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Este Mês</span>
@@ -321,7 +321,7 @@ export const OrcamentosPage: React.FC = () => {
               </div>
               <div className="flex items-center justify-between px-5 py-3">
                 <span className="text-[13px] text-muted-foreground">Valor Médio</span>
-                <span className="text-[13px] font-bold text-primary">
+                <span className="text-[13px] font-bold text-primary-strong">
                   {proposals.length > 0 ? formatPrice(totalValue / proposals.length) : '—'}
                 </span>
               </div>

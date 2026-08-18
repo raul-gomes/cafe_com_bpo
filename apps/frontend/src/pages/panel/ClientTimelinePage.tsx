@@ -11,10 +11,10 @@ import { ClientTimelineTask } from '../../schemas/tasks';
 import { EmailComposeModal } from '../../components/tasks/EmailComposeModal';
 import { cn } from '../../lib/utils';
 
-const SLA_COLORS: Record<string, { bg: string; text: string; icon: any }> = {
-  on_time: { bg: 'rgba(34,197,94,0.1)', text: '#22c55e', icon: CheckCircle },
-  warning: { bg: 'rgba(245,158,11,0.1)', text: '#f59e0b', icon: Clock },
-  overdue: { bg: 'rgba(239,68,68,0.1)', text: '#ef4444', icon: XCircle },
+const SLA_COLORS: Record<string, { bg: string; text: string; bar: string; icon: any }> = {
+  on_time: { bg: 'bg-green-500/10', text: 'text-green-700 dark:text-green-400', bar: 'border-green-600 dark:border-green-400', icon: CheckCircle },
+  warning: { bg: 'bg-amber-500/10', text: 'text-amber-700 dark:text-amber-400', bar: 'border-amber-600 dark:border-amber-400', icon: Clock },
+  overdue: { bg: 'bg-red-500/10', text: 'text-red-600 dark:text-red-400', bar: 'border-red-600 dark:border-red-400', icon: XCircle },
 };
 
 const SLA_LABELS: Record<string, string> = {
@@ -100,7 +100,7 @@ export const ClientTimelinePage: React.FC = () => {
               <div className="text-[11px] text-muted-foreground">No prazo</div>
             </div>
             <div className="flex-1 p-3.5 bg-card rounded-lg text-center">
-              <div className="text-2xl font-extrabold text-amber-500">{timeline.stats.warning}</div>
+              <div className="text-2xl font-extrabold text-amber-600 dark:text-amber-400">{timeline.stats.warning}</div>
               <div className="text-[11px] text-muted-foreground">⚠️ Próximas</div>
             </div>
             <div className="flex-1 p-3.5 bg-card rounded-lg text-center">
@@ -108,7 +108,7 @@ export const ClientTimelinePage: React.FC = () => {
               <div className="text-[11px] text-muted-foreground">🔴 Atrasadas</div>
             </div>
             <div className="flex-1 p-3.5 bg-card rounded-lg text-center">
-              <div className="text-2xl font-extrabold text-primary">{timeline.stats.in_progress}</div>
+              <div className="text-2xl font-extrabold text-primary-strong">{timeline.stats.in_progress}</div>
               <div className="text-[11px] text-muted-foreground">Em andamento</div>
             </div>
           </div>
@@ -117,7 +117,7 @@ export const ClientTimelinePage: React.FC = () => {
           {timeline.slas.length > 0 && (
             <div className="flex gap-2 mb-4 flex-wrap">
               {timeline.slas.map((sla: { process_type: string; sla_days: number }, idx: number) => (
-                <span key={idx} className="px-3 py-1 rounded-[6px] bg-primary/10 text-primary text-xs font-bold">
+                <span key={idx} className="px-3 py-1 rounded-[6px] bg-primary/10 text-primary-strong text-xs font-bold">
                   SLA: {sla.process_type} — {sla.sla_days}d
                 </span>
               ))}
@@ -154,13 +154,13 @@ export const ClientTimelinePage: React.FC = () => {
                   <Card
                     key={task.id}
                     className={cn(
-                      "p-3.5 flex items-center gap-3 cursor-pointer transition-all hover:bg-muted/50",
+                      "p-3.5 flex items-center gap-3 cursor-pointer transition-all hover:bg-muted/50 border-l-4",
+                      slaColor.bar,
                       task.sla_status === 'overdue' && "bg-red-500/[0.03]"
                     )}
-                    style={{ borderLeft: `4px solid ${slaColor.text}` }}
                     onClick={() => navigate(`/painel/tarefas`, { state: { taskId: task.id } })}
                   >
-                    <SLAIcon size={18} className="shrink-0" style={{ color: slaColor.text }} />
+                    <SLAIcon size={18} className={cn("shrink-0", slaColor.text)} />
                     
                     <div className="flex-1">
                       <div className="font-semibold text-sm mb-0.5">{task.title}</div>
@@ -169,15 +169,18 @@ export const ClientTimelinePage: React.FC = () => {
                           <span>📅 {new Date(task.deadline).toLocaleDateString('pt-BR')}</span>
                         )}
                         {task.process_type && (
-                          <span className="px-1.5 py-0.5 rounded-[4px] bg-primary/10 text-primary font-semibold">{task.process_type}</span>
+                          <span className="px-1.5 py-0.5 rounded-[4px] bg-primary/10 text-primary-strong font-semibold">{task.process_type}</span>
                         )}
                         {task.time_estimate_minutes && <span>⏱ {task.time_estimate_minutes}min</span>}
                       </div>
                     </div>
 
                     <span
-                      className="text-[11px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap"
-                      style={{ background: slaColor.bg, color: slaColor.text }}
+                      className={cn(
+                        "text-[11px] font-bold px-2.5 py-0.5 rounded-full whitespace-nowrap",
+                        slaColor.bg,
+                        slaColor.text
+                      )}
                     >
                       {SLA_LABELS[task.sla_status] || task.sla_status}
                     </span>

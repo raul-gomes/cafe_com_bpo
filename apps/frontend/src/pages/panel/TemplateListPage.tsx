@@ -229,7 +229,7 @@ export const TemplateListPage: React.FC = () => {
                   {WEEKDAY_LABELS.map(({ value, label }) => (
                     <label key={value} className={cn(
                       "flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
-                      newWeekdays.includes(value) ? "bg-primary/10 border-primary text-primary" : "bg-muted border-border text-muted-foreground"
+                      newWeekdays.includes(value) ? "bg-primary/10 border-primary text-primary-strong" : "bg-muted border-border text-muted-foreground"
                     )}>
                       <input type="checkbox" checked={newWeekdays.includes(value)} onChange={() => toggleWeekday(value)} className="hidden" />
                       {label}
@@ -347,7 +347,7 @@ export const TemplateListPage: React.FC = () => {
                       className={cn(
                         "flex items-center justify-center size-8 rounded-lg transition-colors cursor-pointer border-none shrink-0",
                         sectionSearchOpen[key]
-                          ? "bg-primary/10 text-primary"
+                          ? "bg-primary/10 text-primary-strong"
                           : "text-muted-foreground/50 hover:text-foreground hover:bg-muted"
                       )}
                       title="Filtrar"
@@ -381,7 +381,7 @@ export const TemplateListPage: React.FC = () => {
                         <CardContent className="flex-1 py-3.5 px-4 min-w-0">
                           <div className="flex items-center gap-3">
                             <div className="size-9 rounded-lg bg-primary/10 grid place-items-center shrink-0 leading-none">
-                              <LayoutList size={18} className="text-primary" />
+                              <LayoutList size={18} className="text-primary-strong" />
                             </div>
                             <div className="min-w-0 flex-1">
                               <span className="text-[15px] font-bold text-foreground leading-tight">{tmpl.name}</span>

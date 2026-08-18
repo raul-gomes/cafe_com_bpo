@@ -176,8 +176,6 @@ class TestAuth:
     def test_protected_routes_require_auth(self, client):
         """Vários endpoints protegidos devem rejeitar requisições sem token."""
         protected = [
-            ("GET", "/companies/"),
-            ("POST", "/companies/"),
             ("GET", "/clients/"),
             ("POST", "/clients/"),
             ("GET", "/tasks/"),
@@ -195,58 +193,6 @@ class TestAuth:
             assert resp.status_code == 401, (
                 f"{method} {path} expected 401, got {resp.status_code}"
             )
-
-
-# ─── 3. COMPANIES ─────────────────────────────────────────────────────────────
-
-
-class TestCompanies:
-    def test_create_company(self, client):
-        email = f"co_{_unique()}@cafe.com"
-        auth = _register_and_login(client, email)["headers"]
-        resp = client.post(
-            "/companies/",
-            headers=auth,
-            json={
-                "name": "Empresa Teste Ltda",
-                "segment": "BPO Financeiro",
-            },
-        )
-        assert resp.status_code == 201
-        data = resp.json()
-        assert data["name"] == "Empresa Teste Ltda"
-        assert "id" in data
-
-    def test_list_companies(self, client):
-        email = f"colist_{_unique()}@cafe.com"
-        auth = _register_and_login(client, email)["headers"]
-        # Create one
-        client.post("/companies/", headers=auth, json={"name": "Co A"})
-        resp = client.get("/companies/", headers=auth)
-        assert resp.status_code == 200
-        assert len(resp.json()) == 1
-
-    def test_update_company(self, client):
-        email = f"coupd_{_unique()}@cafe.com"
-        auth = _register_and_login(client, email)["headers"]
-        cid = client.post("/companies/", headers=auth, json={"name": "Old"}).json()[
-            "id"
-        ]
-        resp = client.put(f"/companies/{cid}", headers=auth, json={"name": "New"})
-        assert resp.status_code == 200
-        assert resp.json()["name"] == "New"
-
-    def test_delete_company(self, client):
-        email = f"codel_{_unique()}@cafe.com"
-        auth = _register_and_login(client, email)["headers"]
-        cid = client.post("/companies/", headers=auth, json={"name": "Del"}).json()[
-            "id"
-        ]
-        resp = client.delete(f"/companies/{cid}", headers=auth)
-        assert resp.status_code == 204
-        # Verify it's gone
-        list_resp = client.get("/companies/", headers=auth)
-        assert len(list_resp.json()) == 0
 
 
 # ─── 4. CLIENTS ───────────────────────────────────────────────────────────────
@@ -675,7 +621,7 @@ class TestNetwork:
     def test_network_notifications(self, client):
         email = f"netnotif_{_unique()}@cafe.com"
         auth = _register_and_login(client, email)["headers"]
-        resp = client.get("/network/notifications", headers=auth)
+        resp = client.get("/notifications/", headers=auth)
         assert resp.status_code == 200
 
 

@@ -51,6 +51,8 @@
     --ds-surface-2:    #222222;
     --ds-surface-3:    #2a2a2a;
     --ds-primary:      hsl(var(--primary));
+    --ds-primary-strong: #fbbf24;
+    --ds-primary-soft: rgba(251,191,36,0.10);
     --ds-primary-dark: #d4a017;
     --ds-primary-text: hsl(var(--primary-foreground));
     --ds-border:       hsl(var(--border));
@@ -59,6 +61,7 @@
     --ds-text-subtle:  rgba(255,255,255,0.35);
     --ds-error:        hsl(var(--destructive));
     --ds-success:      #22c55e;
+    --ds-success-strong: #4ade80;
     --ds-warning:      hsl(var(--primary));
     --ds-info:         #3b82f6;
     --ds-overlay:      rgba(0, 0, 0, 0.75);
@@ -119,11 +122,14 @@
     --ds-text-muted:    rgba(0,0,0,0.55);
     --ds-text-subtle:   rgba(0,0,0,0.35);
     --ds-primary:       hsl(var(--primary));
+    --ds-primary-strong: #a16207;
+    --ds-primary-soft: rgba(161,98,7,0.10);
     --ds-primary-dark:  #d4a017;
     --ds-primary-text:  #000000;
     --ds-border:        rgba(0,0,0,0.08);
     --ds-error:         #ef4444;
     --ds-success:       #22c55e;
+    --ds-success-strong: #15803d;
     --ds-warning:       hsl(var(--primary));
     --ds-info:          #3b82f6;
     --ds-overlay:      rgba(0, 0, 0, 0.6);

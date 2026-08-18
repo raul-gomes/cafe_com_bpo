@@ -92,7 +92,7 @@ export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({ child
         <DialogContent className="sm:max-w-[400px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <span className={variant === 'danger' ? 'text-destructive' : 'text-primary'}>
+              <span className={variant === 'danger' ? 'text-destructive' : 'text-primary-strong'}>
                 {variant === 'danger' ? <Trash2 size={24} /> : <AlertTriangle size={24} />}
               </span>
               <DialogTitle>{title}</DialogTitle>

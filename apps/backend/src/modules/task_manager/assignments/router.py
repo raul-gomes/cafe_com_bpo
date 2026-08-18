@@ -14,6 +14,7 @@ from ..assignments.service import AssignmentService
 from ..schemas import (
     ClientTemplateAssignmentCreate,
     ClientTemplateAssignmentResponse,
+    ClientTemplateAssignmentUpdate,
 )
 from ..task.repository import TaskRepository
 from ..templates.repository import TemplateRepository
@@ -72,6 +73,23 @@ def remove_client_assignment(
     """Remove o vínculo de um template com um cliente."""
     try:
         service.remove_client_assignment(assignment_id, current_user.id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Vínculo não encontrado")
+
+
+@router.patch(
+    "/client-templates/{assignment_id}",
+    response_model=ClientTemplateAssignmentResponse,
+)
+def update_client_assignment(
+    assignment_id: UUID,
+    update_in: ClientTemplateAssignmentUpdate,
+    service: AssignmentServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Atualiza um vínculo (ex: ativar/desativar rotina para o cliente)."""
+    try:
+        return service.update_assignment(assignment_id, current_user.id, update_in)
     except ValueError:
         raise HTTPException(status_code=404, detail="Vínculo não encontrado")
 

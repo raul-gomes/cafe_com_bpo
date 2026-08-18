@@ -291,7 +291,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
             <div className="my-2 border-t border-border" />
             <div className="flex items-center justify-between">
               <span className="text-[13px] font-bold text-foreground">Total Sugerido</span>
-              <span className="text-[15px] font-extrabold text-primary">
+              <span className="text-[15px] font-extrabold text-primary-strong">
                 {formatPrice(result.final_price || 0)}
               </span>
             </div>
@@ -310,7 +310,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
 
               return (
                 <div key={idx} className="flex items-center gap-2 text-[14px] text-foreground">
-                  <span className="text-primary">✓</span>
+                  <span className="text-primary-strong">✓</span>
                   {serviceName}
                 </div>
               );

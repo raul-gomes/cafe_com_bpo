@@ -55,7 +55,7 @@ export const OverdueTemplatesAlert: React.FC = () => {
           onClick={() => navigate('/painel/templates')}
         >
           <CardContent className="p-0 flex gap-2.5 items-start">
-            <FileText size={16} className="text-amber-500 shrink-0 mt-0.5" />
+            <FileText size={16} className="text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
             <div className="flex-1 min-w-0">
               <div className="font-bold text-[13px] text-amber-600 dark:text-amber-400 truncate">
                 {tmpl.name}

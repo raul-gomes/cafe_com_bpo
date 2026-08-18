@@ -38,6 +38,7 @@ export const useAppNotifications = () => {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['app-notifications'] });
         queryClient.invalidateQueries({ queryKey: ['app-notifications-unread'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
       },
     });
   };

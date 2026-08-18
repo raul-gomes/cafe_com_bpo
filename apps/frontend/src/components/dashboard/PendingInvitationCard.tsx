@@ -39,7 +39,7 @@ export const PendingInvitationCard: React.FC<PendingInvitationCardProps> = ({ in
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">
             <div className="flex size-11 items-center justify-center rounded-xl bg-primary/10">
-              <UserPlus size={22} className="text-primary" />
+              <UserPlus size={22} className="text-primary-strong" />
             </div>
             <div>
               <h3 className="text-[15px] font-bold text-foreground mb-1">

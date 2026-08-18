@@ -70,9 +70,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
 
   return (
     <Card className="mx-auto max-w-[420px]">
-      <CardContent className="pt-9 px-8 pb-8">
+      <CardContent className="pt-7 px-8 pb-7">
         {/* Brand */}
-        <div className="text-center mb-7">
+        <div className="text-center mb-5">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-1">
             Bem-vindo
@@ -95,7 +95,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3.5">
           <div className="ds-input-group">
             <label className="ds-label" htmlFor="email">E-mail</label>
             <div className="relative">

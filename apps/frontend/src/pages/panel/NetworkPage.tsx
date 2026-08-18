@@ -254,7 +254,7 @@ export const NetworkPage: React.FC = () => {
                     {post.tags.map(tag => (
                       <span
                         key={tag}
-                        className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary"
+                        className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-strong"
                       >
                         #{tag}
                       </span>

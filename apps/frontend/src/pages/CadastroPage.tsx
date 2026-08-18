@@ -28,7 +28,7 @@ export default function CadastroPage() {
       <div className="login-glow-bottom" />
       <span className="login-bpo-watermark">BPO</span>
 
-      <main className="flex-1 flex items-center justify-center px-6 pt-14 pb-14">
+      <main className="flex-1 flex items-center justify-center px-6 py-8">
         <div className="w-full max-w-[420px]">
           {sessionStorage.getItem('cafe_bpo_proposal') && (
             <Alert className="mb-5 text-center">
@@ -40,7 +40,7 @@ export default function CadastroPage() {
           
           <div className="text-center mt-6 text-[13px] text-muted-foreground">
             Já possui conta?{' '}
-            <button type="button" onClick={() => setShowLogin(true)} className="text-primary no-underline font-medium bg-transparent border-none cursor-pointer hover:underline">
+            <button type="button" onClick={() => setShowLogin(true)} className="text-primary-strong no-underline font-medium bg-transparent border-none cursor-pointer hover:underline">
               Fazer login
             </button>
           </div>

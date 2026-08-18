@@ -18,16 +18,14 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 
 | Módulo | Tabelas que possui (modelo) | Papel |
 |--------|-----------------------------|-------|
-| `auth` | `users`, `user_files`, `password_reset_tokens` | Identidade, perfil, senha, avatares |
+| `auth` | `users` (inclui `asaas_customer_id`), `user_files`, `password_reset_tokens` | Identidade, perfil, senha, avatares |
 | `clients` | `clients` | Portfólio de clientes do usuário ("Empresas") |
-| `companies` | `companies` ⚠️ não migrada | Empresa do usuário (legacy, substituída por colunas de `users`) |
-| `payments` | `payments` ⚠️ não migrada | Cobranças via Asaas |
+| `payments` | `payments` | Cobranças via Asaas |
 | `proposals` | `pricing_scenarios` (dono ativo) | Orçamentos (calculadora) |
-| `pricing` | `pricing_scenarios` (modelo duplicado, **dead**) | Calculadora — módulo DDD, repository não usado |
 | `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
 | `team` | `teams`, `team_members`, `team_invitations`, `invitation_routines`, `roles` | Times/convites por cliente |
-| `network` | `discussion_posts`, `discussion_comments`, `notifications` | Fórum da comunidade |
-| `notifications` | `app_notifications` | Notificações in-app (sininho) |
+| `network` | `discussion_posts`, `discussion_comments` | Fórum da comunidade |
+| `notifications` | `app_notifications` | Notificações in-app (sininho + feed do fórum) |
 | `emails` | `email_deliveries` | Fila transacional de e-mails (worker) |
 | `gallery` | `gallery_items`, `common_gallery_items` | Galeria de arquivos pessoal/comunitária |
 | `calendar` | `user_google_tokens` ⚠️ não migrada | Tokens Google Calendar |
@@ -56,7 +54,8 @@ erDiagram
     users ||--o{ discussion_posts : "author_id"
     users ||--o{ discussion_comments : "author_id"
     users ||--o{ app_notifications : "user_id"
-    users ||--o{ notifications : "user_id / triggered_by_user_id"
+    users ||--o{ app_notifications : "triggered_by_user_id"
+    users ||--o{ payments : "user_id"
     users ||--o{ teams : "owner_id"
     users ||--o{ team_members : "user_id"
     users ||--o{ team_invitations : "invited_by"
@@ -200,17 +199,15 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | R | `team/repository.py` |
 | W | `team/repository.py` (`ensure_default_roles` — seed admin/member) |
 
-### `pricing_scenarios` — dono ATIVO: `proposals`
-> ⚠️ **Atenção:** o módulo `pricing` define outro `PricingScenario` mapeado na MESMA tabela
-> (`pricing/models.py`). O repository do `pricing` é **código morto** — nada o importa. O
-> schema real aplicado no banco é o do `proposals` (`client_name`, `input_payload`,
-> `result_payload`, `client_id`, `is_active`, `deleted_at`).
+### `pricing_scenarios` — dono: `proposals`
+> Dono único. O modelo duplicado de `pricing/models.py` foi removido. O schema aplicado
+> no banco é o do `proposals` (`client_name`, `input_payload`, `result_payload`,
+> `client_id`, `is_active`, `deleted_at`).
 | Direção | Quem |
 |---------|------|
 | R | `proposals/repository.py`, `dashboard/service.py`, `dashboard/router.py` |
 | R/W | `proposals/router.py` (CRUD de orçamentos) |
 | W | `clients/repository.py` (cascade soft-delete ao deletar cliente) |
-| — | `pricing/repository.py` (dead code) |
 
 ### `tasks` — dono: `task_manager`
 | Direção | Quem |
@@ -266,16 +263,13 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | W | `task_manager/sla/repository.py` |
 
 ### `app_notifications` — dono: `notifications`
+> Sistema único de notificação in-app (sininho + feed de atividades do fórum).
+> Tipos: `task_assigned`, `task_deadline`, `task_overdue`, `phase_change`, `post_commented`, `email_sent`.
 | Direção | Quem |
 |---------|------|
 | R/W | `notifications/repository.py` (sininho: list, unread, count, read, delete) |
-
-### `notifications` — dono: `network`
-> Nota: sistema **separado** do `app_notifications`. Este é o feed de atividade do fórum.
-| Direção | Quem |
-|---------|------|
-| R | `network/repository.py`, `dashboard/router.py` |
-| W | `network/repository.py` |
+| R | `dashboard/router.py` (feed "Atividade Recente") |
+| W | `network/repository.py` (dispatch `post_commented` via `NotificationDispatcher`) |
 
 ### `discussion_posts` / `discussion_comments` — dono: `network`
 | Direção | Quem |
@@ -296,16 +290,11 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 |---------|------|
 | R/W | `gallery/repository.py` (ambos) |
 
-### `companies` — dono: `companies` ⚠️ **não migrada no banco**
-| Direção | Quem |
-|---------|------|
-| R/W | `companies/repository.py` — **código sem tabela**; módulo sem router registrado no `main.py` |
-
-### `payments` — dono: `payments` ⚠️ **não migrada no banco**
+### `payments` — dono: `payments`
 | Direção | Quem |
 |---------|------|
 | R | `payments/repository.py` (get_by_user, get_by_id) |
-| W | `payments/repository.py` (create, update status) + efeito colateral em `users` |
+| W | `payments/repository.py` (create, update status) + `users.asaas_customer_id` via ORM em `auth/models.py` |
 
 ### `user_google_tokens` — dono: `calendar` ⚠️ **não migrada no banco**
 | Direção | Quem |
@@ -321,17 +310,15 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | `auth` | users, user_files, password_reset_tokens | `repository.py`, `service.py`, `router.py` |
 | `clients` | clients, teams (get_or_create), tasks (cascade), pricing_scenarios (cascade) | `repository.py`, `router.py` |
 | `proposals` | pricing_scenarios | `repository.py`, `router.py`, `service.py` |
-| `pricing` | pricing_scenarios (dead) | `repository.py` |
 | `task_manager` | tasks, task_phases, task_attachments, routine_types, activity_templates, template_activities, client_template_assignments, client_slas | `task/repository.py`, `templates/repository.py`, `assignments/repository.py`, `sla/repository.py`, `routine_types/repository.py`, `attachments/repository.py`, `scheduler.py` |
 | `team` | teams, team_members, team_invitations, invitation_routines, roles, activity_templates, clients, users | `repository.py`, `router.py` |
-| `network` | discussion_posts, discussion_comments, notifications, users | `repository.py`, `router.py` |
+| `network` | discussion_posts, discussion_comments, users | `repository.py`, `router.py` |
 | `notifications` | app_notifications | `repository.py`, `router.py` |
 | `emails` | email_deliveries | `repository.py`, `router.py`, `worker.py`, `scheduler.py` |
 | `gallery` | gallery_items, common_gallery_items | `repository.py`, `router.py` |
-| `payments` | payments, users (raw SQL) | `repository.py`, `router.py` |
-| `companies` | companies (sem tabela) | `repository.py` |
+| `payments` | payments, users (asaas_customer_id via ORM) | `repository.py`, `router.py` |
 | `calendar` | user_google_tokens, tasks (sync) | `repository.py`, `service.py` |
-| `dashboard` | users, clients, pricing_scenarios, tasks, teams, team_invitations, notifications, discussion_comments | `service.py`, `router.py` (**somente leitura**) |
+| `dashboard` | users, clients, pricing_scenarios, tasks, teams, team_invitations, app_notifications | `service.py`, `router.py` (**somente leitura**) |
 | `feedback` | *(nenhum)* — apenas `EmailService` | `service.py`, `router.py` |
 | `core` | email_deliveries (enfileira) | `email.py` |
 
@@ -356,8 +343,7 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | `/tasks/*`, `/templates/*`, `/routines/*` | `api/hooks/useTasks.ts` (hub central) | TasksPage, TemplateListPage, TemplateDetailPage, EmpresasPage (assignments), ClientTimelinePage |
 | `/team/*` | `api/team.ts` (funções, sem hook) | EmpresasPage (invite/remove/resend), PendingInvitationCard (accept/decline), LoginForm/RegisterForm (invite_token), InvitationAcceptPage |
 | `/payments/*` | direto no `apiClient` | PaymentsPage |
-| `/notifications/*` | `api/hooks/useAppNotifications.ts` | NotificationBell (PanelLayout + NetworkPage) |
-| `/network/notifications/*` | `api/hooks/useNotifications.ts` | DashboardPage (marca atividade do fórum como lida) |
+| `/notifications/*` | `api/hooks/useAppNotifications.ts` | NotificationBell (PanelLayout + NetworkPage), DashboardPage (marca atividade como lida) |
 | `/network/posts` | `api/network.ts` | NetworkPage (R/W posts), NetworkPostPage (R/W comentários) |
 | `/gallery/*` | direto no `apiClient` | GaleriaArquivosPage |
 | `/dashboard/*` | `api/hooks/useDashboard.ts` | DashboardPage (summary), invalida cache após aceitar convite |
@@ -368,7 +354,7 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 
 | Página | Rota | APIs (R / W) |
 |--------|------|--------------|
-| DashboardPage (painel) | `/painel` | R `GET /dashboard/summary` · W `PUT /tasks/{id}`, `PATCH /network/notifications/{id}/read` |
+| DashboardPage (painel) | `/painel` | R `GET /dashboard/summary` · W `PUT /tasks/{id}`, `PUT /notifications/{id}/read` |
 | OrcamentosPage | `/painel/orcamentos` | R `GET /proposals/` · W `DELETE /proposals/{id}` |
 | OrcamentoNovoPage | `/painel/novo-orcamento`, `/painel/editar-orcamento/:id` | R `GET /proposals/{id}` · W `POST/PUT /proposals/` |
 | OrcamentoDetalhadoPage | `/painel/orcamento/:id` | R `GET /proposals/{id}`, `GET /clients/` · W `POST /proposals/{id}/send-email` |
@@ -398,35 +384,33 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 
 ## Tabelas de modelo sem tabela no banco (migrações pendentes/órfãs)
 
-O banco aplicado está em `c1a2b3c4d5e6` (head atual do Alembic). As seguintes tabelas
-**existem nos modelos mas NÃO existem no PostgreSQL** — suas migrações são órfãs
+O banco aplicado está em `276b8d51e2d9` (head atual do Alembic). A tabela abaixo
+**existe no modelo mas NÃO existe no PostgreSQL** — sua migração é órfã
 (`down_revision` não pertence à cadeia principal):
 
 | Tabela | Módulo | Migração | Observação |
 |--------|--------|----------|------------|
-| `companies` | companies | `a1b2c3d4e5f6_add_company_fields` | Empresa do usuário (legacy). Dados de empresa hoje vivem em colunas de `users` (`company_*`). Router NÃO registrado em `main.py`. |
-| `payments` | payments | `add_payments_table` | Cobranças Asaas. O router **está** registrado (`/payments`), mas as queries quebram em produção (tabela ausente). |
 | `user_google_tokens` | calendar | `355dc46a3695_add_user_google_tokens_table` | Tokens Google Calendar. Router registrado (`/calendar/sync`), tabela ausente. |
 
-> ⚠️ Impacto: qualquer chamada a `/payments/*` ou `/calendar/sync` retorna erro de
-> "relation does not exist" até que essas migrações sejam integradas à cadeia do head.
+> ⚠️ Impacto: qualquer chamada a `/calendar/sync` retorna erro de "relation does not exist"
+> até que essa migração seja integrada à cadeia do head.
 
 ---
 
 ## Notas de integridade e riscos
 
-1. **`pricing_scenarios` com dois donos ORM** — `proposals/models.py` (ativo) e
-   `pricing/models.py` (legacy dead). NUNCA importar o `PricingScenario` do `pricing`
-   junto com o do `proposals` na mesma session (SQLAlchemy usaria a última definição).
-2. **Escrita cruzada em `users`** — `payments/repository.py:save_customer_id` faz
-   `UPDATE users SET metadata = jsonb_set(...)` via SQL raw, contornando o módulo `auth`.
+1. **`pricing_scenarios` com um único dono ORM** — `proposals/models.py` (ativo).
+   O modelo duplicado em `pricing/models.py` foi removido.
+2. **`users.asaas_customer_id`** — `payments/repository.py` grava o customer do Asaas
+   via ORM no campo `asaas_customer_id` de `auth/models.py` (sem SQL raw).
 3. **Cascade de soft-delete em `clients`** — deletar um cliente desativa em cascata
-   `tasks` e `pricing_scenarios` (mantém histórico com `deleted_at`).
-4. **`companies` duplicada** — colunas `company_name`/`company` (legacy) coexistem com
-   as novas `company_*` do perfil em `users`; a tabela `companies` nunca foi usada de fato.
-5. **Dois sistemas de notificação** — `app_notifications` (in-app, sininho) e
-   `notifications` (atividade do fórum) são independentes.
-6. **Workers acessam o banco fora da API** — scheduler de tarefas e worker de e-mail
+   `tasks` e `pricing_scenarios` (mantém histórico com `deleted_at`). O frontend
+   apresenta como "arquivar" (soft delete), não exclusão permanente.
+4. **Sistema único de notificação** — `app_notifications` é a única fonte de verdade
+   (sininho + feed de atividades). A tabela `notifications` (network) foi removida e
+   seus dados migrados para `app_notifications` com `related_entity_type/related_entity_id`
+   (`discussion_post`) e `triggered_by_user_id`.
+5. **Workers acessam o banco fora da API** — scheduler de tarefas e worker de e-mail
    usam `SessionLocal()` diretamente (rocketry), não passam por routers.
-7. **`email_deliveries` é a única fila** — todos os e-mails transacionais (reset de senha,
+6. **`email_deliveries` é a única fila** — todos os e-mails transacionais (reset de senha,
    convite, proposta, entrega de tarefa, custom) passam por ela.

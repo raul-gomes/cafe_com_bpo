@@ -246,7 +246,7 @@ export const TemplateDetailPage: React.FC = () => {
               {RECURRENCE_LABELS[template.recurrence] || template.recurrence}
             </Badge>
             {template.process_type && (
-              <Badge variant="outline" className="text-primary bg-primary/10 border-primary/20 text-[11px]">
+              <Badge variant="outline" className="text-primary-strong bg-primary/10 border-primary/20 text-[11px]">
                 {PROCESS_TYPE_LABELS[template.process_type] || template.process_type}
               </Badge>
             )}
@@ -307,7 +307,7 @@ export const TemplateDetailPage: React.FC = () => {
                     {WEEKDAY_LABELS.map(({ value, label }) => (
                       <label key={value} className={cn(
                         "flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
-                        cfgWeekdays.includes(value) ? "bg-primary/10 border-primary text-primary" : "bg-muted border-border text-muted-foreground"
+                        cfgWeekdays.includes(value) ? "bg-primary/10 border-primary text-primary-strong" : "bg-muted border-border text-muted-foreground"
                       )}>
                         <input type="checkbox" checked={cfgWeekdays.includes(value)} onChange={() => toggleWeekday(value)} className="hidden" />
                         {label}

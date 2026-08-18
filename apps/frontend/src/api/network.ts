@@ -37,23 +37,6 @@ export interface CommentResponse {
   updated_at: string;
 }
 
-export interface NotificationResponse {
-  id: string;
-  user_id: string;
-  type: string;
-  post_id: string;
-  comment_id: string;
-  triggered_by_user_id: string;
-  is_read: boolean;
-  read_at: string | null;
-  created_at: string;
-}
-
-export interface PaginatedNotifications {
-  items: NotificationResponse[];
-  total: number;
-}
-
 export const getPosts = async (limit = 10, offset = 0): Promise<PaginatedPosts> => {
   const { data } = await apiClient.get('/network/posts', { params: { limit, offset } });
   return data;
@@ -81,13 +64,4 @@ export const createComment = async (postId: string, message: string): Promise<Co
 export const getComments = async (postId: string): Promise<CommentResponse[]> => {
   const { data } = await apiClient.get(`/network/posts/${postId}/comments`);
   return data;
-};
-
-export const getNotifications = async (limit = 20): Promise<PaginatedNotifications> => {
-  const { data } = await apiClient.get('/network/notifications', { params: { limit } });
-  return data;
-};
-
-export const markNotificationRead = async (notificationId: string): Promise<void> => {
-  await apiClient.patch(`/network/notifications/${notificationId}/read`);
 };

@@ -20,6 +20,7 @@ from ..scheduler import (
 from ..schemas import (
     ClientTemplateAssignmentCreate,
     ClientTemplateAssignmentResponse,
+    ClientTemplateAssignmentUpdate,
     TaskCreate,
 )
 from ..task.repository import TaskRepository
@@ -46,7 +47,8 @@ class AssignmentService:
         act,
         deadline: datetime,
         assignment,
-        assignment_in,
+        client_id: UUID,
+        template_id: UUID,
         tmpl,
         user_id: UUID,
         first_phase,
@@ -63,13 +65,13 @@ class AssignmentService:
         task_data = TaskCreate(
             title=act.name,
             description=act.description,
-            client_id=assignment_in.client_id,
+            client_id=client_id,
             status="todo",
             priority="medium",
             process_type=tmpl.process_type,
             deadline=deadline,
             time_estimate_minutes=act.estimated_minutes,
-            template_id=assignment_in.template_id,
+            template_id=template_id,
             assignment_id=assignment.id,
             routine_instance_id=instance_id,
         )
@@ -78,30 +80,28 @@ class AssignmentService:
             task.phase_id = first_phase.id
         return task
 
-    def assign_template_to_client(
-        self, assignment_in: ClientTemplateAssignmentCreate, user_id: UUID
-    ) -> dict:
-        """Assign a template to a client and auto-generate tasks."""
-        # Validate template exists
-        tmpl = self.template_repo.get_template_by_id(assignment_in.template_id, user_id)
-        if not tmpl:
-            raise ValueError(f"Template {assignment_in.template_id} not found")
+    def _generate_for_activities(
+        self,
+        assignment,
+        tmpl,
+        activities: list,
+        user_id: UUID,
+        now: datetime | None = None,
+    ) -> list:
+        """Generate tasks for the given activities on an assignment, following the
+        template's recurrence rules for the current period. Returns created tasks.
 
-        # Create assignment
-        assignment = self.assignment_repo.create_assignment(assignment_in, user_id)
-
-        # Get template activities
-        activities = self.template_repo.get_activities_by_template(
-            assignment_in.template_id
-        )
-
-        # Get first phase (order=0, inicial) for default placement
+        Dedup is handled via routine_instance_id (each activity gets a deterministic
+        UUID per assignment+period). Does NOT commit.
+        """
+        if not activities:
+            return []
         phases = self.task_repo.get_or_create_phases(user_id)
         first_phase = phases[0] if phases else None
-
-        # Generate tasks for each activity
+        now = now or datetime.now(timezone.utc)
         generated_tasks = []
-        now = datetime.now(timezone.utc)
+        client_id = assignment.client_id
+        template_id = assignment.template_id
 
         if tmpl.recurrence == "daily":
             # Daily: create task for today (scheduler will handle future days)
@@ -114,7 +114,8 @@ class AssignmentService:
                         act,
                         daily_deadline,
                         assignment,
-                        assignment_in,
+                        client_id,
+                        template_id,
                         tmpl,
                         user_id,
                         first_phase,
@@ -132,7 +133,8 @@ class AssignmentService:
                     act,
                     deadline,
                     assignment,
-                    assignment_in,
+                    client_id,
+                    template_id,
                     tmpl,
                     user_id,
                     first_phase,
@@ -175,7 +177,8 @@ class AssignmentService:
                                 act,
                                 deadline,
                                 assignment,
-                                assignment_in,
+                                client_id,
+                                template_id,
                                 tmpl,
                                 user_id,
                                 first_phase,
@@ -208,7 +211,8 @@ class AssignmentService:
                             act,
                             deadline,
                             assignment,
-                            assignment_in,
+                            client_id,
+                            template_id,
                             tmpl,
                             user_id,
                             first_phase,
@@ -249,7 +253,8 @@ class AssignmentService:
                             act,
                             deadline,
                             assignment,
-                            assignment_in,
+                            client_id,
+                            template_id,
                             tmpl,
                             user_id,
                             first_phase,
@@ -261,9 +266,33 @@ class AssignmentService:
 
         else:
             log.info(
-                f"⏳ Template '{tmpl.name}' ({tmpl.recurrence}) vinculado — "
+                f"⏳ Template '{tmpl.name}' ({tmpl.recurrence}) — "
                 f"tasks serão geradas pelo scheduler agendado"
             )
+
+        return generated_tasks
+
+    def assign_template_to_client(
+        self, assignment_in: ClientTemplateAssignmentCreate, user_id: UUID
+    ) -> dict:
+        """Assign a template to a client and auto-generate tasks."""
+        # Validate template exists
+        tmpl = self.template_repo.get_template_by_id(assignment_in.template_id, user_id)
+        if not tmpl:
+            raise ValueError(f"Template {assignment_in.template_id} not found")
+
+        # Create assignment
+        assignment = self.assignment_repo.create_assignment(assignment_in, user_id)
+
+        # Get template activities
+        activities = self.template_repo.get_activities_by_template(
+            assignment_in.template_id
+        )
+
+        # Generate tasks for each activity
+        generated_tasks = self._generate_for_activities(
+            assignment, tmpl, activities, user_id
+        )
 
         if generated_tasks:
             self.assignment_repo.session.commit()
@@ -281,11 +310,60 @@ class AssignmentService:
             "template_name": tmpl.name,
         }
 
+    def generate_tasks_for_new_activities(
+        self, tmpl, activities: list, user_id: UUID
+    ) -> int:
+        """Generate tasks for newly added activities across all active assignments
+        of the template. Follows the same recurrence logic used at assign time.
+        """
+        assignments = self.assignment_repo.get_assignments_by_template(tmpl.id)
+        active = [a for a in assignments if a.is_active]
+        if not active or not activities:
+            return 0
+
+        generated_tasks = []
+        for assignment in active:
+            generated_tasks.extend(
+                self._generate_for_activities(assignment, tmpl, activities, user_id)
+            )
+
+        if generated_tasks:
+            self.assignment_repo.session.commit()
+            for t in generated_tasks:
+                self.assignment_repo.session.refresh(t)
+
+        if generated_tasks:
+            log.info(
+                f"➕ {len(generated_tasks)} tasks geradas para atividade(s) nova(s) "
+                f"do template '{tmpl.name}' em {len(active)} vínculo(s)"
+            )
+
+        return len(generated_tasks)
+
     def get_client_assignments(
         self, client_id: UUID
     ) -> list[ClientTemplateAssignmentResponse]:
         assignments = self.assignment_repo.get_assignments_by_client(client_id)
         return [ClientTemplateAssignmentResponse.model_validate(a) for a in assignments]
+
+    def update_assignment(
+        self,
+        assignment_id: UUID,
+        user_id: UUID,
+        update_in: ClientTemplateAssignmentUpdate,
+    ) -> ClientTemplateAssignmentResponse:
+        assignment = self.assignment_repo.get_assignment_by_id(assignment_id)
+        if not assignment:
+            raise ValueError(f"Assignment {assignment_id} not found")
+        if update_in.is_active is not None:
+            assignment.is_active = update_in.is_active
+            self.assignment_repo.session.commit()
+            self.assignment_repo.session.refresh(assignment)
+            log.info(
+                f"🔁 Vínculo {assignment_id} {'ativado' if update_in.is_active else 'desativado'} "
+                f"pelo usuário {user_id}"
+            )
+        return ClientTemplateAssignmentResponse.model_validate(assignment)
 
     def remove_client_assignment(self, assignment_id: UUID, user_id: UUID) -> None:
         assignment = self.assignment_repo.get_assignment_by_id(assignment_id)

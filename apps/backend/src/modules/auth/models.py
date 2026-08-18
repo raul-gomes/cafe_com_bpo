@@ -81,6 +81,8 @@ class User(Base):
     company_color_code = Column(String(10), nullable=True)
     company_color_secondary = Column(String(10), nullable=True)
 
+    asaas_customer_id = Column(String(100), nullable=True)
+
     role = Column(String(20), server_default="user", nullable=False)
     auth_provider = Column(String(50), default="local", nullable=False)
     created_at = Column(
@@ -104,10 +106,10 @@ class User(Base):
         "Payment", back_populates="user", cascade="all, delete-orphan"
     )
     notifications = relationship(
-        "AppNotification", back_populates="user", cascade="all, delete-orphan"
-    )
-    companies = relationship(
-        "Company", back_populates="user", cascade="all, delete-orphan"
+        "AppNotification",
+        back_populates="user",
+        cascade="all, delete-orphan",
+        foreign_keys="AppNotification.user_id",
     )
 
 

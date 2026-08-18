@@ -186,51 +186,67 @@ def update_task(
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
 
     old_phase_id = task.phase_id
+    owner_id = None
 
     if task_in.phase_id is not None and task_in.phase_id != task.phase_id:
         from src.modules.team.repository import TeamRepository
 
         team_repo = TeamRepository(session)
         owner_id = team_repo.get_client_owner_id(task.client_id)
+        phase_owner_id = owner_id or current_user.id
 
-        if owner_id:
-            gestor_phases = repo.get_phases_by_user(owner_id)
-            phase_ids = [str(p.id) for p in gestor_phases]
+        gestor_phases = repo.get_phases_by_user(phase_owner_id)
+        phase_ids = [str(p.id) for p in gestor_phases]
 
-            if str(task_in.phase_id) not in phase_ids:
-                raise HTTPException(
-                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                    detail={
-                        "error": "fase_inexistente",
-                        "message": (
-                            "Esta fase não existe para o gestor deste cliente. "
-                            "Peça ao gestor para criar a fase primeiro."
-                        ),
-                    },
-                )
+        if str(task_in.phase_id) not in phase_ids:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail={
+                    "error": "fase_inexistente",
+                    "message": (
+                        "Esta fase não existe para o gestor deste cliente. "
+                        "Peça ao gestor para criar a fase primeiro."
+                    ),
+                },
+            )
 
         task.moved_by = current_user.id
 
     updated_task = repo.update(task, task_in)
 
-    # ── completed_at logic: moving to/from the done (final) phase ──
+    # ── completed_at / status legado: usar as fases do gestor (owner) da task ──
     if task_in.phase_id is not None and task_in.phase_id != old_phase_id:
-        phases = repo.get_phases_by_user(current_user.id)
+        phase_owner_id = owner_id or current_user.id
+        phases = repo.get_phases_by_user(phase_owner_id)
         done_phase = get_done_phase(phases)
         new_phase = next(
             (p for p in phases if str(p.id) == str(task_in.phase_id)), None
         )
         if new_phase:
-            # Moving to the done phase → set completed_at
+            # Moving to the done phase → set completed_at + status
             if done_phase and str(new_phase.id) == str(done_phase.id):
                 updated_task.completed_at = datetime.now(timezone.utc)
-            # Moving from the done phase to another → clear completed_at
+                updated_task.status = "done"
+            # Moving from the done phase to another → clear completed_at + sync status
             else:
                 old_phase = next(
                     (p for p in phases if str(p.id) == str(old_phase_id)), None
                 )
                 if old_phase and done_phase and str(old_phase.id) == str(done_phase.id):
                     updated_task.completed_at = None
+                sorted_phases = sorted(phases, key=lambda p: p.order)
+                pos = next(
+                    (
+                        i
+                        for i, p in enumerate(sorted_phases)
+                        if str(p.id) == str(new_phase.id)
+                    ),
+                    0,
+                )
+                if pos == 0:
+                    updated_task.status = "todo"
+                else:
+                    updated_task.status = "doing"
 
             repo.session.commit()
             repo.session.refresh(updated_task)

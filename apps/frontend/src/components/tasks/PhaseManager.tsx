@@ -90,7 +90,7 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
       >
         <div className="flex items-center justify-between border-b border-border px-6 py-5">
           <div className="flex items-center gap-3">
-            <Settings size={20} className="text-primary" />
+            <Settings size={20} className="text-primary-strong" />
             <h2 className="m-0 text-[18px] font-bold text-foreground">Gerenciar Fases</h2>
           </div>
           <button onClick={onClose} className="cursor-pointer border-none bg-transparent text-muted-foreground hover:text-foreground">
@@ -143,7 +143,7 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
                   <div className="size-6 shrink-0 rounded-full" style={{ background: phase.color }} />
                   <span className="flex-1 text-[14px] font-semibold text-foreground">{phase.name}</span>
                   {phase.is_default && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary">
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary-strong">
                       Padrão
                     </span>
                   )}

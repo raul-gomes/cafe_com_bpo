@@ -24,7 +24,7 @@ class ActivityResponse(BaseModel):
     is_read: bool
     post_id: UUID | None = None
     comment_id: UUID | None = None
-    triggered_by_name: str
+    triggered_by_name: str | None = None
     message_snippet: str | None = None
 
     model_config = ConfigDict(from_attributes=True)

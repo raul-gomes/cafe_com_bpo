@@ -261,7 +261,21 @@ class TemplateService:
         if not tmpl:
             raise ValueError(f"Template {template_id} not found")
         act = self.repository.create_activity(template_id, activity_in)
+        # Gera tasks para a atividade nova em todas as rotinas já vinculadas a clientes
+        self._generate_tasks_for_new_activity(tmpl, act, user_id)
         return TemplateActivityResponse.model_validate(act)
+
+    def _generate_tasks_for_new_activity(self, tmpl, act, user_id: UUID) -> int:
+        """Generates tasks for a newly added activity across active assignments."""
+        try:
+            from ..assignments.repository import AssignmentRepository
+            from ..assignments.service import AssignmentService
+
+            service = AssignmentService(AssignmentRepository(self.repository.session))
+            return service.generate_tasks_for_new_activities(tmpl, [act], user_id)
+        except Exception as e:  # pragma: no cover - defensive
+            log.warning(f"⚠️ Falha ao gerar tasks para atividade nova: {e}")
+            return 0
 
     def update_activity(
         self,

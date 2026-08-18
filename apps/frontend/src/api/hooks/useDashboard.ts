@@ -9,7 +9,7 @@ export interface ActivityResponse {
     is_read: boolean;
     post_id?: string;
     comment_id?: string;
-    triggered_by_name: string;
+    triggered_by_name?: string;
     message_snippet?: string;
 }
 
@@ -48,6 +48,9 @@ export const useDashboard = () => {
                 const { data } = await apiClient.get('/dashboard/summary');
                 return data;
             },
+            // Mantém o dashboard sempre refletindo o estado atual do fórum e do gestor
+            refetchInterval: 30000,
+            refetchOnWindowFocus: true,
         });
     };
 

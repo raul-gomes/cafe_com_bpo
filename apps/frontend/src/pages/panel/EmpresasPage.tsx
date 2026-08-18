@@ -5,7 +5,7 @@ import { maskCNPJ, maskPhone } from '../../lib/formatters';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Link, Unlink, FileText } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { Users, UserPlus, Trash2, Check, Send, Clock } from 'lucide-react';
+import { Users, UserPlus, Trash2, Check, Send, Clock, Plus } from 'lucide-react';
 import {
   inviteCollaborator,
   listTeamMembers,
@@ -56,7 +56,7 @@ export const EmpresasPage: React.FC = () => {
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
   const [customSegment, setCustomSegment] = useState('');
-  const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment } = useTasks();
+  const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment, useUpdateAssignment } = useTasks();
   const [linkClientId, setLinkClientId] = useState<string | null>(null);
   const [teamClientId, setTeamClientId] = useState<string | null>(null);
   const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
@@ -71,7 +71,8 @@ export const EmpresasPage: React.FC = () => {
   const [userDataMap, setUserDataMap] = useState<Map<string, { name?: string | null; avatar_url?: string | null }>>(new Map());
   const { data: templates } = useTemplatesList();
   const { data: currentAssignments, refetch: refetchAssignments } = useClientAssignments(linkClientId || '');
-  const { data: teamAssignments } = useClientAssignments(teamClientId || '');
+  const { data: teamAssignments, refetch: refetchTeamAssignments } = useClientAssignments(teamClientId || '');
+  const [showAddRoutine, setShowAddRoutine] = useState(false);
 
   // Derive linked templates (with name) from assignments + templates list
   const linkedTemplates = React.useMemo(() => {
@@ -81,8 +82,23 @@ export const EmpresasPage: React.FC = () => {
       .map(a => tmplMap.get(a.template_id))
       .filter((t): t is NonNullable<typeof t> => !!t);
   }, [teamAssignments, templates]);
+
+  // Assignments do cliente com dados da rotina (para a seção de rotinas do modal de equipe)
+  const teamAssignmentList = React.useMemo(() => {
+    if (!teamAssignments || !templates) return [];
+    const tmplMap = new Map(templates.map(t => [t.id, t]));
+    return teamAssignments.map(a => ({ assignment: a, template: tmplMap.get(a.template_id) }));
+  }, [teamAssignments, templates]);
+
+  // Rotinas ainda não vinculadas a este cliente (para incluir no modal de equipe)
+  const availableTeamTemplates = React.useMemo(() => {
+    if (!templates || !teamAssignments) return [];
+    const linked = new Set(teamAssignments.map(a => a.template_id));
+    return templates.filter(t => !linked.has(t.id));
+  }, [templates, teamAssignments]);
   const assignTemplate = useAssignTemplate();
   const removeAssignment = useRemoveAssignment();
+  const updateAssignment = useUpdateAssignment();
   const confirm = useConfirm();
   const userLookup = useUserLookup();
 
@@ -94,6 +110,7 @@ export const EmpresasPage: React.FC = () => {
     setInvitations([]);
     setLookedUpEmails(new Set());
     setUserDataMap(new Map());
+    setShowAddRoutine(false);
   }, [teamClientId]);
 
   // Auto-lookup emails when chips change
@@ -198,19 +215,19 @@ export const EmpresasPage: React.FC = () => {
 
   const handleDelete = async (id: string, name: string) => {
     const ok = await confirm({
-      title: 'Excluir cliente permanentemente?',
-      message: `Tem certeza que deseja excluir "${name}"? Esta ação é irreversível e **todas as tarefas e orçamentos vinculados** a este cliente também serão permanentemente removidos do sistema.`,
-      variant: 'danger',
-      confirmLabel: 'Sim, excluir tudo',
+      title: 'Arquivar cliente?',
+      message: `O cliente "${name}" será arquivado e não aparecerá mais na lista. **Todas as tarefas e orçamentos vinculados** serão arquivados junto (soft delete — os dados são preservados no sistema, mas ficam inativos).`,
+      variant: 'warning',
+      confirmLabel: 'Sim, arquivar tudo',
     });
     if (!ok) return;
     try {
       setClients(prev => prev.filter(c => c.id !== id));
       await deleteClient(id);
-      toast.success(`Cliente "${name}" e todos os dados associados foram excluídos.`);
+      toast.success(`Cliente "${name}" arquivado.`);
     } catch (e) {
       console.error(e);
-      toast.error('Erro ao excluir cliente.');
+      toast.error('Erro ao arquivar cliente.');
       await loadClients();
     }
   };
@@ -472,7 +489,7 @@ export const EmpresasPage: React.FC = () => {
         <DialogContent className="sm:max-w-[500px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <Link size={20} className="text-primary" />
+              <Link size={20} className="text-primary-strong" />
               <DialogTitle>Vincular Rotinas</DialogTitle>
             </div>
             <DialogDescription>
@@ -551,7 +568,7 @@ export const EmpresasPage: React.FC = () => {
         <DialogContent className="sm:max-w-[550px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
-              <Users size={20} className="text-primary" />
+              <Users size={20} className="text-primary-strong" />
               <DialogTitle>Equipe do Cliente</DialogTitle>
             </div>
             <DialogDescription>
@@ -666,7 +683,7 @@ export const EmpresasPage: React.FC = () => {
                       >
                         <div className={cn(
                           'flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold',
-                          isPending ? 'bg-amber-500/15 text-amber-500'
+                          isPending ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                             : isAccepted ? 'bg-emerald-500/15 text-emerald-500'
                             : isExpired ? 'bg-muted text-muted-foreground'
                             : 'bg-red-500/15 text-red-500'
@@ -677,7 +694,7 @@ export const EmpresasPage: React.FC = () => {
                           <div className="text-sm font-medium truncate">{inv.email}</div>
                           <div className="text-xs text-muted-foreground">
                             {isPending && (
-                              <span className="text-amber-500 font-medium">
+                              <span className="text-amber-600 dark:text-amber-400 font-medium">
                                 Aguardando aceite · expira {new Date(inv.expires_at).toLocaleDateString('pt-BR')}
                               </span>
                             )}
@@ -726,7 +743,7 @@ export const EmpresasPage: React.FC = () => {
                     key={member.user_id}
                     className="flex items-center gap-3 rounded-md border border-border p-3"
                   >
-                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-full bg-primary/10 text-sm font-bold text-primary-strong">
                       {(member.name || member.email)[0].toUpperCase()}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -753,6 +770,92 @@ export const EmpresasPage: React.FC = () => {
                 ))}
               </div>
             )}
+
+            {/* Routines section */}
+            <div className="mb-4 mt-5">
+              <div className="mb-2 flex items-center justify-between">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
+                  <Link size={13} /> Rotinas do cliente
+                </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="h-6 gap-1 px-2 text-[11px]"
+                  onClick={() => setShowAddRoutine(v => !v)}
+                >
+                  <Plus size={12} /> Incluir nova
+                </Button>
+              </div>
+
+              {/* Include new routine */}
+              {showAddRoutine && (
+                <div className="mb-2 rounded-lg border border-primary/20 bg-muted p-3">
+                  {!templates || templates.length === 0 ? (
+                    <p className="text-[12px] text-muted-foreground">
+                      Nenhuma rotina disponível. Crie rotinas em <strong>Rotinas</strong> no menu lateral.
+                    </p>
+                  ) : availableTeamTemplates.length === 0 ? (
+                    <p className="text-[12px] text-muted-foreground">
+                      Todas as rotinas já estão vinculadas a este cliente.
+                    </p>
+                  ) : (
+                    <div className="flex max-h-[180px] flex-col gap-1.5 overflow-y-auto">
+                      {availableTeamTemplates.map(tmpl => (
+                        <Button
+                          key={tmpl.id}
+                          variant="outline"
+                          size="sm"
+                          className="justify-start gap-2"
+                          disabled={assignTemplate.isPending}
+                          onClick={async () => {
+                            await assignTemplate.mutateAsync({ client_id: teamClientId!, template_id: tmpl.id });
+                            refetchTeamAssignments();
+                          }}
+                        >
+                          <Link size={13} /> {tmpl.name} ({tmpl.activity_count} atividades)
+                        </Button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {!loadingTeam && teamAssignmentList.length === 0 ? (
+                <p className="py-1 text-[12px] text-muted-foreground">
+                  Nenhuma rotina vinculada a este cliente.
+                </p>
+              ) : (
+                <div className="flex flex-col gap-1.5">
+                  {teamAssignmentList.map(({ assignment, template }) => (
+                    <div
+                      key={assignment.id}
+                      className="flex items-center gap-3 rounded-md border border-border p-2.5"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <div className="truncate text-[13px] font-semibold text-foreground">
+                          {template?.name || 'Rotina'}
+                        </div>
+                        <div className={cn('text-[11px]', assignment.is_active ? 'text-green-500' : 'text-muted-foreground')}>
+                          {assignment.is_active ? 'Ativa' : 'Inativa'}
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className={cn('shrink-0', assignment.is_active && 'text-destructive hover:text-destructive')}
+                        disabled={updateAssignment.isPending}
+                        onClick={async () => {
+                          await updateAssignment.mutateAsync({ id: assignment.id, is_active: !assignment.is_active });
+                          refetchTeamAssignments();
+                        }}
+                      >
+                        {assignment.is_active ? 'Desativar' : 'Ativar'}
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
         </DialogContent>
       </Dialog>

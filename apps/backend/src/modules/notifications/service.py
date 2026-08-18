@@ -29,6 +29,7 @@ class NotificationDispatcher:
         notif_type: str,
         related_entity_type: str | None = None,
         related_entity_id: UUID | None = None,
+        triggered_by_user_id: UUID | None = None,
     ) -> NotificationResponse:
         """Create and persist an in-app notification."""
         notif_data = NotificationCreate(
@@ -37,6 +38,7 @@ class NotificationDispatcher:
             type=notif_type,
             related_entity_type=related_entity_type,
             related_entity_id=related_entity_id,
+            triggered_by_user_id=triggered_by_user_id,
         )
         notif = self.repository.create(notif_data, user_id)
         log.info(f"🔔 Notificação criada: {title} para usuário {user_id}")
@@ -76,6 +78,25 @@ class NotificationDispatcher:
             "task_overdue",
             "task",
             task_id,
+        )
+
+    def dispatch_post_commented(
+        self,
+        user_id: UUID,
+        post_title: str,
+        post_id: UUID,
+        triggered_by_user_id: UUID,
+        comment_snippet: str | None = None,
+    ) -> NotificationResponse:
+        message = comment_snippet or f"Alguém comentou no seu tópico '{post_title}'."
+        return self.dispatch(
+            user_id,
+            "Novo comentário no seu tópico",
+            message,
+            "post_commented",
+            "discussion_post",
+            post_id,
+            triggered_by_user_id,
         )
 
 

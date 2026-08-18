@@ -52,6 +52,15 @@ class AssignmentRepository:
             .all()
         )
 
+    def get_assignments_by_template(
+        self, template_id: UUID
+    ) -> list[ClientTemplateAssignment]:
+        return (
+            self.session.query(ClientTemplateAssignment)
+            .filter(ClientTemplateAssignment.template_id == template_id)
+            .all()
+        )
+
     def get_active_assignments(self) -> list[ClientTemplateAssignment]:
         all_assignments = self.session.query(ClientTemplateAssignment).all()
         return [a for a in all_assignments if a.is_active is True]

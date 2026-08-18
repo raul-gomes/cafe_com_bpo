@@ -48,6 +48,9 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 - **Dashboard module has no models**: It's an aggregation layer that queries other modules' models directly.
 - **Pricing has a DDD domain engine**: `modules/pricing/domain/engine.py` is framework-agnostic dataclasses; the service layer translates between API and domain.
 - **Static avatar serving**: `storage/avatars/` is mounted at `/avatars` in `main.py`.
+- **Always**: Code using TDD method.
+- **Always**: Update `lineage.md` in in root directory whenever the database structure changes.
+
 
 ### Frontend quirks
 - **Portuguese route names**: `/painel` (dashboard), `/cadastro` (register), `/orcamentos` (proposals), `/tarefas` (tasks), `/forum` (network). Routes defined in `src/router.tsx`.
@@ -55,10 +58,12 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 - **API client**: Axios-based at `src/api/client.ts`, hooks in `src/api/hooks/`.
 - **Zod v4** for validation (not v3).
 - **No `@/` path alias**: imports are relative.
+- **Always**: Follow the system design we created. If a component is missing, create it first, then implement it.
+- **Always**: Update design-system route whenever you create a new component.
 
 ### Docker / Infra
 - **Nginx gateway** (`infra/nginx/`) proxies all traffic. Ports 80 for web, backend exposed internally on 8000.
-- **Ollama** included in compose for AI features.
+- **Ollama** included in compose for AI features. 
 - **pgAdmin** runs on compose (credentials in `.env`).
 - **Deployment**: push to `main` → CI passes → Docker images to GHCR → webhook triggers Hostinger deploy.
 
@@ -100,3 +105,4 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 - `docker-compose.yml` — Service definitions and env vars
 - `.github/workflows/main.yml` — CI/CD pipeline
 - `apps/backend/entrypoint.sh` — Docker startup: `alembic upgrade head` then uvicorn
+- `ìneage.md` - all tables from Database

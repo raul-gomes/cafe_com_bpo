@@ -127,7 +127,7 @@ export function EmailChipInput({
           )}
         >
           {chip.name && (
-            <span className="flex size-4 items-center justify-center rounded-full bg-primary/20 text-[9px] font-bold text-primary shrink-0">
+            <span className="flex size-4 items-center justify-center rounded-full bg-primary/20 text-[9px] font-bold text-primary-strong shrink-0">
               {(chip.name[0] || chip.email[0]).toUpperCase()}
             </span>
           )}

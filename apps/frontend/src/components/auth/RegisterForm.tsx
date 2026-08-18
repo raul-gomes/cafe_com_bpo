@@ -55,8 +55,8 @@ export const RegisterForm: React.FC = () => {
 
   return (
     <Card className="mx-auto max-w-[420px]">
-      <CardContent className="pt-9 px-8 pb-8">
-        <div className="text-center mb-7">
+      <CardContent className="pt-7 px-8 pb-7">
+        <div className="text-center mb-5">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-1">Crie sua conta</h2>
           <p className="text-sm text-muted-foreground">Preencha os dados abaixo</p>
@@ -68,7 +68,7 @@ export const RegisterForm: React.FC = () => {
           </Alert>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col gap-3.5">
           <div className="ds-input-group">
             <label className="ds-label">Nome completo *</label>
             <Input type="text" placeholder="Ex: João Silva" {...register('name')} />
@@ -108,7 +108,7 @@ export const RegisterForm: React.FC = () => {
             {errors.confirmPassword && <p className="ds-error-text">{errors.confirmPassword.message}</p>}
           </div>
 
-          <Button type="submit" disabled={isSubmitting} className="w-full mt-4">
+          <Button type="submit" disabled={isSubmitting} className="w-full mt-3">
             {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
           </Button>
         </form>

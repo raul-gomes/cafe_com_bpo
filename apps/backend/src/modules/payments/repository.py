@@ -38,28 +38,24 @@ class PaymentRepository:
         )
 
     def get_customer_by_user(self, user_id: UUID) -> UserCustomer | None:
-        from sqlalchemy import text
+        from src.modules.auth.models import User
 
-        result = self.session.execute(
-            text(
-                "SELECT id, asaas_customer_id FROM payments WHERE user_id = :uid AND asaas_customer_id IS NOT NULL LIMIT 1"
-            ),
-            {"uid": str(user_id)},
-        ).first()
-        if result:
-            return UserCustomer(user_id=user_id, asaas_customer_id=result[1])
+        user = (
+            self.session.query(User)
+            .filter(User.id == user_id, User.asaas_customer_id.isnot(None))
+            .first()
+        )
+        if user and user.asaas_customer_id:
+            return UserCustomer(user_id=user_id, asaas_customer_id=user.asaas_customer_id)
         return None
 
     def save_customer_id(self, user_id: UUID, asaas_customer_id: str) -> None:
-        from sqlalchemy import text
+        from src.modules.auth.models import User
 
-        self.session.execute(
-            text(
-                "UPDATE users SET metadata = jsonb_set(coalesce(metadata, '{}'::jsonb), '{asaas_customer_id}', :cid) WHERE id = :uid"
-            ),
-            {"uid": str(user_id), "cid": f'"{asaas_customer_id}"'},
-        )
-        self.session.commit()
+        user = self.session.query(User).filter(User.id == user_id).first()
+        if user:
+            user.asaas_customer_id = asaas_customer_id
+            self.session.commit()
 
     def create_payment(
         self,

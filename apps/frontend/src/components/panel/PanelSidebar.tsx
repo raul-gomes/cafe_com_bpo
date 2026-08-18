@@ -11,6 +11,8 @@ interface PanelSidebarProps {
   onClose: () => void;
   theme?: 'light' | 'dark';
   onToggleTheme?: () => void;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 /* ── SVG icon components (kept as-is from original) ── */
@@ -55,21 +57,35 @@ const icons = {
   ),
 };
 
-/* ── Navigation items ── */
+/* ── Navigation items ──
+   s37/s38: ordem operacional (Início → Clientes → Rotinas → Tarefas → Orçamentos)
+   e agrupamento em "Ferramentas" (gestão) e "Conteúdo" (comunidade). */
 
 const NAV_ITEMS = [
-  { path: '/painel', icon: icons.dashboard, label: 'Início', matchExact: true },
-  { path: '/painel/empresas', icon: icons.clients, label: 'Meus Clientes' },
-  { path: '/painel/templates-atividades', icon: icons.routines, label: 'Rotinas' },
-  { path: '/painel/orcamentos', icon: icons.proposals, label: 'Orçamentos' },
-  { path: '/painel/tarefas', icon: icons.tasks, label: 'Gestão de Tarefas' },
-  { path: '/painel/galeria', icon: icons.gallery, label: 'Galeria de Arquivos' },
-  { path: '/painel/forum', icon: icons.forum, label: 'Fórum da Comunidade' },
+  { path: '/painel', icon: icons.dashboard, label: 'Início', matchExact: true, group: 'tools' },
+  { path: '/painel/empresas', icon: icons.clients, label: 'Meus Clientes', group: 'tools' },
+  { path: '/painel/templates-atividades', icon: icons.routines, label: 'Rotinas', group: 'tools' },
+  { path: '/painel/tarefas', icon: icons.tasks, label: 'Gestão de Tarefas', group: 'tools' },
+  { path: '/painel/orcamentos', icon: icons.proposals, label: 'Orçamentos', group: 'tools' },
+  { path: '/painel/galeria', icon: icons.gallery, label: 'Galeria de Arquivos', group: 'content' },
+  { path: '/painel/forum', icon: icons.forum, label: 'Fórum da Comunidade', group: 'content' },
 ];
+
+const NAV_GROUPS: Record<string, { label: string; items: typeof NAV_ITEMS }> = {
+  tools: { label: 'Ferramentas', items: NAV_ITEMS.filter(i => i.group === 'tools') },
+  content: { label: 'Conteúdo', items: NAV_ITEMS.filter(i => i.group === 'content') },
+};
 
 /* ─── Component ─── */
 
-export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, theme, onToggleTheme }) => {
+export const PanelSidebar: React.FC<PanelSidebarProps> = ({
+  isOpen,
+  onClose,
+  theme,
+  onToggleTheme,
+  collapsed = false,
+  onToggleCollapsed,
+}) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -105,8 +121,9 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
       {/* Sidebar */}
       <aside
         className={cn(
-          'flex h-screen w-[260px] shrink-0 flex-col overflow-y-auto border-r border-border bg-card',
-          'fixed left-0 top-0 z-50 transition-transform md:sticky md:z-auto md:translate-x-0',
+          'flex h-screen shrink-0 flex-col overflow-y-auto border-r border-border bg-card',
+          'fixed left-0 top-0 z-50 transition-[width,transform] duration-200 md:sticky md:z-auto md:translate-x-0',
+          collapsed ? 'w-[72px]' : 'w-[260px]',
           isOpen ? 'translate-x-0' : '-translate-x-full'
         )}
       >
@@ -117,18 +134,37 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
           .panel-sidebar-scroll::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 4px; }
         `}</style>
 
-        {/* Brand */}
-        <div
-          className="flex cursor-pointer justify-center px-6 py-5"
-          onClick={() => navigate('/')}
-        >
-          <img src={logoSide} alt="Café com BPO" className="h-[50px] w-auto" />
+        {/* Brand + collapse toggle */}
+        <div className={cn('relative flex items-center py-5', collapsed ? 'justify-center px-2' : 'justify-center px-6')}>
+          <div className="flex cursor-pointer items-center justify-center" onClick={() => navigate('/')}>
+            <img src={logoSide} alt="Café com BPO" className={cn('h-[50px] w-auto', collapsed && 'hidden')} />
+            {collapsed && <span className="text-[20px] font-extrabold text-primary-strong">CB</span>}
+          </div>
+          <button
+            onClick={onToggleCollapsed}
+            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            aria-label={collapsed ? 'Expandir menu' : 'Recolher menu'}
+            className={cn(
+              'absolute top-1/2 flex size-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border-none bg-transparent text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+              collapsed ? 'right-[18px]' : '-right-3 border border-border bg-card shadow-sm'
+            )}
+          >
+            {collapsed ? (
+              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+            ) : (
+              <svg className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            )}
+          </button>
         </div>
 
-        <div className="mx-6 h-px bg-border" />
+        <div className={cn('h-px bg-border', collapsed ? 'mx-2' : 'mx-6')} />
 
         {/* Profile */}
-        <div className="flex flex-col items-center px-6 py-4 text-center">
+        <div className={cn('flex flex-col items-center text-center', collapsed ? 'px-2 py-3' : 'px-6 py-4')}>
           <div
             className="mb-2 flex size-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-primary-dark text-[11px] font-extrabold text-primary-foreground ring-2 ring-background"
             style={user?.avatar_url ? {
@@ -140,40 +176,56 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
           >
             {!user?.avatar_url && initials}
           </div>
-          <div className="text-[13px] font-bold text-foreground">{user?.name || 'Usuário'}</div>
-          <div className="max-w-[180px] truncate text-[11px] text-muted-foreground">{user?.email || ''}</div>
-          <button
-            className="mt-1 rounded-md px-3 py-1 text-[11px] font-semibold text-primary transition-colors hover:bg-primary/10"
-            onClick={() => handleNav('/painel/perfil')}
-          >
-            Editar Perfil
-          </button>
+          {!collapsed && (
+            <>
+              <div className="text-[13px] font-bold text-foreground">{user?.name || 'Usuário'}</div>
+              <div className="max-w-[180px] truncate text-[11px] text-muted-foreground">{user?.email || ''}</div>
+              <button
+                className="mt-1 rounded-md px-3 py-1 text-[11px] font-semibold text-primary-strong transition-colors hover:bg-primary/10"
+                onClick={() => handleNav('/painel/perfil')}
+              >
+                Editar Perfil
+              </button>
+            </>
+          )}
         </div>
 
-        <div className="mx-6 h-px bg-border" />
+        <div className={cn('h-px bg-border', collapsed ? 'mx-2' : 'mx-6')} />
 
         {/* Navigation */}
-        <div className="flex-1 px-3 py-4">
-          <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            Menu Principal
-          </div>
-          <nav className="flex flex-col gap-0.5">
-            {NAV_ITEMS.map((item) => (
-              <button
-                key={item.path}
-                onClick={() => handleNav(item.path)}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium transition-colors',
-                  isActive(item.path)
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+        <div className={cn('flex-1 py-4', collapsed ? 'px-2' : 'px-3')}>
+          {(['tools', 'content'] as const).map((groupKey) => {
+            const group = NAV_GROUPS[groupKey];
+            return (
+              <div key={groupKey} className="mb-4">
+                {!collapsed && (
+                  <div className="mb-2 px-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    {group.label}
+                  </div>
                 )}
-              >
-                {item.icon}
-                {item.label}
-              </button>
-            ))}
-          </nav>
+                <nav className="flex flex-col gap-0.5">
+                  {group.items.map((item) => (
+                    <button
+                      key={item.path}
+                      onClick={() => handleNav(item.path)}
+                      title={collapsed ? item.label : undefined}
+                      aria-label={item.label}
+                      className={cn(
+                        'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium transition-colors',
+                        collapsed ? 'justify-center px-0' : '',
+                        isActive(item.path)
+                          ? 'bg-primary/10 text-primary-strong'
+                          : 'text-muted-foreground hover:bg-muted hover:text-foreground'
+                      )}
+                    >
+                      {item.icon}
+                      {!collapsed && item.label}
+                    </button>
+                  ))}
+                </nav>
+              </div>
+            );
+          })}
         </div>
 
         {/* Footer */}
@@ -181,6 +233,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
           <div className="flex flex-col gap-1">
             {user?.role === 'admin' && (
               <SidebarFooterButton
+                collapsed={collapsed}
                 icon={
                   <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M12 20h9" /><path d="M16.376 3.622a1 1 0 013.002 3.002L7.368 18.635a2 2 0 01-.855.506l-2.872.838a.5.5 0 01-.62-.62l.838-2.872a2 2 0 01.506-.854z" />
@@ -191,6 +244,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
               />
             )}
               <SidebarFooterButton
+              collapsed={collapsed}
               icon={
                 theme === 'light' ? (
                   <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
@@ -209,6 +263,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
               onClick={() => onToggleTheme?.()}
             />
             <SidebarFooterButton
+              collapsed={collapsed}
               icon={
                 <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
@@ -219,6 +274,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
               onClick={() => setShowReportModal(true)}
             />
             <SidebarFooterButton
+              collapsed={collapsed}
               icon={
                 <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
@@ -229,20 +285,24 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ isOpen, onClose, the
             />
           </div>
 
-          <div className="mx-3 mt-2 h-px bg-border" />
+          <div className={cn('mx-3 mt-2 h-px bg-border', collapsed && 'mx-0')} />
 
           <div className="mt-2 px-3">
             <button
               onClick={logout}
-              className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-destructive transition-colors hover:bg-destructive/10"
+              title={collapsed ? 'Sair da conta' : undefined}
+              className={cn(
+                'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-destructive transition-colors hover:bg-destructive/10',
+                collapsed && 'justify-center px-0'
+              )}
             >
               <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" /><polyline points="16 17 21 12 16 7" />
                 <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Sair da conta
+              {!collapsed && 'Sair da conta'}
             </button>
-            <div className="mt-1 text-[10px] text-muted-foreground">Café com BPO 2026</div>
+            {!collapsed && <div className="mt-1 text-[10px] text-muted-foreground">Café com BPO 2026</div>}
           </div>
         </div>
       </aside>
@@ -259,18 +319,25 @@ function SidebarFooterButton({
   icon,
   label,
   onClick,
+  collapsed = false,
 }: {
   icon: React.ReactNode;
   label: string;
   onClick: () => void;
+  collapsed?: boolean;
 }) {
   return (
     <button
       onClick={onClick}
-      className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+      title={collapsed ? label : undefined}
+      aria-label={label}
+      className={cn(
+        'flex w-full items-center gap-3 rounded-lg px-3 py-2 text-left text-[13px] font-medium text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+        collapsed && 'justify-center px-0'
+      )}
     >
       {icon}
-      {label}
+      {!collapsed && label}
     </button>
   );
 }

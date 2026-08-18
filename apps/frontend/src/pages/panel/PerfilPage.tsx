@@ -387,6 +387,11 @@ export const PerfilPage: React.FC = () => {
 
             {/* ───────────── PERSONALIZAÇÃO ───────────── */}
             <TabsContent value="customization">
+              <div className="mb-5">
+                <p className="text-sm text-muted-foreground">
+                  Personalize as cores da sua marca e os avatares. As cores primária e secundária são usadas nos documentos e propostas que você emite.
+                </p>
+              </div>
               <div className="flex flex-col gap-4">
                 <ColorPicker
                   label="Cor Primária"

@@ -380,11 +380,11 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                       style={{ 
                         fontSize: '16px', 
                         fontWeight: 600,
-                        borderColor: showClientError ? '#ef4444' : undefined
+                        borderColor: showClientError ? '#dc2626' : undefined
                       }}
                     />
                     {showClientError && (
-                      <div style={{ color: '#ef4444', fontSize: '11px', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      <div style={{ color: '#dc2626', fontSize: '11px', marginTop: '6px', display: 'flex', alignItems: 'center', gap: '4px' }}>
                         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
                         Empresa não encontrada. Selecione da lista ou cadastre uma nova.
                       </div>
@@ -498,17 +498,19 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                 </div>
                 <div className="field">
                   <div className="field-label">
-                    Custo/hora (R$)
-                    <span className="tt" data-tip="Calculado automaticamente: custo total ÷ horas úteis totais. Determina o preço base por minuto de serviço.">?</span>
+                    <label htmlFor="hourly-cost">Custo/hora (R$)</label>
+                    <span className="tt" data-tip="Calculado automaticamente: custo total ÷ horas úteis totais. Você pode editar para ajustar o custo por hora — o custo total é recalculado.">?</span>
                   </div>
-                  <input 
-                    type="text" 
-                    value={localHourlyCost} 
-                    onChange={handleHourlyChange} 
+                  <input
+                    id="hourly-cost"
+                    type="text"
+                    value={localHourlyCost}
+                    onChange={handleHourlyChange}
                     placeholder="ex: 35.00"
                     autoComplete="off"
+                    aria-label="Custo por hora em reais"
                   />
-                  <div className="ds-hint">Calculado automaticamente. Não editável.</div>
+                  <div className="ds-hint">Calculado automaticamente. Edite para ajustar o custo total.</div>
                 </div>
               </div>
 
@@ -703,12 +705,12 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
 
         <div className="summary-bar__actions" style={{ display: 'flex', alignItems: 'center' }}>
           {pdfError && (
-             <div style={{ color: '#ef4444', fontSize: '13px', marginRight: '16px', fontWeight: 600 }}>
+             <div style={{ color: '#dc2626', fontSize: '13px', marginRight: '16px', fontWeight: 600 }}>
                ⚠️ {pdfError}
              </div>
           )}
           {!hasActiveService && (
-             <div style={{ color: '#ef4444', fontSize: '13px', marginRight: '16px', fontWeight: 600 }}>
+             <div style={{ color: '#dc2626', fontSize: '13px', marginRight: '16px', fontWeight: 600 }}>
                ⚠️ Ative pelo menos um serviço
              </div>
           )}
@@ -779,7 +781,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
             <h2>Guia de Precificação</h2>
             <p>Metodologia oficial Café com BPO</p>
           </div>
-          <button onClick={() => setShowTutorial(false)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', padding: '4px' }}>
+          <button onClick={() => setShowTutorial(false)} style={{ background: 'none', border: 'none', color: '#475569', cursor: 'pointer', padding: '4px' }}>
             <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
           </button>
         </div>
@@ -813,7 +815,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
         </div>
 
         <div className="tutorial-panel__footer">
-          <div style={{ color: '#64748b', fontSize: '13px' }}>Passo {currentStep} de {tutorialSteps.length}</div>
+          <div style={{ color: '#475569', fontSize: '13px' }}>Passo {currentStep} de {tutorialSteps.length}</div>
           <div style={{ display: 'flex', gap: '8px' }}>
             <button 
               className="ds-btn ds-btn-ghost ds-btn-sm" 

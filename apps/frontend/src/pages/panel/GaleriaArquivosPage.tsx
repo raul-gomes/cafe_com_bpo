@@ -538,7 +538,7 @@ export const GaleriaArquivosPage: React.FC = () => {
                         {getFileIcon(file.file_name)}
                         <div>
                           <span
-                            className="cursor-pointer font-semibold text-foreground transition-colors hover:text-primary hover:underline"
+                            className="cursor-pointer font-semibold text-foreground transition-colors hover:text-primary-strong hover:underline"
                             onClick={() => handleDownload(file)}
                           >
                             {file.title || file.file_name}

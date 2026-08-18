@@ -12,8 +12,8 @@ from src.modules.gallery.models import CommonGalleryItem  # noqa: F401
 from src.modules.network.models import (  # noqa: F401
     DiscussionComment,
     DiscussionPost,
-    Notification,
 )
+from src.modules.payments.models import Payment  # noqa: F401
 from src.modules.proposals.models import PricingScenario  # noqa: F401
 from src.modules.task_manager.models import (  # noqa: F401
     ActivityTemplate,
