@@ -642,6 +642,10 @@ export const TasksPage: React.FC = () => {
                 isOpen={isTaskModalOpen}
                 onClose={() => setTaskModalOpen(false)}
                 task={selectedTask}
+                currentPhase={selectedTask ? (phases ?? []).find(p => p.id === getTaskStatus(selectedTask)) ?? null : null}
+                onFinalize={(id) => {
+                    updateTaskStatus.mutate({ id, phase_id: doneColumnId });
+                }}
             />
 
             <PhaseManager

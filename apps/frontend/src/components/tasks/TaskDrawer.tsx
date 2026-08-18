@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import * as z from 'zod';
-import { Pencil, PencilOff, Trash2 } from 'lucide-react';
+import { Pencil, PencilOff, Trash2, Check, XCircle } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
-import { TaskResponse } from '../../schemas/tasks';
+import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 import {
   Sheet,
@@ -38,9 +38,11 @@ interface TaskDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   task?: TaskResponse | null;
+  currentPhase?: TaskPhaseResponse | null;
+  onFinalize?: (id: string) => void;
 }
 
-export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task }) => {
+export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, currentPhase, onFinalize }) => {
   const { useCreateTask, useUpdateTask, useDeleteTask } = useTasks();
   const createTask = useCreateTask();
   const updateTask = useUpdateTask();
@@ -122,6 +124,12 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task })
     }
   };
 
+  const handleFinalize = () => {
+    if (!task || !onFinalize) return;
+    onFinalize(task.id);
+    onClose();
+  };
+
   // Campos de identidade: nunca editáveis quando a tarefa já existe
   const identityLocked = !!task;
   const detailsLocked = !!task && !editing;
@@ -154,6 +162,41 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task })
               : 'Organize o fluxo operacional para um de seus clientes.'}
           </SheetDescription>
         </SheetHeader>
+
+        {task && (
+          <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 border-b border-border px-6 py-3">
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-semibold text-muted-foreground">Fase atual:</span>
+              {task.is_cancelled ? (
+                <span className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-bold text-destructive" style={{ background: 'rgba(239,68,68,0.15)' }}>
+                  <XCircle size={12} /> Cancelada
+                </span>
+              ) : currentPhase ? (
+                <span
+                  className="inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[12px] font-bold text-black"
+                  style={{ background: currentPhase.color }}
+                >
+                  {currentPhase.is_done && <Check size={12} />}
+                  {currentPhase.name}
+                </span>
+              ) : (
+                <span className="text-[12px] text-muted-foreground">—</span>
+              )}
+            </div>
+
+            {!task.is_cancelled && currentPhase && !currentPhase.is_done && onFinalize && (
+              <div className="flex items-center gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  onClick={handleFinalize}
+                >
+                  <Check size={14} /> Finalizar
+                </Button>
+              </div>
+            )}
+          </div>
+        )}
 
         <form onSubmit={handleSubmit(onSubmit as any)} className="flex-1 overflow-y-auto px-6 py-6">
           <div className="flex flex-col gap-6">
