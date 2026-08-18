@@ -27,7 +27,8 @@ export { ProposalPreview } from './proposal/ProposalPreview'
 export { ProposalDownloadGate } from './proposal/ProposalDownloadGate'
 
 // Tasks components
-export { TaskModal } from './tasks/TaskModal'
+export { TaskDrawer } from './tasks/TaskDrawer'
+export { RoutineDrawer } from './tasks/RoutineDrawer'
 
 // PDF components
 export { ProposalDocument } from './pdf/ProposalDocument'

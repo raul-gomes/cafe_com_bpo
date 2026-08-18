@@ -38,7 +38,7 @@ export default function LoginPage() {
       <span className="login-bpo-watermark">BPO</span>
 
       <main className="flex-1 flex items-center justify-center px-6 py-8">
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[480px]">
           {errorParam && (
             <Alert variant="destructive" className="mb-5">
               <span>{ERROR_MESSAGES[errorParam] || 'Ocorreu um erro. Tente novamente.'}</span>
@@ -67,8 +67,8 @@ export default function LoginPage() {
 
       {/* Register Modal */}
       <Dialog open={showRegister} onOpenChange={setShowRegister}>
-        <DialogContent className="sm:max-w-[420px] p-0 border-0 bg-transparent ring-0 max-h-[85vh] overflow-y-auto">
-          <RegisterForm />
+        <DialogContent className="sm:!max-w-[768px] p-0 border-0 bg-transparent ring-0 max-h-[85vh] overflow-y-auto" showCloseButton={false}>
+          <RegisterForm onClose={() => setShowRegister(false)} />
         </DialogContent>
       </Dialog>
     </div>

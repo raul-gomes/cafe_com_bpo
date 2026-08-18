@@ -39,7 +39,7 @@ export const ForgotPasswordModal: React.FC<ForgotPasswordModalProps> = ({ open, 
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[420px]" showCloseButton={!submitted}>
+      <DialogContent className="sm:!max-w-[480px]" showCloseButton={!submitted}>
         {submitted ? (
           <div className="text-center py-4">
             <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />

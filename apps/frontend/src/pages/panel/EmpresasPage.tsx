@@ -486,7 +486,7 @@ export const EmpresasPage: React.FC = () => {
 
       {/* Dialog: Vincular Rotinas */}
       <Dialog open={!!linkClientId} onOpenChange={(open) => { if (!open) setLinkClientId(null); }}>
-        <DialogContent className="sm:max-w-[500px]">
+        <DialogContent className="sm:!max-w-[500px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <Link size={20} className="text-primary-strong" />
@@ -565,7 +565,7 @@ export const EmpresasPage: React.FC = () => {
 
       {/* Dialog: Equipe */}
       <Dialog open={!!teamClientId} onOpenChange={(open) => { if (!open) { setTeamClientId(null); setShowInvite(false); } }}>
-        <DialogContent className="sm:max-w-[550px]">
+        <DialogContent className="sm:!max-w-[550px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <Users size={20} className="text-primary-strong" />

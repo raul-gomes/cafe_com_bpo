@@ -6,7 +6,7 @@ import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { TaskResponse } from '../../schemas/tasks';
 import { ClientData } from '../../api/clients';
-import { TaskModal } from '../../components/tasks/TaskModal';
+import { TaskDrawer } from '../../components/tasks/TaskDrawer';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { TaskKanban } from '../../components/tasks/TaskKanban';
@@ -326,8 +326,8 @@ export const TasksPage: React.FC = () => {
                 return true;
             }
             if (isMiddlePhase) {
-                // Tasks atrasadas sempre visíveis em qualquer filtro
-                if (isOverdue(t)) return true;
+                // Tasks em andamento ficam "on hold": não contam como atrasadas
+                if (mode === 'overdue') return false;
                 // Sem deadline: sempre visível na fase intermediária
                 if (!t.deadline) return true;
                 if (!p) return true;
@@ -376,11 +376,12 @@ export const TasksPage: React.FC = () => {
     }, [effectiveFilter]); // eslint-disable-line react-hooks/exhaustive-deps
 
     // ── Filter counts by mode (same logic as filterTasksForMode) ──
+    // Tasks na fase "concluído" NÃO entram nos counts dos filtros de período.
     const filterCounts = useMemo((): Record<string, number> => {
         const modes: Array<'today' | 'week' | 'month' | 'year' | 'all' | 'overdue'> = ['today', 'week', 'month', 'year', 'all', 'overdue'];
         const counts: Record<string, number> = {};
         for (const mode of modes) {
-            counts[mode] = filterTasksForMode(mode).length;
+            counts[mode] = filterTasksForMode(mode).filter(t => getTaskStatus(t) !== lastPhaseId).length;
         }
         return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -637,7 +638,7 @@ export const TasksPage: React.FC = () => {
                 )}
             </div>
 
-            <TaskModal
+            <TaskDrawer
                 isOpen={isTaskModalOpen}
                 onClose={() => setTaskModalOpen(false)}
                 task={selectedTask}

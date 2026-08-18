@@ -69,7 +69,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
   };
 
   return (
-    <Card className="mx-auto max-w-[420px]">
+    <Card className="mx-auto max-w-[480px]">
       <CardContent className="pt-7 px-8 pb-7">
         {/* Brand */}
         <div className="text-center mb-5">

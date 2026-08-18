@@ -9,10 +9,14 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
-import { AlertCircle } from 'lucide-react';
+import { AlertCircle, X } from 'lucide-react';
 import logo from '../../assets/logo.png';
 
-export const RegisterForm: React.FC = () => {
+interface RegisterFormProps {
+  onClose?: () => void;
+}
+
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
   const { register: authRegister } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -54,8 +58,18 @@ export const RegisterForm: React.FC = () => {
   };
 
   return (
-    <Card className="mx-auto max-w-[420px]">
+    <Card className="relative mx-auto w-full max-w-[768px]">
       <CardContent className="pt-7 px-8 pb-7">
+        {onClose && (
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Fechar"
+            className="absolute right-4 top-4 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-border bg-muted text-muted-foreground transition-colors hover:bg-muted/70 hover:text-foreground"
+          >
+            <X size={18} />
+          </button>
+        )}
         <div className="text-center mb-5">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
           <h2 className="text-xl font-bold text-foreground mb-1">Crie sua conta</h2>
@@ -108,9 +122,11 @@ export const RegisterForm: React.FC = () => {
             {errors.confirmPassword && <p className="ds-error-text">{errors.confirmPassword.message}</p>}
           </div>
 
-          <Button type="submit" disabled={isSubmitting} className="w-full mt-3">
-            {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
-          </Button>
+          <div className="mt-6 border-t border-border pt-5">
+            <Button type="submit" disabled={isSubmitting} className="w-full">
+              {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
+            </Button>
+          </div>
         </form>
       </CardContent>
     </Card>

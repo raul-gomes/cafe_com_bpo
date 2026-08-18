@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { RoutineDrawer } from '../../components/tasks/RoutineDrawer';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -66,7 +66,6 @@ function RecurrenceChip({ tmpl }: { tmpl: any }) {
 
 /* ── Page ── */
 export const TemplateListPage: React.FC = () => {
-  const navigate = useNavigate();
   const { useTemplatesList, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useRoutineTypes, useCreateRoutineType, useUpdateRoutineType, useDeleteRoutineType } = useTasks();
   const { data: templates, isLoading } = useTemplatesList();
   const { data: routineTypes, isLoading: typesLoading } = useRoutineTypes();
@@ -91,6 +90,7 @@ export const TemplateListPage: React.FC = () => {
 
   const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
   const [sectionSearchOpen, setSectionSearchOpen] = useState<Record<string, boolean>>({});
+  const [selectedTemplateId, setSelectedTemplateId] = useState<string | null>(null);
 
   const toggleSearch = (key: string) => {
     setSectionSearchOpen(prev => {
@@ -376,7 +376,7 @@ export const TemplateListPage: React.FC = () => {
                           "flex-row items-center gap-0 cursor-pointer transition-all hover:bg-muted/30",
                           !tmpl.is_active && "opacity-50"
                         )}
-                        onClick={() => navigate(`/painel/templates-atividades/${tmpl.id}`)}
+                        onClick={() => setSelectedTemplateId(tmpl.id)}
                       >
                         <CardContent className="flex-1 py-3.5 px-4 min-w-0">
                           <div className="flex items-center gap-3">
@@ -475,6 +475,12 @@ export const TemplateListPage: React.FC = () => {
           )}
         </DialogContent>
       </Dialog>
+
+      <RoutineDrawer
+        isOpen={!!selectedTemplateId}
+        onClose={() => setSelectedTemplateId(null)}
+        templateId={selectedTemplateId}
+      />
     </div>
   );
 };

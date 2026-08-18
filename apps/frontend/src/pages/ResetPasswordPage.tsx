@@ -64,7 +64,7 @@ export const ResetPasswordPage: React.FC = () => {
 
   if (!tokenRef.current && !searchParams.get('token')) {
     return (
-      <Card className="mx-auto max-w-[420px] text-center">
+      <Card className="mx-auto max-w-[480px] text-center">
         <CardContent className="pt-9">
           <p className="text-muted-foreground">Link de redefinição inválido ou expirado. Solicite um novo.</p>
           <a href="/esqueci-minha-senha" className="text-primary-strong no-underline text-sm">
@@ -77,7 +77,7 @@ export const ResetPasswordPage: React.FC = () => {
 
   if (success) {
     return (
-      <Card className="mx-auto max-w-[420px] text-center">
+      <Card className="mx-auto max-w-[480px] text-center">
         <CardContent className="pt-9">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
           <CheckCircle size={48} className="text-emerald-500 mx-auto mb-4" />
@@ -93,7 +93,7 @@ export const ResetPasswordPage: React.FC = () => {
   }
 
   return (
-    <Card className="mx-auto max-w-[420px]">
+    <Card className="mx-auto max-w-[480px]">
       <CardContent className="pt-9">
         <div className="text-center mb-7">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />

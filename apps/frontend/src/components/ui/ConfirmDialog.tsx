@@ -89,7 +89,7 @@ export const ConfirmProvider: React.FC<{ children: React.ReactNode }> = ({ child
       {children}
 
       <Dialog open={isOpen} onOpenChange={handleOpenChange}>
-        <DialogContent className="sm:max-w-[400px]">
+        <DialogContent className="sm:!max-w-[400px]">
           <DialogHeader>
             <div className="flex items-center gap-3">
               <span className={variant === 'danger' ? 'text-destructive' : 'text-primary-strong'}>

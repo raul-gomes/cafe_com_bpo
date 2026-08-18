@@ -72,7 +72,7 @@ export const InvitationAcceptPage = () => {
     <div className="min-h-screen bg-black flex items-center justify-center px-6">
       <div className="login-glow-top" />
       <div className="login-glow-bottom" />
-      <Card className="mx-auto max-w-[420px]">
+      <Card className="mx-auto max-w-[480px]">
         <CardContent className="pt-9 px-8 pb-8 text-center">
           <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
 

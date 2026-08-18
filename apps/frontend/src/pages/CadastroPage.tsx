@@ -29,7 +29,7 @@ export default function CadastroPage() {
       <span className="login-bpo-watermark">BPO</span>
 
       <main className="flex-1 flex items-center justify-center px-6 py-8">
-        <div className="w-full max-w-[420px]">
+        <div className="w-full max-w-[480px]">
           {sessionStorage.getItem('cafe_bpo_proposal') && (
             <Alert className="mb-5 text-center">
               <strong>Quase lá!</strong> Cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
@@ -53,7 +53,7 @@ export default function CadastroPage() {
 
       {/* Login Modal */}
       <Dialog open={showLogin} onOpenChange={setShowLogin}>
-        <DialogContent className="sm:max-w-[420px] p-0 border-0 bg-transparent ring-0 max-h-[85vh] overflow-y-auto">
+        <DialogContent className="sm:!max-w-[480px] p-0 border-0 bg-transparent ring-0 max-h-[85vh] overflow-y-auto">
           <LoginForm onForgotPassword={() => { setShowLogin(false); setShowForgotPw(true); }} />
         </DialogContent>
       </Dialog>
