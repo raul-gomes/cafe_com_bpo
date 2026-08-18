@@ -19,19 +19,19 @@ vi.mock('../src/api/hooks/useTasks', () => {
   const mockData = {
     useTasksList: () => ({
       data: [
-        { id: 'task-1', title: 'Task 1', client_id: 'c1', status: 'todo', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
-        { id: 'task-2', title: 'Task 2', client_id: 'c1', status: 'doing', priority: 'medium', phase_id: 'phase-2', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
-        { id: 'task-3', title: 'Task 3', client_id: 'c1', status: 'todo', priority: 'low', phase_id: 'phase-1', deadline: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
+        { id: 'task-1', title: 'Task 1', client_id: 'c1', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
+        { id: 'task-2', title: 'Task 2', client_id: 'c1', priority: 'medium', phase_id: 'phase-2', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
+        { id: 'task-3', title: 'Task 3', client_id: 'c1', priority: 'low', phase_id: 'phase-1', deadline: null, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
       ],
       isLoading: false,
     }),
     useUpdateTaskStatus: mockMutation,
     usePhases: () => ({
       data: [
-        { id: 'phase-1', name: 'a fazer', color: '#6b7280', order: 0, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
-        { id: 'phase-2', name: 'em andamento', color: '#3b82f6', order: 1, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
-        { id: 'phase-3', name: 'concluido', color: '#22c55e', order: 2, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
-        { id: 'phase-4', name: 'em revisao', color: '#f59e0b', order: 3, is_default: false, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'phase-1', name: 'a fazer', color: '#6b7280', order: 0, is_done: false, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'phase-2', name: 'em andamento', color: '#3b82f6', order: 1, is_done: false, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'phase-3', name: 'concluido', color: '#22c55e', order: 2, is_done: true, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
+        { id: 'phase-4', name: 'em revisao', color: '#f59e0b', order: 3, is_done: false, is_default: false, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
       ],
       isLoading: false,
     }),

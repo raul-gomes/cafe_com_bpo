@@ -31,9 +31,11 @@ class DashboardService:
         proposals = self.proposal_repo.get_by_user(user_id)
         tasks = self.task_repo.get_by_user(user_id)
 
-        # Count tasks by status
-        pending_tasks = len([t for t in tasks if t.status == "pending"])
-        completed_tasks = len([t for t in tasks if t.status == "completed"])
+        # Count tasks by completion marker
+        pending_tasks = len(
+            [t for t in tasks if t.completed_at is None and not t.is_cancelled]
+        )
+        completed_tasks = len([t for t in tasks if t.completed_at is not None])
 
         return {
             "total_clients": len(clients),

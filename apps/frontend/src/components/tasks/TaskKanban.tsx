@@ -67,7 +67,7 @@ const TaskKanbanInner: React.FC<Props> = ({
       ];
 
   const doneColumnId = sortedPhases.length > 0
-    ? sortedPhases.reduce((prev, curr) => prev.order > curr.order ? prev : curr).id
+    ? (sortedPhases.find(p => p.is_done)?.id ?? sortedPhases[sortedPhases.length - 1].id)
     : 'done';
 
   const getClient = (id: string) => clients.find((c: any) => c.id === id);

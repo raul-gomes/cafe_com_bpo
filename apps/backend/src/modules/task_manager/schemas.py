@@ -8,7 +8,6 @@ class TaskBase(BaseModel):
     title: str
     description: str | None = None
     client_id: UUID
-    status: str = "todo"
     priority: str = "medium"
     process_type: str | None = None
     deadline: datetime | None = None
@@ -31,7 +30,6 @@ class TaskUpdate(BaseModel):
     title: str | None = None
     description: str | None = None
     client_id: UUID | None = None
-    status: str | None = None
     priority: str | None = None
     process_type: str | None = None
     deadline: datetime | None = None
@@ -46,6 +44,7 @@ class TaskResponse(TaskBase):
     id: UUID
     user_id: UUID
     phase_id: UUID | None = None
+    phase: "TaskPhaseResponse | None" = None
     template_id: UUID | None = None
     assignment_id: UUID | None = None
     routine_instance_id: UUID | None = None
@@ -67,6 +66,7 @@ class TaskPhaseBase(BaseModel):
     name: str
     color: str = "#6b7280"
     order: int = 0
+    is_done: bool = False
 
 
 class TaskPhaseCreate(TaskPhaseBase):
@@ -77,6 +77,7 @@ class TaskPhaseUpdate(BaseModel):
     name: str | None = None
     color: str | None = None
     order: int | None = None
+    is_done: bool | None = None
 
 
 class TaskPhaseReorder(BaseModel):
@@ -117,7 +118,7 @@ class TimelineTaskResponse(BaseModel):
     time_estimate_minutes: int | None = None
     priority: str
     process_type: str | None = None
-    status: str
+    phase: "TaskPhaseResponse | None" = None
 
 
 class TimelineDayResponse(BaseModel):
@@ -389,7 +390,7 @@ class ClientTimelineTask(BaseModel):
     title: str
     description: str | None = None
     phase_id: UUID | None = None
-    status: str
+    phase: "TaskPhaseResponse | None" = None
     priority: str
     process_type: str | None = None
     deadline: datetime | None = None

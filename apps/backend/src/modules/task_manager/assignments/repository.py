@@ -128,7 +128,8 @@ class AssignmentRepository:
             Task.assignment_id == assignment_id,
             Task.title == title,
             Task.is_active,
-            Task.status.notin_(["done", "cancelled"]),
+            Task.is_cancelled == False,
+            Task.completed_at.is_(None),
         )
         if deadline is not None:
             deadline_start = deadline.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -149,7 +150,8 @@ class AssignmentRepository:
             .filter(
                 Task.routine_instance_id == instance_id,
                 Task.is_active,
-                Task.status.notin_(["done", "cancelled"]),
+                Task.is_cancelled == False,
+                Task.completed_at.is_(None),
             )
             .first()
         )

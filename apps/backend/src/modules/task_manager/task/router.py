@@ -214,7 +214,7 @@ def update_task(
 
     updated_task = repo.update(task, task_in)
 
-    # ── completed_at / status legado: usar as fases do gestor (owner) da task ──
+    # ── completed_at: usar as fases do gestor (owner) da task ──
     if task_in.phase_id is not None and task_in.phase_id != old_phase_id:
         phase_owner_id = owner_id or current_user.id
         phases = repo.get_phases_by_user(phase_owner_id)
@@ -223,30 +223,16 @@ def update_task(
             (p for p in phases if str(p.id) == str(task_in.phase_id)), None
         )
         if new_phase:
-            # Moving to the done phase → set completed_at + status
+            # Moving to the done phase → set completed_at
             if done_phase and str(new_phase.id) == str(done_phase.id):
                 updated_task.completed_at = datetime.now(timezone.utc)
-                updated_task.status = "done"
-            # Moving from the done phase to another → clear completed_at + sync status
+            # Moving from the done phase to another → clear completed_at
             else:
                 old_phase = next(
                     (p for p in phases if str(p.id) == str(old_phase_id)), None
                 )
                 if old_phase and done_phase and str(old_phase.id) == str(done_phase.id):
                     updated_task.completed_at = None
-                sorted_phases = sorted(phases, key=lambda p: p.order)
-                pos = next(
-                    (
-                        i
-                        for i, p in enumerate(sorted_phases)
-                        if str(p.id) == str(new_phase.id)
-                    ),
-                    0,
-                )
-                if pos == 0:
-                    updated_task.status = "todo"
-                else:
-                    updated_task.status = "doing"
 
             repo.session.commit()
             repo.session.refresh(updated_task)

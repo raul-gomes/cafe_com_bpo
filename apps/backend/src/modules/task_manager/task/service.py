@@ -80,13 +80,10 @@ class TaskService:
     def get_user_tasks(
         self,
         user_id: UUID,
-        status: str | None = None,
         process_type: str | None = None,
     ) -> list[TaskResponse]:
         """Get all tasks for a user with optional filters."""
-        return self.repository.get_by_user(
-            user_id, status_filter=status, process_type_filter=process_type
-        )
+        return self.repository.get_by_user(user_id, process_type_filter=process_type)
 
     def create_task(self, task_data: TaskCreate, user_id: UUID) -> TaskResponse:
         """Create a new task."""
@@ -180,12 +177,21 @@ class TaskService:
             phases = self.repository.create_default_phases(user_id)
         return phases
 
+    def _clear_done_flags(self, user_id: UUID) -> None:
+        """Ensure only one phase is marked as done for a user."""
+        for p in self.repository.get_phases_by_user(user_id):
+            if p.is_done:
+                p.is_done = False
+        self.repository.session.commit()
+
     def create_phase(
         self, user_id: UUID, phase_data: TaskPhaseCreate
     ) -> TaskPhaseResponse:
         """Create a new custom phase."""
         # Ensure default phases exist
         self.get_phases(user_id)
+        if phase_data.is_done:
+            self._clear_done_flags(user_id)
         return self.repository.create_phase(phase_data, user_id)
 
     def update_phase(
@@ -195,6 +201,8 @@ class TaskService:
         phase = self.repository.get_phase_by_id(phase_id, user_id)
         if not phase:
             raise ValueError(f"Phase {phase_id} not found for user {user_id}")
+        if phase_data.is_done:
+            self._clear_done_flags(user_id)
         return self.repository.update_phase(phase, phase_data)
 
     def delete_phase(self, user_id: UUID, phase_id: UUID) -> None:
@@ -208,6 +216,8 @@ class TaskService:
         if phase_count <= 1:
             raise ValueError("Cannot delete the last remaining phase")
 
+        was_done = phase.is_done
+
         # Find a target phase to migrate tasks to
         phases = self.repository.get_phases_by_user(user_id)
         target_phase = next((p for p in phases if p.id != phase_id), None)
@@ -215,6 +225,14 @@ class TaskService:
             self.repository.migrate_tasks_from_phase(phase_id, target_phase.id)
 
         self.repository.delete_phase(phase)
+
+        # If the deleted phase was the done phase, hand the flag to the new last
+        if was_done:
+            remaining = self.repository.get_phases_by_user(user_id)
+            if remaining:
+                new_done = max(remaining, key=lambda p: p.order)
+                new_done.is_done = True
+                self.repository.session.commit()
 
     def reorder_phases(
         self, user_id: UUID, phase_orders: TaskPhaseReorder
@@ -267,7 +285,7 @@ class TaskService:
                     time_estimate_minutes=task.time_estimate_minutes,
                     priority=task.priority,
                     process_type=task.process_type,
-                    status=task.status,
+                    phase=task.phase,
                 )
             )
 
@@ -453,7 +471,7 @@ class TaskService:
                 title=task.title,
                 description=task.description,
                 phase_id=task.phase_id,
-                status=task.status,
+                phase=task.phase,
                 priority=task.priority,
                 process_type=task.process_type,
                 deadline=task.deadline,
@@ -476,13 +494,7 @@ class TaskService:
             else:
                 stats.on_time += 1
 
-            if task.status == "done" or (
-                task.phase_id
-                and get_done_phase(self.repository.get_phases_by_user(user_id))
-                is not None
-                and str(task.phase_id)
-                == str(get_done_phase(self.repository.get_phases_by_user(user_id)).id)
-            ):
+            if task.completed_at is not None:
                 stats.completed += 1
             else:
                 stats.in_progress += 1
@@ -512,9 +524,6 @@ class TaskService:
             done_phase = get_done_phase(phases)
             if done_phase and str(task.phase_id) == str(done_phase.id):
                 is_done = True
-
-        if task.status == "done":
-            is_done = True
 
         now = datetime.now(timezone.utc)
         deadline = task.deadline

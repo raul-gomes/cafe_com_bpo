@@ -4,11 +4,11 @@ export interface TaskResponse {
   client_id: string;
   title: string;
   description?: string;
-  status: string;
   priority: string;
   process_type?: string;
   deadline?: string;
   phase_id?: string;
+  phase?: TaskPhaseResponse | null;
   time_estimate_minutes?: number;
   notes?: string;
   template_id?: string;
@@ -29,7 +29,6 @@ export interface TaskCreate {
   title: string;
   description?: string;
   client_id: string;
-  status?: string;
   priority?: string;
   process_type?: string;
   deadline?: string;
@@ -42,7 +41,6 @@ export interface TaskUpdate {
   title?: string;
   description?: string;
   client_id?: string;
-  status?: string;
   priority?: string;
   process_type?: string;
   deadline?: string;
@@ -57,6 +55,7 @@ export interface TaskPhaseResponse {
   name: string;
   color: string;
   order: number;
+  is_done: boolean;
   is_default: boolean;
   created_at: string;
 }
@@ -65,12 +64,14 @@ export interface TaskPhaseCreate {
   name: string;
   color: string;
   order: number;
+  is_done: boolean;
 }
 
 export interface TaskPhaseUpdate {
   name?: string;
   color?: string;
   order?: number;
+  is_done?: boolean;
 }
 
 export interface TimelineTask {
@@ -81,7 +82,7 @@ export interface TimelineTask {
   time_estimate_minutes?: number;
   priority: string;
   process_type?: string;
-  status: string;
+  phase?: TaskPhaseResponse | null;
 }
 
 export interface TimelineDay {
@@ -316,7 +317,7 @@ export interface ClientTimelineTask {
   title: string;
   description?: string;
   phase_id?: string;
-  status: string;
+  phase?: TaskPhaseResponse | null;
   priority: string;
   process_type?: string;
   deadline?: string;

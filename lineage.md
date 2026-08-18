@@ -220,10 +220,16 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | W | `task_manager/scheduler.py` (cria tarefas de atribuições recorrentes) |
 | W ⚠️ | `clients/repository.py` (cascade soft-delete ao deletar cliente) |
 
+> **Migração `e4f1a2b3c4d5`**: coluna legada `status` (todo/doing/done) **removida**.
+> Conclusão = `completed_at`; cancelamento = `is_cancelled`; estado do kanban = `phase_id`.
+
 ### `task_phases` — dono: `task_manager`
 | Direção | Quem |
 |---------|------|
 | R/W | `task_manager/task/repository.py` (CRUD + reorder) |
+
+> **Migração `e4f1a2b3c4d5`**: nova coluna `is_done` (bool) marca a fase de conclusão
+> (única por usuário; fallback para maior `order`).
 
 ### `task_attachments` — dono: `task_manager`
 | Direção | Quem |

@@ -32,10 +32,15 @@ interface DashboardTask extends TaskResponse {
 
 export const DashboardPage: React.FC = () => {
   const { useDashboardSummary } = useDashboard();
-  const { useUpdateTaskStatus, useTasksList } = useTasks();
+  const { useUpdateTaskStatus, useTasksList, usePhases } = useTasks();
   const { useMarkAsRead } = useAppNotifications();
   const { data: summary, isLoading } = useDashboardSummary();
   const { data: tasks } = useTasksList();
+  const { data: phases } = usePhases();
+  const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
+  const doneColumnId = sortedPhases.length > 0
+    ? (sortedPhases.find(p => p.is_done)?.id ?? sortedPhases[sortedPhases.length - 1].id)
+    : undefined;
   const { data: clients } = useQuery({
     queryKey: ['clients'],
     queryFn: async () => {
@@ -62,8 +67,9 @@ export const DashboardPage: React.FC = () => {
   /* ── Helpers ── */
 
   const handleComplete = (task: DashboardTask) => {
+    if (!doneColumnId) return;
     updateTaskStatus.mutate(
-      { id: task.id, status: 'done' },
+      { id: task.id, phase_id: doneColumnId },
       {
         onSuccess: () => {
           // Remove the task from the dashboard immediately

@@ -28,14 +28,11 @@ class TaskRepository:
     def get_by_user(
         self,
         user_id: UUID,
-        status_filter: str | None = None,
         process_type_filter: str | None = None,
         today_filter: bool = False,
         overdue_filter: bool = False,
     ) -> list[Task]:
         query = self.session.query(Task).filter(Task.user_id == user_id, Task.is_active)
-        if status_filter:
-            query = query.filter(Task.status == status_filter)
 
         if process_type_filter:
             query = query.filter(Task.process_type == process_type_filter)
@@ -54,7 +51,7 @@ class TaskRepository:
             day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
             query = query.filter(
                 Task.deadline < day_start,
-                Task.status != "done",
+                Task.completed_at.is_(None),
                 Task.is_cancelled == False,
             )
         return query.order_by(Task.deadline.asc().nullslast()).all()
@@ -88,7 +85,7 @@ class TaskRepository:
             day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
             query = query.filter(
                 Task.deadline < day_start,
-                Task.status != "done",
+                Task.completed_at.is_(None),
                 Task.is_cancelled == False,
             )
         return query.order_by(Task.deadline.asc().nullslast()).all()
@@ -119,7 +116,6 @@ class TaskRepository:
         if not task.is_cancelled:
             task.is_cancelled = True
             task.cancelled_at = datetime.now(timezone.utc)
-            task.status = "cancelled"
             self.session.commit()
             self.session.refresh(task)
         return task
@@ -184,6 +180,7 @@ class TaskRepository:
                 name=phase_data["name"],
                 color=phase_data["color"],
                 order=phase_data["order"],
+                is_done=phase_data["is_done"],
                 is_default=True,
             )
             self.session.add(phase)
@@ -273,13 +270,20 @@ class TaskRepository:
     # ── SLA Alert Queries ──
 
     def _get_done_phase_ids(self, user_id: UUID) -> list[str]:
-        """Return phase IDs for the done (final) phase by position (max order)."""
+        """Return phase IDs for the done (final) phase: explicit ``is_done``
+        flag preferred, falling back to the highest ``order``."""
         done_phase = (
             self.session.query(TaskPhase)
-            .filter(TaskPhase.user_id == user_id)
-            .order_by(TaskPhase.order.desc())
+            .filter(TaskPhase.user_id == user_id, TaskPhase.is_done)
             .first()
         )
+        if done_phase is None:
+            done_phase = (
+                self.session.query(TaskPhase)
+                .filter(TaskPhase.user_id == user_id)
+                .order_by(TaskPhase.order.desc())
+                .first()
+            )
         return [str(done_phase.id)] if done_phase else []
 
     def get_tasks_overdue(self, user_id: UUID) -> list[Task]:

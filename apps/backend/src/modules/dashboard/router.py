@@ -39,8 +39,8 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
         .filter(
             and_(
                 Task.user_id == current_user.id,
-                Task.status != "done",
-                Task.status != "cancelled",
+                Task.completed_at.is_(None),
+                Task.is_cancelled == False,
                 Task.is_active,
                 Task.cancelled_at.is_(None),
                 or_(Task.deadline <= three_days_from_now, Task.deadline < now),
@@ -76,7 +76,7 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             client_name=t.client_name,
             deadline=t.Task.deadline,
             priority=t.Task.priority,
-            status=t.Task.status,
+            phase_id=t.Task.phase_id,
             days_remaining=_compute_days_remaining(t.Task.deadline),
             is_overdue=_is_overdue(t.Task.deadline),
         )
@@ -113,9 +113,7 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             comment_id=None,
             triggered_by_name=n.triggerer_name,
             message_snippet=(
-                n.AppNotification.message[:100]
-                if n.AppNotification.message
-                else None
+                n.AppNotification.message[:100] if n.AppNotification.message else None
             ),
         )
         for n in notifications_query
@@ -126,8 +124,8 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
         "pending_tasks_count": db.query(Task)
         .filter(
             Task.user_id == current_user.id,
-            Task.status != "done",
-            Task.status != "cancelled",
+            Task.completed_at.is_(None),
+            Task.is_cancelled == False,
             Task.is_active,
             Task.cancelled_at.is_(None),
         )

@@ -19,6 +19,10 @@ const TaskCalendarInner: React.FC<Props> = ({ tasks, clients, onEdit, isMacro })
   const blanks = Array.from({ length: firstDay }, (_, i) => i);
   const getClient = (id: string) => clients.find((c: any) => c.id === id);
   const dayAbbrs = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'];
+  const phaseOrders = tasks
+    .map(t => t.phase?.order)
+    .filter((o): o is number => typeof o === 'number');
+  const minOrder = phaseOrders.length > 0 ? Math.min(...phaseOrders) : 0;
 
   return (
     <div>
@@ -86,7 +90,7 @@ const TaskCalendarInner: React.FC<Props> = ({ tasks, clients, onEdit, isMacro })
                         }}
                       />
                     )}
-                    {!isMacro && task.status === 'doing' && (
+                    {!isMacro && task.phase && !task.phase.is_done && task.phase.order > minOrder && (
                       <span className="rounded-sm bg-blue-500 px-0.5 text-[7px] font-extrabold leading-none text-white">EM AND</span>
                     )}
                     {!isMacro && task.title}

@@ -19,19 +19,23 @@ from sqlalchemy.orm import relationship
 from src.core.database import Base
 
 DEFAULT_PHASES = [
-    {"name": "a fazer", "color": "#6b7280", "order": 0},
-    {"name": "em andamento", "color": "#3b82f6", "order": 1},
-    {"name": "concluido", "color": "#22c55e", "order": 2},
+    {"name": "a fazer", "color": "#6b7280", "order": 0, "is_done": False},
+    {"name": "em andamento", "color": "#3b82f6", "order": 1, "is_done": False},
+    {"name": "concluido", "color": "#22c55e", "order": 2, "is_done": True},
 ]
 
 
 def get_done_phase(phases: list) -> Optional["TaskPhase"]:
-    """Return the phase with the highest order (final/done column).
+    """Return the phase marked as done (final/complete column).
 
-    Uses position (order) instead of name so renaming phases never breaks logic.
+    Prefers the explicit ``is_done`` flag; falls back to the highest ``order``
+    so renaming phases never breaks logic and older boards keep working.
     """
     if not phases:
         return None
+    done = next((p for p in phases if p.is_done), None)
+    if done:
+        return done
     return max(phases, key=lambda p: p.order)
 
 
@@ -50,6 +54,7 @@ class TaskPhase(Base):
     name = Column(String(100), nullable=False)
     color = Column(String(7), nullable=False, default="#6b7280")
     order = Column(Integer, nullable=False, default=0)
+    is_done = Column(Boolean, server_default="false", nullable=False)
     is_default = Column(Boolean, server_default="false", nullable=False)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -82,9 +87,6 @@ class Task(Base):
         ForeignKey("task_phases.id", ondelete="SET NULL"),
         nullable=True,
     )
-
-    # Legacy status field (kept for backward compat during migration)
-    status = Column(String(50), server_default="todo", nullable=False)
 
     # Prioridade: low, medium, high
     priority = Column(String(50), server_default="medium", nullable=False)

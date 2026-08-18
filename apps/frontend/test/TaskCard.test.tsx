@@ -33,7 +33,6 @@ const baseTask: TaskResponse = {
   user_id: 'u1',
   client_id: 'c1',
   title: 'Test Task',
-  status: 'todo',
   priority: 'high',
   is_cancelled: false,
   created_at: '2026-01-01T00:00:00Z',
@@ -50,7 +49,7 @@ const defaultProps = {
   onEdit: vi.fn(),
   onFinalize: vi.fn(),
   onCancel: vi.fn(),
-  getTaskStatus: (t: TaskResponse) => t.status,
+  getTaskStatus: () => 'todo',
   isTaskOverdue: () => false,
   getOverdueDays: () => 0,
 }
@@ -77,7 +76,7 @@ describe('TaskCard', () => {
   })
 
   it('does NOT render finalize button when status === doneColumnId', () => {
-    const doneTask = { ...baseTask, status: 'done' }
+    const doneTask = { ...baseTask }
     renderCard(
       <TaskCard
         {...defaultProps}
@@ -99,7 +98,7 @@ describe('TaskCard', () => {
   })
 
   it('does NOT render cancel button when task is cancelled', () => {
-    const cancelledTask = { ...baseTask, status: 'cancelled' }
+    const cancelledTask = { ...baseTask, is_cancelled: true }
     renderCard(<TaskCard {...defaultProps} task={cancelledTask} />)
     expect(screen.queryByTitle('Cancelar tarefa')).not.toBeInTheDocument()
   })
@@ -111,7 +110,7 @@ describe('TaskCard', () => {
   })
 
   it('does NOT render cancel button when status === doneColumnId', () => {
-    const doneTask = { ...baseTask, status: 'done' }
+    const doneTask = { ...baseTask }
     renderCard(
       <TaskCard
         {...defaultProps}

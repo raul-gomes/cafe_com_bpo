@@ -57,14 +57,13 @@ export const useTasks = () => {
 
   const useUpdateTaskStatus = () => {
     return useMutation({
-      mutationFn: async ({ id, phase_id, status }: { id: string, phase_id?: string, status?: string }) => {
+      mutationFn: async ({ id, phase_id }: { id: string, phase_id?: string }) => {
         const payload: Record<string, any> = {};
         if (phase_id) payload.phase_id = phase_id;
-        if (status) payload.status = status;
         const { data } = await apiClient.put(`/tasks/${id}`, payload);
         return data;
       },
-      onMutate: async ({ id, phase_id, status }) => {
+      onMutate: async ({ id, phase_id }) => {
         await queryClient.cancelQueries({ queryKey: ['tasks'] });
         const previousTasks = queryClient.getQueryData<TaskResponse[]>(['tasks']);
         if (previousTasks) {
@@ -76,7 +75,6 @@ export const useTasks = () => {
               return {
                 ...t,
                 phase_id: newPhaseId,
-                status: status || t.status,
                 // Se a fase mudou, o backend limpa o completed_at
                 // (evita flicker no filtro entre optimistic update e refetch)
                 completed_at: phaseChanged ? undefined : t.completed_at,

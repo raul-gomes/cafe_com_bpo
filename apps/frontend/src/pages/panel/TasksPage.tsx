@@ -8,6 +8,7 @@ import { TaskResponse } from '../../schemas/tasks';
 import { ClientData } from '../../api/clients';
 import { TaskModal } from '../../components/tasks/TaskModal';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { TaskKanban } from '../../components/tasks/TaskKanban';
 import { TaskCalendar } from '../../components/tasks/TaskCalendar';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
@@ -27,6 +28,7 @@ import { useAuth } from '../../context/AuthContext';
 
 export const TasksPage: React.FC = () => {
     const { user } = useAuth();
+    const confirm = useConfirm();
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
     const [userFilter, setUserFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'overdue'>('today');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
@@ -41,7 +43,7 @@ export const TasksPage: React.FC = () => {
     const { data: phases } = usePhases();
     const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
     const doneColumnId = sortedPhases.length > 0
-        ? sortedPhases[sortedPhases.length - 1].id
+        ? (sortedPhases.find(p => p.is_done)?.id ?? sortedPhases[sortedPhases.length - 1].id)
         : 'done';
     const updateTaskStatus = useUpdateTaskStatus();
     const cancelTask = useCancelTask();
@@ -118,7 +120,14 @@ export const TasksPage: React.FC = () => {
         if (!tasks) return;
         const colTasks = tasks.filter(t => getTaskStatus(t) === colId);
         if (colTasks.length === 0) return;
-        if (!confirm(`Concluir todas as ${colTasks.length} tarefas desta fase?`)) return;
+        const confirmed = await confirm({
+            title: 'Concluir tarefas',
+            message: `Concluir todas as ${colTasks.length} tarefas desta fase?`,
+            confirmLabel: 'Concluir',
+            cancelLabel: 'Voltar',
+            variant: 'warning',
+        });
+        if (!confirmed) return;
         setBulkLoading(prev => ({ ...prev, [colId]: 'completing' }));
         try {
             await Promise.all(colTasks.map(t =>
@@ -133,7 +142,14 @@ export const TasksPage: React.FC = () => {
         if (!tasks) return;
         const colTasks = tasks.filter(t => getTaskStatus(t) === colId);
         if (colTasks.length === 0) return;
-        if (!confirm(`Cancelar todas as ${colTasks.length} tarefas desta fase?`)) return;
+        const confirmed = await confirm({
+            title: 'Cancelar tarefas',
+            message: `Cancelar todas as ${colTasks.length} tarefas desta fase?`,
+            confirmLabel: 'Cancelar tarefas',
+            cancelLabel: 'Voltar',
+            variant: 'danger',
+        });
+        if (!confirmed) return;
         setBulkLoading(prev => ({ ...prev, [colId]: 'cancelling' }));
         try {
             await Promise.all(colTasks.map(t =>
@@ -164,26 +180,32 @@ export const TasksPage: React.FC = () => {
     };
 
     const getTaskStatus = (task: TaskResponse): string => {
-        if (task.status === 'cancelled' || task.is_cancelled) {
+        if (task.is_cancelled) {
             return 'cancelled';
         }
         if (task.phase_id && phases) {
-            const knownPhase = phases.some(p => p.id === task.phase_id);
-            // Fase pertence a outro usuário (team / owner diferente)? Normaliza
-            // para a coluna equivalente usando o status legado.
-            if (knownPhase) return task.phase_id;
+            if (phases.some(p => p.id === task.phase_id)) return task.phase_id;
         }
-        // Sem phase_id (ou fase de outro dono): mapeia o status legado
-        // ('todo'/'doing'/'done') para a coluna equivalente, garantindo que
-        // a task nunca some do kanban.
+        // Fase pertence a outro usuário (team / owner diferente)? Resolve a coluna
+        // pela posição da fase do dono (task.phase), exposta no payload.
         if (phases && phases.length > 0) {
-            if (task.status === 'done') return lastPhaseId;
-            if (task.status === 'doing' || task.status === 'in_progress') {
-                return sortedPhases[1]?.id ?? firstPhaseId;
+            if (task.phase?.is_done) return lastPhaseId;
+            if (task.phase) {
+                const orders = sortedPhases.map(p => p.order);
+                const min = Math.min(...orders);
+                const max = Math.max(...orders);
+                if (task.phase.order <= min) return firstPhaseId;
+                if (task.phase.order >= max) return lastPhaseId;
+                const norm = (task.phase.order - min) / ((max - min) || 1);
+                const targetIdx = Math.min(
+                    sortedPhases.length - 1,
+                    Math.max(1, Math.round(norm * (sortedPhases.length - 1)))
+                );
+                return sortedPhases[targetIdx].id;
             }
             return firstPhaseId;
         }
-        return task.status;
+        return firstPhaseId;
     };
 
     const handleOpenNewTask = () => {
@@ -193,7 +215,7 @@ export const TasksPage: React.FC = () => {
 
     const handleSyncCalendar = async () => {
         const activeTaskIds = tasksList
-            .filter(t => t.status !== 'done' && t.status !== 'cancelled' && !t.is_cancelled)
+            .filter(t => !t.completed_at && !t.is_cancelled)
             .map(t => t.id);
         if (activeTaskIds.length === 0) return;
         try {
@@ -287,11 +309,11 @@ export const TasksPage: React.FC = () => {
         };
         const p = computePeriodForMode(mode);
         return tasksList.filter(t => {
-            if (t.status === 'cancelled' || t.is_cancelled) return false;
+            if (t.is_cancelled) return false;
             const taskStatus = getTaskStatus(t);
-            const isFirstPhase = taskStatus === firstPhaseId || taskStatus === 'todo';
-            const isLastPhase = taskStatus === lastPhaseId || taskStatus === 'done';
-            const isMiddlePhase = !isFirstPhase && !isLastPhase && taskStatus !== 'cancelled';
+            const isFirstPhase = taskStatus === firstPhaseId;
+            const isLastPhase = taskStatus === lastPhaseId;
+            const isMiddlePhase = !isFirstPhase && !isLastPhase;
             // Tasks movidas por drag nos últimos 3s: sempre visíveis (evita flicker)
             if (recentlyMoved.has(t.id)) return true;
 
@@ -314,10 +336,10 @@ export const TasksPage: React.FC = () => {
                 return isInPeriod(t.deadline, p) || isCompletedInPeriod(t, p);
             }
             if (isLastPhase) {
-                // Tasks na fase concluído NÃO são contabilizadas em filtros de período
-                // (apenas no filtro "Todas", mostrando as concluídas hoje)
-                if (mode !== 'all') return false;
-                if (!p) return isCompletedInPeriod(t, { start: todayStart, end: todayEnd });
+                // Tarefas concluídas seguem o período do filtro selecionado (por completed_at)
+                if (mode === 'overdue') return false;
+                // Filtro "Todas" (e intervalo manual): mostra todas as concluídas
+                if (!p) return true;
                 return isCompletedInPeriod(t, p);
             }
             return false;
@@ -579,11 +601,7 @@ export const TasksPage: React.FC = () => {
                                 <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} currentUserId={user?.id} onEdit={handleEditTask}
                                     getTaskStatus={getTaskStatus} columnSearch={columnSearch} setColumnSearch={setColumnSearch}
                                     onFinalize={(id) => {
-                                        if (phases && phases.length > 0) {
-                                            updateTaskStatus.mutate({ id, phase_id: doneColumnId, status: 'done' });
-                                        } else {
-                                            updateTaskStatus.mutate({ id, status: 'done' });
-                                        }
+                                        updateTaskStatus.mutate({ id, phase_id: doneColumnId });
                                     }} onCancel={(id) => cancelTask.mutate(id)}
                                     handleBulkComplete={handleBulkComplete} handleBulkCancel={handleBulkCancel} bulkLoading={bulkLoading} />
                             </DragDropContext>

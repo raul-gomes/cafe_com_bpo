@@ -10,7 +10,7 @@ class UrgentTaskResponse(BaseModel):
     client_name: str
     deadline: datetime | None = None
     priority: str
-    status: str
+    phase_id: UUID | None = None
     days_remaining: int | None = None
     is_overdue: bool = False
 

@@ -1,9 +1,9 @@
 import React from 'react';
-import { TaskResponse } from '../../schemas/tasks';
+import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
 import { cn } from '../../lib/utils';
 import { AlertTriangle } from 'lucide-react';
 
-type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_minutes?: number; priority: string; process_type?: string; status: string };
+type TimelineTaskItem = { id: string; title: string; client_id: string; deadline?: string; time_estimate_minutes?: number; priority: string; process_type?: string; phase?: TaskPhaseResponse | null };
 type ConflictTaskItem = { id: string; title: string; time_estimate_minutes?: number; deadline?: string };
 
 type Props = {
@@ -17,6 +17,11 @@ type Props = {
 const TaskTimelineInner: React.FC<Props> = ({ timeline, conflicts, clients, isLoading, onEdit }) => {
   const getClient = (id: string) => clients.find((c: any) => c.id === id);
   const conflictDates = new Set(conflicts.map(c => c.date));
+  const phaseOrders = timeline
+    .flatMap(d => d.tasks)
+    .map(t => t.phase?.order)
+    .filter((o): o is number => typeof o === 'number');
+  const minOrder = phaseOrders.length > 0 ? Math.min(...phaseOrders) : 0;
 
   if (isLoading) return <div className="py-10 text-center text-muted-foreground">Carregando timeline...</div>;
   if (timeline.length === 0) return <div className="py-10 text-center text-muted-foreground">Nenhuma tarefa com prazo encontrada.</div>;
@@ -84,7 +89,7 @@ const TaskTimelineInner: React.FC<Props> = ({ timeline, conflicts, clients, isLo
                         {client?.name || 'Cliente'}
                       </span>
                       <span className="font-semibold">{task.title}</span>
-                      {task.status === 'doing' && (
+                      {task.phase && !task.phase.is_done && task.phase.order > minOrder && (
                         <span className="rounded-sm bg-blue-500 px-1.5 py-0.5 text-[9px] font-bold leading-none text-white">
                           Em andamento
                         </span>

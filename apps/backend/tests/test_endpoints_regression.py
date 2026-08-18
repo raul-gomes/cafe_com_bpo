@@ -385,7 +385,6 @@ class TestTasks:
                 "title": "Tarefa Importante",
                 "description": "Fazer algo urgente",
                 "client_id": cid,
-                "status": "todo",
                 "priority": "high",
             },
         )

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, X, Edit2, Trash2, GripVertical, Settings } from 'lucide-react';
+import { Plus, X, Edit2, Trash2, GripVertical, Settings, CheckCircle2 } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { TaskPhaseResponse } from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
@@ -37,6 +37,7 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
       name: newName.trim(),
       color: newColor,
       order: (phases?.length || 0),
+      is_done: false,
     });
     setNewName('');
     setShowCreate(false);
@@ -142,12 +143,29 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
                   )}
                   <div className="size-6 shrink-0 rounded-full" style={{ background: phase.color }} />
                   <span className="flex-1 text-[14px] font-semibold text-foreground">{phase.name}</span>
+                  {phase.is_done && (
+                    <span className="rounded-full bg-green-500/15 px-2 py-0.5 text-[10px] font-semibold text-green-500">
+                      Conclusão
+                    </span>
+                  )}
                   {phase.is_default && (
                     <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary-strong">
                       Padrão
                     </span>
                   )}
                   <div className="flex gap-1">
+                    <button
+                      onClick={() => updatePhase.mutateAsync({ id: phase.id, is_done: !phase.is_done })}
+                      title={phase.is_done ? 'Desmarcar como fase de conclusão' : 'Marcar como fase de conclusão'}
+                      className={cn(
+                        'cursor-pointer border-none bg-transparent p-1 transition-colors',
+                        phase.is_done
+                          ? 'text-green-500 hover:text-green-400'
+                          : 'text-muted-foreground hover:text-foreground'
+                      )}
+                    >
+                      <CheckCircle2 size={14} />
+                    </button>
                     <button
                       onClick={() => openEdit(phase)}
                       className="cursor-pointer border-none bg-transparent p-1 text-muted-foreground hover:text-foreground"

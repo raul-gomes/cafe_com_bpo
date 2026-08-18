@@ -243,7 +243,6 @@ def test_tasks_flow_red_phase(client):
         "client_id": client_id,
         "deadline": deadline,
         "priority": "high",
-        "status": "todo",
     }
 
     resp_create = client.post("/tasks/", json=task_payload, headers=auth)
@@ -251,7 +250,7 @@ def test_tasks_flow_red_phase(client):
     task_data = resp_create.json()
     assert task_data["title"] == "Conciliação Mensal"
     assert task_data["priority"] == "high"
-    assert task_data["status"] == "todo"
+    assert task_data["completed_at"] is None
 
     task_id = task_data["id"]
 
@@ -262,12 +261,30 @@ def test_tasks_flow_red_phase(client):
     assert len(tasks) >= 1
     assert any(t["id"] == task_id for t in tasks)
 
-    # 4. Atualizar tarefa (Deve falhar: PUT /tasks/{id} não existe)
-    update_payload = {"status": "doing", "priority": "medium"}
+    # 4. Atualizar tarefa: mover para a fase final (done) seta completed_at
+    phases = client.get("/tasks/phases/", headers=auth).json()
+    assert len(phases) >= 3
+    done_phase = next(p for p in phases if p["is_done"])
+    mid_phase = next(p for p in phases if not p["is_done"])
+
+    update_payload = {"phase_id": mid_phase["id"], "priority": "medium"}
     resp_update = client.put(f"/tasks/{task_id}", json=update_payload, headers=auth)
     assert resp_update.status_code == 200
-    assert resp_update.json()["status"] == "doing"
+    assert resp_update.json()["completed_at"] is None
     assert resp_update.json()["priority"] == "medium"
+
+    resp_done = client.put(
+        f"/tasks/{task_id}", json={"phase_id": done_phase["id"]}, headers=auth
+    )
+    assert resp_done.status_code == 200
+    assert resp_done.json()["completed_at"] is not None
+
+    # mover de volta para uma fase não-done limpa completed_at
+    resp_back = client.put(
+        f"/tasks/{task_id}", json={"phase_id": mid_phase["id"]}, headers=auth
+    )
+    assert resp_back.status_code == 200
+    assert resp_back.json()["completed_at"] is None
 
     # 5. Deletar tarefa (Deve falhar: DELETE /tasks/{id} não existe)
     resp_delete = client.delete(f"/tasks/{task_id}", headers=auth)
@@ -294,7 +311,6 @@ def test_task_isolation(client):
         json={
             "title": "Tarefa A",
             "client_id": comp_a["id"],
-            "status": "todo",
             "priority": "low",
         },
         headers=auth_a,
@@ -363,7 +379,7 @@ def test_task_moves_to_custom_phase(client):
 
 
 def test_cancel_task(client):
-    """Tarefa 7.1: Cancelar uma tarefa preenche cancelled_at e marca status como cancelled."""
+    """Tarefa 7.1: Cancelar uma tarefa preenche cancelled_at e marca is_cancelled."""
     email = f"cancel_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth)
@@ -388,7 +404,7 @@ def test_cancel_task(client):
     assert cancel_resp.status_code == 200
     cancelled = cancel_resp.json()
     assert cancelled["cancelled_at"] is not None
-    assert cancelled["status"] == "cancelled"
+    assert cancelled["is_cancelled"] is True
 
     # 3. Cancelar novamente deve funcionar (idempotente)
     cancel_resp2 = client.put(f"/tasks/{task_id}/cancel", headers=auth)
