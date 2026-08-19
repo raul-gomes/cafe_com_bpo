@@ -32,9 +32,30 @@ from src.modules.task_manager.scheduler import scheduler_instance
 from src.modules.team.router import router as team_router
 
 
+def _normalize_all_phases() -> None:
+    """Garante que existam as 3 fases canônicas globais.
+
+    Executada no startup para criar/consolidar as fases sem depender de
+    cada usuário abrir o kanban primeiro.
+    """
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.task.repository import TaskRepository
+
+    session = SessionLocal()
+    try:
+        repo = TaskRepository(session)
+        repo.ensure_canonical_phases()
+    finally:
+        session.close()
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     log.info("🚀 Iniciando aplicação...")
+    try:
+        _normalize_all_phases()
+    except Exception:
+        log.exception("Falha na normalização inicial de fases")
     scheduler_instance.start()
     email_scheduler_instance.start()
     yield

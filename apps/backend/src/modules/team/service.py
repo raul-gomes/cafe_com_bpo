@@ -385,6 +385,36 @@ class TeamService:
         if not self.repo.remove_member(team.id, user_id):
             raise ValueError("Membro não encontrado")
 
+    def revoke_routine_from_member(
+        self,
+        client_id: UUID,
+        user_id: UUID,
+        template_id: UUID,
+        current_user_id: UUID,
+    ) -> None:
+        """Remove o acesso de um membro a uma rotina do cliente."""
+        client = self.repo.get_client_by_id(client_id)
+        if not client:
+            raise ValueError("Cliente não encontrado")
+        if client.user_id != current_user_id:
+            raise ValueError("Apenas o gestor pode revogar o acesso a rotinas")
+
+        invitation = self.repo.get_accepted_invitation_for_user(client_id, user_id)
+        if not invitation:
+            raise ValueError("Membro não encontrado")
+
+        tmpl = self.repo.get_template_by_id(template_id)
+        if not tmpl:
+            raise ValueError("Rotina não encontrada")
+
+        deleted = self.repo.remove_routine_from_invitation(invitation.id, template_id)
+        if deleted == 0:
+            raise ValueError("O membro não possui acesso a esta rotina")
+        log.info(
+            f"🔓 Acesso do membro {user_id} à rotina {template_id} revogado "
+            f"no cliente {client_id}"
+        )
+
     def _send_invite_email(
         self,
         to_email: str,

@@ -508,14 +508,14 @@ class TaskScheduler:
                 if not activities:
                     continue
 
-                phases = task_repo.get_or_create_phases(assignment.user_id)
+                phases = task_repo.get_or_create_phases()
                 first_phase = phases[0] if phases else None
 
                 generated = 0
                 skipped = 0
 
-                # Build list of (activity, deadline, period_key) candidates
-                candidates: list[tuple[TemplateActivity, datetime, str]] = []
+                # Build list of (deadline, period_key) candidates — one per occurrence
+                candidates: list[tuple[datetime, str]] = []
 
                 # ── Weekly rule: generate for all marked weekdays this week ──
                 if apply_weekly and tmpl.recurrence == "weekly":
@@ -566,10 +566,11 @@ class TaskScheduler:
                     )
 
                 # ── Create tasks (with dedup via routine_instance_id) ──
-                for act, deadline, period_key in candidates:
+                estimate = sum(a.estimated_minutes or 0 for a in activities) or None
+                for deadline, period_key in candidates:
                     instance_id = build_routine_instance_id(
                         assignment.id,
-                        act.name,
+                        tmpl.name,
                         period_key,
                     )
                     if assign_repo.task_exists_by_instance_id(instance_id):
@@ -577,13 +578,13 @@ class TaskScheduler:
                         continue
 
                     task_data = TaskCreate(
-                        title=act.name,
-                        description=act.description,
+                        title=tmpl.name,
+                        description=tmpl.description,
                         client_id=assignment.client_id,
                         priority="medium",
                         process_type=tmpl.process_type,
                         deadline=deadline,
-                        time_estimate_minutes=act.estimated_minutes,
+                        time_estimate_minutes=estimate,
                         template_id=tmpl.id,
                         assignment_id=assignment.id,
                         routine_instance_id=instance_id,
@@ -637,7 +638,7 @@ class TaskScheduler:
         assignment,
         tmpl: ActivityTemplate,
         activities: list[TemplateActivity],
-        candidates: list[tuple[TemplateActivity, datetime, str]],
+        candidates: list[tuple[datetime, str]],
     ) -> None:
         """Build candidates for weekly rule: all marked weekdays in the week ahead."""
         if not tmpl.weekday_mask:
@@ -652,38 +653,35 @@ class TaskScheduler:
             deadline = target_day.replace(hour=18, minute=0, second=0, microsecond=0)
             deadline = next_business_day(deadline)
             period_key = target_day.strftime("%Y-%m-%d")
-            for act in activities:
-                candidates.append((act, deadline, period_key))
+            candidates.append((deadline, period_key))
 
     @staticmethod
     def _add_weekly_monday_daily(
         current: datetime,
         assignment,
         activities: list[TemplateActivity],
-        candidates: list[tuple[TemplateActivity, datetime, str]],
+        candidates: list[tuple[datetime, str]],
     ) -> None:
         """Build candidates for Monday's daily tasks (triggered by Sunday weekly rule)."""
         monday = current + timedelta(days=1)  # Sunday → Monday
         deadline = monday.replace(hour=18, minute=0, second=0, microsecond=0)
         deadline = next_business_day(deadline)
         period_key = monday.strftime("%Y-%m-%d")
-        for act in activities:
-            candidates.append((act, deadline, period_key))
+        candidates.append((deadline, period_key))
 
     @staticmethod
     def _add_daily_candidates(
         current: datetime,
         assignment,
         activities: list[TemplateActivity],
-        candidates: list[tuple[TemplateActivity, datetime, str]],
+        candidates: list[tuple[datetime, str]],
     ) -> None:
         """Build candidates for daily rule: next business day."""
         next_day = current + timedelta(days=1)
         deadline = next_day.replace(hour=18, minute=0, second=0, microsecond=0)
         deadline = next_business_day(deadline)
         period_key = deadline.strftime("%Y-%m-%d")
-        for act in activities:
-            candidates.append((act, deadline, period_key))
+        candidates.append((deadline, period_key))
 
     @staticmethod
     def _add_monthly_candidates(
@@ -691,7 +689,7 @@ class TaskScheduler:
         assignment,
         tmpl: ActivityTemplate,
         activities: list[TemplateActivity],
-        candidates: list[tuple[TemplateActivity, datetime, str]],
+        candidates: list[tuple[datetime, str]],
     ) -> None:
         """Build candidates for monthly rule: generate tasks for NEXT month."""
         if current.month == 12:
@@ -718,8 +716,7 @@ class TaskScheduler:
         )
         deadline = next_business_day(deadline)
         period_key = f"{next_year}-{next_month:02d}"
-        for act in activities:
-            candidates.append((act, deadline, period_key))
+        candidates.append((deadline, period_key))
 
     @staticmethod
     def _add_yearly_candidates(
@@ -727,7 +724,7 @@ class TaskScheduler:
         assignment,
         tmpl: ActivityTemplate,
         activities: list[TemplateActivity],
-        candidates: list[tuple[TemplateActivity, datetime, str]],
+        candidates: list[tuple[datetime, str]],
     ) -> None:
         """Build candidates for yearly rule: generate tasks for NEXT year."""
         next_year = current.year + 1
@@ -750,8 +747,7 @@ class TaskScheduler:
         )
         deadline = next_business_day(deadline)
         period_key = str(next_year)
-        for act in activities:
-            candidates.append((act, deadline, period_key))
+        candidates.append((deadline, period_key))
 
 
 # ================================================================

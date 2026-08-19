@@ -301,11 +301,6 @@ export const DashboardPage: React.FC = () => {
                   {summary?.stats?.unread_notifications_count || 0} não lidas
                 </span>
               </div>
-              <div className="px-5 py-4">
-                <Button variant="default" className="w-full" onClick={() => navigate('/painel/orcamentos')}>
-                  Novo Orçamento
-                </Button>
-              </div>
             </Card>
           </div>
 

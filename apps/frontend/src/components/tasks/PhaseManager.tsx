@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
-import { Plus, X, Edit2, Trash2, GripVertical, Settings, CheckCircle2 } from 'lucide-react';
+import { X, Edit2, Settings } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { TaskPhaseResponse } from '../../schemas/tasks';
-import { useConfirm } from '../ui/ConfirmDialog';
-import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 
 interface PhaseManagerProps {
@@ -17,62 +15,28 @@ const DEFAULT_COLORS = [
 ];
 
 export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) => {
-  const { usePhases, useCreatePhase, useUpdatePhase, useDeletePhase, useReorderPhases } = useTasks();
+  const { usePhases, useUpdatePhase } = useTasks();
   const { data: phases, isLoading } = usePhases();
-  const createPhase = useCreatePhase();
   const updatePhase = useUpdatePhase();
-  const deletePhase = useDeletePhase();
-  const reorderPhases = useReorderPhases();
 
-  const [showCreate, setShowCreate] = useState(false);
   const [editingPhase, setEditingPhase] = useState<TaskPhaseResponse | null>(null);
-  const [newName, setNewName] = useState('');
-  const [newColor, setNewColor] = useState('#6b7280');
-  const [draggedPhase, setDraggedPhase] = useState<string | null>(null);
-  const confirm = useConfirm();
-
-  const handleCreate = async () => {
-    if (!newName.trim()) return;
-    await createPhase.mutateAsync({
-      name: newName.trim(),
-      color: newColor,
-      order: (phases?.length || 0),
-      is_done: false,
-    });
-    setNewName('');
-    setShowCreate(false);
-  };
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('#6b7280');
 
   const handleUpdate = async () => {
-    if (!editingPhase || !newName.trim()) return;
+    if (!editingPhase || !editName.trim()) return;
     await updatePhase.mutateAsync({
       id: editingPhase.id,
-      name: newName.trim(),
-      color: newColor,
+      name: editName.trim(),
+      color: editColor,
     });
     setEditingPhase(null);
   };
 
-  const handleDelete = async (phase: TaskPhaseResponse) => {
-    if (phase.is_default && (phases?.length || 0) <= 3) {
-      toast.error('Não é possível excluir fases padrão quando há apenas 3 fases.');
-      return;
-    }
-    const ok = await confirm({
-      title: 'Excluir fase',
-      message: `Excluir a fase "${phase.name}"? As tarefas serão movidas para outra fase.`,
-      variant: 'danger',
-      confirmLabel: 'Excluir',
-    });
-    if (ok) {
-      await deletePhase.mutateAsync(phase.id);
-    }
-  };
-
   const openEdit = (phase: TaskPhaseResponse) => {
     setEditingPhase(phase);
-    setNewName(phase.name);
-    setNewColor(phase.color);
+    setEditName(phase.name);
+    setEditColor(phase.color);
   };
 
   if (!isOpen) return null;
@@ -101,7 +65,7 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
 
         <div className="p-6">
           <p className="mb-5 text-[13px] text-muted-foreground">
-            Personalize as colunas do seu Kanban. Arraste para reordenar.
+            As 3 fases padrão são fixas (A Fazer, Em Andamento, Concluído). Você pode renomear e alterar a cor de cada uma.
           </p>
 
           {isLoading ? (
@@ -113,34 +77,11 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
               {sortedPhases.map((phase) => (
                 <div
                   key={phase.id}
-                  draggable={!phase.is_default}
-                  onDragStart={() => setDraggedPhase(phase.id)}
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={async (e) => {
-                    e.preventDefault();
-                    if (draggedPhase && draggedPhase !== phase.id && phases) {
-                      const current = [...phases].sort((a, b) => a.order - b.order);
-                      const dragIdx = current.findIndex(p => p.id === draggedPhase);
-                      const dropIdx = current.findIndex(p => p.id === phase.id);
-                      const [moved] = current.splice(dragIdx, 1);
-                      current.splice(dropIdx, 0, moved);
-                      const reordered = current.map((p, i) => ({ id: p.id, order: i }));
-                      await reorderPhases.mutateAsync(reordered);
-                    }
-                    setDraggedPhase(null);
-                  }}
                   className={cn(
                     'flex items-center gap-3 rounded-lg border border-border px-4 py-3 transition-all',
-                    editingPhase?.id === phase.id ? 'bg-muted' : 'bg-card',
-                    draggedPhase === phase.id && 'opacity-50',
-                    phase.is_default ? 'cursor-default' : 'cursor-grab active:cursor-grabbing'
+                    editingPhase?.id === phase.id ? 'bg-muted' : 'bg-card'
                   )}
                 >
-                  {!phase.is_default ? (
-                    <GripVertical size={16} className="text-muted-foreground" />
-                  ) : (
-                    <div className="w-4" />
-                  )}
                   <div className="size-6 shrink-0 rounded-full" style={{ background: phase.color }} />
                   <span className="flex-1 text-[14px] font-semibold text-foreground">{phase.name}</span>
                   {phase.is_done && (
@@ -148,54 +89,30 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
                       Conclusão
                     </span>
                   )}
-                  {phase.is_default && (
-                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] font-semibold text-primary-strong">
-                      Padrão
-                    </span>
-                  )}
                   <div className="flex gap-1">
-                    <button
-                      onClick={() => updatePhase.mutateAsync({ id: phase.id, is_done: !phase.is_done })}
-                      title={phase.is_done ? 'Desmarcar como fase de conclusão' : 'Marcar como fase de conclusão'}
-                      className={cn(
-                        'cursor-pointer border-none bg-transparent p-1 transition-colors',
-                        phase.is_done
-                          ? 'text-green-500 hover:text-green-400'
-                          : 'text-muted-foreground hover:text-foreground'
-                      )}
-                    >
-                      <CheckCircle2 size={14} />
-                    </button>
                     <button
                       onClick={() => openEdit(phase)}
                       className="cursor-pointer border-none bg-transparent p-1 text-muted-foreground hover:text-foreground"
+                      title="Renomear / alterar cor"
                     >
                       <Edit2 size={14} />
                     </button>
-                    {!phase.is_default && (
-                      <button
-                        onClick={() => handleDelete(phase)}
-                        className="cursor-pointer border-none bg-transparent p-1 text-destructive hover:opacity-80"
-                      >
-                        <Trash2 size={14} />
-                      </button>
-                    )}
                   </div>
                 </div>
               ))}
             </div>
           )}
 
-          {showCreate || editingPhase ? (
+          {editingPhase ? (
             <div className="mb-4 rounded-lg border border-border bg-muted p-4">
               <input
                 type="text"
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey && newName.trim()) {
+                  if (e.key === 'Enter' && !e.shiftKey && editName.trim()) {
                     e.preventDefault();
-                    editingPhase ? handleUpdate() : handleCreate();
+                    handleUpdate();
                   }
                 }}
                 placeholder="Nome da fase"
@@ -210,11 +127,11 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
                   {DEFAULT_COLORS.map(color => (
                     <button
                       key={color}
-                      onClick={() => setNewColor(color)}
+                      onClick={() => setEditColor(color)}
                       className="size-7 cursor-pointer rounded-full border-2 transition-all hover:scale-110"
                       style={{
                         background: color,
-                        borderColor: newColor === color ? '#fff' : 'transparent',
+                        borderColor: editColor === color ? '#fff' : 'transparent',
                       }}
                     />
                   ))}
@@ -222,28 +139,21 @@ export const PhaseManager: React.FC<PhaseManagerProps> = ({ isOpen, onClose }) =
               </div>
               <div className="flex justify-end gap-2">
                 <button
-                  onClick={() => { setShowCreate(false); setEditingPhase(null); setNewName(''); }}
+                  onClick={() => setEditingPhase(null)}
                   className="rounded-lg border border-border bg-muted px-3 py-1.5 text-[13px] font-semibold text-foreground"
                 >
                   Cancelar
                 </button>
                 <button
-                  onClick={editingPhase ? handleUpdate : handleCreate}
+                  onClick={handleUpdate}
                   className="rounded-lg bg-primary px-3 py-1.5 text-[13px] font-semibold text-primary-foreground disabled:opacity-50"
-                  disabled={!newName.trim() || createPhase.isPending || updatePhase.isPending}
+                  disabled={!editName.trim() || updatePhase.isPending}
                 >
-                  {editingPhase ? 'Salvar' : 'Criar'}
+                  Salvar
                 </button>
               </div>
             </div>
-          ) : (
-            <button
-              onClick={() => { setShowCreate(true); setNewName(''); setNewColor('#6b7280'); }}
-              className="mb-4 flex w-full items-center justify-center gap-2 rounded-lg border border-border bg-muted px-4 py-2 text-[13px] font-semibold text-foreground transition-colors hover:bg-muted/80"
-            >
-              <Plus size={16} /> Nova Fase
-            </button>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

@@ -41,16 +41,13 @@ def get_done_phase(phases: list) -> Optional["TaskPhase"]:
 
 class TaskPhase(Base):
     """
-    Customizable Kanban phase/column for task management.
-    Each user can define their own phases.
+    Fases canônicas GLOBAIS do Kanban (compartilhadas por todos os usuários).
+    Exatamente 3: "a fazer" (0), "em andamento" (1), "concluido" (2, done).
     """
 
     __tablename__ = "task_phases"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    user_id = Column(
-        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
-    )
     name = Column(String(100), nullable=False)
     color = Column(String(7), nullable=False, default="#6b7280")
     order = Column(Integer, nullable=False, default=0)

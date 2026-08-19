@@ -44,7 +44,6 @@ erDiagram
     users ||--o{ clients : "user_id"
     users ||--o{ pricing_scenarios : "user_id"
     users ||--o{ tasks : "user_id"
-    users ||--o{ task_phases : "user_id"
     users ||--o{ routine_types : "user_id"
     users ||--o{ activity_templates : "user_id"
     users ||--o{ client_slas : "user_id"
@@ -228,8 +227,10 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 |---------|------|
 | R/W | `task_manager/task/repository.py` (CRUD + reorder) |
 
-> **Migração `e4f1a2b3c4d5`**: nova coluna `is_done` (bool) marca a fase de conclusão
-> (única por usuário; fallback para maior `order`).
+> **Migração `7d7670c5f1cc`**: fases **globais canônicas** — coluna `user_id`
+> **removida**. Existem exatamente 3 fases compartilhadas por todos os usuários:
+> "a fazer" (0), "em andamento" (1), "concluido" (2, `is_done`). Criação/
+> exclusão/reordenação bloqueadas na API; edição só nome/cor.
 
 ### `task_attachments` — dono: `task_manager`
 | Direção | Quem |

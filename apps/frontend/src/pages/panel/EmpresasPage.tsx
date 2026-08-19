@@ -5,11 +5,12 @@ import { maskCNPJ, maskPhone } from '../../lib/formatters';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Link, Unlink, FileText } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { Users, UserPlus, Trash2, Check, Send, Clock, Plus } from 'lucide-react';
+import { Users, UserPlus, Trash2, Check, Send, Clock, Plus, X } from 'lucide-react';
 import {
   inviteCollaborator,
   listTeamMembers,
   removeTeamMember,
+  revokeRoutineFromMember,
   listInvitations,
   resendInvitation,
   TeamMemberResponse,
@@ -305,6 +306,23 @@ export const EmpresasPage: React.FC = () => {
       loadTeam(teamClientId);
     } catch {
       toast.error('Erro ao remover membro');
+    }
+  };
+
+  const [revokingRoutine, setRevokingRoutine] = useState<string | null>(null);
+
+  const handleRevokeRoutine = async (userId: string, templateId: string, routineName: string) => {
+    if (!teamClientId) return;
+    const key = `${userId}:${templateId}`;
+    setRevokingRoutine(key);
+    try {
+      await revokeRoutineFromMember(teamClientId, userId, templateId);
+      toast.success(`Acesso à rotina "${routineName}" revogado`);
+      loadTeam(teamClientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Erro ao revogar acesso à rotina');
+    } finally {
+      setRevokingRoutine(null);
     }
   };
 
@@ -751,8 +769,20 @@ export const EmpresasPage: React.FC = () => {
                       <div className="text-xs text-muted-foreground">{member.email}</div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {member.routines.map(r => (
-                          <span key={r.template_id} className="rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
+                          <span key={r.template_id} className="inline-flex items-center gap-1 rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
                             {r.name}
+                            <button
+                              type="button"
+                              className="rounded-sm p-0.5 text-secondary-foreground/60 transition-colors hover:bg-destructive/20 hover:text-destructive disabled:opacity-50"
+                              title={`Remover acesso à rotina ${r.name}`}
+                              disabled={revokingRoutine === `${member.user_id}:${r.template_id}`}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRevokeRoutine(member.user_id, r.template_id, r.name);
+                              }}
+                            >
+                              <X size={10} />
+                            </button>
                           </span>
                         ))}
                       </div>

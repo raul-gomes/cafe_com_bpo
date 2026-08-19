@@ -70,6 +70,13 @@ export const listTeamMembers = (clientId: string) =>
 export const removeTeamMember = (clientId: string, userId: string) =>
   apiClient.delete(`/clients/${clientId}/team/${userId}`);
 
+export const revokeRoutineFromMember = (
+  clientId: string,
+  userId: string,
+  templateId: string,
+) =>
+  apiClient.delete(`/clients/${clientId}/team/${userId}/routines/${templateId}`);
+
 export const listInvitations = (clientId: string) =>
   apiClient.get<InvitationListResponse>(`/clients/${clientId}/invitations`);
 

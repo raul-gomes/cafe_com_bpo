@@ -297,17 +297,17 @@ class TeamRepository:
             .all()
         )
 
-    def get_routines_for_member(
+    def get_accepted_invitation_for_user(
         self, client_id: UUID, user_id: UUID
-    ) -> list[ActivityTemplate]:
-        """Get all templates that a member has access to for a client."""
+    ) -> TeamInvitation | None:
+        """Retorna o convite aceito do usuário para o time do cliente (se houver)."""
         team = self.get_team_by_client_id(client_id)
         if not team:
-            return []
+            return None
         user = self.get_user_by_id(user_id)
         if not user:
-            return []
-        invitation = (
+            return None
+        return (
             self.session.query(TeamInvitation)
             .filter(
                 TeamInvitation.team_id == team.id,
@@ -316,6 +316,27 @@ class TeamRepository:
             )
             .first()
         )
+
+    def remove_routine_from_invitation(
+        self, invitation_id: UUID, template_id: UUID
+    ) -> int:
+        """Remove o acesso a uma rotina de um convite (idempotente)."""
+        deleted = (
+            self.session.query(InvitationRoutine)
+            .filter(
+                InvitationRoutine.invitation_id == invitation_id,
+                InvitationRoutine.template_id == template_id,
+            )
+            .delete(synchronize_session=False)
+        )
+        self.session.commit()
+        return deleted
+
+    def get_routines_for_member(
+        self, client_id: UUID, user_id: UUID
+    ) -> list[ActivityTemplate]:
+        """Get all templates that a member has access to for a client."""
+        invitation = self.get_accepted_invitation_for_user(client_id, user_id)
         if not invitation:
             return []
 

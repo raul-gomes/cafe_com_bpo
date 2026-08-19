@@ -183,27 +183,10 @@ export const TasksPage: React.FC = () => {
         if (task.is_cancelled) {
             return 'cancelled';
         }
-        if (task.phase_id && phases) {
-            if (phases.some(p => p.id === task.phase_id)) return task.phase_id;
-        }
-        // Fase pertence a outro usuário (team / owner diferente)? Resolve a coluna
-        // pela posição da fase do dono (task.phase), exposta no payload.
-        if (phases && phases.length > 0) {
-            if (task.phase?.is_done) return lastPhaseId;
-            if (task.phase) {
-                const orders = sortedPhases.map(p => p.order);
-                const min = Math.min(...orders);
-                const max = Math.max(...orders);
-                if (task.phase.order <= min) return firstPhaseId;
-                if (task.phase.order >= max) return lastPhaseId;
-                const norm = (task.phase.order - min) / ((max - min) || 1);
-                const targetIdx = Math.min(
-                    sortedPhases.length - 1,
-                    Math.max(1, Math.round(norm * (sortedPhases.length - 1)))
-                );
-                return sortedPhases[targetIdx].id;
-            }
-            return firstPhaseId;
+        // Fases são globais e compartilhadas: o phase_id da task já é uma
+        // das colunas visíveis.
+        if (task.phase_id) {
+            return task.phase_id;
         }
         return firstPhaseId;
     };
@@ -407,7 +390,7 @@ export const TasksPage: React.FC = () => {
                     <p className="mb-2 text-[14px] text-muted-foreground">Controle operacional e prazos por empresa.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {view === 'kanban' && (
+                    {view === 'kanban' && user?.role === 'admin' && (
                         <Button variant="ghost" size="sm" onClick={() => setShowPhaseManager(true)}>
                             <Settings size={16} /> Fases
                         </Button>
@@ -422,9 +405,11 @@ export const TasksPage: React.FC = () => {
                             <Eye size={16} /> {showMacroCalendar ? 'Ocultar Calendário' : 'Visão Macro'}
                         </Button>
                     )}
-                    <Button variant="ghost" size="sm" onClick={handleSyncCalendar} title="Sincronizar tarefas ativas com Google Agenda">
-                        <CalendarIcon size={16} /> Sincronizar
-                    </Button>
+                    {user?.role === 'admin' && (
+                        <Button variant="ghost" size="sm" onClick={handleSyncCalendar} title="Sincronizar tarefas ativas com Google Agenda">
+                            <CalendarIcon size={16} /> Sincronizar
+                        </Button>
+                    )}
                     {user?.role === 'admin' && (
                         <DropdownMenu>
                             <DropdownMenuTrigger render={<Button variant="ghost" size="sm" className="gap-1" />}>

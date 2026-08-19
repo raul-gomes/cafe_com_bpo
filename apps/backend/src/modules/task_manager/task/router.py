@@ -178,64 +178,47 @@ def update_task(
     task_in: TaskUpdate,
     repo: RepoDep,
     current_user: CurrentUserDep,
-    session: Annotated[Session, Depends(get_db_session)],
 ):
-    """Atualiza dados da tarefa."""
-    task = repo.get_by_id(task_id, current_user.id)
+    """Atualiza dados da tarefa.
+
+    As fases são globais (3 canônicas compartilhadas), então `phase_id` é
+    validado diretamente contra as fases existentes.
+    """
+    task = repo.get_by_id_for_update(task_id, current_user.id)
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
 
     old_phase_id = task.phase_id
-    owner_id = None
+    phases = repo.get_all_phases()
+    done_phase = get_done_phase(phases)
 
-    if task_in.phase_id is not None and task_in.phase_id != task.phase_id:
-        from src.modules.team.repository import TeamRepository
-
-        team_repo = TeamRepository(session)
-        owner_id = team_repo.get_client_owner_id(task.client_id)
-        phase_owner_id = owner_id or current_user.id
-
-        gestor_phases = repo.get_phases_by_user(phase_owner_id)
-        phase_ids = [str(p.id) for p in gestor_phases]
-
-        if str(task_in.phase_id) not in phase_ids:
+    if task_in.phase_id is not None and str(task_in.phase_id) != str(old_phase_id):
+        new_phase = next(
+            (p for p in phases if str(p.id) == str(task_in.phase_id)), None
+        )
+        if new_phase is None:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail={
                     "error": "fase_inexistente",
-                    "message": (
-                        "Esta fase não existe para o gestor deste cliente. "
-                        "Peça ao gestor para criar a fase primeiro."
-                    ),
+                    "message": "Esta fase não existe.",
                 },
             )
 
         task.moved_by = current_user.id
+        updated_task = repo.update(task, task_in)
 
-    updated_task = repo.update(task, task_in)
+        # Moving to the done phase → set completed_at
+        if done_phase and str(new_phase.id) == str(done_phase.id):
+            updated_task.completed_at = datetime.now(timezone.utc)
+        # Moving from the done phase to another → clear completed_at
+        elif done_phase and str(old_phase_id) == str(done_phase.id):
+            updated_task.completed_at = None
 
-    # ── completed_at: usar as fases do gestor (owner) da task ──
-    if task_in.phase_id is not None and task_in.phase_id != old_phase_id:
-        phase_owner_id = owner_id or current_user.id
-        phases = repo.get_phases_by_user(phase_owner_id)
-        done_phase = get_done_phase(phases)
-        new_phase = next(
-            (p for p in phases if str(p.id) == str(task_in.phase_id)), None
-        )
-        if new_phase:
-            # Moving to the done phase → set completed_at
-            if done_phase and str(new_phase.id) == str(done_phase.id):
-                updated_task.completed_at = datetime.now(timezone.utc)
-            # Moving from the done phase to another → clear completed_at
-            else:
-                old_phase = next(
-                    (p for p in phases if str(p.id) == str(old_phase_id)), None
-                )
-                if old_phase and done_phase and str(old_phase.id) == str(done_phase.id):
-                    updated_task.completed_at = None
-
-            repo.session.commit()
-            repo.session.refresh(updated_task)
+        repo.session.commit()
+        repo.session.refresh(updated_task)
+    else:
+        updated_task = repo.update(task, task_in)
 
     return updated_task
 
@@ -266,57 +249,49 @@ def cancel_task(task_id: UUID, repo: RepoDep, current_user: CurrentUserDep):
 
 
 @router.get("/phases/", response_model=list[TaskPhaseResponse])
-def get_phases(service: ServiceDep, current_user: CurrentUserDep):
-    """Retorna as fases/colunas Kanban do usuário, criando padrões se necessário"""
-    return service.get_phases(current_user.id)
+def get_phases(service: ServiceDep):
+    """Retorna as 3 fases canônicas globais, criando-as se necessário."""
+    return service.get_phases()
 
 
 @router.post(
     "/phases/", response_model=TaskPhaseResponse, status_code=status.HTTP_201_CREATED
 )
-def create_phase(
-    phase_in: TaskPhaseCreate, service: ServiceDep, current_user: CurrentUserDep
-):
-    """Cria uma nova fase personalizada"""
-    new_phase = service.create_phase(current_user.id, phase_in)
-    log.info(f"📋 Fase criada: {phase_in.name} por usuário {current_user.email}")
-    return new_phase
+def create_phase(phase_in: TaskPhaseCreate, service: ServiceDep):
+    """Cria uma nova fase personalizada (bloqueado — apenas 3 fases padrão)."""
+    try:
+        return service.create_phase(phase_in)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.put("/phases/{phase_id}", response_model=TaskPhaseResponse)
-def update_phase(
-    phase_id: UUID,
-    phase_in: TaskPhaseUpdate,
-    service: ServiceDep,
-    current_user: CurrentUserDep,
-):
-    """Atualiza uma fase existente"""
+def update_phase(phase_id: UUID, phase_in: TaskPhaseUpdate, service: ServiceDep):
+    """Atualiza uma fase existente (apenas nome/cor)."""
     try:
-        return service.update_phase(current_user.id, phase_id, phase_in)
-    except ValueError:
+        return service.update_phase(phase_id, phase_in)
+    except ValueError as e:
+        if "fixas" in str(e):
+            raise HTTPException(status_code=400, detail=str(e))
         raise HTTPException(status_code=404, detail="Fase não encontrada")
 
 
 @router.delete("/phases/{phase_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_phase(phase_id: UUID, service: ServiceDep, current_user: CurrentUserDep):
-    """Remove uma fase e migra suas tarefas"""
+def delete_phase(phase_id: UUID, service: ServiceDep):
+    """Remove uma fase (bloqueado — as 3 fases padrão são fixas)."""
     try:
-        service.delete_phase(current_user.id, phase_id)
-        log.info(f"🗑️ Fase excluída: {phase_id} por {current_user.email}")
+        service.delete_phase(phase_id)
     except ValueError as e:
-        if "last remaining phase" in str(e):
-            raise HTTPException(
-                status_code=400, detail="Cannot delete the last remaining phase"
-            )
-        raise HTTPException(status_code=404, detail="Fase não encontrada")
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/phases/reorder")
-def reorder_phases(
-    phase_orders: TaskPhaseReorder, service: ServiceDep, current_user: CurrentUserDep
-):
-    """Reordena as fases do usuário"""
-    return service.reorder_phases(current_user.id, phase_orders)
+def reorder_phases(phase_orders: TaskPhaseReorder, service: ServiceDep):
+    """Reordena as fases (bloqueado — as 3 fases padrão são fixas)."""
+    try:
+        return service.reorder_phases(phase_orders)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Timeline endpoints ──

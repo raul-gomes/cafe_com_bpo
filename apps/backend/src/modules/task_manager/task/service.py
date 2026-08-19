@@ -88,7 +88,7 @@ class TaskService:
     def create_task(self, task_data: TaskCreate, user_id: UUID) -> TaskResponse:
         """Create a new task."""
         if task_data.phase_id is None:
-            phases = self.get_phases(user_id)
+            phases = self.get_phases()
             if phases:
                 task_data.phase_id = phases[0].id
         new_task = self.repository.create(task_data, user_id)
@@ -113,8 +113,8 @@ class TaskService:
         old_phase_id = task.phase_id
         old_deadline = task.deadline
 
-        # Get phases for completed_at detection
-        phases = self.repository.get_phases_by_user(user_id)
+        # Get phases for completed_at detection (fases globais)
+        phases = self.repository.get_all_phases()
         done_phase = get_done_phase(phases)
         old_is_done = (
             old_phase_id is not None
@@ -170,87 +170,32 @@ class TaskService:
 
     # ── Phase operations ──
 
-    def get_phases(self, user_id: UUID) -> list[TaskPhaseResponse]:
-        """Get all phases for a user, creating defaults if none exist."""
-        phases = self.repository.get_phases_by_user(user_id)
-        if not phases:
-            phases = self.repository.create_default_phases(user_id)
-        return phases
+    def get_phases(self) -> list[TaskPhaseResponse]:
+        """Get the 3 global canonical phases, normalizing leftovers."""
+        return self.repository.ensure_canonical_phases()
 
-    def _clear_done_flags(self, user_id: UUID) -> None:
-        """Ensure only one phase is marked as done for a user."""
-        for p in self.repository.get_phases_by_user(user_id):
-            if p.is_done:
-                p.is_done = False
-        self.repository.session.commit()
-
-    def create_phase(
-        self, user_id: UUID, phase_data: TaskPhaseCreate
-    ) -> TaskPhaseResponse:
-        """Create a new custom phase."""
-        # Ensure default phases exist
-        self.get_phases(user_id)
-        if phase_data.is_done:
-            self._clear_done_flags(user_id)
-        return self.repository.create_phase(phase_data, user_id)
+    def create_phase(self, phase_data: TaskPhaseCreate) -> TaskPhaseResponse:
+        """Custom phases are no longer allowed — only the 3 canonical ones."""
+        raise ValueError("As fases são fixas: apenas as 3 fases padrão são permitidas")
 
     def update_phase(
-        self, user_id: UUID, phase_id: UUID, phase_data: TaskPhaseUpdate
+        self, phase_id: UUID, phase_data: TaskPhaseUpdate
     ) -> TaskPhaseResponse:
-        """Update an existing phase."""
-        phase = self.repository.get_phase_by_id(phase_id, user_id)
+        """Update an existing phase. Only name/color can change."""
+        phase = self.repository.get_phase_by_id(phase_id)
         if not phase:
-            raise ValueError(f"Phase {phase_id} not found for user {user_id}")
-        if phase_data.is_done:
-            self._clear_done_flags(user_id)
+            raise ValueError(f"Phase {phase_id} not found")
+        if phase_data.order is not None or phase_data.is_done is not None:
+            raise ValueError("A ordem e a flag de conclusão das fases padrão são fixas")
         return self.repository.update_phase(phase, phase_data)
 
-    def delete_phase(self, user_id: UUID, phase_id: UUID) -> None:
-        """Delete a phase and migrate its tasks to another phase."""
-        phase = self.repository.get_phase_by_id(phase_id, user_id)
-        if not phase:
-            raise ValueError(f"Phase {phase_id} not found for user {user_id}")
+    def delete_phase(self, phase_id: UUID) -> None:
+        """Canonical phases cannot be deleted."""
+        raise ValueError("As fases padrão não podem ser excluídas")
 
-        # Check if this is the last phase
-        phase_count = self.repository.count_phases(user_id)
-        if phase_count <= 1:
-            raise ValueError("Cannot delete the last remaining phase")
-
-        was_done = phase.is_done
-
-        # Find a target phase to migrate tasks to
-        phases = self.repository.get_phases_by_user(user_id)
-        target_phase = next((p for p in phases if p.id != phase_id), None)
-        if target_phase:
-            self.repository.migrate_tasks_from_phase(phase_id, target_phase.id)
-
-        self.repository.delete_phase(phase)
-
-        # If the deleted phase was the done phase, hand the flag to the new last
-        if was_done:
-            remaining = self.repository.get_phases_by_user(user_id)
-            if remaining:
-                new_done = max(remaining, key=lambda p: p.order)
-                new_done.is_done = True
-                self.repository.session.commit()
-
-    def reorder_phases(
-        self, user_id: UUID, phase_orders: TaskPhaseReorder
-    ) -> list[TaskPhaseResponse]:
-        """Reorder phases based on the provided order."""
-        from uuid import UUID as UUIDType
-
-        for item in phase_orders.phases:
-            phase_id = item["id"]
-            if isinstance(phase_id, str):
-                phase_id = UUIDType(phase_id)
-            phase = self.repository.get_phase_by_id(phase_id, user_id)
-            if phase:
-                phase.order = item["order"]
-        self.repository.session.commit()
-        self.repository.session.flush()
-
-        return self.repository.get_phases_by_user(user_id)
+    def reorder_phases(self, phase_orders: TaskPhaseReorder) -> list[TaskPhaseResponse]:
+        """Canonical phases cannot be reordered."""
+        raise ValueError("As fases padrão não podem ser reordenadas")
 
     # ── Timeline ──
 
@@ -520,7 +465,7 @@ class TaskService:
         # Check if task is in the done (final) phase
         is_done = False
         if task.phase_id:
-            phases = self.repository.get_phases_by_user(task.user_id)
+            phases = self.repository.get_all_phases()
             done_phase = get_done_phase(phases)
             if done_phase and str(task.phase_id) == str(done_phase.id):
                 is_done = True

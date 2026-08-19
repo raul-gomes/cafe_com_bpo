@@ -86,7 +86,6 @@ class TaskPhaseReorder(BaseModel):
 
 class TaskPhaseResponse(TaskPhaseBase):
     id: UUID
-    user_id: UUID
     is_default: bool
     created_at: datetime
 

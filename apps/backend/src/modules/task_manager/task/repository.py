@@ -1,11 +1,11 @@
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
-from sqlalchemy import or_
+from sqlalchemy import or_, update
 from sqlalchemy.orm import Session
 
 from ..models import Task, TaskPhase
-from ..schemas import TaskCreate, TaskPhaseCreate, TaskPhaseUpdate, TaskUpdate
+from ..schemas import TaskCreate, TaskPhaseUpdate, TaskUpdate
 
 
 class TaskRepository:
@@ -24,6 +24,35 @@ class TaskRepository:
             )
             .first()
         )
+
+    def get_by_id_for_update(self, task_id: UUID, user_id: UUID) -> Task | None:
+        """Retorna a task para atualização.
+
+        Permite acesso quando o usuário é o dono da task OU membro ativo do
+        time do cliente com acesso à rotina (template) da task — assim um
+        membro pode mover/editar tasks de rotinas compartilhadas.
+        """
+        task = (
+            self.session.query(Task).filter(Task.id == task_id, Task.is_active).first()
+        )
+        if not task:
+            return None
+        if task.user_id == user_id:
+            return task
+
+        # Task de outra pessoa: só membro com acesso à rotina compartilhada
+        if task.template_id is None:
+            return None
+
+        from src.modules.team.repository import TeamRepository
+
+        team_repo = TeamRepository(self.session)
+        if not team_repo.is_team_member(task.client_id, user_id):
+            return None
+        granted = team_repo.get_routines_for_member(task.client_id, user_id)
+        if any(str(g.id) == str(task.template_id) for g in granted):
+            return task
+        return None
 
     def get_by_user(
         self,
@@ -120,40 +149,102 @@ class TaskRepository:
             self.session.refresh(task)
         return task
 
-    # ── Phase CRUD ──
+    # ── Phase CRUD (fases globais canônicas) ──
 
-    def get_phases_by_user(self, user_id: UUID) -> list[TaskPhase]:
-        """Get all phases for a user, ordered by order field."""
-        return (
-            self.session.query(TaskPhase)
-            .filter(TaskPhase.user_id == user_id)
-            .order_by(TaskPhase.order.asc())
-            .all()
-        )
+    def get_all_phases(self) -> list[TaskPhase]:
+        """Retorna as fases globais, ordenadas por `order`."""
+        return self.session.query(TaskPhase).order_by(TaskPhase.order.asc()).all()
 
-    def get_or_create_phases(self, user_id: UUID) -> list[TaskPhase]:
-        """Get phases for a user, creating the defaults when none exist."""
-        phases = self.get_phases_by_user(user_id)
+    def get_or_create_phases(self) -> list[TaskPhase]:
+        """Retorna as fases canônicas, criando-as se ainda não existirem."""
+        return self.ensure_canonical_phases()
+
+    def ensure_canonical_phases(self) -> list[TaskPhase]:
+        """Garante que existam exatamente as 3 fases canônicas globais:
+        "a fazer" (0), "em andamento" (1), "concluido" (2, is_done=True).
+
+        Idempotente. Remove fases extras e migra as tasks para a fase
+        correspondente antes de excluí-las.
+        """
+        phases = self.get_all_phases()
         if not phases:
-            phases = self.create_default_phases(user_id)
-        return phases
+            return self.create_default_phases()
 
-    def get_phase_by_id(self, phase_id: UUID, user_id: UUID) -> TaskPhase | None:
-        """Get a specific phase for a user."""
-        return (
-            self.session.query(TaskPhase)
-            .filter(TaskPhase.id == phase_id, TaskPhase.user_id == user_id)
-            .first()
+        ordered = sorted(phases, key=lambda p: (p.order, p.created_at))
+
+        done = next((p for p in ordered if p.is_done), None)
+        concluido = done if done else ordered[-1]
+
+        a_fazer = ordered[0]
+        if a_fazer is concluido:
+            a_fazer = next((p for p in ordered[1:] if p is not concluido), None)
+
+        em_andamento = next((p for p in ordered if p not in (a_fazer, concluido)), None)
+        extras = [p for p in ordered if p not in (a_fazer, concluido, em_andamento)]
+
+        if a_fazer is None:
+            a_fazer = TaskPhase(
+                name="a fazer",
+                color="#6b7280",
+                order=0,
+                is_done=False,
+                is_default=True,
+            )
+            self.session.add(a_fazer)
+        if em_andamento is None:
+            em_andamento = TaskPhase(
+                name="em andamento",
+                color="#3b82f6",
+                order=1,
+                is_done=False,
+                is_default=True,
+            )
+            self.session.add(em_andamento)
+
+        # Migra tasks das fases extras para "em andamento" via bulk update
+        # (evita que o delete da fase abaixo dispare SET NULL nas tasks)
+        for extra in extras:
+            if extra.is_done:
+                self.session.execute(
+                    update(Task)
+                    .where(Task.phase_id == extra.id)
+                    .values(phase_id=em_andamento.id, completed_at=None)
+                )
+            else:
+                self.session.execute(
+                    update(Task)
+                    .where(Task.phase_id == extra.id)
+                    .values(phase_id=em_andamento.id)
+                )
+            self.session.delete(extra)
+
+        # Reescreve as 3 canônicas (idempotente)
+        a_fazer.name, a_fazer.color = "a fazer", "#6b7280"
+        a_fazer.order, a_fazer.is_done, a_fazer.is_default = 0, False, True
+        em_andamento.name, em_andamento.color = "em andamento", "#3b82f6"
+        em_andamento.order, em_andamento.is_done, em_andamento.is_default = (
+            1,
+            False,
+            True,
         )
+        concluido.name, concluido.color = "concluido", "#22c55e"
+        concluido.order, concluido.is_done, concluido.is_default = 2, True, True
 
-    def create_phase(self, phase_in: TaskPhaseCreate, user_id: UUID) -> TaskPhase:
-        """Create a new custom phase."""
-        phase_data = phase_in.model_dump()
-        new_phase = TaskPhase(**phase_data, user_id=user_id, is_default=False)
-        self.session.add(new_phase)
+        # Tasks já na fase done ficam com completed_at definido
+        for task in self.session.query(Task).filter(
+            Task.phase_id == concluido.id, Task.completed_at.is_(None)
+        ):
+            task.completed_at = datetime.now(timezone.utc)
+
         self.session.commit()
-        self.session.refresh(new_phase)
-        return new_phase
+        result = self.get_all_phases()
+        for p in result:
+            self.session.refresh(p)
+        return result
+
+    def get_phase_by_id(self, phase_id: UUID) -> TaskPhase | None:
+        """Retorna uma fase global pelo id."""
+        return self.session.query(TaskPhase).filter(TaskPhase.id == phase_id).first()
 
     def update_phase(self, phase: TaskPhase, phase_in: TaskPhaseUpdate) -> TaskPhase:
         """Update a phase."""
@@ -169,14 +260,13 @@ class TaskRepository:
         self.session.delete(phase)
         self.session.commit()
 
-    def create_default_phases(self, user_id: UUID) -> list[TaskPhase]:
-        """Create the 3 default phases for a new user."""
+    def create_default_phases(self) -> list[TaskPhase]:
+        """Create the 3 global canonical phases."""
         from ..models import DEFAULT_PHASES
 
         phases = []
         for phase_data in DEFAULT_PHASES:
             phase = TaskPhase(
-                user_id=user_id,
                 name=phase_data["name"],
                 color=phase_data["color"],
                 order=phase_data["order"],
@@ -189,36 +279,6 @@ class TaskRepository:
         for p in phases:
             self.session.refresh(p)
         return phases
-
-    def count_phases(self, user_id: UUID) -> int:
-        """Count phases for a user."""
-        return (
-            self.session.query(TaskPhase).filter(TaskPhase.user_id == user_id).count()
-        )
-
-    def get_tasks_for_phase(self, phase_id: UUID, user_id: UUID) -> list[Task]:
-        """Get all tasks in a specific phase."""
-        return (
-            self.session.query(Task)
-            .filter(
-                Task.phase_id == phase_id,
-                Task.user_id == user_id,
-                Task.is_active,
-            )
-            .order_by(Task.deadline.asc().nullslast())
-            .all()
-        )
-
-    def migrate_tasks_from_phase(
-        self, old_phase_id: UUID, new_phase_id: UUID | None
-    ) -> int:
-        """Migrate all tasks from one phase to another. Returns count of migrated tasks."""
-        tasks = self.session.query(Task).filter(Task.phase_id == old_phase_id).all()
-        count = len(tasks)
-        for task in tasks:
-            task.phase_id = new_phase_id
-        self.session.commit()
-        return count
 
     # ── Task queries (timeline, date range) ──
 
@@ -269,26 +329,19 @@ class TaskRepository:
 
     # ── SLA Alert Queries ──
 
-    def _get_done_phase_ids(self, user_id: UUID) -> list[str]:
-        """Return phase IDs for the done (final) phase: explicit ``is_done``
-        flag preferred, falling back to the highest ``order``."""
-        done_phase = (
-            self.session.query(TaskPhase)
-            .filter(TaskPhase.user_id == user_id, TaskPhase.is_done)
-            .first()
-        )
+    def _get_done_phase_ids(self) -> list[str]:
+        """Return phase IDs for the done (final) global phase: explicit
+        ``is_done`` flag preferred, falling back to the highest ``order``."""
+        done_phase = self.session.query(TaskPhase).filter(TaskPhase.is_done).first()
         if done_phase is None:
             done_phase = (
-                self.session.query(TaskPhase)
-                .filter(TaskPhase.user_id == user_id)
-                .order_by(TaskPhase.order.desc())
-                .first()
+                self.session.query(TaskPhase).order_by(TaskPhase.order.desc()).first()
             )
         return [str(done_phase.id)] if done_phase else []
 
     def get_tasks_overdue(self, user_id: UUID) -> list[Task]:
         """Get tasks past their deadline, excluding completed/cancelled."""
-        done_ids = self._get_done_phase_ids(user_id)
+        done_ids = self._get_done_phase_ids()
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
             Task.is_active,
@@ -302,7 +355,7 @@ class TaskRepository:
 
     def get_tasks_near_deadline(self, user_id: UUID, days_ahead: int = 2) -> list[Task]:
         """Get tasks with deadline within the next N days, excluding completed/cancelled."""
-        done_ids = self._get_done_phase_ids(user_id)
+        done_ids = self._get_done_phase_ids()
         now = datetime.now(timezone.utc)
         cutoff = now + timedelta(days=days_ahead)
         query = self.session.query(Task).filter(
@@ -321,7 +374,7 @@ class TaskRepository:
         self, user_id: UUID, start_date: datetime, end_date: datetime
     ) -> list[Task]:
         """Get tasks completed (completed_at) within a date range."""
-        done_ids = self._get_done_phase_ids(user_id)
+        done_ids = self._get_done_phase_ids()
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
             Task.is_active,
