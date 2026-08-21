@@ -2,7 +2,8 @@ from datetime import datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
@@ -369,3 +370,51 @@ def send_task_email(
         raise HTTPException(status_code=404, detail=str(e))
     except RuntimeError as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+
+# ── SSE Real-time (PostgreSQL LISTEN/NOTIFY) ──
+
+
+@router.get("/events")
+async def task_events(request: Request):
+    """Server-Sent Events endpoint for real-time updates.
+
+    Handles two event channels:
+    - task_updates: card phase changes → boards update card positions
+    - team_updates: routine/member/invitation changes → operator boards
+      reflect added/removed/revoked/deactivated routines
+    """
+    from ..broadcast import manager
+
+    client_id, q = manager.subscribe()
+
+    async def event_generator():
+        import asyncio
+        import json
+
+        try:
+            # Initial connection event
+            yield f"data: {json.dumps({'type': 'connected', 'client_id': client_id})}\n\n"
+            while True:
+                if await request.is_disconnected():
+                    break
+                try:
+                    payload = await asyncio.get_event_loop().run_in_executor(
+                        None, lambda: q.get(timeout=30)
+                    )
+                    yield f"data: {payload}\n\n"
+                except Exception:
+                    # Send heartbeat every 30s to keep connection alive
+                    yield ": heartbeat\n\n"
+        finally:
+            manager.unsubscribe(client_id)
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )

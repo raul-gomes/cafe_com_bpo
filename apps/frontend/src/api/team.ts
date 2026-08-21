@@ -77,8 +77,18 @@ export const revokeRoutineFromMember = (
 ) =>
   apiClient.delete(`/clients/${clientId}/team/${userId}/routines/${templateId}`);
 
+export const grantRoutineToMember = (
+  clientId: string,
+  userId: string,
+  templateId: string,
+) =>
+  apiClient.post(`/clients/${clientId}/team/${userId}/routines/${templateId}`);
+
 export const listInvitations = (clientId: string) =>
   apiClient.get<InvitationListResponse>(`/clients/${clientId}/invitations`);
 
 export const resendInvitation = (clientId: string, invitationId: string) =>
   apiClient.post<InvitationResponse>(`/clients/${clientId}/invitations/${invitationId}/resend`);
+
+export const cancelInvitation = (clientId: string, invitationId: string) =>
+  apiClient.delete(`/clients/${clientId}/invitations/${invitationId}`);

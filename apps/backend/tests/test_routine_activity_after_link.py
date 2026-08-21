@@ -1,6 +1,6 @@
 """
-Rotina já vinculada a um cliente: atividades adicionadas depois do vínculo
-NÃO geram tasks separadas — a rotina é a própria task (1 task por ocorrência).
+Rotina já vinculada a um cliente: cada atividade vira um card; atividade
+adicionada depois do vínculo gera o card dela para o período corrente.
 
 Também cobre o toggle ativar/desativar de um client_template_assignment:
 vínculo desativado não gera via scheduler; reativado volta a gerar.
@@ -63,7 +63,7 @@ def client_tasks(client, auth, client_id):
     return resp.json()
 
 
-def test_new_activity_does_not_create_extra_task_after_link(client):
+def test_new_activity_generates_its_card_after_link(client):
     suf = uuid4().hex[:8]
     auth = get_auth_header(client, f"owner_{suf}@cafe.com")
 
@@ -71,16 +71,17 @@ def test_new_activity_does_not_create_extra_task_after_link(client):
     tmpl = create_template(client, auth, f"Rotina {suf}", "once")
     create_activity(client, auth, tmpl["id"], "Atividade 1")
 
-    # Vínculo gera a task da rotina (1 task por ocorrência)
+    # Vínculo gera 1 card (a atividade existente)
     assign_template(client, auth, cli["id"], tmpl["id"])
     tasks = client_tasks(client, auth, cli["id"])
     assert len(tasks) == 1
-    assert tasks[0]["title"] == f"Rotina {suf}"
+    assert tasks[0]["title"] == "Atividade 1"
 
-    # Nova atividade adicionada APÓS o vínculo → NÃO gera task nova
+    # Nova atividade adicionada APÓS o vínculo → gera o card dela
     create_activity(client, auth, tmpl["id"], "Atividade 2")
     tasks = client_tasks(client, auth, cli["id"])
-    assert len(tasks) == 1, f"Esperava 1 task (rotina), veio {len(tasks)}"
+    assert len(tasks) == 2, f"Esperava 2 cards (1 por atividade), veio {len(tasks)}"
+    assert {t["title"] for t in tasks} == {"Atividade 1", "Atividade 2"}
 
 
 def test_inactive_assignment_stops_scheduler_and_toggle_reactivates(client):
@@ -108,6 +109,24 @@ def test_inactive_assignment_stops_scheduler_and_toggle_reactivates(client):
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["is_active"] is False
+
+    # Conclui o card da vinculação para destravar gerações futuras (regra §1.2)
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.models import Task
+
+    db = SessionLocal()
+    db.query(Task).filter(
+        Task.assignment_id == UUID(assignment_id),
+        Task.completed_at.is_(None),
+        Task.is_cancelled == False,
+    ).update(
+        {"completed_at": datetime.now(timezone.utc)},
+        synchronize_session=False,
+    )
+    db.commit()
+    db.close()
 
     from src.modules.task_manager.scheduler import TaskScheduler
 

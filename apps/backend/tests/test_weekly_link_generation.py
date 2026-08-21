@@ -1,8 +1,8 @@
 """
 Test: geração de rotina SEMANAL no vínculo — comportamento esperado:
 - rotina com dias marcados (ex: Seg + Qui) vinculada no meio da semana gera
-  1 task por ocorrência restante da semana (dias já passados são ignorados);
-- a rotina é a própria task (atividades NÃO viram tasks separadas);
+  cards SOMENTE das ocorrências restantes da semana (dias passados ignorados);
+- 1 card por atividade em cada ocorrência, todos com o prazo da ocorrência;
 - dedup via routine_instance_id evita duplicar no mesmo período.
 """
 
@@ -74,7 +74,7 @@ def _make_assignment(client_id: str, tmpl_id: str, user_id) -> ClientTemplateAss
 
 
 def test_weekly_link_wednesday_generates_only_thursday(client):
-    """Rotina Seg+Qui vinculada na quarta → gera SOMENTE a task de quinta."""
+    """Rotina Seg+Qui vinculada na quarta → gera SÓ quinta (2 cards, 1 por atividade)."""
     suf = uuid4().hex[:8]
     email = f"weekly_{suf}@cafe.com"
     auth = get_auth_header(client, email)
@@ -94,10 +94,11 @@ def test_weekly_link_wednesday_generates_only_thursday(client):
     )
     db.commit()
 
-    assert len(tasks) == 1, f"Esperava somente a task de quinta, veio {len(tasks)}"
-    assert tasks[0].title == "Rotina Semanal Teste"
-    # 2026-07-16 é quinta → deadline 18:00 (ajustada p/ dia útil)
-    assert tasks[0].deadline.strftime("%Y-%m-%d") == "2026-07-16"
+    assert len(tasks) == 2, f"Esperava 2 cards (1 por atividade), veio {len(tasks)}"
+    titles = {t.title for t in tasks}
+    assert titles == {"Atividade Alpha", "Atividade Beta"}
+    # 2026-07-16 é quinta → todos os cards no prazo da ocorrência
+    assert all(t.deadline.strftime("%Y-%m-%d") == "2026-07-16" for t in tasks)
 
 
 def test_weekly_link_deduplicates_same_period(client):
@@ -120,7 +121,7 @@ def test_weekly_link_deduplicates_same_period(client):
         assignment, assignment.template, activities, user.id, now=now
     )
     db.commit()
-    assert len(first) == 1
+    assert len(first) == 2
 
     second = service._generate_for_activities(
         assignment, assignment.template, activities, user.id, now=now
@@ -130,7 +131,7 @@ def test_weekly_link_deduplicates_same_period(client):
 
 
 def test_weekly_link_monday_generates_monday_and_thursday(client):
-    """Rotina Seg+Qui vinculada na segunda → gera Seg + Qui (2 tasks)."""
+    """Rotina Seg+Qui vinculada na segunda → 4 cards (2 por dia, 1 por atividade)."""
     suf = uuid4().hex[:8]
     email = f"weekly_mon_{suf}@cafe.com"
     auth = get_auth_header(client, email)
@@ -150,8 +151,10 @@ def test_weekly_link_monday_generates_monday_and_thursday(client):
     )
     db.commit()
 
-    assert len(tasks) == 2, (
-        f"Segunda deveria gerar Seg + Qui (2 tasks), veio {len(tasks)}"
+    assert len(tasks) == 4, (
+        f"Segunda deveria gerar Seg + Qui × 2 atividades (4 cards), veio {len(tasks)}"
     )
     deadlines = sorted(t.deadline.strftime("%Y-%m-%d") for t in tasks)
-    assert deadlines == ["2026-07-20", "2026-07-23"]
+    assert deadlines == ["2026-07-20", "2026-07-20", "2026-07-23", "2026-07-23"]
+    titles = {t.title for t in tasks}
+    assert titles == {"Atividade Alpha", "Atividade Beta"}

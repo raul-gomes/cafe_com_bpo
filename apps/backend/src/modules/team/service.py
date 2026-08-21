@@ -162,7 +162,10 @@ class TeamService:
             )
 
         # Se o usuário já foi membro deste time e foi desvinculado,
-        # reativa a participação em vez de duplicar.
+        # reativa a participação em vez de duplicar. Em qualquer caso o
+        # convite é marcado como aceito para não duplicar na listagem.
+        invitation.status = "accepted"
+        invitation.accepted_at = datetime.now(timezone.utc)
         if self._get_inactive_member(invitation.team_id, user_id):
             self.repo.reactivate_member(invitation.team_id, user_id)
         else:
@@ -208,6 +211,10 @@ class TeamService:
             )
 
         client_id = self.repo.get_client_id_by_team_id(invitation.team_id)
+        # Sempre marca o convite como aceito (inclusive na reativação de um
+        # ex-membro) para não aparecer duplicado na listagem de convites.
+        invitation.status = "accepted"
+        invitation.accepted_at = datetime.now(timezone.utc)
         if self._get_inactive_member(invitation.team_id, user_id):
             self.repo.reactivate_member(invitation.team_id, user_id)
         else:
@@ -369,6 +376,33 @@ class TeamService:
             ],
         )
 
+    def cancel_invitation(
+        self, client_id: UUID, invitation_id: UUID, current_user_id: UUID
+    ) -> None:
+        """Cancela (remove) um convite enviado pelo gestor."""
+        client = self.repo.get_client_by_id(client_id)
+        if not client:
+            raise ValueError("Cliente não encontrado")
+        if client.user_id != current_user_id:
+            raise ValueError("Acesso negado")
+
+        team = self.repo.get_team_by_client_id(client_id)
+        if not team:
+            raise ValueError("Time não encontrado para este cliente")
+
+        invitation = self.repo.get_invitation_by_id(invitation_id)
+        if not invitation or invitation.team_id != team.id:
+            raise ValueError("Convite não encontrado")
+
+        if invitation.status == "accepted":
+            raise ValueError("Este convite já foi aceito; remova o membro da equipe")
+
+        self.repo.cancel_invitation(invitation)
+        log.info(
+            f"🚫 Convite {invitation_id} cancelado para {invitation.invited_email} "
+            f"no cliente {client_id}"
+        )
+
     def remove_member(
         self, client_id: UUID, user_id: UUID, current_user_id: UUID
     ) -> None:
@@ -414,6 +448,34 @@ class TeamService:
             f"🔓 Acesso do membro {user_id} à rotina {template_id} revogado "
             f"no cliente {client_id}"
         )
+
+    def grant_routine_to_member(
+        self,
+        client_id: UUID,
+        user_id: UUID,
+        template_id: UUID,
+        current_user_id: UUID,
+    ) -> None:
+        """Concede o acesso de um membro a uma rotina do cliente."""
+        client = self.repo.get_client_by_id(client_id)
+        if not client:
+            raise ValueError("Cliente não encontrado")
+        if client.user_id != current_user_id:
+            raise ValueError("Apenas o gestor pode conceder o acesso a rotinas")
+
+        invitation = self.repo.get_accepted_invitation_for_user(client_id, user_id)
+        if not invitation:
+            raise ValueError("Membro não encontrado")
+
+        tmpl = self.repo.get_template_by_id(template_id)
+        if not tmpl:
+            raise ValueError("Rotina não encontrada")
+
+        if self.repo.add_routine_to_invitation(invitation.id, template_id):
+            log.info(
+                f"🔒 Acesso do membro {user_id} à rotina {template_id} concedido "
+                f"no cliente {client_id}"
+            )
 
     def _send_invite_email(
         self,

@@ -159,6 +159,29 @@ def resend_invitation(
 
 
 @router.delete(
+    "/clients/{client_id}/invitations/{invitation_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def cancel_invitation(
+    client_id: UUID,
+    invitation_id: UUID,
+    repo: RepoDep,
+    current_user: CurrentUserDep,
+):
+    """Cancelar (remover) um convite enviado."""
+    service = TeamService(repo)
+    try:
+        service.cancel_invitation(client_id, invitation_id, current_user.id)
+    except ValueError as e:
+        status_code = (
+            status.HTTP_403_FORBIDDEN
+            if "Acesso negado" in str(e)
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=str(e))
+
+
+@router.delete(
     "/clients/{client_id}/team/{user_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
@@ -172,6 +195,32 @@ def remove_team_member(
     service = TeamService(repo)
     try:
         service.remove_member(client_id, user_id, current_user.id)
+    except ValueError as e:
+        status_code = (
+            status.HTTP_403_FORBIDDEN
+            if "Apenas o gestor" in str(e)
+            else status.HTTP_400_BAD_REQUEST
+        )
+        raise HTTPException(status_code=status_code, detail=str(e))
+
+
+@router.post(
+    "/clients/{client_id}/team/{user_id}/routines/{template_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def grant_routine_to_member(
+    client_id: UUID,
+    user_id: UUID,
+    template_id: UUID,
+    repo: RepoDep,
+    current_user: CurrentUserDep,
+):
+    """Conceder o acesso de um membro da equipe a uma rotina."""
+    service = TeamService(repo)
+    try:
+        service.grant_routine_to_member(
+            client_id, user_id, template_id, current_user.id
+        )
     except ValueError as e:
         status_code = (
             status.HTTP_403_FORBIDDEN

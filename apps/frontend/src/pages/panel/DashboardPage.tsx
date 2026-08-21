@@ -129,15 +129,6 @@ export const DashboardPage: React.FC = () => {
         </h1>
       </div>
 
-      {/* Pending Team Invitations */}
-      {summary?.pending_invitations && summary.pending_invitations.length > 0 && (
-        <section className="mb-8">
-          {summary.pending_invitations.map((invitation) => (
-            <PendingInvitationCard key={invitation.invitation_id} invitation={invitation} />
-          ))}
-        </section>
-      )}
-
       <div className="grid grid-cols-[1fr_300px] gap-8">
         {/* Main column */}
         <div className="min-w-0">
@@ -208,75 +199,89 @@ export const DashboardPage: React.FC = () => {
           {/* Activity Feed */}
           <section>
             <h2 className="mb-4 flex items-center gap-2 text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
-              <MessageSquare size={16} /> Atualizações do Fórum
+              <Bell size={16} /> Novidades
             </h2>
 
             <div className="flex flex-col gap-3">
-              {summary?.activities && summary.activities.length > 0 ? (
-                summary.activities.map((activity) => (
-                  <Card
-                    key={activity.id}
-                    className="cursor-pointer p-0"
-                    onClick={() => handleActivityClick(activity)}
-                  >
-                    <div className="flex gap-4 p-4">
-                      <div
-                        className={cn(
-                          'flex size-10 items-center justify-center rounded-xl',
-                          activity.is_read ? 'bg-white/5' : 'bg-primary/10'
-                        )}
-                      >
-                        {activity.type === 'post_commented' ? (
-                          <MessageSquare
-                            size={20}
-                            className={activity.is_read ? 'text-muted-foreground' : 'text-primary-strong'}
-                          />
-                        ) : (
-                          <Bell size={20} className="text-primary-strong" />
-                        )}
-                      </div>
+              {(() => {
+                const hasInvitations = (summary?.pending_invitations?.length ?? 0) > 0;
+                const hasActivities = (summary?.activities?.length ?? 0) > 0;
 
-                      <div className="flex-1">
-                        <div
-                          className={cn(
-                            'text-[14px] leading-relaxed',
-                            activity.is_read ? 'font-normal text-foreground' : 'font-semibold text-foreground'
-                          )}
+                if (hasInvitations || hasActivities) {
+                  return (
+                    <>
+                      {summary?.pending_invitations?.map((invitation) => (
+                        <PendingInvitationCard key={invitation.invitation_id} invitation={invitation} />
+                      ))}
+                      {summary?.activities?.map((activity) => (
+                        <Card
+                          key={activity.id}
+                          className="cursor-pointer p-0"
+                          onClick={() => handleActivityClick(activity)}
                         >
-                          {activity.type === 'post_commented' ? (
-                            <><strong>{activity.triggered_by_name}</strong> respondeu ao seu tópico no fórum</>
-                          ) : (
-                            <>Notificação do sistema</>
-                          )}
-                        </div>
+                          <div className="flex gap-4 p-4">
+                            <div
+                              className={cn(
+                                'flex size-10 items-center justify-center rounded-xl',
+                                activity.is_read ? 'bg-white/5' : 'bg-primary/10'
+                              )}
+                            >
+                              {activity.type === 'post_commented' ? (
+                                <MessageSquare
+                                  size={20}
+                                  className={activity.is_read ? 'text-muted-foreground' : 'text-primary-strong'}
+                                />
+                              ) : (
+                                <Bell size={20} className="text-primary-strong" />
+                              )}
+                            </div>
 
-                        {activity.message_snippet && (
-                          <div className="mt-2 rounded-md border-l-[3px] border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] italic text-muted-foreground">
-                            &ldquo;{activity.message_snippet}&hellip;&rdquo;
+                            <div className="flex-1">
+                              <div
+                                className={cn(
+                                  'text-[14px] leading-relaxed',
+                                  activity.is_read ? 'font-normal text-foreground' : 'font-semibold text-foreground'
+                                )}
+                              >
+                                {activity.type === 'post_commented' ? (
+                                  <><strong>{activity.triggered_by_name}</strong> respondeu ao seu tópico no fórum</>
+                                ) : (
+                                  <>Notificação do sistema</>
+                                )}
+                              </div>
+
+                              {activity.message_snippet && (
+                                <div className="mt-2 rounded-md border-l-[3px] border-white/10 bg-white/[0.03] px-3 py-2 text-[13px] italic text-muted-foreground">
+                                  &ldquo;{activity.message_snippet}&hellip;&rdquo;
+                                </div>
+                              )}
+
+                              <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                <Clock size={12} /> {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true, locale: ptBR })}
+                              </div>
+                            </div>
                           </div>
-                        )}
+                        </Card>
+                      ))}
+                    </>
+                  );
+                }
 
-                        <div className="mt-2 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                          <Clock size={12} /> {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true, locale: ptBR })}
-                        </div>
-                      </div>
+                return (
+                  <Card className="border-dashed bg-white/[0.02] p-12 text-center">
+                    <div className="mb-4 opacity-50">
+                      <Bell size={40} className="mx-auto" />
+                    </div>
+                    <div className="mb-2 text-[16px] font-semibold text-foreground">
+                      Tudo em ordem por aqui!
+                    </div>
+                    <div className="text-[13px] text-muted-foreground">
+                      Você não tem novas notificações no momento. <br />
+                      Aproveite para focar nas suas tarefas ou dar uma olhada no fórum.
                     </div>
                   </Card>
-                ))
-              ) : (
-                <Card className="border-dashed bg-white/[0.02] p-12 text-center">
-                  <div className="mb-4 opacity-50">
-                    <Bell size={40} className="mx-auto" />
-                  </div>
-                  <div className="mb-2 text-[16px] font-semibold text-foreground">
-                    Tudo em ordem por aqui!
-                  </div>
-                  <div className="text-[13px] text-muted-foreground">
-                    Você não tem novas notificações no momento. <br />
-                    Aproveite para focar nas suas tarefas ou dar uma olhada no fórum.
-                  </div>
-                </Card>
-              )}
+                );
+              })()}
             </div>
           </section>
         </div>

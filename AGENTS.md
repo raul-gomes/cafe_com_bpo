@@ -48,8 +48,11 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 - **Dashboard module has no models**: It's an aggregation layer that queries other modules' models directly.
 - **Pricing has a DDD domain engine**: `modules/pricing/domain/engine.py` is framework-agnostic dataclasses; the service layer translates between API and domain.
 - **Static avatar serving**: `storage/avatars/` is mounted at `/avatars` in `main.py`.
+- **SSE real-time**: `task_manager/broadcast.py` (`BroadcastManager` singleton) uses PostgreSQL LISTEN/NOTIFY to push task phase changes and team management changes to connected clients via `GET /tasks/events`. Triggers: `trg_notify_task_update` (task_updates), `trg_notify_invitation_routines`/`trg_notify_team_members`/`trg_notify_team_invitations` (team_updates). In SQLite (tests), the listener is skipped. Nginx requires `proxy_buffering off` for SSE.
 - **Always**: Code using TDD method.
 - **Always**: Update `lineage.md` in in root directory whenever the database structure changes.
+- **Always**: Update `docs/tree_files.md` whenever you create, rename, move or delete a file/function — it is the catalog of every file with its functions and purpose.
+- **Always**: Business rules in `docs/regras_negocio.md` MUST NOT be violated by any implementation. Before changing anything that touches a documented business rule, ALWAYS ask the product owner if the rule is still correct. Update that file whenever a business rule is created or changes.
 
 
 ### Frontend quirks
@@ -102,6 +105,9 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 ## Key Reference Files
 
 - `MODULES.md` — Full module documentation and dependency graph
+- `docs/tree_files.md` — Catalog of every file with its functions and purpose (keep updated)
+- `docs/regras_negocio.md` — Business rules catalog (MUST NOT be violated; confirm with product owner before changing)
+- `docs/architecture.md` — Architectural patterns and decisions (keep updated when patterns change)
 - `docker-compose.yml` — Service definitions and env vars
 - `.github/workflows/main.yml` — CI/CD pipeline
 - `apps/backend/entrypoint.sh` — Docker startup: `alembic upgrade head` then uvicorn

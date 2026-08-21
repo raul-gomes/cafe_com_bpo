@@ -458,6 +458,10 @@ class TaskScheduler:
         apply_weekly = False
         apply_monthly = False
         apply_yearly = False
+        # Bônus "semanal também gera os dailies de segunda" só vale na rodada
+        # automática de domingo — o botão semanal (mode="weekly") não gera cards
+        # de rotinas diárias.
+        weekly_from_auto = False
 
         if mode == "daily":
             apply_daily = True
@@ -471,9 +475,11 @@ class TaskScheduler:
             # ── Auto-detect ──
             if current.weekday() == 6:  # Sunday
                 apply_weekly = True
-            elif 0 <= current.weekday() <= 3:  # Mon–Thu
+                weekly_from_auto = True
+            elif 0 <= current.weekday() <= 4:  # Mon–Fri (dias úteis)
+                # Sexta gera os cards de segunda (next_business_day pula o fim de semana)
                 apply_daily = True
-            # Friday (4) and Saturday (5) → no daily/weekly
+            # Saturday (5) → no daily/weekly
 
             if is_last_business_day_of_month(current):
                 apply_monthly = True
@@ -528,7 +534,7 @@ class TaskScheduler:
                     )
 
                 # ── Weekly rule: also generate Monday's daily tasks ──
-                if apply_weekly and tmpl.recurrence == "daily":
+                if apply_weekly and weekly_from_auto and tmpl.recurrence == "daily":
                     self._add_weekly_monday_daily(
                         current,
                         assignment,
@@ -565,34 +571,47 @@ class TaskScheduler:
                         candidates,
                     )
 
-                # ── Create tasks (with dedup via routine_instance_id) ──
-                estimate = sum(a.estimated_minutes or 0 for a in activities) or None
+                # ── Create tasks (one card per activity, dedup per occurrence) ──
+                created_this_pass: set[str] = set()
                 for deadline, period_key in candidates:
-                    instance_id = build_routine_instance_id(
-                        assignment.id,
-                        tmpl.name,
-                        period_key,
-                    )
-                    if assign_repo.task_exists_by_instance_id(instance_id):
-                        skipped += 1
-                        continue
+                    for activity in activities:
+                        # Regra de negócio (docs/regras_negocio.md §1.2): card
+                        # pendente da atividade bloqueia nova geração até ser
+                        # concluído ou cancelado. Cards criados nesta mesma
+                        # passada não se bloqueiam mutuamente.
+                        if activity.name not in created_this_pass and (
+                            assign_repo.has_pending_task(assignment.id, activity.name)
+                        ):
+                            skipped += 1
+                            continue
 
-                    task_data = TaskCreate(
-                        title=tmpl.name,
-                        description=tmpl.description,
-                        client_id=assignment.client_id,
-                        priority="medium",
-                        process_type=tmpl.process_type,
-                        deadline=deadline,
-                        time_estimate_minutes=estimate,
-                        template_id=tmpl.id,
-                        assignment_id=assignment.id,
-                        routine_instance_id=instance_id,
-                    )
-                    task = task_repo.create(task_data, assignment.user_id)
-                    if first_phase:
-                        task.phase_id = first_phase.id
-                    generated += 1
+                        instance_id = build_routine_instance_id(
+                            assignment.id,
+                            activity.name,
+                            period_key,
+                        )
+                        if assign_repo.task_exists_by_instance_id(instance_id):
+                            skipped += 1
+                            continue
+
+                        task_data = TaskCreate(
+                            title=activity.name,
+                            description=activity.description or tmpl.description,
+                            client_id=assignment.client_id,
+                            priority="medium",
+                            process_type=tmpl.process_type,
+                            deadline=deadline,
+                            time_estimate_minutes=activity.estimated_minutes,
+                            template_id=tmpl.id,
+                            assignment_id=assignment.id,
+                            routine_instance_id=instance_id,
+                        )
+                        task = task_repo.create(task_data, assignment.user_id)
+                        task.phase_id = activity.phase_id or (
+                            first_phase.id if first_phase else None
+                        )
+                        created_this_pass.add(activity.name)
+                        generated += 1
 
                 if generated or skipped:
                     db.commit()

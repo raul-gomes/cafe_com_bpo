@@ -11,8 +11,10 @@ import {
   listTeamMembers,
   removeTeamMember,
   revokeRoutineFromMember,
+  grantRoutineToMember,
   listInvitations,
   resendInvitation,
+  cancelInvitation,
   TeamMemberResponse,
   InvitationResponse,
 } from '../../api/team';
@@ -74,6 +76,8 @@ export const EmpresasPage: React.FC = () => {
   const { data: currentAssignments, refetch: refetchAssignments } = useClientAssignments(linkClientId || '');
   const { data: teamAssignments, refetch: refetchTeamAssignments } = useClientAssignments(teamClientId || '');
   const [showAddRoutine, setShowAddRoutine] = useState(false);
+  const [memberRoutinePicker, setMemberRoutinePicker] = useState<string | null>(null);
+  const teamClient = clients.find(c => c.id === teamClientId);
 
   // Derive linked templates (with name) from assignments + templates list
   const linkedTemplates = React.useMemo(() => {
@@ -112,6 +116,7 @@ export const EmpresasPage: React.FC = () => {
     setLookedUpEmails(new Set());
     setUserDataMap(new Map());
     setShowAddRoutine(false);
+    setMemberRoutinePicker(null);
   }, [teamClientId]);
 
   // Auto-lookup emails when chips change
@@ -264,6 +269,23 @@ export const EmpresasPage: React.FC = () => {
     }
   };
 
+  const [cancellingId, setCancellingId] = useState<string | null>(null);
+
+  const handleCancelInvitation = async (invitationId: string, email: string) => {
+    if (!teamClientId) return;
+    setCancellingId(invitationId);
+    try {
+      await cancelInvitation(teamClientId, invitationId);
+      toast.success(`Convite para ${email} cancelado`);
+      setInvitations(prev => prev.filter(i => i.invitation_id !== invitationId));
+      loadTeam(teamClientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Erro ao cancelar convite');
+    } finally {
+      setCancellingId(null);
+    }
+  };
+
   const handleInvite = async () => {
     if (inviteEmails.length === 0 || !teamClientId) return;
     setInviting(true);
@@ -323,6 +345,23 @@ export const EmpresasPage: React.FC = () => {
       toast.error(e?.response?.data?.detail || 'Erro ao revogar acesso à rotina');
     } finally {
       setRevokingRoutine(null);
+    }
+  };
+
+  const [grantingRoutine, setGrantingRoutine] = useState<string | null>(null);
+
+  const handleGrantRoutine = async (userId: string, templateId: string, routineName: string) => {
+    if (!teamClientId) return;
+    const key = `${userId}:${templateId}`;
+    setGrantingRoutine(key);
+    try {
+      await grantRoutineToMember(teamClientId, userId, templateId);
+      toast.success(`Acesso à rotina "${routineName}" concedido`);
+      loadTeam(teamClientId);
+    } catch (e: any) {
+      toast.error(e?.response?.data?.detail || 'Erro ao conceder acesso à rotina');
+    } finally {
+      setGrantingRoutine(null);
     }
   };
 
@@ -587,14 +626,14 @@ export const EmpresasPage: React.FC = () => {
           <DialogHeader>
             <div className="flex items-center gap-3">
               <Users size={20} className="text-primary-strong" />
-              <DialogTitle>Equipe do Cliente</DialogTitle>
+              <DialogTitle>Equipe de {teamClient?.name || 'Cliente'}</DialogTitle>
             </div>
             <DialogDescription>
-              Gerencie os colaboradores que têm acesso a este cliente.
+              Gerencie os colaboradores que têm acesso a {teamClient?.name ? `"${teamClient.name}"` : 'este cliente'}.
             </DialogDescription>
           </DialogHeader>
 
-          <div className="px-6 pb-6">
+          <div className="min-w-0 px-6 pb-6">
             {/* Invite button */}
             {!showInvite && (
               <Button
@@ -697,10 +736,10 @@ export const EmpresasPage: React.FC = () => {
                     return (
                       <div
                         key={inv.invitation_id}
-                        className="flex items-center gap-3 rounded-md border border-border p-3"
+                        className="flex items-center gap-3 rounded-md border border-border p-4"
                       >
                         <div className={cn(
-                          'flex h-9 w-9 items-center justify-center rounded-full text-sm font-bold',
+                          'flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold',
                           isPending ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
                             : isAccepted ? 'bg-emerald-500/15 text-emerald-500'
                             : isExpired ? 'bg-muted text-muted-foreground'
@@ -729,17 +768,32 @@ export const EmpresasPage: React.FC = () => {
                             )}
                           </div>
                         </div>
-                        {(isPending || isExpired || isDeclined) && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleResend(inv.invitation_id, inv.email)}
-                            disabled={resendingId === inv.invitation_id}
-                          >
-                            <Send size={13} />
-                            {resendingId === inv.invitation_id ? 'Reenviando...' : 'Reenviar'}
-                          </Button>
-                        )}
+                        <div className="flex shrink-0 items-center gap-1.5">
+                          {(isPending || isExpired || isDeclined) && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleResend(inv.invitation_id, inv.email)}
+                              disabled={resendingId === inv.invitation_id}
+                            >
+                              <Send size={13} />
+                              {resendingId === inv.invitation_id ? 'Reenviando...' : 'Reenviar'}
+                            </Button>
+                          )}
+                          {!isAccepted && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="text-destructive hover:text-destructive"
+                              onClick={() => handleCancelInvitation(inv.invitation_id, inv.email)}
+                              disabled={cancellingId === inv.invitation_id}
+                              title="Cancelar convite"
+                            >
+                              <X size={14} />
+                              {cancellingId === inv.invitation_id ? 'Cancelando...' : 'Cancelar'}
+                            </Button>
+                          )}
+                        </div>
                       </div>
                     );
                   })}
@@ -767,6 +821,9 @@ export const EmpresasPage: React.FC = () => {
                     <div className="flex-1 min-w-0">
                       <div className="text-sm font-semibold">{member.name || 'Sem nome'}</div>
                       <div className="text-xs text-muted-foreground">{member.email}</div>
+                      <div className="text-[11px] text-muted-foreground/70">
+                        Cliente: <span className="font-medium text-muted-foreground">{teamClient?.name || '—'}</span>
+                      </div>
                       <div className="mt-1 flex flex-wrap gap-1">
                         {member.routines.map(r => (
                           <span key={r.template_id} className="inline-flex items-center gap-1 rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
@@ -786,6 +843,64 @@ export const EmpresasPage: React.FC = () => {
                           </span>
                         ))}
                       </div>
+                      {/* Incluir rotina (botão único + seletor) */}
+                      {(() => {
+                        const grantedIds = new Set(member.routines.map(r => r.template_id));
+                        const available = linkedTemplates.filter(t => !grantedIds.has(t.id));
+                        if (available.length === 0) return null;
+                        const isOpen = memberRoutinePicker === member.user_id;
+                        return (
+                          <div className="mt-1.5">
+                            {!isOpen ? (
+                              <button
+                                type="button"
+                                className="inline-flex items-center gap-1 rounded-sm border border-dashed border-border px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setMemberRoutinePicker(member.user_id);
+                                }}
+                              >
+                                <Plus size={12} /> Incluir rotina
+                              </button>
+                            ) : (
+                              <div className="rounded-md border border-border bg-muted/40 p-2">
+                                <div className="mb-1.5 flex items-center justify-between">
+                                  <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">
+                                    Rotinas do cliente
+                                  </span>
+                                  <button
+                                    type="button"
+                                    className="rounded-sm p-0.5 text-muted-foreground/60 transition-colors hover:text-foreground"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setMemberRoutinePicker(null);
+                                    }}
+                                    title="Fechar"
+                                  >
+                                    <X size={12} />
+                                  </button>
+                                </div>
+                                <div className="flex flex-col gap-1">
+                                  {available.map(t => (
+                                    <button
+                                      key={t.id}
+                                      type="button"
+                                      className="inline-flex items-center gap-1.5 rounded-sm border border-border bg-background px-2 py-1 text-left text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:opacity-50"
+                                      disabled={grantingRoutine === `${member.user_id}:${t.id}`}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        handleGrantRoutine(member.user_id, t.id, t.name);
+                                      }}
+                                    >
+                                      <Plus size={11} /> {t.name}
+                                    </button>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })()}
                     </div>
                     <Button
                       variant="ghost"
@@ -877,6 +992,7 @@ export const EmpresasPage: React.FC = () => {
                         onClick={async () => {
                           await updateAssignment.mutateAsync({ id: assignment.id, is_active: !assignment.is_active });
                           refetchTeamAssignments();
+                          if (teamClientId) loadTeam(teamClientId);
                         }}
                       >
                         {assignment.is_active ? 'Desativar' : 'Ativar'}

@@ -34,7 +34,7 @@ export const PendingInvitationCard: React.FC<PendingInvitationCardProps> = ({ in
   });
 
   return (
-    <Card className="border-l-4 border-l-primary p-5 mb-10">
+    <Card className="border-l-4 border-l-primary p-5">
       <CardContent className="p-0">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-start gap-4">

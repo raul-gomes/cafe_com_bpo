@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session
 
 from src.modules.auth.models import User
 from src.modules.clients.models import Client
-from src.modules.task_manager.models import ActivityTemplate
+from src.modules.task_manager.models import ActivityTemplate, ClientTemplateAssignment
 
 from .models import (
     InvitationRoutine,
@@ -145,6 +145,14 @@ class TeamRepository:
             .first()
         )
 
+    def cancel_invitation(self, invitation: TeamInvitation) -> None:
+        """Remove um convite (gestor cancela o convite enviado).
+
+        As rotinas vinculadas ao convite são removidas por CASCADE.
+        """
+        self.session.delete(invitation)
+        self.session.commit()
+
     def refresh_invitation(
         self, invitation: TeamInvitation
     ) -> tuple[TeamInvitation, str]:
@@ -165,12 +173,29 @@ class TeamRepository:
     def accept_invitation_for_user(
         self, invitation: TeamInvitation, user_id: UUID
     ) -> TeamMember:
-        """Accept an invitation and create a team member entry."""
+        """Accept an invitation and create a team member entry.
+
+        Se já existe um membro ATIVO no mesmo time, não cria duplicata:
+        apenas confirma o convite como aceito.
+        """
         invitation.status = "accepted"
         invitation.accepted_at = datetime.now(timezone.utc)
 
         self.ensure_default_roles()
         member_role = self.get_role_by_name(ROLE_MEMBER) or Role(role=ROLE_MEMBER)
+
+        existing = (
+            self.session.query(TeamMember.id)
+            .filter(
+                TeamMember.team_id == invitation.team_id,
+                TeamMember.user_id == user_id,
+                TeamMember.is_active,
+            )
+            .first()
+        )
+        if existing:
+            self.session.commit()
+            return TeamMember(id=existing[0], team_id=invitation.team_id, user_id=user_id)
 
         member = TeamMember(
             team_id=invitation.team_id,
@@ -245,7 +270,7 @@ class TeamRepository:
         return [r[0] for r in results]
 
     def remove_member(self, team_id: UUID, user_id: UUID) -> bool:
-        """Desvincula o membro do time (is_active = False)."""
+        """Desvincula o membro do time e revoga acesso a rotinas."""
         member = (
             self.session.query(TeamMember)
             .filter(
@@ -258,6 +283,22 @@ class TeamRepository:
         if not member:
             return False
         member.is_active = False
+
+        # Revogar convite aceito para limpar acesso a rotinas
+        user = self.get_user_by_id(user_id)
+        if user:
+            invitation = (
+                self.session.query(TeamInvitation)
+                .filter(
+                    TeamInvitation.team_id == team_id,
+                    TeamInvitation.invited_email == user.email,
+                    TeamInvitation.status == "accepted",
+                )
+                .first()
+            )
+            if invitation:
+                invitation.status = "declined"
+
         self.session.commit()
         return True
 
@@ -273,11 +314,27 @@ class TeamRepository:
         )
 
     def reactivate_member(self, team_id: UUID, user_id: UUID) -> TeamMember:
-        """Reativa um membro desvinculado do time."""
+        """Reativa um membro desvinculado do time e restaura acesso a rotinas."""
         member = self.get_inactive_member(team_id, user_id)
         if not member:
             raise ValueError("Membro não encontrado para reativação")
         member.is_active = True
+
+        # Restaurar convite para restaurar acesso a rotinas
+        user = self.get_user_by_id(user_id)
+        if user:
+            invitation = (
+                self.session.query(TeamInvitation)
+                .filter(
+                    TeamInvitation.team_id == team_id,
+                    TeamInvitation.invited_email == user.email,
+                    TeamInvitation.status == "declined",
+                )
+                .first()
+            )
+            if invitation:
+                invitation.status = "accepted"
+
         self.session.commit()
         self.session.refresh(member)
         return member
@@ -332,10 +389,68 @@ class TeamRepository:
         self.session.commit()
         return deleted
 
+    def add_routine_to_invitation(self, invitation_id: UUID, template_id: UUID) -> bool:
+        """Concede o acesso a uma rotina em um convite (idempotente).
+
+        Returns True se criou o acesso, False se o membro já possuía.
+        """
+        existing = (
+            self.session.query(InvitationRoutine.template_id)
+            .filter(
+                InvitationRoutine.invitation_id == invitation_id,
+                InvitationRoutine.template_id == template_id,
+            )
+            .first()
+        )
+        if existing:
+            return False
+        self.session.add(
+            InvitationRoutine(
+                invitation_id=invitation_id,
+                template_id=template_id,
+            )
+        )
+        self.session.commit()
+        return True
+
+    def remove_template_access_from_team(
+        self, client_id: UUID, template_id: UUID
+    ) -> int:
+        """Remove o acesso de TODOS os convites do time do cliente a uma rotina.
+
+        Usado quando a rotina é desvinculada do cliente: a equipe e os
+        colaboradores perdem o acesso ao template.
+        """
+        team = self.get_team_by_client_id(client_id)
+        if not team:
+            return 0
+        invitation_ids = [
+            row[0]
+            for row in self.session.query(TeamInvitation.id)
+            .filter(TeamInvitation.team_id == team.id)
+            .all()
+        ]
+        if not invitation_ids:
+            return 0
+        deleted = (
+            self.session.query(InvitationRoutine)
+            .filter(
+                InvitationRoutine.template_id == template_id,
+                InvitationRoutine.invitation_id.in_(invitation_ids),
+            )
+            .delete(synchronize_session=False)
+        )
+        self.session.commit()
+        return deleted
+
     def get_routines_for_member(
         self, client_id: UUID, user_id: UUID
     ) -> list[ActivityTemplate]:
-        """Get all templates that a member has access to for a client."""
+        """Get all active templates that a member has access to for a client.
+
+        Filters by ClientTemplateAssignment.is_active when an assignment exists.
+        Routines without any assignment are included (granted directly).
+        """
         invitation = self.get_accepted_invitation_for_user(client_id, user_id)
         if not invitation:
             return []
@@ -349,11 +464,70 @@ class TeamRepository:
         if not template_ids:
             return []
 
+        template_id_set = set(template_ids)
+        all_assignments = self.session.query(ClientTemplateAssignment).all()
+        assignment_map = {
+            a.template_id: a
+            for a in all_assignments
+            if a.client_id == client_id and a.template_id in template_id_set
+        }
+
+        active_ids = set()
+        for tid in template_id_set:
+            assignment = assignment_map.get(tid)
+            if assignment is None or assignment.is_active:
+                active_ids.add(tid)
+
+        if not active_ids:
+            return []
+
         return (
             self.session.query(ActivityTemplate)
-            .filter(ActivityTemplate.id.in_(template_ids))
+            .filter(ActivityTemplate.id.in_(list(active_ids)))
             .all()
         )
+
+    def restore_template_access_to_team(
+        self, client_id: UUID, template_id: UUID
+    ) -> int:
+        """Restaura acesso de todos os convites aceitos do time a uma rotina.
+
+        Usado quando o vínculo é reativado.
+        """
+        team = self.get_team_by_client_id(client_id)
+        if not team:
+            return 0
+        accepted_invitations = [
+            inv.id
+            for inv in self.session.query(TeamInvitation)
+            .filter(
+                TeamInvitation.team_id == team.id,
+                TeamInvitation.status == "accepted",
+            )
+            .all()
+        ]
+        if not accepted_invitations:
+            return 0
+        already_granted = {
+            row[0]
+            for row in self.session.query(InvitationRoutine.invitation_id)
+            .filter(
+                InvitationRoutine.template_id == template_id,
+                InvitationRoutine.invitation_id.in_(accepted_invitations),
+            )
+            .all()
+        }
+        count = 0
+        for inv_id in accepted_invitations:
+            if inv_id not in already_granted:
+                self.session.add(
+                    InvitationRoutine(
+                        invitation_id=inv_id, template_id=template_id
+                    )
+                )
+                count += 1
+        self.session.commit()
+        return count
 
     # ── Helpers ──
 

@@ -335,6 +335,16 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 - `core/email.py` — enfileira `email_deliveries` com idempotência.
 - `calendar/service.py` — lê tokens e sincroniza `tasks`.
 
+### Real-time (SSE + PostgreSQL LISTEN/NOTIFY)
+- **Triggers task_updates**: `trg_notify_task_update` na tabela `tasks` — dispara `pg_notify('task_updates', payload)` quando `phase_id` muda.
+- **Triggers team_updates**:
+  - `trg_notify_invitation_routines` em `invitation_routines` — INSERT/DELETE (rotina adicionada/removida)
+  - `trg_notify_team_members` em `team_members` — UPDATE is_active (membro adicionado/removido)
+  - `trg_notify_team_invitations` em `team_invitations` — UPDATE status (convite aceito/declinado)
+- **Listener**: `task_manager/broadcast.py` → `BroadcastManager._listen()` conecta via psycopg em 2 canais (`task_updates`, `team_updates`) e distribui eventos para filas `asyncio.Queue` dos clientes SSE.
+- **Endpoint**: `GET /tasks/events` (StreamingResponse) — clientes abrem conexão SSE e recebem eventos.
+- **Frontend**: `useTaskEvents()` hook → `EventSource` conecta ao endpoint → invalida cache `['tasks']` ao receber evento → boards atualizam automaticamente.
+
 ---
 
 ## Quem consulta o quê — camada Frontend

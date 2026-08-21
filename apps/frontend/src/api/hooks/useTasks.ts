@@ -280,8 +280,8 @@ export const useTasks = () => {
         const { data } = await apiClient.post(`/tasks/templates/${template_id}/activities/`, activity);
         return data;
       },
-      onSuccess: (_data, variables) => {
-        queryClient.invalidateQueries({ queryKey: ['task-templates', variables.template_id] });
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['task-templates'] });
       },
     });
   };
@@ -292,8 +292,8 @@ export const useTasks = () => {
         const { data } = await apiClient.put(`/tasks/templates/${template_id}/activities/${id}`, activity);
         return data;
       },
-      onSuccess: (_data, variables) => {
-        queryClient.invalidateQueries({ queryKey: ['task-templates', variables.template_id] });
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['task-templates'] });
       },
     });
   };
@@ -303,8 +303,8 @@ export const useTasks = () => {
       mutationFn: async ({ template_id, id }: { template_id: string; id: string }) => {
         await apiClient.delete(`/tasks/templates/${template_id}/activities/${id}`);
       },
-      onSuccess: (_data, variables) => {
-        queryClient.invalidateQueries({ queryKey: ['task-templates', variables.template_id] });
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['task-templates'] });
       },
     });
   };

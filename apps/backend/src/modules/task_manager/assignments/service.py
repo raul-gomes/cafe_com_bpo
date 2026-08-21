@@ -11,6 +11,7 @@ from uuid import UUID
 from src.core.logger import log
 from src.core.utils import next_business_day as nb_util
 
+from ...team.repository import TeamRepository
 from ..assignments.repository import AssignmentRepository
 from ..scheduler import (
     build_routine_instance_id,
@@ -35,12 +36,14 @@ class AssignmentService:
         assignment_repo: AssignmentRepository,
         template_repo: TemplateRepository | None = None,
         task_repo: TaskRepository | None = None,
+        team_repo: TeamRepository | None = None,
     ):
         self.assignment_repo = assignment_repo
         self.template_repo = template_repo or TemplateRepository(
             assignment_repo.session
         )
         self.task_repo = task_repo or TaskRepository(assignment_repo.session)
+        self.team_repo = team_repo
 
     def _build_task(
         self,
@@ -49,34 +52,43 @@ class AssignmentService:
         client_id: UUID,
         template_id: UUID,
         tmpl,
+        activity,
         user_id: UUID,
         first_phase,
         period_key: str,
-        time_estimate_minutes: int | None = None,
+        pending_exempt: set[str] | None = None,
     ):
-        """Create a single task from an activity, with dedup check via routine_instance_id."""
+        """Create one task card per activity, with dedup via routine_instance_id."""
+        # Regra de negócio (docs/regras_negocio.md §1.2): se já existe card desta
+        # atividade em "a fazer"/"em andamento", não criar novo — aguarda
+        # conclusão ou cancelamento do card atual. Atividades recém-criadas na
+        # mesma execução (pending_exempt) não se bloqueiam mutuamente — ex.:
+        # rotina seg+qui vinculada na segunda gera seg E qui.
+        if activity.name not in (pending_exempt or set()) and (
+            self.assignment_repo.has_pending_task(assignment.id, activity.name)
+        ):
+            return None
         instance_id = build_routine_instance_id(
             assignment.id,
-            tmpl.name,
+            activity.name,
             period_key,
         )
         if self.assignment_repo.task_exists_by_instance_id(instance_id):
             return None
         task_data = TaskCreate(
-            title=tmpl.name,
-            description=tmpl.description,
+            title=activity.name,
+            description=activity.description or tmpl.description,
             client_id=client_id,
             priority="medium",
             process_type=tmpl.process_type,
             deadline=deadline,
-            time_estimate_minutes=time_estimate_minutes,
+            time_estimate_minutes=activity.estimated_minutes,
             template_id=template_id,
             assignment_id=assignment.id,
             routine_instance_id=instance_id,
         )
         task = self.task_repo.create(task_data, user_id)
-        if first_phase:
-            task.phase_id = first_phase.id
+        task.phase_id = activity.phase_id or (first_phase.id if first_phase else None)
         return task
 
     def _generate_for_activities(
@@ -90,12 +102,12 @@ class AssignmentService:
         """Generate tasks for an assignment following the template's recurrence
         rules for the current period. Returns created tasks.
 
-        The routine itself is the recurring task: one task per occurrence,
-        regardless of how many activities the template has. Activities are
-        descriptive sub-steps and do NOT become separate task cards.
+        Each activity of the routine becomes its own task card: for every
+        occurrence (deadline) one card per activity is created, all sharing the
+        occurrence deadline. Activities do NOT have individual deadlines.
 
         Dedup is handled via routine_instance_id (deterministic UUID per
-        assignment+occurrence). Does NOT commit.
+        assignment+activity+occurrence). Does NOT commit.
         """
         if not activities:
             return []
@@ -103,24 +115,27 @@ class AssignmentService:
         first_phase = phases[0] if phases else None
         now = now or datetime.now(timezone.utc)
         generated_tasks = []
+        created_now: set[str] = set()
         client_id = assignment.client_id
         template_id = assignment.template_id
-        estimate = sum(a.estimated_minutes or 0 for a in activities) or None
 
         def _make(deadline: datetime, period_key: str) -> None:
-            task = self._build_task(
-                deadline,
-                assignment,
-                client_id,
-                template_id,
-                tmpl,
-                user_id,
-                first_phase,
-                period_key=period_key,
-                time_estimate_minutes=estimate,
-            )
-            if task:
-                generated_tasks.append(task)
+            for activity in activities:
+                task = self._build_task(
+                    deadline,
+                    assignment,
+                    client_id,
+                    template_id,
+                    tmpl,
+                    activity,
+                    user_id,
+                    first_phase,
+                    period_key=period_key,
+                    pending_exempt=created_now,
+                )
+                if task:
+                    created_now.add(activity.name)
+                    generated_tasks.append(task)
 
         if tmpl.recurrence == "daily":
             # Daily: create task for today (scheduler will handle future days)
@@ -314,6 +329,30 @@ class AssignmentService:
         if update_in.is_active is not None:
             assignment.is_active = update_in.is_active
             self.assignment_repo.session.commit()
+            # Regra de negócio (docs/regras_negocio.md §2): desativar o vínculo
+            # revoga o acesso de TODOS os colaboradores da equipe; reativar
+            # restaura o acesso para quem já possuía convite aceito.
+            if self.team_repo:
+                if update_in.is_active is False:
+                    revoked = self.team_repo.remove_template_access_from_team(
+                        assignment.client_id, assignment.template_id
+                    )
+                    if revoked:
+                        log.info(
+                            f"🔓 Revoked {revoked} team accesses on deactivation "
+                            f"template {assignment.template_id} "
+                            f"(client {assignment.client_id})"
+                        )
+                else:
+                    restored = self.team_repo.restore_template_access_to_team(
+                        assignment.client_id, assignment.template_id
+                    )
+                    if restored:
+                        log.info(
+                            f"🔒 Restored {restored} team accesses on reactivation "
+                            f"template {assignment.template_id} "
+                            f"(client {assignment.client_id})"
+                        )
             self.assignment_repo.session.refresh(assignment)
             log.info(
                 f"🔁 Vínculo {assignment_id} {'ativado' if update_in.is_active else 'desativado'} "
@@ -325,16 +364,25 @@ class AssignmentService:
         assignment = self.assignment_repo.get_assignment_by_id(assignment_id)
         if not assignment:
             raise ValueError(f"Assignment {assignment_id} not found")
-        # Delete future incomplete tasks before removing the assignment
-        deleted = (
-            self.assignment_repo.hard_delete_future_incomplete_tasks_by_assignment(
-                assignment_id
-            )
+        # Remove todos os cards não concluídos (a fazer e em andamento).
+        # Cards concluídos são preservados.
+        deleted = self.assignment_repo.hard_delete_incomplete_tasks_by_assignment(
+            assignment_id
         )
         if deleted:
             log.info(
-                f"🧹 Deleted {deleted} future incomplete tasks for assignment {assignment_id}"
+                f"🧹 Deleted {deleted} incomplete tasks for assignment {assignment_id}"
             )
+        # A equipe e os colaboradores perdem o acesso à rotina desvinculada.
+        if self.team_repo:
+            revoked = self.team_repo.remove_template_access_from_team(
+                assignment.client_id, assignment.template_id
+            )
+            if revoked:
+                log.info(
+                    f"🔓 Revoked {revoked} team accesses to template "
+                    f"{assignment.template_id} (client {assignment.client_id})"
+                )
         self.assignment_repo.delete_assignment(assignment)
 
     def regenerate_client_tasks(self, assignment_id: UUID, user_id: UUID) -> dict:

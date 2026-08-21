@@ -9,6 +9,7 @@ from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
+from ...team.repository import TeamRepository
 from ..assignments.repository import AssignmentRepository
 from ..assignments.service import AssignmentService
 from ..schemas import (
@@ -29,6 +30,7 @@ def get_assignment_service(
         AssignmentRepository(session),
         template_repo=TemplateRepository(session),
         task_repo=TaskRepository(session),
+        team_repo=TeamRepository(session),
     )
 
 

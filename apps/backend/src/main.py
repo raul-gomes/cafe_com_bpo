@@ -58,6 +58,11 @@ async def lifespan(app: FastAPI):
         log.exception("Falha na normalização inicial de fases")
     scheduler_instance.start()
     email_scheduler_instance.start()
+    # Start SSE broadcast listener (PostgreSQL LISTEN/NOTIFY for real-time)
+    from src.core.config import get_settings
+    from src.modules.task_manager.broadcast import manager as broadcast_manager
+
+    broadcast_manager.start_listener(get_settings().database_url)
     yield
     email_scheduler_instance.stop()
     scheduler_instance.stop()

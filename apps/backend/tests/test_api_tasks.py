@@ -874,6 +874,32 @@ def _get_scheduler_result(now=None, mode=None):
     return sched.run_daily_check(**kwargs)
 
 
+def _complete_pending_tasks(client_id: str, template_id: str) -> None:
+    """Helper: conclui os cards pendentes do vínculo (destrava o scheduler).
+
+    Regra de negócio (docs/regras_negocio.md §1.2): card em 'a fazer'/'em
+    andamento' bloqueia nova geração. Testes que validam a geração do scheduler
+    precisam concluir os cards criados na vinculação antes de dispará-lo.
+    """
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.models import Task
+
+    db = SessionLocal()
+    db.query(Task).filter(
+        Task.client_id == UUID(client_id),
+        Task.template_id == UUID(template_id),
+        Task.completed_at.is_(None),
+        Task.is_cancelled == False,
+    ).update(
+        {"completed_at": datetime.now(timezone.utc)},
+        synchronize_session=False,
+    )
+    db.commit()
+    db.close()
+
+
 def test_scheduler_no_assignments(client):
     """Scheduler funciona mesmo sem assignments do usuario (nao quebra)."""
     email = f"sched_empty_{uuid4()}@cafe.com"
@@ -920,6 +946,9 @@ def test_scheduler_daily_generates_on_weekday(client):
     )
     assert assign_resp.status_code == 201
 
+    # Conclui os cards da vinculação para destravar o scheduler (regra §1.2)
+    _complete_pending_tasks(cli["id"], tmpl_id)
+
     # Executar scheduler com data fixa (segunda-feira)
     data = _get_scheduler_result(now=now)
     assert data["tasks_generated"] >= 1, "Segunda-feira deveria gerar tarefa diaria"
@@ -951,6 +980,9 @@ def test_scheduler_does_not_duplicate(client):
     )
     assert assign_resp.status_code == 201
     assert assign_resp.json()["tasks_generated"] >= 1
+
+    # Conclui os cards da vinculação para destravar o scheduler (regra §1.2)
+    _complete_pending_tasks(cli["id"], tmpl_id)
 
     # Primeira execucao — deve gerar para segunda-feira
     r1 = _get_scheduler_result(now=now)
@@ -995,10 +1027,86 @@ def test_scheduler_weekly_with_weekday_mask(client):
         headers=auth,
     )
 
+    # Conclui os cards da vinculação para destravar o scheduler (regra §1.2)
+    _complete_pending_tasks(cli["id"], tmpl_id)
+
     data = _get_scheduler_result(now=now)
     matched_days = len(mask.split(","))
     assert data["tasks_generated"] >= matched_days, (
         f"Domingo deveria gerar tasks para a semana ({matched_days} dias no mask)"
+    )
+
+
+def test_scheduler_weekly_mode_skips_daily_templates(client):
+    """Disparo manual semanal (botão) NÃO gera cards de rotinas diárias.
+
+    O bônus "semanal também gera os dailies de segunda" vale apenas para a
+    rodada automática de domingo (auto-detect), não para o botão semanal.
+    """
+    now = datetime(2026, 7, 19, 0, 0, 0, tzinfo=timezone.utc)  # Sunday
+
+    email = f"sched_wk_no_daily_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    tmpl_resp = client.post(
+        "/tasks/templates/",
+        json={"name": "Diario Wk", "recurrence": "daily", "process_type": "fiscal"},
+        headers=auth,
+    )
+    tmpl_id = tmpl_resp.json()["id"]
+    client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={"name": "Task Diario Wk", "due_day": 1},
+        headers=auth,
+    )
+    assign = client.post(
+        "/tasks/client-templates/",
+        json={"client_id": cli["id"], "template_id": tmpl_id},
+        headers=auth,
+    ).json()
+    assert assign["tasks_generated"] >= 1
+
+    # Conclui os cards da vinculação para isolar a regra testada
+    _complete_pending_tasks(cli["id"], tmpl_id)
+
+    data = _get_scheduler_result(now=now, mode="weekly")
+    assert data["tasks_generated"] == 0, (
+        "Botão semanal não deve gerar cards de rotina diária"
+    )
+
+
+def test_scheduler_sunday_auto_generates_monday_daily(client):
+    """Auto-detect de domingo mantém o bônus: gera os dailies de segunda."""
+    now = datetime(2026, 7, 19, 0, 0, 0, tzinfo=timezone.utc)  # Sunday
+
+    email = f"sched_sun_daily_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    tmpl_resp = client.post(
+        "/tasks/templates/",
+        json={"name": "Diario Dom", "recurrence": "daily", "process_type": "fiscal"},
+        headers=auth,
+    )
+    tmpl_id = tmpl_resp.json()["id"]
+    client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={"name": "Task Diario Dom", "due_day": 1},
+        headers=auth,
+    )
+    assign = client.post(
+        "/tasks/client-templates/",
+        json={"client_id": cli["id"], "template_id": tmpl_id},
+        headers=auth,
+    ).json()
+    assert assign["tasks_generated"] >= 1
+
+    _complete_pending_tasks(cli["id"], tmpl_id)
+
+    data = _get_scheduler_result(now=now, mode=None)
+    assert data["tasks_generated"] >= 1, (
+        "Domingo (auto-detect) deve gerar os cards de segunda p/ rotinas diárias"
     )
 
 
@@ -1159,6 +1267,9 @@ def test_scheduler_yearly_skips_existing_task(client):
         headers=auth,
     )
     assert assign_resp.status_code == 201
+
+    # Conclui os cards da vinculação para destravar o scheduler (regra §1.2)
+    _complete_pending_tasks(cli["id"], tmpl_id)
 
     data = _get_scheduler_result(now=now)
     assert data["tasks_generated"] >= 1, (
@@ -1326,6 +1437,9 @@ def test_routine_instance_id_dedup(client):
         json={"client_id": cli["id"], "template_id": tmpl_id},
         headers=auth,
     )
+
+    # Conclui os cards da vinculação para destravar o scheduler (regra §1.2)
+    _complete_pending_tasks(cli["id"], tmpl_id)
 
     # First run — should generate
     r1 = _get_scheduler_result(now=now)

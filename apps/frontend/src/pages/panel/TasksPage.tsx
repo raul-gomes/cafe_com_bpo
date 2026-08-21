@@ -2,6 +2,7 @@ import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react'
 import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw, Users, ChevronDown } from 'lucide-react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
+import { useTaskEvents } from '../../api/hooks/useTaskEvents';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { TaskResponse } from '../../schemas/tasks';
@@ -39,6 +40,7 @@ export const TasksPage: React.FC = () => {
     const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
     const [bulkLoading, setBulkLoading] = useState<Record<string, 'completing' | 'cancelling' | null>>({});
     const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask, useRunDaily, useRunMonthly, useRunWeekly, useRunYearly } = useTasks();
+    useTaskEvents();
     const { data: tasks, isLoading } = useTasksList();
     const { data: phases } = usePhases();
     const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);

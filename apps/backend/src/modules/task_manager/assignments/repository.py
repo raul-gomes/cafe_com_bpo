@@ -75,18 +75,17 @@ class AssignmentRepository:
 
     # ── Assignment helpers (cross-domain task queries) ──
 
-    def hard_delete_future_incomplete_tasks_by_assignment(
-        self, assignment_id: UUID
-    ) -> int:
-        """Permanently delete incomplete tasks for an assignment whose deadline
-        is today or in the future. Returns count of deleted tasks."""
-        now = datetime.now(timezone.utc)
+    def hard_delete_incomplete_tasks_by_assignment(self, assignment_id: UUID) -> int:
+        """Permanently delete ALL incomplete tasks for an assignment.
+
+        Tarefas concluídas são preservadas; as não concluídas (a fazer e em
+        andamento) somem junto com o vínculo da rotina.
+        """
         tasks = (
             self.session.query(Task)
             .filter(
                 Task.assignment_id == assignment_id,
                 Task.completed_at.is_(None),
-                Task.deadline >= now,
                 Task.is_active,
             )
             .all()
