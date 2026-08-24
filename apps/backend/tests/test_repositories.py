@@ -126,7 +126,9 @@ def test_scenario_payloads_stored_as_text_are_deserialized(db_session):
     from sqlalchemy import text
 
     raw_input = _json.dumps({"operation": {"total_cost": 3500, "people_count": 1}})
-    raw_result = _json.dumps({"final_price": 381.06, "breakdown": {"tax_amount": 22.86}})
+    raw_result = _json.dumps(
+        {"final_price": 381.06, "breakdown": {"tax_amount": 22.86}}
+    )
 
     scenario_id = "0123456789abcdef0123456789abcdef"
     db_session.execute(
@@ -153,5 +155,8 @@ def test_scenario_payloads_stored_as_text_are_deserialized(db_session):
     assert scenarios[0].input_payload == {
         "operation": {"total_cost": 3500, "people_count": 1}
     }
-    assert scenarios[0].result_payload == {"final_price": 381.06, "breakdown": {"tax_amount": 22.86}}
+    assert scenarios[0].result_payload == {
+        "final_price": 381.06,
+        "breakdown": {"tax_amount": 22.86},
+    }
     assert isinstance(scenarios[0].result_payload, dict)

@@ -19,11 +19,12 @@ from uuid import UUID, uuid4
 
 from src.core.database import SessionLocal
 from src.modules.task_manager.models import Task, TaskPhase
+from tests.helpers import register_user
 
 
 def get_auth(client, email):
     payload = {"email": email, "password": "StrongPassword123!", "name": "Teste"}
-    client.post("/auth/register", json=payload)
+    register_user(payload=payload)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )

@@ -6,6 +6,8 @@ Tests for timeline view and conflict detection.
 from datetime import datetime, timedelta
 from uuid import uuid4
 
+from tests.helpers import register_user
+
 
 class TestTimelineAPI:
     """Tests for Timeline and scheduling endpoints."""
@@ -16,7 +18,7 @@ class TestTimelineAPI:
             "password": "StrongPassword123!",
             "name": "Test User",
         }
-        client.post("/auth/register", json=payload)
+        register_user(payload=payload)
         resp = client.post(
             "/auth/login", data={"username": email, "password": "StrongPassword123!"}
         )

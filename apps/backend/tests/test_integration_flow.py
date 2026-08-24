@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+from tests.helpers import create_test_user
+
 
 def test_full_user_flow_integration(client):
     """
@@ -14,12 +16,8 @@ def test_full_user_flow_integration(client):
     email = f"flow_test_{uuid4()}@cafe-com-bpo.com"
     password = "StrongPassword123!"
 
-    # 1. Registro
-    reg_resp = client.post(
-        "/auth/register",
-        json={"email": email, "password": password, "name": "Integration User"},
-    )
-    assert reg_resp.status_code == 201
+    # 1. Criação direta no banco (registro público removido)
+    create_test_user(email=email, password=password, name="Integration User")
 
     # 2. Login
     login_resp = client.post(

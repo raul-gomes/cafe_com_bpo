@@ -6,6 +6,7 @@ Tests for the global canonical Kanban columns/phases.
 from uuid import uuid4
 
 from src.modules.task_manager.models import Task, TaskPhase
+from tests.helpers import register_user
 
 
 class TestTaskPhaseModel:
@@ -33,7 +34,7 @@ class TestTaskPhaseRepository:
             "password": "StrongPassword123!",
             "name": "Test User",
         }
-        client.post("/auth/register", json=payload)
+        register_user(payload=payload)
         resp = client.post(
             "/auth/login", data={"username": email, "password": "StrongPassword123!"}
         )

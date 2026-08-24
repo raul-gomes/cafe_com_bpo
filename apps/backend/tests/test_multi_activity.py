@@ -11,13 +11,14 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
+from tests.helpers import register_user
+
 
 def get_auth_header(client: TestClient, email: str) -> dict:
     """Register + login a user and return the Authorization header."""
     password = "Str0ng!Pass"
-    client.post(
-        "/auth/register",
-        json={
+    register_user(
+        payload={
             "email": email,
             "password": password,
             "name": "Test",

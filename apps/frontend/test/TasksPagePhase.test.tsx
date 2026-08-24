@@ -95,6 +95,7 @@ vi.mock('../src/api/client', () => ({
   apiClient: {
     get: vi.fn().mockResolvedValue({ data: [] }),
   },
+  getApiUrl: () => 'http://localhost:8000',
 }))
 
 // Need to import after mocks

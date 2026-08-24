@@ -1,10 +1,12 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
+from tests.helpers import register_user
+
 
 def get_auth_header(client, email):
     payload = {"email": email, "password": "StrongPassword123!", "name": "Test User"}
-    client.post("/auth/register", json=payload)
+    register_user(payload=payload)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )

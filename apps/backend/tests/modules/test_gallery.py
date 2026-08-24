@@ -1,12 +1,12 @@
 from uuid import uuid4
 
+from tests.helpers import register_user
+
 
 def test_upload_gallery_file_success(client):
     """Test successful file upload to gallery."""
     email = f"gallery_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -40,9 +40,7 @@ def test_upload_gallery_file_rejects_unauthorized(client):
 def test_upload_gallery_file_rejects_invalid_extension(client):
     """Test that upload rejects disallowed file types."""
     email = f"gallery_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -62,9 +60,7 @@ def test_upload_gallery_file_rejects_invalid_extension(client):
 def test_upload_gallery_file_rejects_large_file(client):
     """Test that upload rejects files exceeding 10MB limit."""
     email = f"gallery_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -85,9 +81,7 @@ def test_upload_gallery_file_rejects_large_file(client):
 def test_list_gallery_files(client):
     """Test listing gallery files for authenticated user."""
     email = f"gallery_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -110,9 +104,7 @@ def test_list_gallery_files(client):
 def test_delete_gallery_file(client):
     """Test deleting a gallery file."""
     email = f"gallery_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -140,12 +132,8 @@ def test_delete_gallery_file_rejects_other_user(client):
     """Test that user cannot delete another user's files."""
     email1 = f"gallery1_{uuid4()}@cafe.com"
     email2 = f"gallery2_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email1, "password": "StrongPassword123!"}
-    )
-    client.post(
-        "/auth/register", json={"email": email2, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email1, "password": "StrongPassword123!"})
+    register_user(payload={"email": email2, "password": "StrongPassword123!"})
 
     resp1 = client.post(
         "/auth/login", data={"username": email1, "password": "StrongPassword123!"}
@@ -225,9 +213,7 @@ def test_common_gallery_upload_admin(client, db_session):
 def test_common_gallery_upload_rejects_regular_user(client):
     """Test that regular user cannot upload to common gallery."""
     email = f"regular_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -286,9 +272,7 @@ def test_common_gallery_delete_rejects_regular_user(client, db_session):
 
     # Regular user tries to delete
     email = f"regular2_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
