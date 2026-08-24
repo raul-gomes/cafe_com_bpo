@@ -13,6 +13,7 @@ import {
   SelectLabel,
 } from '../../components/ui/select'
 import { Checkbox } from '../../components/ui/checkbox'
+import { Carousel } from '../../components/dashboard/Carousel'
 import { Switch } from '../../components/ui/switch'
 import {
   InputGroup,
@@ -1010,6 +1011,33 @@ toast.promise(fetchData(), {
             <Separator orientation="vertical" />
             <span className="ds-text-sm">Direita</span>
           </div>
+        </ComponentCard>
+
+        {/* ── Carousel ── */}
+        <ComponentCard
+          name="Carousel"
+          description="Rolagem horizontal com setas · desabilita nas bordas · sem dependências"
+          howToUse={`import { Carousel } from '../../components/dashboard/Carousel'
+
+<Carousel ariaLabel="Exemplo">
+  {items.map((i) => (
+    <div key={i} className="min-w-[280px]">Card {i}</div>
+  ))}
+</Carousel>`}
+        >
+          <Carousel ariaLabel="Exemplo de carrossel" className="-mx-1 px-1">
+            {[1, 2, 3, 4, 5].map((n) => (
+              <div
+                key={n}
+                className="flex min-w-[240px] flex-col justify-center rounded-lg border border-border bg-white/[0.03] p-5"
+              >
+                <div className="mb-1 text-[10px] font-bold uppercase text-muted-foreground">
+                  Exemplo
+                </div>
+                <div className="text-[15px] font-bold text-foreground">Card {n}</div>
+              </div>
+            ))}
+          </Carousel>
         </ComponentCard>
       </Section>
     </div>

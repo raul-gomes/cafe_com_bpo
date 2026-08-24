@@ -15,6 +15,7 @@ import { useAppNotifications } from '../../api/hooks/useAppNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PendingInvitationCard } from '../../components/dashboard/PendingInvitationCard';
+import { Carousel } from '../../components/dashboard/Carousel';
 import { TaskCalendar } from '../../components/tasks/TaskCalendar';
 import { TaskResponse } from '../../schemas/tasks';
 import { apiClient } from '../../api/client';
@@ -146,10 +147,7 @@ export const DashboardPage: React.FC = () => {
               </Link>
             </div>
 
-            <div
-              className="flex gap-4 overflow-x-auto pb-4 [&::-webkit-scrollbar]:hidden"
-              style={{ scrollbarWidth: 'none' }}
-            >
+            <Carousel ariaLabel="Tarefas urgentes">
               {summary?.urgent_tasks && summary.urgent_tasks.length > 0 ? (
                 summary.urgent_tasks.map((task) => (
                   <Card
@@ -193,7 +191,7 @@ export const DashboardPage: React.FC = () => {
                   Nenhuma tarefa urgente no momento. Bom trabalho!
                 </div>
               )}
-            </div>
+            </Carousel>
           </section>
 
           {/* Activity Feed */}
