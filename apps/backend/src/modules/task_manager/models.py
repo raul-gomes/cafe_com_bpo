@@ -136,6 +136,7 @@ class Task(Base):
 
     # Relationships
     phase = relationship("TaskPhase", back_populates="tasks")
+    client = relationship("Client", foreign_keys=[client_id])
     attachments = relationship(
         "TaskAttachment",
         back_populates="task",
@@ -145,6 +146,14 @@ class Task(Base):
     template = relationship("ActivityTemplate", foreign_keys=[template_id])
     mover = relationship("User", foreign_keys=[moved_by])
     assignee = relationship("User", foreign_keys=[user_id])
+
+    @property
+    def client_name(self) -> str | None:
+        return self.client.name if self.client else None
+
+    @property
+    def client_color(self) -> str | None:
+        return self.client.color if self.client else None
 
     @property
     def template_name(self) -> str | None:

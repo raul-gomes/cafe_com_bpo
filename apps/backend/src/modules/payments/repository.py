@@ -46,7 +46,9 @@ class PaymentRepository:
             .first()
         )
         if user and user.asaas_customer_id:
-            return UserCustomer(user_id=user_id, asaas_customer_id=user.asaas_customer_id)
+            return UserCustomer(
+                user_id=user_id, asaas_customer_id=user.asaas_customer_id
+            )
         return None
 
     def save_customer_id(self, user_id: UUID, asaas_customer_id: str) -> None:

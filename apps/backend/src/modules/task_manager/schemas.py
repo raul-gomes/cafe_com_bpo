@@ -52,6 +52,8 @@ class TaskResponse(TaskBase):
     moved_by: UUID | None = None
     moved_by_name: str | None = None
     assignee_name: str | None = None
+    client_name: str | None = None
+    client_color: str | None = None
     created_at: datetime
     updated_at: datetime
     cancelled_at: datetime | None = None

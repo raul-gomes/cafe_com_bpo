@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import or_, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from ..models import Task, TaskPhase
 from ..schemas import TaskCreate, TaskPhaseUpdate, TaskUpdate
@@ -17,6 +17,7 @@ class TaskRepository:
     def get_by_id(self, task_id: UUID, user_id: UUID) -> Task | None:
         return (
             self.session.query(Task)
+            .options(joinedload(Task.client))
             .filter(
                 Task.id == task_id,
                 Task.user_id == user_id,
@@ -33,7 +34,10 @@ class TaskRepository:
         membro pode mover/editar tasks de rotinas compartilhadas.
         """
         task = (
-            self.session.query(Task).filter(Task.id == task_id, Task.is_active).first()
+            self.session.query(Task)
+            .options(joinedload(Task.client))
+            .filter(Task.id == task_id, Task.is_active)
+            .first()
         )
         if not task:
             return None
@@ -61,7 +65,11 @@ class TaskRepository:
         today_filter: bool = False,
         overdue_filter: bool = False,
     ) -> list[Task]:
-        query = self.session.query(Task).filter(Task.user_id == user_id, Task.is_active)
+        query = (
+            self.session.query(Task)
+            .options(joinedload(Task.client))
+            .filter(Task.user_id == user_id, Task.is_active)
+        )
 
         if process_type_filter:
             query = query.filter(Task.process_type == process_type_filter)
@@ -100,7 +108,11 @@ class TaskRepository:
         else:
             cond = own_cond
 
-        query = self.session.query(Task).filter(Task.is_active, cond)
+        query = (
+            self.session.query(Task)
+            .options(joinedload(Task.client))
+            .filter(Task.is_active, cond)
+        )
         if today_filter:
             now = datetime.now(timezone.utc)
             day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)

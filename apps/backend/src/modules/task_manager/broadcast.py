@@ -53,9 +53,7 @@ class BroadcastManager:
             target=self._listen, args=(database_url,), daemon=True
         )
         self._listener_thread.start()
-        log.info(
-            f"📡 SSE listener started (PostgreSQL LISTEN on {_channels})"
-        )
+        log.info(f"📡 SSE listener started (PostgreSQL LISTEN on {_channels})")
 
     def _listen(self, database_url: str) -> None:
         """Background thread: LISTEN on channels and broadcast to queues."""

@@ -195,7 +195,9 @@ class TeamRepository:
         )
         if existing:
             self.session.commit()
-            return TeamMember(id=existing[0], team_id=invitation.team_id, user_id=user_id)
+            return TeamMember(
+                id=existing[0], team_id=invitation.team_id, user_id=user_id
+            )
 
         member = TeamMember(
             team_id=invitation.team_id,
@@ -521,9 +523,7 @@ class TeamRepository:
         for inv_id in accepted_invitations:
             if inv_id not in already_granted:
                 self.session.add(
-                    InvitationRoutine(
-                        invitation_id=inv_id, template_id=template_id
-                    )
+                    InvitationRoutine(invitation_id=inv_id, template_id=template_id)
                 )
                 count += 1
         self.session.commit()

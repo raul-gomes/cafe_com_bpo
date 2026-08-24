@@ -44,7 +44,5 @@ class AppNotification(Base):
     )
     read_at = Column(DateTime(timezone=True), nullable=True)
 
-    user = relationship(
-        "User", back_populates="notifications", foreign_keys=[user_id]
-    )
+    user = relationship("User", back_populates="notifications", foreign_keys=[user_id])
     triggered_by_user = relationship("User", foreign_keys=[triggered_by_user_id])

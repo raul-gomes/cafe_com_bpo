@@ -5,12 +5,16 @@ Business logic for client-template assignment lifecycle (assign, unassign, regen
 """
 
 import calendar
+import json
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
+
+from sqlalchemy import text
 
 from src.core.logger import log
 from src.core.utils import next_business_day as nb_util
 
+from ...team.models import InvitationRoutine, TeamInvitation
 from ...team.repository import TeamRepository
 from ..assignments.repository import AssignmentRepository
 from ..scheduler import (
@@ -333,27 +337,44 @@ class AssignmentService:
             # revoga o acesso de TODOS os colaboradores da equipe; reativar
             # restaura o acesso para quem já possuía convite aceito.
             if self.team_repo:
-                if update_in.is_active is False:
-                    revoked = self.team_repo.remove_template_access_from_team(
-                        assignment.client_id, assignment.template_id
-                    )
-                    if revoked:
-                        log.info(
-                            f"🔓 Revoked {revoked} team accesses on deactivation "
-                            f"template {assignment.template_id} "
-                            f"(client {assignment.client_id})"
-                        )
-                else:
-                    restored = self.team_repo.restore_template_access_to_team(
-                        assignment.client_id, assignment.template_id
-                    )
-                    if restored:
-                        log.info(
-                            f"🔒 Restored {restored} team accesses on reactivation "
-                            f"template {assignment.template_id} "
-                            f"(client {assignment.client_id})"
-                        )
+                # get_routines_for_member já filtra por is_active; não deletar InvitationRoutine
+                # para preservar histórico de quem tinha acesso. Na reativação, o acesso volta automaticamente.
+                pass
             self.assignment_repo.session.refresh(assignment)
+            # Emitir team_updates para SSE (trigger só dispara em INSERT/DELETE invitation_routines)
+            # Só executar em PostgreSQL (pg_notify não existe em SQLite)
+            if "sqlite" not in str(self.assignment_repo.session.bind.url):
+                action = "INSERT" if update_in.is_active else "DELETE"
+                team_repo = self.team_repo
+                team = team_repo.get_team_by_client_id(assignment.client_id)
+                if team:
+                    invitation_routines = (
+                        team_repo.session.query(InvitationRoutine.invitation_id)
+                        .join(
+                            TeamInvitation,
+                            InvitationRoutine.invitation_id == TeamInvitation.id,
+                        )
+                        .filter(
+                            TeamInvitation.team_id == team.id,
+                            TeamInvitation.status == "accepted",
+                            InvitationRoutine.template_id == assignment.template_id,
+                        )
+                        .all()
+                    )
+                    for (inv_id,) in invitation_routines:
+                        payload = json.dumps(
+                            {
+                                "type": "routine_changed",
+                                "invitation_id": str(inv_id),
+                                "template_id": str(assignment.template_id),
+                                "action": action,
+                            }
+                        )
+                        team_repo.session.execute(
+                            text("SELECT pg_notify('team_updates', :payload)"),
+                            {"payload": payload},
+                        )
+                    team_repo.session.commit()
             log.info(
                 f"🔁 Vínculo {assignment_id} {'ativado' if update_in.is_active else 'desativado'} "
                 f"pelo usuário {user_id}"
