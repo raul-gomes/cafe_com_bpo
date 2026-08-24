@@ -33,7 +33,8 @@ Community platform for Brazilian financial BPO operators. Public site + pricing 
 
 | Action | Command |
 |--------|---------|
-| Start all services | `docker compose up` (runs from repo root, reads `.env`) |
+| Start production stack | `docker compose up` (runs from repo root, reads `.env`) — web = build estático nginx, sem mailpit/pgadmin |
+| Start dev stack (hot-reload + mailpit + pgadmin) | `docker compose -f docker-compose.yml -f docker-compose.dev.yml up` |
 | CI order | Backend: `ruff check → ruff format --check → pytest` / Frontend: `lint → typecheck → test` |
 
 ## Architecture Facts
@@ -44,7 +45,7 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 ### Backend quirks
 - **App factory pattern**: `uvicorn src.main:create_app --factory` — do NOT import `main` directly for dev, use `--factory`.
 - **Test DB patching**: `tests/conftest.py` patches `src.core.database.engine` and `SessionLocal` at import time with SQLite `:memory:` + `StaticPool`. This is why tests work without PostgreSQL.
-- **No `pyproject.toml`**: Backend uses plain `requirements.txt` with pip (no uv, no poetry, no hatch).
+- **No `pyproject.toml`**: Backend uses plain `requirements.txt` with pip (no uv, no poetry, no hatch). Dev/test deps (pytest, ruff) live in `requirements-dev.txt` and are NOT installed in the production image.
 - **Dashboard module has no models**: It's an aggregation layer that queries other modules' models directly.
 - **Pricing has a DDD domain engine**: `modules/pricing/domain/engine.py` is framework-agnostic dataclasses; the service layer translates between API and domain.
 - **Static avatar serving**: `storage/avatars/` is mounted at `/avatars` in `main.py`.
