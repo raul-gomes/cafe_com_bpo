@@ -55,3 +55,16 @@ export const updateProfile = async (data: Record<string, unknown>) => {
   const response = await apiClient.patch('/auth/me', data);
   return response.data;
 };
+
+export interface CreateUserAdminData {
+  email: string;
+  password: string;
+  name?: string;
+  company?: string;
+  role: 'user' | 'admin';
+}
+
+export const adminCreateUser = async (data: CreateUserAdminData) => {
+  const response = await apiClient.post('/auth/admin/users', data);
+  return response.data;
+};

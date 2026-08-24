@@ -1,9 +1,8 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { loginSchema, LoginFormData } from '../../schemas/auth';
+import { LoginFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
 import { acceptInvitation } from '../../api/team';
@@ -11,6 +10,8 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
+import { Checkbox } from '../../components/ui/checkbox';
+import { Label } from '../../components/ui/label';
 import logo from '../../assets/logo.png';
 
 interface LoginFormProps {
@@ -18,17 +19,34 @@ interface LoginFormProps {
 }
 
 export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginFormData>({
-    resolver: zodResolver(loginSchema),
+  const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm<LoginFormData & { terms: boolean }>({
+    defaultValues: { email: '', password: '', terms: false },
   });
   const [genericError, setGenericError] = useState<string | null>(null);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite_token');
+  const termsAccepted = watch('terms');
 
-  const onSubmit = async (data: LoginFormData) => {
+  const onSubmit = async (data: LoginFormData & { terms: boolean }) => {
     setGenericError(null);
+
+    // Validate all required fields
+    const missingFields: string[] = [];
+    if (!data.email?.trim()) missingFields.push('e-mail');
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+      setGenericError('Formato de e-mail inválido.');
+      return;
+    }
+    if (!data.password) missingFields.push('senha');
+    if (!data.terms) missingFields.push('aceite dos Termos de Uso e Política de Privacidade (LGPD)');
+
+    if (missingFields.length > 0) {
+      setGenericError(`Não é possível entrar: preencha ${missingFields.join(', ')}.`);
+      return;
+    }
+    
     try {
       const formData = new URLSearchParams();
       formData.append('username', data.email);
@@ -59,15 +77,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
     }
   };
 
-  const handleOAuthLogin = async (provider: string) => {
-    try {
-      const { data } = await apiClient.get<{ url: string }>(`/auth/${provider}/login`);
-      window.location.href = data.url;
-    } catch {
-      setGenericError(`Falha ao iniciar autenticação com ${provider}.`);
-    }
-  };
-
   return (
     <Card className="mx-auto max-w-[480px]">
       <CardContent className="pt-7 px-8 pb-7">
@@ -84,7 +93,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
 
         {sessionStorage.getItem('cafe_bpo_proposal') && (
           <Alert className="mb-5 text-center">
-            <strong>Quase lá!</strong> Faça login ou cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
+            <strong>Quase lá!</strong> Faça login para salvar sua simulação e baixar sua proposta em PDF.
           </Alert>
         )}
 
@@ -107,7 +116,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
                 placeholder="seu@email.com"
               />
             </div>
-            {errors.email && <p className="ds-error-text">{errors.email.message}</p>}
           </div>
 
           <div className="ds-input-group">
@@ -121,13 +129,34 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
                 placeholder="••••••••"
               />
             </div>
-            {errors.password && <p className="ds-error-text">{errors.password.message}</p>}
           </div>
 
           <div className="text-right -mt-2">
             <button type="button" onClick={onForgotPassword} className="bg-transparent border-none cursor-pointer text-muted-foreground text-[13px] hover:text-foreground">
               Esqueceu a senha?
             </button>
+          </div>
+
+          {/* LGPD Terms Checkbox */}
+          <div className="flex items-start gap-2 pt-2">
+            <Checkbox
+              id="terms"
+              checked={termsAccepted}
+              onCheckedChange={(v) => setValue('terms', v)}
+              disabled={isSubmitting}
+              className="mt-0.5 shrink-0"
+            />
+            <Label htmlFor="terms" className="text-[12px] text-muted-foreground leading-relaxed cursor-pointer">
+              Li e concordo com os{' '}
+              <a href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline">
+                Termos de Uso
+              </a>{' '}
+              e{' '}
+              <a href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline">
+                Política de Privacidade
+              </a>{' '}
+              (LGPD).
+            </Label>
           </div>
 
           <Button
@@ -141,25 +170,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
             }
           </Button>
         </form>
-
-        {/* Divider */}
-        <div className="flex items-center gap-3 my-6 text-muted-foreground text-xs">
-          <div className="flex-1 h-px bg-border" />
-          <span>ou continue com</span>
-          <div className="flex-1 h-px bg-border" />
-        </div>
-
-        {/* OAuth */}
-        <div className="max-w-[200px] mx-auto">
-          <Button
-            variant="ghost"
-            onClick={() => handleOAuthLogin('google')}
-            className="w-full py-2.5 h-auto text-xs"
-          >
-            <img src="https://www.svgrepo.com/show/475656/google-color.svg" alt="" className="size-4" />
-            Google
-          </Button>
-        </div>
       </CardContent>
     </Card>
   );

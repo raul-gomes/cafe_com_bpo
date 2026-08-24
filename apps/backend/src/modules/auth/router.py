@@ -6,12 +6,11 @@ from fastapi import (
     Depends,
     File,
     HTTPException,
-    Query,
     Request,
     Response,
     UploadFile,
+    status,
 )
-from fastapi.responses import RedirectResponse
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
@@ -23,19 +22,17 @@ from src.core.rate_limit import (
     AUTH_FORGOT_PASSWORD_LIMIT,
     AUTH_LOGIN_LIMIT,
     AUTH_REFRESH_LIMIT,
-    AUTH_REGISTER_LIMIT,
     limiter,
 )
 
 from .models import UserFile
-from .oauth.service import GoogleOAuthProvider, OAuthStateService
 from .schemas import (
     ForgotPasswordRequest,
     ProfileUpdate,
     RefreshTokenRequest,
     ResetPasswordRequest,
     TokenResponse,
-    UserCreate,
+    UserCreateAdmin,
     UserLookupItem,
     UserLookupRequest,
     UserLookupResponse,
@@ -57,20 +54,6 @@ def get_auth_service(
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
-
-
-@router.post("/register", response_model=UserResponse, status_code=201)
-@limiter.limit(AUTH_REGISTER_LIMIT)
-def register(user_data: UserCreate, service: AuthServiceDep, request: Request):
-    try:
-        new_user = service.register_user(user_data)
-        log.info(
-            f"💾 Novo usuário registrado: {user_data.email} | Empresa: {user_data.company or 'N/A'}"
-        )
-        return new_user
-    except ValueError as e:
-        log.warning(f"⚠️ Falha de validação no registro ({user_data.email}): {e!s}")
-        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -344,57 +327,23 @@ def logout(response: Response):
     return {"message": "Sessão encerrada."}
 
 
-@router.get("/{provider}/login")
-def oauth_login(provider: str):
-    if provider != "google":
-        raise HTTPException(status_code=400, detail="Provider inválido")
-
-    state = OAuthStateService.create_state(provider)
-    url = GoogleOAuthProvider.build_authorization_url(state)
-
-    return {"url": url}
-
-
-@router.get("/{provider}/callback")
-def oauth_callback(
-    provider: str,
+@router.post(
+    "/admin/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
+@limiter.limit(AUTH_LOGIN_LIMIT)
+def admin_create_user(
+    user_data: UserCreateAdmin,
     service: AuthServiceDep,
-    code: str = Query(...),
-    state: str = Query(...),
+    request: Request,
+    current_user: CurrentUserDep,
 ):
-    if not OAuthStateService.validate_state(state):
-        return RedirectResponse(
-            url=f"{settings.frontend_url}/login?error=state_invalid"
-        )
-
+    """Cria um novo usuário (apenas admin)."""
+    if current_user.role != "admin":
+        raise HTTPException(status_code=403, detail="Acesso restrito a administradores")
     try:
-        if provider != "google":
-            raise HTTPException(status_code=400, detail="Provider inválido")
-
-        token_data = GoogleOAuthProvider.exchange_code_for_token(code)
-        user_info = GoogleOAuthProvider.fetch_user_profile(token_data["access_token"])
-        email = user_info.get("email")
-
-        if not email:
-            raise ValueError("Não foi possível obter o e-mail do perfil OAuth.")
-
-        tokens = service.authenticate_oauth_user(email=email, provider=provider)
-        log.info(f"🌐 Login OAuth ({provider}) bem-sucedido: {email}")
-
-        redirect = RedirectResponse(
-            url=f"{settings.frontend_url}/auth/callback?token={tokens['access_token']}"
-        )
-        redirect.set_cookie(
-            key="refresh_token",
-            value=tokens["refresh_token"],
-            httponly=True,
-            samesite="strict",
-            max_age=7 * 24 * 60 * 60,
-            path="/",
-            secure=False,
-        )
-        return redirect
-    except Exception as e:
-        log.error(f"❌ Erro crítico no fluxo OAuth ({provider}): {e!s}")
-        error_msg = str(e).replace(" ", "_")
-        return RedirectResponse(url=f"{settings.frontend_url}/login?error={error_msg}")
+        new_user = service.create_user_by_admin(user_data)
+        log.info(f"👤 Admin {current_user.email} criou usuário: {user_data.email}")
+        return new_user
+    except ValueError as e:
+        log.warning(f"⚠️ Falha ao criar usuário por admin ({user_data.email}): {e!s}")
+        raise HTTPException(status_code=400, detail=str(e))

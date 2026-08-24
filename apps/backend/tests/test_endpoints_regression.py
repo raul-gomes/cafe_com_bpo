@@ -13,6 +13,8 @@ Testa TODOS os endpoints da aplicação para garantir que:
 
 from uuid import uuid4
 
+from tests.helpers import register_user
+
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 
 
@@ -27,7 +29,7 @@ def _make_user(email: str) -> dict:
 
 def _register_and_login(client, email: str) -> dict:
     """Registra um usuário e faz login, retornando o header de autorização."""
-    client.post("/auth/register", json=_make_user(email))
+    register_user(payload=_make_user(email))
     resp = client.post(
         "/auth/login",
         data={
@@ -64,30 +66,9 @@ class TestHealth:
 
 
 class TestAuth:
-    def test_register_success(self, client):
-        email = f"reg_{_unique()}@cafe.com"
-        resp = client.post("/auth/register", json=_make_user(email))
-        assert resp.status_code == 201
-        data = resp.json()
-        assert data["email"] == email
-        assert "id" in data
-        assert "password" not in resp.text
-        assert "password_hash" not in resp.text
-
-    def test_register_duplicate(self, client):
-        email = f"dup_{_unique()}@cafe.com"
-        client.post("/auth/register", json=_make_user(email))
-        resp = client.post("/auth/register", json=_make_user(email))
-        assert resp.status_code == 400
-
-    def test_register_weak_password(self, client):
-        email = f"weak_{_unique()}@cafe.com"
-        resp = client.post("/auth/register", json={"email": email, "password": "123"})
-        assert resp.status_code == 422
-
     def test_login_success(self, client):
         email = f"login_{_unique()}@cafe.com"
-        client.post("/auth/register", json=_make_user(email))
+        register_user(payload=_make_user(email))
         resp = client.post(
             "/auth/login",
             data={
@@ -105,7 +86,7 @@ class TestAuth:
 
     def test_login_wrong_password(self, client):
         email = f"wrong_{_unique()}@cafe.com"
-        client.post("/auth/register", json=_make_user(email))
+        register_user(payload=_make_user(email))
         resp = client.post(
             "/auth/login",
             data={
@@ -117,7 +98,7 @@ class TestAuth:
 
     def test_refresh_token(self, client):
         email = f"refresh_{_unique()}@cafe.com"
-        client.post("/auth/register", json=_make_user(email))
+        register_user(payload=_make_user(email))
         # Login sets refresh_token as httpOnly cookie
         login_resp = client.post(
             "/auth/login",

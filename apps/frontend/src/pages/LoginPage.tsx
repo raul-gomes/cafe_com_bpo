@@ -1,12 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Navbar } from '../components/ui/Navbar';
 import { LoginForm } from '../components/auth/LoginForm';
-import { RegisterForm } from '../components/auth/RegisterForm';
 import { ForgotPasswordModal } from '../components/auth/ForgotPasswordModal';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Alert } from '../components/ui/alert';
-import { Dialog, DialogContent } from '../components/ui/dialog';
 
 const ERROR_MESSAGES: Record<string, string> = {
   state_invalid: 'Sessão expirada. Tente fazer login novamente.',
@@ -20,7 +18,6 @@ export default function LoginPage() {
   const [searchParams] = useSearchParams();
   const errorParam = searchParams.get('error');
   const [showForgotPw, setShowForgotPw] = useState(false);
-  const [showRegister, setShowRegister] = useState(false);
 
   useEffect(() => {
     if (!isLoading && isAuthenticated) {
@@ -46,16 +43,10 @@ export default function LoginPage() {
           )}
           {sessionStorage.getItem('cafe_bpo_proposal') && (
             <Alert className="mb-5 text-center">
-              <strong>Quase lá!</strong> Faça login ou cadastre-se para salvar sua simulação e baixar sua proposta em PDF.
+              <strong>Quase lá!</strong> Faça login para salvar sua simulação e baixar sua proposta em PDF.
             </Alert>
           )}
           <LoginForm onForgotPassword={() => setShowForgotPw(true)} />
-          <div className="text-center mt-5 text-[13px] text-muted-foreground">
-            Não possui conta?{' '}
-            <button type="button" onClick={() => setShowRegister(true)} className="text-primary-strong no-underline font-medium bg-transparent border-none cursor-pointer hover:underline">
-              Cadastre-se
-            </button>
-          </div>
           <p className="login-footer-note">
             Café com BPO © {new Date().getFullYear()}
           </p>
@@ -64,13 +55,6 @@ export default function LoginPage() {
 
       {/* Forgot Password Modal */}
       <ForgotPasswordModal open={showForgotPw} onOpenChange={setShowForgotPw} />
-
-      {/* Register Modal */}
-      <Dialog open={showRegister} onOpenChange={setShowRegister}>
-        <DialogContent className="sm:!max-w-[768px] p-0 border-0 bg-transparent ring-0 max-h-[85vh] overflow-y-auto" showCloseButton={false}>
-          <RegisterForm onClose={() => setShowRegister(false)} />
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }

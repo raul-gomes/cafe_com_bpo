@@ -38,6 +38,9 @@ export interface User {
   company_logo_url?: string;
   company_color_code?: string;
   company_color_secondary?: string;
+  // LGPD
+  terms_accepted?: boolean;
+  terms_accepted_at?: string;
 }
 
 interface RegisterPayload {

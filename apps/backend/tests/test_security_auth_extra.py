@@ -1,14 +1,17 @@
 from uuid import uuid4
 
+from tests.helpers import create_test_user
+
 
 def test_internal_error_does_not_leak_sensitive_info(client):
-    # Simula um erro que poderia acontecer no banco
-    # Ao tentar registrar um e-mail inválido que passe no regex mas dê erro no DB
+    """Login com credenciais inválidas retorna 401 genérico, sem stack trace."""
     response = client.post(
-        "/auth/register", json={"email": "not-an-email", "password": "Short"}
+        "/auth/login",
+        data={"username": "not-an-email", "password": "Whatever123!"},
     )
-    # Deve retornar erro de validação (422) e não um erro de banco (500) com stack trace
-    assert response.status_code == 422
+    assert response.status_code == 401
+    assert "Traceback" not in response.text
+    assert response.json()["detail"] == "Credenciais inválidas"
     assert "password_hash" not in response.text
     assert "sqlalchemy" not in response.text.lower()
 
@@ -21,7 +24,16 @@ def test_auth_response_contains_no_sensitive_fields(client):
         "company": "Secure Co",
         "password": "StrongPassword123!",
     }
-    response = client.post("/auth/register", json=payload)
+    create_test_user(
+        email=payload["email"],
+        name=payload["name"],
+        company=payload["company"],
+    )
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": payload["password"]}
+    )
+    token = resp.json()["access_token"]
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     data = response.json()
 
     # Campos que NÃO devem estar no JSON de resposta

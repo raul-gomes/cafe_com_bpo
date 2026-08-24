@@ -8,10 +8,25 @@ The actual email sending is mocked by the dev-mode fallback in tests.
 from unittest.mock import patch
 from uuid import uuid4
 
+from src.core.database import SessionLocal
+from src.core.security import PasswordService
+from src.modules.auth.repository import UserRepository
+
 
 def get_auth_header(client, email):
-    payload = {"email": email, "password": "StrongPassword123!", "name": "Test User"}
-    client.post("/auth/register", json=payload)
+    """Cria o usuário direto no banco (registro público foi removido)."""
+    session = SessionLocal()
+    try:
+        UserRepository(session).create_user(
+            email=email,
+            password_hash=PasswordService.hash_password("StrongPassword123!"),
+            name="Test User",
+            terms_accepted=True,
+        )
+        session.commit()
+    finally:
+        session.close()
+
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -87,3 +102,24 @@ class TestFeedbackEndpoint:
             user_name="Test User",
             user_email=email,
         )
+
+
+class TestSupportEmailWiring:
+    def test_send_feedback_targets_support_email_from_settings(self):
+        """O destinatário do feedback é o SUPPORT_EMAIL das configurações."""
+        from src.core.config import get_settings
+        from src.core.email import EmailService
+        from src.modules.feedback.service import FeedbackService
+
+        expected = get_settings().support_email
+        assert expected, "SUPPORT_EMAIL deve estar configurado"
+
+        with patch.object(EmailService, "send_email") as mock_send:
+            FeedbackService.send_feedback(
+                title="Título",
+                description="Descrição",
+                user_name="U",
+                user_email="u@x.com",
+            )
+        # Primeiro argumento de send_email é o destinatário
+        assert mock_send.call_args.args[0] == expected

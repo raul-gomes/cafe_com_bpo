@@ -85,6 +85,8 @@ class User(Base):
 
     role = Column(String(20), server_default="user", nullable=False)
     auth_provider = Column(String(50), default="local", nullable=False)
+    terms_accepted = Column(Boolean, server_default="false", nullable=False)
+    terms_accepted_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

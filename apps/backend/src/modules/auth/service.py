@@ -14,7 +14,7 @@ from src.core.security import PasswordService, TokenService, oauth2_scheme
 
 from .models import PasswordResetToken
 from .repository import UserRepository
-from .schemas import UserCreate, UserResponse
+from .schemas import UserCreate, UserCreateAdmin, UserResponse
 
 
 def _hash_token(token: str) -> str:
@@ -36,6 +36,28 @@ class AuthService:
                 password_hash=hashed_pw,
                 name=payload.name,
                 company=payload.company,
+                terms_accepted=payload.terms_accepted,
+            )
+            self.user_repo.session.commit()
+            return UserResponse.from_user(user)
+        except IntegrityError:
+            self.user_repo.session.rollback()
+            raise ValueError("Este E-mail já está em uso na base.")
+        except Exception as e:
+            self.user_repo.session.rollback()
+            raise e
+
+    def create_user_by_admin(self, payload: UserCreateAdmin) -> UserResponse:
+        try:
+            payload.email = payload.email.lower().strip()
+            hashed_pw = PasswordService.hash_password(payload.password)
+            user = self.user_repo.create_user(
+                email=payload.email,
+                password_hash=hashed_pw,
+                name=payload.name,
+                company=payload.company,
+                role=payload.role,
+                terms_accepted=True,  # Admin-created users skip LGPD checkbox
             )
             self.user_repo.session.commit()
             return UserResponse.from_user(user)

@@ -4,78 +4,8 @@ from unittest.mock import patch
 from uuid import uuid4
 
 import jwt
-import pytest
 
-
-@pytest.fixture
-def mock_httpx_post():
-    with patch("httpx.post") as mock_post:
-        mock_post.return_value.is_error = False
-        yield mock_post
-
-
-@pytest.fixture
-def mock_httpx_get():
-    with patch("httpx.get") as mock_get:
-        mock_get.return_value.is_error = False
-        yield mock_get
-
-
-def test_google_oauth_successful_login_flow(client, mock_httpx_post, mock_httpx_get):
-    """Phase 1.2: Test Google OAuth successful login flow"""
-    email = f"google_user_{uuid4()}@gmail.com"
-
-    # Mock token exchange
-    mock_httpx_post.return_value.status_code = 200
-    mock_httpx_post.return_value.json.return_value = {"access_token": "fake_token_123"}
-
-    # Mock user info fetch
-    mock_httpx_get.return_value.status_code = 200
-    mock_httpx_get.return_value.json.return_value = {
-        "email": email,
-        "name": "Google User",
-    }
-
-    with patch(
-        "src.modules.auth.oauth.service.OAuthStateService.validate_state",
-        return_value=True,
-    ):
-        # The OAuth callback redirects to frontend, so we expect 307 (redirect)
-        response = client.get(
-            "/auth/google/callback?code=fake_code&state=valid_state",
-            follow_redirects=False,
-        )
-
-        # Should redirect (307) to frontend with tokens
-        assert response.status_code == 307
-        assert "token=" in response.headers.get("location", "")
-
-
-def test_google_oauth_creates_new_user_on_first_login(
-    client, mock_httpx_post, mock_httpx_get
-):
-    """Phase 1.2: Test Google OAuth creating new user on first login"""
-    email = f"new_google_user_{uuid4()}@gmail.com"
-
-    # Mock token exchange
-    mock_httpx_post.return_value.status_code = 200
-    mock_httpx_post.return_value.json.return_value = {"access_token": "fake_token_456"}
-
-    # Mock user info fetch
-    mock_httpx_get.return_value.status_code = 200
-    mock_httpx_get.return_value.json.return_value = {"email": email}
-
-    with patch(
-        "src.modules.auth.oauth.service.OAuthStateService.validate_state",
-        return_value=True,
-    ):
-        response = client.get(
-            "/auth/google/callback?code=fake_code&state=valid_state",
-            follow_redirects=False,
-        )
-
-        # Should redirect (OAuth flow completes)
-        assert response.status_code == 307
+from tests.helpers import register_user
 
 
 def test_login_with_correct_credentials(client):
@@ -84,7 +14,7 @@ def test_login_with_correct_credentials(client):
     password = "StrongPassword123!"
 
     # Register user
-    client.post("/auth/register", json={"email": email, "password": password})
+    register_user(payload={"email": email, "password": password})
 
     # Login with correct credentials
     response = client.post(
@@ -105,7 +35,7 @@ def test_login_with_incorrect_credentials(client):
     password = "StrongPassword123!"
 
     # Register user
-    client.post("/auth/register", json={"email": email, "password": password})
+    register_user(payload={"email": email, "password": password})
 
     # Login with wrong password
     response = client.post(
@@ -122,7 +52,7 @@ def test_token_refresh_flow(client):
     password = "StrongPassword123!"
 
     # Register and login
-    client.post("/auth/register", json={"email": email, "password": password})
+    register_user(payload={"email": email, "password": password})
     login_response = client.post(
         "/auth/login", data={"username": email, "password": password}
     )
@@ -165,9 +95,7 @@ def test_forgot_password_token_generation(client):
     email = f"forgot_{uuid4()}@cafe.com"
 
     # Register user
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
 
     # Request password reset
     with patch("src.core.email.EmailService.send_reset_password_email") as mock_send:
@@ -198,9 +126,7 @@ def test_forgot_password_token_stored_as_hash(client):
     from src.modules.auth.service import AuthService
 
     email = f"hash_test_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
 
     session = SessionLocal()
     user = session.query(User).filter_by(email=email).first()
@@ -230,9 +156,7 @@ def test_reset_password_token_validation(client):
     email = f"reset_test_{uuid4()}@cafe.com"
 
     # Register user
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
 
     # Request password reset to generate token
     with patch("src.core.email.EmailService.send_reset_password_email"):
@@ -269,9 +193,7 @@ def test_reset_password_expired_token(client):
     email = f"expired_test_{uuid4()}@cafe.com"
 
     # Register user
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
 
     # Get user and create expired token directly
     import secrets

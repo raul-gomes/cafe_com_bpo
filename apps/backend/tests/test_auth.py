@@ -1,35 +1,12 @@
 from uuid import uuid4
 
-
-def test_register_user_returns_201_and_user_payload(client):
-    email = f"test_{uuid4()}@cafe.com"
-    payload = {"email": email, "password": "StrongPassword123!"}
-    response = client.post("/auth/register", json=payload)
-    assert response.status_code == 201
-    assert response.json()["email"] == email
-    assert "id" in response.json()
-
-
-def test_register_rejects_duplicate_email(client):
-    email = f"duplicate_{uuid4()}@cafe.com"
-    payload = {"email": email, "password": "StrongPassword123!"}
-    client.post("/auth/register", json=payload)
-    response = client.post("/auth/register", json=payload)
-    assert response.status_code == 400
-    assert "uso" in response.text
-
-
-def test_register_rejects_weak_password(client):
-    email = f"weak_{uuid4()}@cafe.com"
-    payload = {"email": email, "password": "123"}
-    response = client.post("/auth/register", json=payload)
-    assert response.status_code == 422
+from tests.helpers import create_test_user, register_user
 
 
 def test_login_returns_access_token(client):
     email = f"login_{uuid4()}@cafe.com"
     payload = {"email": email, "password": "StrongPassword123!"}
-    client.post("/auth/register", json=payload)
+    register_user(payload=payload)
 
     form_data = {"username": email, "password": "StrongPassword123!"}
     response = client.post("/auth/login", data=form_data)
@@ -41,7 +18,7 @@ def test_login_returns_access_token(client):
 def test_login_rejects_wrong_password(client):
     email = f"loginwrong_{uuid4()}@cafe.com"
     payload = {"email": email, "password": "StrongPassword123!"}
-    client.post("/auth/register", json=payload)
+    register_user(payload=payload)
 
     form_data = {"username": email, "password": "WrongPassword!"}
     response = client.post("/auth/login", data=form_data)
@@ -60,10 +37,15 @@ def test_protected_route_rejects_expired_token(client):
 
 def test_auth_response_never_returns_password_hash(client):
     email = f"safe_{uuid4()}@cafe.com"
-    payload = {"email": email, "password": "StrongPassword123!"}
-    response = client.post("/auth/register", json=payload)
-    assert "password" not in response.text
-    assert "password_hash" not in response.text
+    create_test_user(email=email)
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    token = resp.json()["access_token"]
+    me = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert me.status_code == 200
+    assert "password" not in me.text
+    assert "password_hash" not in me.text
 
 
 def test_error_messages_do_not_allow_user_enumeration(client):
@@ -77,7 +59,7 @@ def test_upload_avatar_success(client, monkeypatch):
     """Mock CloudinaryService.upload_file to avoid external API calls."""
     email = f"avatar_user_{uuid4()}@cafe.com"
     payload = {"email": email, "password": "StrongPassword123!"}
-    client.post("/auth/register", json=payload)
+    register_user(payload=payload)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -118,9 +100,7 @@ def test_upload_avatar_requires_auth(client):
 def test_update_profile_with_company_fields(client):
     """Tarefa 3.2: PATCH /auth/me atualiza todos os campos de perfil/empresa"""
     email = f"profile_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -162,9 +142,7 @@ def test_update_profile_with_company_fields(client):
 def test_update_profile_sanitizes_cnpj_and_phones(client):
     """PATCH /auth/me normaliza CNPJ e telefones (remove máscara/pontuação)."""
     email = f"sani_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -190,27 +168,21 @@ def test_update_profile_sanitizes_cnpj_and_phones(client):
 def test_update_profile_rejects_empty_sanitized_field(client):
     """PATCH /auth/me rejeita campo que fica vazio após remover não-dígitos."""
     email = f"sani_empty_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
     token = resp.json()["access_token"]
     headers = {"Authorization": f"Bearer {token}"}
 
-    resp = client.patch(
-        "/auth/me", json={"whatsapp": "abc-()/"}, headers=headers
-    )
+    resp = client.patch("/auth/me", json={"whatsapp": "abc-()/"}, headers=headers)
     assert resp.status_code == 422
 
 
 def test_update_profile_accepts_empty_phone_and_cnpj(client):
     """PATCH /auth/me aceita telefone/CNPJ vazios (ex.: aba Personalização)."""
     email = f"sani_empty_ok_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -228,9 +200,7 @@ def test_update_profile_accepts_empty_phone_and_cnpj(client):
 def test_update_profile_partial_update(client):
     """PATCH /auth/me permite atualizar apenas um campo sem afetar outros"""
     email = f"partial_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -258,9 +228,7 @@ def test_update_profile_partial_update(client):
 def test_update_profile_does_not_allow_email_change(client):
     """PATCH /auth/me NÃO permite alterar o email (campo rejeitado)"""
     email = f"noemail_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -281,7 +249,7 @@ def test_upload_company_logo_success(client, monkeypatch):
     """Faz upload da logo da empresa com mock do Cloudinary."""
     email = f"logo_{uuid4()}@cafe.com"
     payload = {"email": email, "password": "StrongPassword123!"}
-    client.post("/auth/register", json=payload)
+    register_user(payload=payload)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -323,9 +291,7 @@ def test_upload_company_logo_requires_auth(client):
 def test_upload_company_logo_invalid_extension(client):
     """Extensão inválida → 400."""
     email = f"logo_inv_{uuid4()}@cafe.com"
-    client.post(
-        "/auth/register", json={"email": email, "password": "StrongPassword123!"}
-    )
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -342,14 +308,9 @@ def test_upload_company_logo_invalid_extension(client):
 
 
 def test_login_email_case_insensitive(client):
-    """Register with mixed-case email, login with different case — must succeed."""
+    """User created with mixed-case email, login with different case — must succeed."""
     email_mixed = f"CaseTest_{uuid4()}@Example.COM"
-    email_lower = email_mixed.lower()
-    payload = {"email": email_mixed, "password": "StrongPassword123!"}
-    register_resp = client.post("/auth/register", json=payload)
-    assert register_resp.status_code == 201
-    # Email stored as lowercase
-    assert register_resp.json()["email"] == email_lower
+    create_test_user(email=email_mixed)
 
     # Login with different case works
     login_resp = client.post(
@@ -358,21 +319,3 @@ def test_login_email_case_insensitive(client):
     )
     assert login_resp.status_code == 200
     assert "access_token" in login_resp.json()
-
-
-def test_register_rejects_case_insensitive_duplicate(client):
-    """Registering with same email but different case must be rejected."""
-    unique = uuid4().hex[:6]
-    email1 = f"DupCase_{unique}@cafe.com"
-    email2 = email1.upper()
-
-    resp1 = client.post(
-        "/auth/register", json={"email": email1, "password": "StrongPassword123!"}
-    )
-    assert resp1.status_code == 201
-
-    resp2 = client.post(
-        "/auth/register", json={"email": email2, "password": "StrongPassword123!"}
-    )
-    assert resp2.status_code == 400
-    assert "uso" in resp2.text

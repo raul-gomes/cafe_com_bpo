@@ -1,4 +1,5 @@
 import uuid
+from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
@@ -20,6 +21,8 @@ class UserRepository:
         auth_provider: str = "local",
         name: str | None = None,
         company: str | None = None,
+        role: str = "user",
+        terms_accepted: bool = False,
     ) -> User:
         user = User(
             email=email,
@@ -27,6 +30,9 @@ class UserRepository:
             auth_provider=auth_provider,
             name=name,
             company=company,
+            role=role,
+            terms_accepted=terms_accepted,
+            terms_accepted_at=datetime.now(timezone.utc) if terms_accepted else None,
         )
         self.session.add(user)
         self.session.flush()

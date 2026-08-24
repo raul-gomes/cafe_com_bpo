@@ -1,4 +1,5 @@
 import re
+from datetime import datetime
 from typing import TYPE_CHECKING
 from uuid import UUID
 
@@ -17,6 +18,35 @@ class UserCreate(BaseModel):
     company: str | None = Field(
         default=None, max_length=150, description="Empresa do usuário."
     )
+    terms_accepted: bool = Field(
+        ..., description="Aceite dos Termos de Uso e Política de Privacidade (LGPD)."
+    )
+
+    @field_validator("email", mode="before")
+    @classmethod
+    def normalize_email(cls, v: str) -> str:
+        return v.lower().strip()
+
+    @field_validator("terms_accepted")
+    @classmethod
+    def terms_must_be_accepted(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError(
+                "É necessário aceitar os Termos de Uso e Política de Privacidade (LGPD)."
+            )
+        return v
+
+
+class UserCreateAdmin(BaseModel):
+    email: EmailStr = Field(..., description="E-mail principal do usuário.")
+    password: str = Field(..., min_length=8, description="Senha forte.")
+    name: str | None = Field(
+        default=None, max_length=150, description="Nome completo do usuário."
+    )
+    company: str | None = Field(
+        default=None, max_length=150, description="Empresa do usuário."
+    )
+    role: str = Field(default="user", description="Role do usuário (user, admin).")
 
     @field_validator("email", mode="before")
     @classmethod
@@ -44,6 +74,8 @@ class UserResponse(BaseModel):
     company_logo_url: str | None = None
     company_color_code: str | None = None
     company_color_secondary: str | None = None
+    terms_accepted: bool = False
+    terms_accepted_at: datetime | None = None
 
     @classmethod
     def from_user(cls, user: "User") -> "UserResponse":
@@ -70,6 +102,8 @@ class UserResponse(BaseModel):
             company_logo_url=user.company_logo_url,
             company_color_code=user.company_color_code,
             company_color_secondary=user.company_color_secondary,
+            terms_accepted=user.terms_accepted,
+            terms_accepted_at=user.terms_accepted_at,
         )
 
 

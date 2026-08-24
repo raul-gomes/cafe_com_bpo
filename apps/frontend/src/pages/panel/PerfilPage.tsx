@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
-import { uploadAvatar, uploadCompanyLogo, updateProfile } from '../../api/clients';
+import { uploadAvatar, uploadCompanyLogo, updateProfile, adminCreateUser, CreateUserAdminData } from '../../api/clients';
 import { getApiUrl } from '../../api/client';
 import { Button } from '../../components/ui/button';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -17,9 +17,10 @@ import { ColorPicker } from '../../components/ui/ColorPicker';
 import { maskCNPJ, maskPhone, unmask } from '../../utils/masks';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
+import { CheckCircle } from 'lucide-react';
 import type { User } from '../../context/AuthContext';
 
-type TabType = 'personal' | 'company' | 'contact' | 'customization';
+type TabType = 'personal' | 'company' | 'contact' | 'customization' | 'addMember';
 
 const SEGMENT_OPTIONS = [
   { value: '', label: 'Selecione um segmento' },
@@ -35,6 +36,7 @@ const TAB_MAP: Record<TabType, string> = {
   company: 'Empresa',
   contact: 'Contato',
   customization: 'Personalização',
+  addMember: 'Adicionar Membro',
 };
 
 export const PerfilPage: React.FC = () => {
@@ -69,6 +71,23 @@ export const PerfilPage: React.FC = () => {
 
   const [companyLogoFile, setCompanyLogoFile] = useState<File | null>(null);
   const [companyLogoPreview, setCompanyLogoPreview] = useState<string | null>(null);
+
+  // Add Member tab state
+  const [isAdmin, setIsAdmin] = useState(user?.role === 'admin');
+  const [memberForm, setMemberForm] = useState<CreateUserAdminData>({
+    email: '',
+    password: '',
+    name: '',
+    company: '',
+    role: 'user',
+  });
+  const [memberFormErrors, setMemberFormErrors] = useState<Partial<CreateUserAdminData>>({});
+  const [memberSuccess, setMemberSuccess] = useState<string | null>(null);
+  const [isCreatingMember, setIsCreatingMember] = useState(false);
+
+  useEffect(() => {
+    setIsAdmin(user?.role === 'admin');
+  }, [user?.role]);
 
   useEffect(() => {
     const savedSegment = user?.company_segment || '';
@@ -136,6 +155,47 @@ export const PerfilPage: React.FC = () => {
       const file = e.target.files[0];
       setCompanyLogoFile(file);
       setCompanyLogoPreview(URL.createObjectURL(file));
+    }
+  };
+
+  const handleMemberChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
+    const { name, value } = e.target;
+    setMemberForm(prev => ({ ...prev, [name]: value }));
+    const formErrors = memberFormErrors as Record<string, string | undefined>;
+    if (formErrors[name]) {
+      setMemberFormErrors(prev => ({ ...prev, [name]: undefined }));
+    }
+  };
+
+  const validateMemberForm = (): boolean => {
+    const errors: Partial<CreateUserAdminData> = {};
+    if (!memberForm.email) errors.email = 'E-mail é obrigatório';
+    else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(memberForm.email)) errors.email = 'E-mail inválido';
+    if (!memberForm.password) errors.password = 'Senha é obrigatória';
+    else if (memberForm.password.length < 8) errors.password = 'Senha deve ter no mínimo 8 caracteres';
+    if (!memberForm.name) errors.name = 'Nome é obrigatório';
+    setMemberFormErrors(errors);
+    return Object.keys(errors).length === 0;
+  };
+
+  const handleCreateMember = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!validateMemberForm()) return;
+    setIsCreatingMember(true);
+    setMemberSuccess(null);
+    try {
+      await adminCreateUser(memberForm);
+      toast.success('Membro criado com sucesso!');
+      setMemberSuccess('Membro criado com sucesso. As credenciais foram enviadas por e-mail.');
+      setMemberForm({ email: '', password: '', name: '', company: '', role: 'user' });
+    } catch (err: any) {
+      const msg = err.response?.data?.detail || 'Erro ao criar membro.';
+      setMemberFormErrors({ email: msg });
+      toast.error(msg);
+    } finally {
+      setIsCreatingMember(false);
     }
   };
 
@@ -224,9 +284,11 @@ export const PerfilPage: React.FC = () => {
         <Tabs value={activeTab} onValueChange={(val) => setActiveTab(val as TabType)}>
           <TabsList variant="line" className="mb-6 w-full justify-start">
             {Object.entries(TAB_MAP).map(([key, label]) => (
-              <TabsTrigger key={key} value={key}>
-                {label}
-              </TabsTrigger>
+              (key === 'addMember' && !isAdmin) ? null : (
+                <TabsTrigger key={key} value={key}>
+                  {label}
+                </TabsTrigger>
+              )
             ))}
           </TabsList>
 
@@ -507,6 +569,99 @@ export const PerfilPage: React.FC = () => {
                 )}
               </div>
             </TabsContent>
+
+            {/* ───────────── ADICIONAR MEMBRO (ADMIN) ───────────── */}
+            {isAdmin && (
+              <TabsContent value="addMember">
+                <div className="flex flex-col gap-4">
+                  <div className="mb-5">
+                    <p className="text-sm text-muted-foreground">
+                      Adicione um novo membro à equipe. O usuário receberá um e-mail com as credenciais de acesso.
+                    </p>
+                  </div>
+                  <div className="flex flex-col gap-4">
+                    <Field>
+                      <Label>E-mail *</Label>
+                      <Input
+                        type="email"
+                        name="email"
+                        value={memberForm.email}
+                        onChange={handleMemberChange}
+                        placeholder="membro@empresa.com"
+                        aria-invalid={!!memberFormErrors.email}
+                      />
+                      {memberFormErrors.email && <p className="ds-error-text">{memberFormErrors.email}</p>}
+                    </Field>
+
+                    <Field>
+                      <Label>Senha *</Label>
+                      <Input
+                        type="password"
+                        name="password"
+                        value={memberForm.password}
+                        onChange={handleMemberChange}
+                        placeholder="Mínimo 8 caracteres"
+                        aria-invalid={!!memberFormErrors.password}
+                      />
+                      {memberFormErrors.password && <p className="ds-error-text">{memberFormErrors.password}</p>}
+                    </Field>
+
+                    <Field>
+                      <Label>Nome Completo *</Label>
+                      <Input
+                        type="text"
+                        name="name"
+                        value={memberForm.name}
+                        onChange={handleMemberChange}
+                        placeholder="Ex: João Silva"
+                        aria-invalid={!!memberFormErrors.name}
+                      />
+                      {memberFormErrors.name && <p className="ds-error-text">{memberFormErrors.name}</p>}
+                    </Field>
+
+                    <Field>
+                      <Label>Empresa (opcional)</Label>
+                      <Input
+                        type="text"
+                        name="company"
+                        value={memberForm.company}
+                        onChange={handleMemberChange}
+                        placeholder="Nome da empresa"
+                      />
+                    </Field>
+
+                    <Field>
+                      <Label>Função</Label>
+                      <select
+                        name="role"
+                        value={memberForm.role}
+                        onChange={handleMemberChange}
+                        className="flex h-8 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900"
+                      >
+                        <option value="user">Usuário</option>
+                        <option value="admin">Administrador</option>
+                      </select>
+                    </Field>
+                  </div>
+
+                  {memberSuccess && (
+                    <div className="flex items-center gap-2 text-green-600 dark:text-green-400 text-sm">
+                      <CheckCircle size={16} />
+                      <span>{memberSuccess}</span>
+                    </div>
+                  )}
+
+                  <Button
+                    type="button"
+                    onClick={handleCreateMember}
+                    disabled={isCreatingMember}
+                    className="w-full mt-4"
+                  >
+                    {isCreatingMember ? 'Criando...' : 'Criar Membro'}
+                  </Button>
+                </div>
+              </TabsContent>
+            )}
 
             {/* Submit */}
             <div className="mt-6 flex justify-end border-t border-border pt-4">
