@@ -13,6 +13,9 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm install --legacy-peer-deps
 COPY . .
+# Variáveis VITE_* são embutidas no bundle no momento do build
+ARG VITE_PIX_KEY
+ENV VITE_PIX_KEY=$VITE_PIX_KEY
 RUN npm run build
 
 # Stage 3: Runner (Production)

@@ -14,10 +14,12 @@ def is_sqlite(url: str) -> bool:
 
 pool_args = {}
 if not is_sqlite(settings.database_url):
+    # Dimensionado para VPS pequena (2 vCPU / pouca RAM):
+    # até 15 conexões no pico, o suficiente para o porte atual.
     pool_args = {
         "poolclass": QueuePool,
-        "pool_size": 10,
-        "max_overflow": 20,
+        "pool_size": 5,
+        "max_overflow": 10,
         "pool_pre_ping": True,
         "pool_recycle": 3600,
     }

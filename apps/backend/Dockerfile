@@ -13,8 +13,12 @@ RUN groupadd -g 1001 appgroup && useradd -r -u 1001 -g appgroup appuser
 COPY --from=builder /install /usr/local
 COPY --chown=1001:1001 . .
 
-RUN mkdir -p /app/logs /app/storage && chown -R 1001:1001 /app && chmod -R 755 /app
-RUN chmod +x entrypoint.sh
+# Permissões mínimas: diretórios navegáveis, arquivos somente-leitura,
+# exceto o entrypoint (evita ruff EXE002 em todos os .py).
+RUN mkdir -p /app/logs /app/storage && chown -R 1001:1001 /app \
+ && find /app -type d -exec chmod 755 {} + \
+ && find /app -type f -exec chmod 644 {} + \
+ && chmod +x /app/entrypoint.sh
 USER 1001
 
 ENV PYTHONUNBUFFERED=1
