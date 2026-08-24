@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { PIX_KEY } from '../config/env';
 import './HomePage.css';
 
 const HomePage: React.FC = () => {
@@ -14,7 +15,7 @@ const HomePage: React.FC = () => {
   const targetPath = isAuthenticated ? '/painel' : '/login';
 
   const handleCopyPix = () => {
-    navigator.clipboard.writeText('cafe@cafecombpo.com.br');
+    navigator.clipboard.writeText(PIX_KEY);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -297,7 +298,7 @@ const HomePage: React.FC = () => {
                 </div>
                 <p className="donate-pix-label">PIX</p>
                 <div className="donate-pix-copy">
-                  <code className="donate-pix-key">cafe@cafecombpo.com.br</code>
+                  <code className="donate-pix-key">{PIX_KEY}</code>
                   <button className="donate-copy-btn" onClick={handleCopyPix}>
                     {copied ? (
                       <>

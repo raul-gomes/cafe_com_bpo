@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { PIX_KEY } from '../../config/env';
 
 interface ModalNosAjudeProps {
   isOpen: boolean;
@@ -15,7 +16,7 @@ export const ModalNosAjude: React.FC<ModalNosAjudeProps> = ({ isOpen, onClose })
   if (!isOpen) return null;
 
   const handleCopyPix = () => {
-    navigator.clipboard.writeText('cafe@cafecombpo.com.br');
+    navigator.clipboard.writeText(PIX_KEY);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
@@ -64,7 +65,7 @@ export const ModalNosAjude: React.FC<ModalNosAjudeProps> = ({ isOpen, onClose })
               </div>
               <p className="donate-pix-label">PIX</p>
               <div className="donate-pix-copy">
-                <code className="donate-pix-key">cafe@cafecombpo.com.br</code>
+                <code className="donate-pix-key">{PIX_KEY}</code>
                 <button className="donate-copy-btn" onClick={handleCopyPix}>
                   {copied ? (
                     <>
