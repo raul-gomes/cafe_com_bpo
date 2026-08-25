@@ -1,5 +1,6 @@
 from uuid import UUID
 
+from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
 from ..models import ActivityTemplate, TemplateActivity
@@ -18,23 +19,38 @@ class TemplateRepository:
     # ── ActivityTemplate CRUD ──
 
     def get_templates_by_user(self, user_id: UUID) -> list[ActivityTemplate]:
+        """Templates próprios + rotinas gerais (visíveis a todos)."""
         return (
             self.session.query(ActivityTemplate)
-            .filter(ActivityTemplate.user_id == user_id)
+            .filter(
+                or_(
+                    ActivityTemplate.user_id == user_id,
+                    ActivityTemplate.is_general.is_(True),
+                )
+            )
             .order_by(ActivityTemplate.created_at.desc())
             .all()
         )
 
     def get_template_by_id(
-        self, template_id: UUID, user_id: UUID
+        self, template_id: UUID, user_id: UUID, include_general: bool = False
     ) -> ActivityTemplate | None:
-        return (
-            self.session.query(ActivityTemplate)
-            .filter(
-                ActivityTemplate.id == template_id, ActivityTemplate.user_id == user_id
+        """Busca template do usuário.
+
+        include_general=True também retorna rotinas gerais de outros usuários
+        (leitura/vínculo). Escrita continua restrita ao dono.
+        """
+        conditions = [ActivityTemplate.id == template_id]
+        if include_general:
+            conditions.append(
+                or_(
+                    ActivityTemplate.user_id == user_id,
+                    ActivityTemplate.is_general.is_(True),
+                )
             )
-            .first()
-        )
+        else:
+            conditions.append(ActivityTemplate.user_id == user_id)
+        return self.session.query(ActivityTemplate).filter(*conditions).first()
 
     def create_template(
         self, template_in: ActivityTemplateCreate, user_id: UUID

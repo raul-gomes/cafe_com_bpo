@@ -252,7 +252,10 @@ class AssignmentService:
     ) -> dict:
         """Assign a template to a client and auto-generate tasks."""
         # Validate template exists
-        tmpl = self.template_repo.get_template_by_id(assignment_in.template_id, user_id)
+        # Validate template exists (rotinas gerais são vinculáveis por todos)
+        tmpl = self.template_repo.get_template_by_id(
+            assignment_in.template_id, user_id, include_general=True
+        )
         if not tmpl:
             raise ValueError(f"Template {assignment_in.template_id} not found")
 
@@ -415,7 +418,9 @@ class AssignmentService:
         activities = self.template_repo.get_activities_by_template(
             assignment.template_id
         )
-        tmpl = self.template_repo.get_template_by_id(assignment.template_id, user_id)
+        tmpl = self.template_repo.get_template_by_id(
+            assignment.template_id, user_id, include_general=True
+        )
         if not tmpl:
             raise ValueError(f"Template {assignment.template_id} not found")
 

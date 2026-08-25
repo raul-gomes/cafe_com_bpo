@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Search } from 'lucide-react';
+import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Search, Globe } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -12,6 +12,7 @@ import { Badge } from '../../components/ui/badge';
 import { Switch } from '../../components/ui/switch';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../../components/ui/dialog';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 const RECURRENCE_LABELS: Record<string, string> = {
   once: 'Uma só vez',
@@ -85,8 +86,11 @@ export const TemplateListPage: React.FC = () => {
   const [newDueMonth, setNewDueMonth] = useState<number | ''>('');
   const [newWeekdays, setNewWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
   const [showTypeManager, setShowTypeManager] = useState(false);
+  const [createAsGeneral, setCreateAsGeneral] = useState(false);
   const [typeEdit, setTypeEdit] = useState<{ id?: string; name: string; color: string }>({ name: '', color: '#3b82f6' });
   const confirm = useConfirm();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
 
   const [sectionSearch, setSectionSearch] = useState<Record<string, string>>({});
   const [sectionSearchOpen, setSectionSearchOpen] = useState<Record<string, boolean>>({});
@@ -133,12 +137,16 @@ export const TemplateListPage: React.FC = () => {
       payload.due_day = newDueDay === '' ? undefined : Number(newDueDay);
       payload.due_month = newDueMonth === '' ? undefined : Number(newDueMonth);
     }
+    if (createAsGeneral) {
+      payload.is_general = true;
+    }
     await createTemplate.mutateAsync(payload as any);
     setNewName('');
     setNewDaysFromStart('');
     setNewDueDay('');
     setNewDueMonth('');
     setNewWeekdays([1, 2, 3, 4, 5]);
+    setCreateAsGeneral(false);
     setShowCreate(false);
   };
 
@@ -176,7 +184,12 @@ export const TemplateListPage: React.FC = () => {
           <Button variant="secondary" onClick={() => setShowTypeManager(true)}>
             <Settings size={16} /> Tipos
           </Button>
-          <Button onClick={() => setShowCreate(true)}>
+          {isAdmin && (
+            <Button variant="outline" onClick={() => { setCreateAsGeneral(true); setShowCreate(true); }}>
+              <Globe size={16} /> Rotina Geral
+            </Button>
+          )}
+          <Button onClick={() => { setCreateAsGeneral(false); setShowCreate(true); }}>
             <Plus size={16} /> Nova Rotina
           </Button>
         </div>
@@ -186,9 +199,15 @@ export const TemplateListPage: React.FC = () => {
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="sm:max-w-xl">
           <DialogHeader>
-            <DialogTitle>Nova Rotina</DialogTitle>
+            <DialogTitle>{createAsGeneral ? 'Nova Rotina Geral' : 'Nova Rotina'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4">
+            {createAsGeneral && (
+              <p className="text-[12px] text-muted-foreground bg-primary/5 border border-primary/15 rounded-md px-3 py-2">
+                <Globe size={12} className="inline mr-1 -mt-0.5" />
+                Rotinas gerais ficam visíveis para todos os usuários, que poderão vinculá-las aos próprios clientes.
+              </p>
+            )}
             <div>
               <label className="text-xs font-semibold text-muted-foreground block mb-1">Nome</label>
               <Input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Ex: Fiscal Mensal" autoFocus />
@@ -383,8 +402,13 @@ export const TemplateListPage: React.FC = () => {
                             <div className="size-9 rounded-lg bg-primary/10 grid place-items-center shrink-0 leading-none">
                               <LayoutList size={18} className="text-primary-strong" />
                             </div>
-                            <div className="min-w-0 flex-1">
+                            <div className="min-w-0 flex-1 flex items-center gap-2">
                               <span className="text-[15px] font-bold text-foreground leading-tight">{tmpl.name}</span>
+                              {tmpl.is_general && (
+                                <Badge variant="outline" className="gap-1 text-[10px] font-semibold text-primary-strong border-primary/30 shrink-0">
+                                  <Globe size={10} /> Geral
+                                </Badge>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2.5 text-[12px] text-muted-foreground/80 ml-12 mt-1.5">
@@ -411,17 +435,22 @@ export const TemplateListPage: React.FC = () => {
                               <AlertTriangle size={11} /> {tmpl.days_overdue ?? 0}d
                             </Badge>
                           )}
-                          <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
-                          <button
-                            onClick={async (e) => {
-                              e.stopPropagation();
-                              const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
-                              if (ok) deleteTemplate.mutate(tmpl.id);
-                            }}
-                            className="flex items-center justify-center size-7 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer border-none bg-transparent"
-                          >
-                            <X size={14} />
-                          </button>
+                          {/* Rotinas gerais de outros usuários: somente leitura */}
+                          {(!tmpl.is_general || tmpl.user_id === user?.id) && (
+                            <>
+                              <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
+                              <button
+                                onClick={async (e) => {
+                                  e.stopPropagation();
+                                  const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
+                                  if (ok) deleteTemplate.mutate(tmpl.id);
+                                }}
+                                className="flex items-center justify-center size-7 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer border-none bg-transparent"
+                              >
+                                <X size={14} />
+                              </button>
+                            </>
+                          )}
                         </div>
                         <ChevronRight size={16} className="text-muted-foreground/30 mr-3 shrink-0" />
                       </Card>

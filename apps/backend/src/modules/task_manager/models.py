@@ -225,6 +225,8 @@ class ActivityTemplate(Base):
     due_date = Column(DateTime(timezone=True), nullable=True)
     recurrence_end_date = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, server_default="true", nullable=False)
+    # Rotina geral: criada por admin, visível e vinculável por todos os usuários
+    is_general = Column(Boolean, server_default="false", nullable=False)
     routine_type_id = Column(
         UUID(as_uuid=True),
         ForeignKey("routine_types.id", ondelete="SET NULL"),

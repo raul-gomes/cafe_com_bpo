@@ -58,7 +58,12 @@ def create_template(
     current_user: CurrentUserDep,
 ):
     """Cria um novo template de atividades."""
-    return service.create_template(template_in, current_user.id)
+    try:
+        return service.create_template(
+            template_in, current_user.id, is_admin=(current_user.role == "admin")
+        )
+    except PermissionError as exc:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(exc))
 
 
 @router.get(

@@ -138,6 +138,7 @@ export interface RoutineTypeUpdate {
 
 export interface ActivityTemplateListItem {
   id: string;
+  user_id: string;
   name: string;
   description?: string;
   process_type?: string;
@@ -149,6 +150,7 @@ export interface ActivityTemplateListItem {
   due_date?: string;
   recurrence_end_date?: string;
   is_active: boolean;
+  is_general?: boolean;
   is_overdue?: boolean;
   days_overdue?: number;
   activity_count: number;
@@ -187,6 +189,7 @@ export interface ActivityTemplateResponse {
   due_date?: string;
   recurrence_end_date?: string;
   is_active: boolean;
+  is_general: boolean;
   routine_type_id?: string;
   routine_type_name?: string;
   routine_type_color?: string;
@@ -207,6 +210,7 @@ export interface ActivityTemplateCreate {
   due_date?: string;
   recurrence_end_date?: string;
   is_active?: boolean;
+  is_general?: boolean;
   routine_type_id?: string;
 }
 

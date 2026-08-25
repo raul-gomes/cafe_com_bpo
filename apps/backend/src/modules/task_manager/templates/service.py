@@ -87,6 +87,7 @@ class TemplateService:
             result.append(
                 ActivityTemplateListItem(
                     id=tmpl.id,
+                    user_id=tmpl.user_id,
                     name=tmpl.name,
                     description=tmpl.description,
                     process_type=tmpl.process_type,
@@ -98,6 +99,7 @@ class TemplateService:
                     due_date=tmpl.due_date,
                     recurrence_end_date=tmpl.recurrence_end_date,
                     is_active=tmpl.is_active,
+                    is_general=tmpl.is_general,
                     is_overdue=self._is_template_overdue(tmpl),
                     days_overdue=self._compute_days_overdue(tmpl),
                     activity_count=len(activities),
@@ -138,8 +140,13 @@ class TemplateService:
     def get_template(
         self, template_id: UUID, user_id: UUID
     ) -> ActivityTemplateResponse | None:
-        """Get a single template with all its activities."""
-        tmpl = self.repository.get_template_by_id(template_id, user_id)
+        """Get a single template with all its activities.
+
+        Rotinas gerais de outros usuários são legíveis (include_general).
+        """
+        tmpl = self.repository.get_template_by_id(
+            template_id, user_id, include_general=True
+        )
         if not tmpl:
             return None
         activities = self.repository.get_activities_by_template(template_id)
@@ -164,6 +171,7 @@ class TemplateService:
             due_date=tmpl.due_date,
             recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
+            is_general=tmpl.is_general,
             routine_type_id=tmpl.routine_type_id,
             routine_type_name=rt_name,
             routine_type_color=rt_color,
@@ -173,8 +181,13 @@ class TemplateService:
         )
 
     def create_template(
-        self, template_in: ActivityTemplateCreate, user_id: UUID
+        self,
+        template_in: ActivityTemplateCreate,
+        user_id: UUID,
+        is_admin: bool = False,
     ) -> ActivityTemplateResponse:
+        if template_in.is_general and not is_admin:
+            raise PermissionError("Apenas administradores podem criar rotinas gerais")
         tmpl = self.repository.create_template(template_in, user_id)
         log.info(f"📋 Template criado: {tmpl.name} por usuário {user_id}")
         rt_name = None
@@ -198,6 +211,7 @@ class TemplateService:
             due_date=tmpl.due_date,
             recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
+            is_general=tmpl.is_general,
             routine_type_id=tmpl.routine_type_id,
             routine_type_name=rt_name,
             routine_type_color=rt_color,

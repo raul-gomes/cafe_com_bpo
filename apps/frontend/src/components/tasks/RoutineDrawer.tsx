@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, X, Pencil } from 'lucide-react';
+import { Plus, Trash2, X, Pencil, Globe } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 import {
@@ -16,6 +16,7 @@ import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
 import { cn } from '../../lib/utils';
+import { useAuth } from '../../context/AuthContext';
 
 const RECURRENCE_LABELS: Record<string, string> = {
   once: 'Uma só vez',
@@ -264,6 +265,7 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
   } = useTasks();
   const { data: template, isLoading } = useTemplate(templateId ?? '');
   const { data: routineTypes } = useRoutineTypes();
+  const { user } = useAuth();
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
   const deleteActivity = useDeleteActivity();
@@ -279,6 +281,8 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
   const [editingAct, setEditingAct] = useState<string | null>(null);
 
   const sortedActivities = [...(template?.activities || [])].sort((a, b) => a.order - b.order);
+  // Rotinas gerais de outros usuários: somente leitura
+  const canManage = !template?.is_general || template.user_id === user?.id;
 
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -357,6 +361,11 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
           <SheetHeader className="shrink-0 border-b border-border px-6 py-5 pr-28">
             <SheetTitle className="text-lg">{template.name}</SheetTitle>
             <SheetDescription className="flex flex-wrap items-center gap-2 text-sm">
+              {template.is_general && (
+                <Badge variant="outline" className="gap-1 text-[11px] font-semibold text-primary-strong border-primary/30">
+                  <Globe size={10} /> Geral
+                </Badge>
+              )}
               {template.routine_type_name && (
                 <Badge variant="outline" className="gap-1 text-[11px] whitespace-nowrap">
                   <span className="size-1.5 rounded-full shrink-0" style={{ background: template.routine_type_color || '#3b82f6' }} />
@@ -378,26 +387,30 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
 
         {!isLoading && template && (
           <>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="absolute right-20 top-3 z-10 text-muted-foreground/60 hover:text-primary-strong hover:bg-primary/10"
-              onClick={() => setEditingRoutine(true)}
-              title="Editar rotina"
-            >
-              <Pencil size={16} className="size-4" />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              className="absolute right-12 top-3 z-10 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
-              onClick={handleDelete}
-              title="Excluir rotina"
-            >
-              <Trash2 size={16} className="size-4" />
-            </Button>
+            {canManage && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute right-20 top-3 z-10 text-muted-foreground/60 hover:text-primary-strong hover:bg-primary/10"
+                onClick={() => setEditingRoutine(true)}
+                title="Editar rotina"
+              >
+                <Pencil size={16} className="size-4" />
+              </Button>
+            )}
+            {canManage && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="absolute right-12 top-3 z-10 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
+                onClick={handleDelete}
+                title="Excluir rotina"
+              >
+                <Trash2 size={16} className="size-4" />
+              </Button>
+            )}
 
             <div className="flex-1 overflow-y-auto px-6 py-6">
               {editingRoutine ? (
@@ -410,21 +423,32 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
                 />
               ) : (
                 <>
-                  <div className="mb-6 flex items-center justify-between rounded-lg border border-border px-4 py-3">
-                    <div>
-                      <p className="text-sm font-semibold text-foreground">Rotina ativa</p>
-                      <p className="text-xs text-muted-foreground">Tarefas são geradas enquanto ativa.</p>
+                  {canManage ? (
+                    <div className="mb-6 flex items-center justify-between rounded-lg border border-border px-4 py-3">
+                      <div>
+                        <p className="text-sm font-semibold text-foreground">Rotina ativa</p>
+                        <p className="text-xs text-muted-foreground">Tarefas são geradas enquanto ativa.</p>
+                      </div>
+                      <Switch checked={template.is_active} onCheckedChange={toggleActive} />
                     </div>
-                    <Switch checked={template.is_active} onCheckedChange={toggleActive} />
-                  </div>
+                  ) : (
+                    <div className="mb-6 flex items-center gap-2 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+                      <Globe size={14} className="text-primary-strong shrink-0" />
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Rotina geral</span> — criada pelo administrador. Somente leitura; vincule-a a um cliente para gerar suas tarefas.
+                      </p>
+                    </div>
+                  )}
 
                   <div className="mb-3 flex items-center justify-between">
                     <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
                       Atividades ({sortedActivities.length})
                     </h3>
-                    <Button variant="outline" size="sm" onClick={() => setShowAdd(v => !v)}>
-                      <Plus size={14} /> Adicionar
-                    </Button>
+                    {canManage && (
+                      <Button variant="outline" size="sm" onClick={() => setShowAdd(v => !v)}>
+                        <Plus size={14} /> Adicionar
+                      </Button>
+                    )}
                   </div>
 
                   {showAdd && (
@@ -496,22 +520,26 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
                               )}
                             </div>
                             <div className="flex shrink-0 items-center gap-1">
-                              <button
-                                type="button"
-                                onClick={() => setEditingAct(act.id)}
-                                className="flex size-7 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-muted-foreground/30 transition-all cursor-pointer hover:text-primary-strong hover:bg-primary/10"
-                                title="Editar atividade"
-                              >
-                                <Pencil size={14} />
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteActivity(act.id, act.name)}
-                                className="flex size-7 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-muted-foreground/30 transition-all cursor-pointer hover:text-destructive hover:bg-destructive/10"
-                                title="Excluir atividade"
-                              >
-                                <X size={14} />
-                              </button>
+                              {canManage && (
+                                <>
+                                  <button
+                                    type="button"
+                                    onClick={() => setEditingAct(act.id)}
+                                    className="flex size-7 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-muted-foreground/30 transition-all cursor-pointer hover:text-primary-strong hover:bg-primary/10"
+                                    title="Editar atividade"
+                                  >
+                                    <Pencil size={14} />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteActivity(act.id, act.name)}
+                                    className="flex size-7 shrink-0 items-center justify-center rounded-md border-none bg-transparent text-muted-foreground/30 transition-all cursor-pointer hover:text-destructive hover:bg-destructive/10"
+                                    title="Excluir atividade"
+                                  >
+                                    <X size={14} />
+                                  </button>
+                                </>
+                              )}
                             </div>
                           </div>
                         );

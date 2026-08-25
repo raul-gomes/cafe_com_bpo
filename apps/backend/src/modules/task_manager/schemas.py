@@ -222,6 +222,9 @@ class ActivityTemplateBase(BaseModel):
     due_date: datetime | None = None
     recurrence_end_date: datetime | None = None
     is_active: bool = True
+    is_general: bool = (
+        False  # rotina geral: visível/vinculável por todos (criação: só admin)
+    )
     routine_type_id: UUID | None = None
 
 
@@ -260,6 +263,7 @@ class ActivityTemplateListItem(BaseModel):
     """List item without nested activities for performance."""
 
     id: UUID
+    user_id: UUID
     name: str
     description: str | None = None
     process_type: str | None = None
@@ -271,6 +275,7 @@ class ActivityTemplateListItem(BaseModel):
     due_date: datetime | None = None
     recurrence_end_date: datetime | None = None
     is_active: bool
+    is_general: bool = False
     is_overdue: bool = False
     days_overdue: int = 0
     activity_count: int = 0
