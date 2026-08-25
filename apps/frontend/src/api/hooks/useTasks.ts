@@ -272,6 +272,18 @@ export const useTasks = () => {
     });
   };
 
+  const useToggleArchiveTemplate = () => {
+    return useMutation({
+      mutationFn: async (id: string) => {
+        const { data } = await apiClient.patch(`/tasks/templates/${id}/archive`);
+        return data as ActivityTemplateResponse;
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['task-templates'] });
+      },
+    });
+  };
+
   // ── Template Activity Hooks ──
 
   const useCreateActivity = () => {
@@ -538,6 +550,7 @@ export const useTasks = () => {
     useCreateTemplate,
     useUpdateTemplate,
     useDeleteTemplate,
+    useToggleArchiveTemplate,
     useCreateActivity,
     useUpdateActivity,
     useDeleteActivity,

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Search, Globe } from 'lucide-react';
+import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Search, Globe, Archive } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -67,12 +67,13 @@ function RecurrenceChip({ tmpl }: { tmpl: any }) {
 
 /* ── Page ── */
 export const TemplateListPage: React.FC = () => {
-  const { useTemplatesList, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useRoutineTypes, useCreateRoutineType, useUpdateRoutineType, useDeleteRoutineType } = useTasks();
+  const { useTemplatesList, useCreateTemplate, useUpdateTemplate, useDeleteTemplate, useToggleArchiveTemplate, useRoutineTypes, useCreateRoutineType, useUpdateRoutineType, useDeleteRoutineType } = useTasks();
   const { data: templates, isLoading } = useTemplatesList();
   const { data: routineTypes, isLoading: typesLoading } = useRoutineTypes();
   const createTemplate = useCreateTemplate();
   const updateTemplate = useUpdateTemplate();
   const deleteTemplate = useDeleteTemplate();
+  const toggleArchiveTemplate = useToggleArchiveTemplate();
   const createRoutineType = useCreateRoutineType();
   const updateRoutineType = useUpdateRoutineType();
   const deleteRoutineType = useDeleteRoutineType();
@@ -155,6 +156,10 @@ export const TemplateListPage: React.FC = () => {
       id: template.id,
       is_active: !template.is_active,
     });
+  };
+
+  const handleToggleArchive = async (template: any) => {
+    await toggleArchiveTemplate.mutateAsync(template.id);
   };
 
   /* ── Loading state ── */
@@ -316,7 +321,7 @@ export const TemplateListPage: React.FC = () => {
             { key: 'monthly',  label: 'Mensal' },
             { key: 'yearly',   label: 'Anual' },
           ] as const).map(({ key, label }) => {
-            const sectionTmpls = (templates || []).filter(t => t.recurrence === key);
+            const sectionTmpls = (templates || []).filter(t => t.recurrence === key && !t.is_archived);
             if (sectionTmpls.length === 0) return null;
 
             const query = (sectionSearch[key] || '').toLowerCase();
@@ -435,7 +440,15 @@ export const TemplateListPage: React.FC = () => {
                               <AlertTriangle size={11} /> {tmpl.days_overdue ?? 0}d
                             </Badge>
                           )}
-                          {/* Rotinas gerais de outros usuários: somente leitura */}
+                          {/* Botão de arquivar: disponível para todos (pessoal e geral) */}
+                          <button
+                            onClick={(e) => { e.stopPropagation(); handleToggleArchive(tmpl); }}
+                            className="flex items-center justify-center size-7 rounded-md text-muted-foreground/30 hover:text-primary-strong hover:bg-primary/10 transition-all cursor-pointer border-none bg-transparent"
+                            title={tmpl.is_archived ? "Desarquivar" : "Arquivar"}
+                          >
+                            <Archive size={14} />
+                          </button>
+                          {/* Switch e excluir: somente dono ou geral próprio */}
                           {(!tmpl.is_general || tmpl.user_id === user?.id) && (
                             <>
                               <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
@@ -460,6 +473,74 @@ export const TemplateListPage: React.FC = () => {
               </section>
             );
           })}
+
+          {/* ── Arquivadas section ── */}
+          {(templates || []).filter(t => t.is_archived).length > 0 && (
+            <section>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-[14px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Arquivadas
+                  </h2>
+                  <span className="inline-flex items-center justify-center min-w-[18px] h-[18px] rounded-full bg-muted px-1.5 text-[10px] font-bold text-muted-foreground/70 leading-none">
+                    {(templates || []).filter(t => t.is_archived).length}
+                  </span>
+                </div>
+              </div>
+              <div className="h-px bg-border/40 mb-3" />
+              <div className="flex flex-col gap-2">
+                {(templates || []).filter(t => t.is_archived).map((tmpl) => (
+                  <Card
+                    key={tmpl.id}
+                    className="flex-row items-center gap-0 cursor-pointer transition-all hover:bg-muted/30 opacity-60"
+                    onClick={() => setSelectedTemplateId(tmpl.id)}
+                  >
+                    <CardContent className="flex-1 py-3.5 px-4 min-w-0">
+                      <div className="flex items-center gap-3">
+                        <div className="size-9 rounded-lg bg-muted grid place-items-center shrink-0 leading-none">
+                          <Archive size={18} className="text-muted-foreground/50" />
+                        </div>
+                        <div className="min-w-0 flex-1 flex items-center gap-2">
+                          <span className="text-[15px] font-bold text-foreground leading-tight line-through decoration-muted-foreground/40">{tmpl.name}</span>
+                          <Badge variant="secondary" className="gap-1 text-[10px] font-semibold shrink-0">
+                            <Archive size={10} /> Arquivada
+                          </Badge>
+                          {tmpl.is_general && (
+                            <Badge variant="outline" className="gap-1 text-[10px] font-semibold text-primary-strong border-primary/30 shrink-0">
+                              <Globe size={10} /> Geral
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-2.5 text-[12px] text-muted-foreground/80 ml-12 mt-1.5">
+                        <span className="font-medium">{tmpl.activity_count} {tmpl.activity_count === 1 ? 'atividade' : 'atividades'}</span>
+                        <span className="text-muted-foreground/20">·</span>
+                        <RecurrenceChip tmpl={tmpl} />
+                      </div>
+                    </CardContent>
+                    <div className="flex items-center gap-2 pr-3" onClick={(e) => e.stopPropagation()}>
+                      {tmpl.user_id === user?.id && (
+                        <>
+                          <Switch checked={tmpl.is_active} onCheckedChange={() => toggleActive(tmpl)} />
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              const ok = await confirm({ title: 'Excluir template', message: `Excluir template "${tmpl.name}"?`, variant: 'danger', confirmLabel: 'Excluir' });
+                              if (ok) deleteTemplate.mutate(tmpl.id);
+                            }}
+                            className="flex items-center justify-center size-7 rounded-md text-muted-foreground/30 hover:text-destructive hover:bg-destructive/10 transition-all cursor-pointer border-none bg-transparent"
+                          >
+                            <X size={14} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+                    <ChevronRight size={16} className="text-muted-foreground/30 mr-3 shrink-0" />
+                  </Card>
+                ))}
+              </div>
+            </section>
+          )}
         </div>
       )}
 

@@ -36,6 +36,8 @@ def upgrade() -> None:
 def downgrade() -> None:
     op.add_column(
         "tasks",
-        sa.Column("status", sa.String(length=50), server_default="todo", nullable=False),
+        sa.Column(
+            "status", sa.String(length=50), server_default="todo", nullable=False
+        ),
     )
     op.drop_column("task_phases", "is_done")

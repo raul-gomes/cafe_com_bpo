@@ -12,6 +12,7 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
     func,
 )
 from sqlalchemy.orm import relationship
@@ -227,6 +228,8 @@ class ActivityTemplate(Base):
     is_active = Column(Boolean, server_default="true", nullable=False)
     # Rotina geral: criada por admin, visível e vinculável por todos os usuários
     is_general = Column(Boolean, server_default="false", nullable=False)
+    # Rotina arquivada: fica no final da página, pode ser desarquivada
+    is_archived = Column(Boolean, server_default="false", nullable=False)
     routine_type_id = Column(
         UUID(as_uuid=True),
         ForeignKey("routine_types.id", ondelete="SET NULL"),
@@ -386,3 +389,30 @@ class TaskAttachment(Base):
 
     task = relationship("Task", back_populates="attachments", foreign_keys=[task_id])
     uploader = relationship("User", foreign_keys=[uploaded_by])
+
+
+class UserTemplateArchive(Base):
+    """Registra que um usuário arquivou uma rotina geral.
+
+    Para rotinas pessoais (is_general=False), o is_archived no próprio template
+    é suficiente. Para rotinas gerais, cada usuário decide individualmente.
+    """
+
+    __tablename__ = "user_template_archives"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    template_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("activity_templates.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    __table_args__ = (
+        UniqueConstraint("user_id", "template_id", name="uq_user_template_archive"),
+    )

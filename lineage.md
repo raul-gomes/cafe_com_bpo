@@ -9,7 +9,7 @@ Alembic. Todos os modelos vivem em `apps/backend/src/modules/{modulo}/models.py`
 O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 
 **Snapshot do banco real (`docker compose exec db psql -U postgres -d cafe_bpo`):**
-26 tabelas aplicadas, 42 foreign keys. 3 modelos **não migrados** (ver seção
+27 tabelas aplicadas, 44 foreign keys. 3 modelos **não migrados** (ver seção
 "Tabelas de modelo sem tabela no banco").
 
 ---
@@ -22,7 +22,7 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 | `clients` | `clients` | Portfólio de clientes do usuário ("Empresas") |
 | `payments` | `payments` | Cobranças via Asaas |
 | `proposals` | `pricing_scenarios` (dono ativo) | Orçamentos (calculadora) |
-| `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
+| `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas`, `user_template_archives` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
 | `team` | `teams`, `team_members`, `team_invitations`, `invitation_routines`, `roles` | Times/convites por cliente |
 | `network` | `discussion_posts`, `discussion_comments` | Fórum da comunidade |
 | `notifications` | `app_notifications` | Notificações in-app (sininho + feed do fórum) |
@@ -46,6 +46,7 @@ erDiagram
     users ||--o{ tasks : "user_id"
     users ||--o{ routine_types : "user_id"
     users ||--o{ activity_templates : "user_id"
+    users ||--o{ user_template_archives : "user_id"
     users ||--o{ client_slas : "user_id"
     users ||--o{ client_template_assignments : "user_id"
     users ||--o{ gallery_items : "user_id"
@@ -73,6 +74,7 @@ erDiagram
     activity_templates ||--o{ template_activities : "template_id"
     activity_templates ||--o{ client_template_assignments : "template_id"
     activity_templates ||--o{ invitation_routines : "template_id"
+    activity_templates ||--o{ user_template_archives : "template_id"
     activity_templates }o--o{ routine_types : "routine_type_id (SET NULL)"
     task_phases ||--o{ tasks : "phase_id (SET NULL)"
     task_phases ||--o{ template_activities : "phase_id (SET NULL)"
@@ -254,6 +256,11 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | Direção | Quem |
 |---------|------|
 | R/W | `task_manager/templates/repository.py` |
+
+### `user_template_archives` — dono: `task_manager`
+| Direção | Quem |
+|---------|------|
+| R/W | `task_manager/templates/repository.py` (`is_archived_for_user`, `set_archived_for_user`) |
 
 ### `client_template_assignments` — dono: `task_manager`
 | Direção | Quem |

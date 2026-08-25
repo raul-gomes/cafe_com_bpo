@@ -225,6 +225,7 @@ class ActivityTemplateBase(BaseModel):
     is_general: bool = (
         False  # rotina geral: visível/vinculável por todos (criação: só admin)
     )
+    is_archived: bool = False  # rotina arquivada: fica no final da página
     routine_type_id: UUID | None = None
 
 
@@ -244,6 +245,7 @@ class ActivityTemplateUpdate(BaseModel):
     due_date: datetime | None = None
     recurrence_end_date: datetime | None = None
     is_active: bool | None = None
+    is_archived: bool | None = None
     routine_type_id: UUID | None = None
 
 
@@ -276,6 +278,7 @@ class ActivityTemplateListItem(BaseModel):
     recurrence_end_date: datetime | None = None
     is_active: bool
     is_general: bool = False
+    is_archived: bool = False
     is_overdue: bool = False
     days_overdue: int = 0
     activity_count: int = 0

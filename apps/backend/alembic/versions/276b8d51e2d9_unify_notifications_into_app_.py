@@ -5,6 +5,7 @@ Revises: d1a2b3c4d5e6
 Create Date: 2026-08-17 21:41:07.647555
 
 """
+
 from collections.abc import Sequence
 
 import sqlalchemy as sa
@@ -13,8 +14,8 @@ from sqlalchemy.dialects import postgresql
 from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '276b8d51e2d9'
-down_revision: str | Sequence[str] | None = 'd1a2b3c4d5e6'
+revision: str = "276b8d51e2d9"
+down_revision: str | Sequence[str] | None = "d1a2b3c4d5e6"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
@@ -23,11 +24,11 @@ def upgrade() -> None:
     """Upgrade schema."""
     # 1. Add triggered_by_user_id to app_notifications (single source of truth)
     op.add_column(
-        'app_notifications',
+        "app_notifications",
         sa.Column(
-            'triggered_by_user_id',
+            "triggered_by_user_id",
             postgresql.UUID(as_uuid=True),
-            sa.ForeignKey('users.id'),
+            sa.ForeignKey("users.id"),
             nullable=True,
         ),
     )
@@ -36,7 +37,7 @@ def upgrade() -> None:
     #    into app_notifications before dropping the legacy table.
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    if 'notifications' in inspector.get_table_names():
+    if "notifications" in inspector.get_table_names():
         # Insert a row for each legacy notification. Comments of the post are
         # summarized by the post title; comment snippet is loaded if present.
         bind.execute(
@@ -67,34 +68,30 @@ def upgrade() -> None:
         )
 
         # 3. Drop legacy notifications table
-        op.drop_table('notifications')
+        op.drop_table("notifications")
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     bind = op.get_bind()
     inspector = sa.inspect(bind)
-    if 'notifications' not in inspector.get_table_names():
+    if "notifications" not in inspector.get_table_names():
         # Recreate legacy table and copy migrated rows back
         op.create_table(
-            'notifications',
-            sa.Column('id', postgresql.UUID(as_uuid=True), primary_key=True),
+            "notifications",
+            sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
+            sa.Column("user_id", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("type", sa.String(50), nullable=False),
+            sa.Column("post_id", postgresql.UUID(as_uuid=True), nullable=False),
+            sa.Column("comment_id", postgresql.UUID(as_uuid=True), nullable=False),
             sa.Column(
-                'user_id', postgresql.UUID(as_uuid=True), nullable=False
-            ),
-            sa.Column('type', sa.String(50), nullable=False),
-            sa.Column('post_id', postgresql.UUID(as_uuid=True), nullable=False),
-            sa.Column(
-                'comment_id', postgresql.UUID(as_uuid=True), nullable=False
-            ),
-            sa.Column(
-                'triggered_by_user_id',
+                "triggered_by_user_id",
                 postgresql.UUID(as_uuid=True),
                 nullable=False,
             ),
-            sa.Column('is_read', sa.Boolean(), nullable=False),
-            sa.Column('read_at', sa.DateTime(timezone=True), nullable=True),
-            sa.Column('created_at', sa.DateTime(timezone=True), nullable=False),
+            sa.Column("is_read", sa.Boolean(), nullable=False),
+            sa.Column("read_at", sa.DateTime(timezone=True), nullable=True),
+            sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
         )
         bind.execute(
             sa.text(
@@ -115,4 +112,4 @@ def downgrade() -> None:
             )
         )
 
-    op.drop_column('app_notifications', 'triggered_by_user_id')
+    op.drop_column("app_notifications", "triggered_by_user_id")

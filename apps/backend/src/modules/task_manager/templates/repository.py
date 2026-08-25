@@ -1,9 +1,9 @@
 from uuid import UUID
 
-from sqlalchemy import or_
-from sqlalchemy.orm import Session
+from sqlalchemy import and_, asc, case, or_
+from sqlalchemy.orm import Session, aliased
 
-from ..models import ActivityTemplate, TemplateActivity
+from ..models import ActivityTemplate, TemplateActivity, UserTemplateArchive
 from ..schemas import (
     ActivityTemplateCreate,
     ActivityTemplateUpdate,
@@ -18,19 +18,91 @@ class TemplateRepository:
 
     # ── ActivityTemplate CRUD ──
 
-    def get_templates_by_user(self, user_id: UUID) -> list[ActivityTemplate]:
-        """Templates próprios + rotinas gerais (visíveis a todos)."""
-        return (
-            self.session.query(ActivityTemplate)
+    def get_templates_by_user(
+        self, user_id: UUID
+    ) -> list[tuple[ActivityTemplate, bool]]:
+        """Templates próprios + rotinas gerais (visíveis a todos).
+
+        Retorna tuplas (template, is_archived_for_user) onde is_archived_for_user
+        é determinado por:
+        - Rotinas pessoais: coluna is_archived do template
+        - Rotinas gerais: LEFT JOIN com user_template_archives
+
+        Ordenação: ativos primeiro, depois arquivados.
+        """
+        archive_alias = aliased(UserTemplateArchive)
+
+        results = (
+            self.session.query(
+                ActivityTemplate,
+                case(
+                    (
+                        ActivityTemplate.is_general.is_(True),
+                        archive_alias.id.isnot(None),
+                    ),
+                    else_=ActivityTemplate.is_archived,
+                ).label("is_archived_for_user"),
+            )
+            .outerjoin(
+                archive_alias,
+                and_(
+                    archive_alias.template_id == ActivityTemplate.id,
+                    archive_alias.user_id == user_id,
+                ),
+            )
             .filter(
                 or_(
                     ActivityTemplate.user_id == user_id,
                     ActivityTemplate.is_general.is_(True),
                 )
             )
-            .order_by(ActivityTemplate.created_at.desc())
+            .order_by(
+                asc("is_archived_for_user"),
+                asc(ActivityTemplate.created_at),
+            )
             .all()
         )
+        return results
+
+    def is_archived_for_user(self, template_id: UUID, user_id: UUID) -> bool:
+        """Check if a general template is archived for a specific user."""
+        record = (
+            self.session.query(UserTemplateArchive)
+            .filter(
+                UserTemplateArchive.template_id == template_id,
+                UserTemplateArchive.user_id == user_id,
+            )
+            .first()
+        )
+        return record is not None
+
+    def set_archived_for_user(
+        self, template_id: UUID, user_id: UUID, archived: bool
+    ) -> None:
+        """Set/unset archive status for a general template per user."""
+        if archived:
+            existing = (
+                self.session.query(UserTemplateArchive)
+                .filter(
+                    UserTemplateArchive.template_id == template_id,
+                    UserTemplateArchive.user_id == user_id,
+                )
+                .first()
+            )
+            if not existing:
+                self.session.add(
+                    UserTemplateArchive(template_id=template_id, user_id=user_id)
+                )
+        else:
+            (
+                self.session.query(UserTemplateArchive)
+                .filter(
+                    UserTemplateArchive.template_id == template_id,
+                    UserTemplateArchive.user_id == user_id,
+                )
+                .delete()
+            )
+        self.session.commit()
 
     def get_template_by_id(
         self, template_id: UUID, user_id: UUID, include_general: bool = False

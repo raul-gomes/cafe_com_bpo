@@ -70,9 +70,9 @@ class TemplateService:
 
     def get_templates(self, user_id: UUID) -> list[ActivityTemplateListItem]:
         """List all templates for a user with activity count and overdue status."""
-        templates = self.repository.get_templates_by_user(user_id)
+        rows = self.repository.get_templates_by_user(user_id)
         result = []
-        for tmpl in templates:
+        for tmpl, is_archived_for_user in rows:
             activities = self.repository.get_activities_by_template(tmpl.id)
             # Lookup routine type info
             rt_name = None
@@ -100,6 +100,7 @@ class TemplateService:
                     recurrence_end_date=tmpl.recurrence_end_date,
                     is_active=tmpl.is_active,
                     is_general=tmpl.is_general,
+                    is_archived=is_archived_for_user,
                     is_overdue=self._is_template_overdue(tmpl),
                     days_overdue=self._compute_days_overdue(tmpl),
                     activity_count=len(activities),
@@ -114,9 +115,9 @@ class TemplateService:
 
     def get_overdue_templates(self, user_id: UUID) -> list[OverdueTemplateResponse]:
         """Return only overdue templates for dashboard alerts."""
-        templates = self.repository.get_templates_by_user(user_id)
+        rows = self.repository.get_templates_by_user(user_id)
         result = []
-        for tmpl in templates:
+        for tmpl, _is_archived in rows:
             if not self._is_template_overdue(tmpl):
                 continue
             activities = self.repository.get_activities_by_template(tmpl.id)
@@ -143,6 +144,7 @@ class TemplateService:
         """Get a single template with all its activities.
 
         Rotinas gerais de outros usuários são legíveis (include_general).
+        is_archived é per-user para rotinas gerais.
         """
         tmpl = self.repository.get_template_by_id(
             template_id, user_id, include_general=True
@@ -157,6 +159,10 @@ class TemplateService:
             if rt:
                 rt_name = rt.name
                 rt_color = rt.color
+        if tmpl.is_general:
+            is_archived = self.repository.is_archived_for_user(template_id, user_id)
+        else:
+            is_archived = tmpl.is_archived
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
@@ -172,6 +178,7 @@ class TemplateService:
             recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
             is_general=tmpl.is_general,
+            is_archived=is_archived,
             routine_type_id=tmpl.routine_type_id,
             routine_type_name=rt_name,
             routine_type_color=rt_color,
@@ -251,6 +258,8 @@ class TemplateService:
             due_date=updated.due_date,
             recurrence_end_date=updated.recurrence_end_date,
             is_active=updated.is_active,
+            is_general=updated.is_general,
+            is_archived=updated.is_archived,
             routine_type_id=updated.routine_type_id,
             routine_type_name=rt_name,
             routine_type_color=rt_color,
@@ -265,6 +274,70 @@ class TemplateService:
             raise ValueError(f"Template {template_id} not found")
         self.repository.delete_template(tmpl)
         log.info(f"🗑️ Template excluído: {template_id}")
+
+    def toggle_archive(
+        self, template_id: UUID, user_id: UUID
+    ) -> ActivityTemplateResponse:
+        """Alterna o status de arquivo de um template.
+
+        Rotinas pessoais: alterna is_archived no template.
+        Rotinas gerais: cria/remove registro em user_template_archives.
+        """
+        tmpl = self.repository.get_template_by_id(
+            template_id, user_id, include_general=True
+        )
+        if not tmpl:
+            raise ValueError(f"Template {template_id} not found")
+        if tmpl.is_general:
+            is_now_archived = not self.repository.is_archived_for_user(
+                template_id, user_id
+            )
+            self.repository.set_archived_for_user(template_id, user_id, is_now_archived)
+            log.info(
+                f"📦 Template geral {template_id} {'arquivado' if is_now_archived else 'desarquivado'} por usuário {user_id}"
+            )
+        else:
+            if tmpl.user_id != user_id:
+                raise ValueError("Apenas o criador pode arquivar esta rotina")
+            tmpl.is_archived = not tmpl.is_archived
+            is_now_archived = tmpl.is_archived
+            self.repository.session.commit()
+            self.repository.session.refresh(tmpl)
+            log.info(
+                f"📦 Template {template_id} {'arquivado' if tmpl.is_archived else 'desarquivado'}"
+            )
+
+        activities = self.repository.get_activities_by_template(template_id)
+        rt_name = None
+        rt_color = None
+        if tmpl.routine_type_id:
+            rt = self.routine_type_repo.get_routine_type(tmpl.routine_type_id, user_id)
+            if rt:
+                rt_name = rt.name
+                rt_color = rt.color
+        return ActivityTemplateResponse(
+            id=tmpl.id,
+            user_id=tmpl.user_id,
+            name=tmpl.name,
+            description=tmpl.description,
+            process_type=tmpl.process_type,
+            recurrence=tmpl.recurrence,
+            weekday_mask=tmpl.weekday_mask,
+            due_day=tmpl.due_day,
+            due_month=tmpl.due_month,
+            due_days_from_start=tmpl.due_days_from_start,
+            due_date=tmpl.due_date,
+            recurrence_end_date=tmpl.recurrence_end_date,
+            is_active=tmpl.is_active,
+            is_general=tmpl.is_general,
+            is_archived=is_now_archived,
+            routine_type_id=tmpl.routine_type_id,
+            routine_type_name=rt_name,
+            routine_type_color=rt_color,
+            created_at=tmpl.created_at,
+            updated_at=tmpl.updated_at,
+            activities=[TemplateActivityResponse.model_validate(a) for a in activities],
+        )
 
     # ── Template Activities ──
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, X, Pencil, Globe } from 'lucide-react';
+import { Plus, Trash2, X, Pencil, Globe, Archive } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 import {
@@ -261,6 +261,7 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
     useDeleteActivity,
     useUpdateTemplate,
     useDeleteTemplate,
+    useToggleArchiveTemplate,
     useRoutineTypes,
   } = useTasks();
   const { data: template, isLoading } = useTemplate(templateId ?? '');
@@ -271,6 +272,7 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
   const deleteActivity = useDeleteActivity();
   const updateTemplate = useUpdateTemplate();
   const deleteTemplate = useDeleteTemplate();
+  const toggleArchiveTemplate = useToggleArchiveTemplate();
   const confirm = useConfirm();
 
   const [showAdd, setShowAdd] = useState(false);
@@ -281,8 +283,9 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
   const [editingAct, setEditingAct] = useState<string | null>(null);
 
   const sortedActivities = [...(template?.activities || [])].sort((a, b) => a.order - b.order);
-  // Rotinas gerais de outros usuários: somente leitura
+  // Rotinas gerais de outros usuários: somente leitura; arquivadas também somente leitura
   const canManage = !template?.is_general || template.user_id === user?.id;
+  const isArchived = template?.is_archived ?? false;
 
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -366,6 +369,11 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
                   <Globe size={10} /> Geral
                 </Badge>
               )}
+              {isArchived && (
+                <Badge variant="secondary" className="gap-1 text-[11px] font-semibold">
+                  <Archive size={10} /> Arquivada
+                </Badge>
+              )}
               {template.routine_type_name && (
                 <Badge variant="outline" className="gap-1 text-[11px] whitespace-nowrap">
                   <span className="size-1.5 rounded-full shrink-0" style={{ background: template.routine_type_color || '#3b82f6' }} />
@@ -387,29 +395,40 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
 
         {!isLoading && template && (
           <>
+            {/* Botão arquivar: disponível para todos */}
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="absolute right-28 top-3 z-10 text-muted-foreground/60 hover:text-primary-strong hover:bg-primary/10"
+              onClick={async () => { await toggleArchiveTemplate.mutateAsync(templateId!); }}
+              title={isArchived ? "Desarquivar rotina" : "Arquivar rotina"}
+            >
+              <Archive size={16} className="size-4" />
+            </Button>
             {canManage && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="absolute right-20 top-3 z-10 text-muted-foreground/60 hover:text-primary-strong hover:bg-primary/10"
-                onClick={() => setEditingRoutine(true)}
-                title="Editar rotina"
-              >
-                <Pencil size={16} className="size-4" />
-              </Button>
-            )}
-            {canManage && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="absolute right-12 top-3 z-10 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
-                onClick={handleDelete}
-                title="Excluir rotina"
-              >
-                <Trash2 size={16} className="size-4" />
-              </Button>
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute right-20 top-3 z-10 text-muted-foreground/60 hover:text-primary-strong hover:bg-primary/10"
+                  onClick={() => setEditingRoutine(true)}
+                  title="Editar rotina"
+                >
+                  <Pencil size={16} className="size-4" />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="absolute right-12 top-3 z-10 text-muted-foreground/60 hover:text-destructive hover:bg-destructive/10"
+                  onClick={handleDelete}
+                  title="Excluir rotina"
+                >
+                  <Trash2 size={16} className="size-4" />
+                </Button>
+              </>
             )}
 
             <div className="flex-1 overflow-y-auto px-6 py-6">
@@ -423,7 +442,14 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
                 />
               ) : (
                 <>
-                  {canManage ? (
+                  {isArchived ? (
+                    <div className="mb-6 flex items-center gap-2 rounded-lg border border-muted bg-muted/30 px-4 py-3">
+                      <Archive size={14} className="text-muted-foreground shrink-0" />
+                      <p className="text-xs text-muted-foreground">
+                        <span className="font-semibold text-foreground">Rotina arquivada</span> — não gera novas tarefas. Desarquive para reativar.
+                      </p>
+                    </div>
+                  ) : canManage ? (
                     <div className="mb-6 flex items-center justify-between rounded-lg border border-border px-4 py-3">
                       <div>
                         <p className="text-sm font-semibold text-foreground">Rotina ativa</p>
@@ -444,7 +470,7 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
                     <h3 className="text-sm font-bold uppercase tracking-wide text-muted-foreground">
                       Atividades ({sortedActivities.length})
                     </h3>
-                    {canManage && (
+                    {canManage && !isArchived && (
                       <Button variant="outline" size="sm" onClick={() => setShowAdd(v => !v)}>
                         <Plus size={14} /> Adicionar
                       </Button>

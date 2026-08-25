@@ -111,6 +111,19 @@ def delete_template(
         raise HTTPException(status_code=404, detail="Template não encontrado")
 
 
+@router.patch(
+    "/templates/{template_id}/archive", response_model=ActivityTemplateResponse
+)
+def toggle_archive(
+    template_id: UUID, service: TemplateServiceDep, current_user: CurrentUserDep
+):
+    """Alterna o status de arquivo de um template."""
+    try:
+        return service.toggle_archive(template_id, current_user.id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
 # ── Template Activities (nested) ──
 
 
