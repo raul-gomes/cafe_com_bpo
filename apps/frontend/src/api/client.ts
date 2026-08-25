@@ -6,6 +6,7 @@ let accessToken: string | null = null;
 
 const REFRESH_ENDPOINT = '/auth/refresh';
 const LOGOUT_ENDPOINT = '/auth/logout';
+const LOGIN_ENDPOINT = '/auth/login';
 
 export const getApiUrl = () => import.meta.env.VITE_API_URL || '/api';
 
@@ -56,10 +57,13 @@ apiClient.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Don't retry refresh or logout endpoints
+    // Don't retry refresh or logout endpoints.
+    // Login: 401 é credencial errada — refresh não se aplica e o erro
+    // de ausência de cookie substituiria a mensagem real ao usuário.
     if (
       originalRequest.url?.includes(REFRESH_ENDPOINT) ||
-      originalRequest.url?.includes(LOGOUT_ENDPOINT)
+      originalRequest.url?.includes(LOGOUT_ENDPOINT) ||
+      originalRequest.url?.includes(LOGIN_ENDPOINT)
     ) {
       return Promise.reject(error);
     }
