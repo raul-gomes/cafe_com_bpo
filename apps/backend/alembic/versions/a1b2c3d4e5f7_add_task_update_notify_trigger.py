@@ -1,8 +1,11 @@
 """add task_update_notify_trigger for SSE real-time
 
-Revision ID: a1b2c3d4e5f6
-Revises: f1004e8202e1
+Revision ID: a1b2c3d4e5f7
+Revises: 7d7670c5f1cc
 Create Date: 2026-08-21 18:00:00.000000
+
+Nota: id original "a1b2c3d4e5f6" colidia com add_profile_company_fields_to_users
+e formava ciclo no grafo; renomeada e reposicionada após 7d7670c5f1cc.
 
 """
 
@@ -10,12 +13,14 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "a1b2c3d4e5f6"
-down_revision: str | None = "f1004e8202e1"
+revision: str = "a1b2c3d4e5f7"
+down_revision: str | None = "7d7670c5f1cc"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 TRIGGER_SQL = """
+DROP TRIGGER IF EXISTS trg_notify_task_update ON tasks;
+
 CREATE OR REPLACE FUNCTION notify_task_update() RETURNS trigger AS $$
 BEGIN
     PERFORM pg_notify(

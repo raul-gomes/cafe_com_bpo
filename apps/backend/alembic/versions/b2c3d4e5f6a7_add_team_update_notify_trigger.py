@@ -1,7 +1,7 @@
 """add team_update_notify_trigger for SSE real-time team changes
 
 Revision ID: b2c3d4e5f6a7
-Revises: a1b2c3d4e5f6
+Revises: a1b2c3d4e5f7
 Create Date: 2026-08-21 19:00:00.000000
 
 """
@@ -11,12 +11,16 @@ from collections.abc import Sequence
 from alembic import op
 
 revision: str = "b2c3d4e5f6a7"
-down_revision: str | None = "a1b2c3d4e5f6"
+down_revision: str | None = "a1b2c3d4e5f7"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
 TRIGGER_SQL = """
 -- Função: notifica mudanças em equipe (rotinas, membros, convites)
+DROP TRIGGER IF EXISTS trg_notify_invitation_routines ON invitation_routines;
+DROP TRIGGER IF EXISTS trg_notify_team_members ON team_members;
+DROP TRIGGER IF EXISTS trg_notify_team_invitations ON team_invitations;
+
 CREATE OR REPLACE FUNCTION notify_team_update() RETURNS trigger AS $$
 DECLARE
     payload json;
