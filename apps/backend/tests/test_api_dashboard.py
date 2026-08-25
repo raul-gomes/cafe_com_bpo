@@ -139,3 +139,56 @@ def test_dashboard_urgent_tasks_days_remaining_accuracy(client):
         if "2 Dias Restantes" in t["title"]:
             assert t["days_remaining"] >= 1
             assert t["is_overdue"] is False
+
+
+def _create_task(client, auth, cli_id, title, deadline):
+    payload = {
+        "title": title,
+        "client_id": cli_id,
+        "deadline": deadline.isoformat(),
+        "priority": "high",
+    }
+    client.post("/tasks/", json=payload, headers=auth)
+
+
+def test_dashboard_task_due_today_is_not_overdue(client):
+    """Bug: card com prazo HOJE aparecia como 'Atrasado 1d'.
+
+    O prazo é uma DATA de negócio — só está atrasado quando o dia já passou.
+    """
+    email = f"dash_today_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    # Prazo já vencido como INSTANTE, mas ainda dentro do dia de negócio SP.
+    # Trabalhamos no fuso de negócio (UTC-3) para não depender da hora UTC.
+    sp = timezone(timedelta(hours=-3))
+    now_sp = datetime.now(timezone.utc).astimezone(sp)
+    candidate = now_sp - timedelta(minutes=1)
+    if candidate.date() != now_sp.date():
+        candidate = now_sp.replace(hour=0, minute=0, second=0, microsecond=0)
+    assert candidate.date() == now_sp.date()
+    deadline = candidate.astimezone(timezone.utc)
+
+    _create_task(client, auth, cli["id"], "Vence Hoje", deadline)
+
+    resp = client.get("/dashboard/summary", headers=auth)
+    assert resp.status_code == 200
+    task = next(t for t in resp.json()["urgent_tasks"] if t["title"] == "Vence Hoje")
+    assert task["is_overdue"] is False
+    assert task["days_remaining"] == 0
+
+
+def test_dashboard_task_due_yesterday_is_overdue_one_day(client):
+    email = f"dash_yest_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
+
+    deadline = datetime.now(timezone.utc) - timedelta(days=1)
+    _create_task(client, auth, cli["id"], "Venceu Ontem", deadline)
+
+    resp = client.get("/dashboard/summary", headers=auth)
+    assert resp.status_code == 200
+    task = next(t for t in resp.json()["urgent_tasks"] if t["title"] == "Venceu Ontem")
+    assert task["is_overdue"] is True
+    assert task["days_remaining"] == -1

@@ -10,6 +10,7 @@ import { ClientData } from '../../api/clients';
 import { TaskDrawer } from '../../components/tasks/TaskDrawer';
 import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { isDeadlineOverdue } from '../../lib/deadline';
 import { TaskKanban } from '../../components/tasks/TaskKanban';
 import { TaskCalendar } from '../../components/tasks/TaskCalendar';
 import { TaskTimeline } from '../../components/tasks/TaskTimeline';
@@ -257,7 +258,7 @@ export const TasksPage: React.FC = () => {
     const todayEnd = new Date();
     todayEnd.setHours(23, 59, 59, 999);
 
-    const isOverdue = (t: TaskResponse) => t.deadline && new Date(t.deadline) < todayStart;
+    const isOverdue = (t: TaskResponse) => isDeadlineOverdue(t.deadline);
 
     const firstPhaseId = sortedPhases.length > 0 ? sortedPhases[0].id : 'todo';
     const lastPhaseId = sortedPhases.length > 0 ? sortedPhases[sortedPhases.length - 1].id : 'done';

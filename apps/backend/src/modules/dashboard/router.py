@@ -26,6 +26,20 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 SessionDep = Annotated[Session, Depends(get_db_session)]
 
+try:  # pragma: no cover - depende da presença de tzdata na imagem
+    from zoneinfo import ZoneInfo
+
+    _BUSINESS_TZ = ZoneInfo("America/Sao_Paulo")
+except Exception:
+    _BUSINESS_TZ = timezone(timedelta(hours=-3))
+
+
+def _deadline_business_date(deadline: datetime):
+    """Data de calendário do prazo no fuso de negócio."""
+    if deadline.tzinfo is None:
+        deadline = deadline.replace(tzinfo=timezone.utc)
+    return deadline.astimezone(_BUSINESS_TZ).date()
+
 
 @router.get("/summary", response_model=DashboardSummary)
 def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
@@ -52,22 +66,20 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
     )
 
     def _compute_days_remaining(deadline: datetime | None) -> int | None:
+        """Dias de calendário até o prazo (fuso America/Sao_Paulo).
+
+        O prazo é uma DATA de negócio: vence hoje => 0, ontem => -1.
+        """
         if deadline is None:
             return None
-        now = datetime.now(timezone.utc)
-        # Normalize: assume UTC if deadline has no tzinfo (e.g. SQLite)
-        if deadline.tzinfo is None:
-            deadline = deadline.replace(tzinfo=timezone.utc)
-        diff = (deadline - now).days
-        return diff
+        deadline_date = _deadline_business_date(deadline)
+        today = datetime.now(_BUSINESS_TZ).date()
+        return (deadline_date - today).days
 
     def _is_overdue(deadline: datetime | None) -> bool:
         if deadline is None:
             return False
-        now = datetime.now(timezone.utc)
-        if deadline.tzinfo is None:
-            deadline = deadline.replace(tzinfo=timezone.utc)
-        return deadline < now
+        return (_compute_days_remaining(deadline) or 0) < 0
 
     urgent_tasks = [
         UrgentTaskResponse(
