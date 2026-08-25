@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { RegisterModal } from '../auth/RegisterModal';
+import React from 'react';
+import { useNavigate } from 'react-router';
 import { PricingFormData } from '../../schemas/pricing';
 import { PricingResult } from '../../lib/pricingEngine';
 import { useAuth } from '../../context/AuthContext';
@@ -17,13 +17,12 @@ export const ProposalDownloadGate: React.FC<ProposalDownloadGateProps> = ({
   pricing,
   clientName,
 }) => {
-  const [modalOpen, setModalOpen] = useState(false);
+  const navigate = useNavigate();
   const { isAuthenticated, user } = useAuth();
   const { generate: generatePDF, isGenerating } = useGeneratePDF();
 
   const handleDownloadClick = async () => {
     if (isAuthenticated) {
-      // Já logado: baixa direto
       await generatePDF({
         form,
         pricing,
@@ -33,32 +32,20 @@ export const ProposalDownloadGate: React.FC<ProposalDownloadGateProps> = ({
         provider: user
       });
     } else {
-      // Não logado: abre o gate (modal de registro)
-      setModalOpen(true);
+      navigate('/login');
     }
   };
 
   return (
-    <>
-      <div className="proposal-gate">
-        <button
-          className="btn-download-pdf"
-          onClick={handleDownloadClick}
-          disabled={isGenerating}
-          aria-label="Baixar proposta em PDF"
-        >
-          {isGenerating ? '⌛ Gerando...' : '↓ Baixar PDF'}
-        </button>
-      </div>
-
-      {modalOpen && (
-        <RegisterModal
-          onClose={() => setModalOpen(false)}
-          form={form}
-          pricing={pricing}
-          clientName={clientName}
-        />
-      )}
-    </>
+    <div className="proposal-gate">
+      <button
+        className="btn-download-pdf"
+        onClick={handleDownloadClick}
+        disabled={isGenerating}
+        aria-label="Baixar proposta em PDF"
+      >
+        {isGenerating ? '⌛ Gerando...' : '↓ Baixar PDF'}
+      </button>
+    </div>
   );
 };
