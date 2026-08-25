@@ -55,6 +55,17 @@ def test_error_messages_do_not_allow_user_enumeration(client):
     assert response.json()["detail"] == "Credenciais inválidas"
 
 
+def test_login_wrong_password_returns_generic_message(client):
+    email = f"wrongpass_{uuid4()}@cafe.com"
+    create_test_user(email=email, password="StrongPassword123!")
+
+    response = client.post(
+        "/auth/login", data={"username": email, "password": "WrongPassword!"}
+    )
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Credenciais inválidas"
+
+
 def test_upload_avatar_success(client, monkeypatch):
     """Mock CloudinaryService.upload_file to avoid external API calls."""
     email = f"avatar_user_{uuid4()}@cafe.com"
