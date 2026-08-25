@@ -60,12 +60,17 @@ async def lifespan(app: FastAPI):
     email_scheduler_instance.start()
     # Start SSE broadcast listener (PostgreSQL LISTEN/NOTIFY for real-time)
     from src.core.config import get_settings
-    from src.modules.task_manager.broadcast import manager as broadcast_manager
+    from src.modules.task_manager.broadcast import install_shutdown_handlers
+    from src.modules.task_manager.broadcast import (
+        manager as broadcast_manager,
+    )
 
     broadcast_manager.start_listener(get_settings().database_url)
+    install_shutdown_handlers(broadcast_manager)
     yield
     email_scheduler_instance.stop()
     scheduler_instance.stop()
+    broadcast_manager.stop()
     log.info("🛑 Aplicação encerrada.")
 
 

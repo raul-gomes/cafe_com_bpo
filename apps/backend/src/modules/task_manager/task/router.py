@@ -392,6 +392,8 @@ async def task_events(request: Request):
         import asyncio
         import json
 
+        from ..broadcast import SHUTDOWN_EVENT
+
         try:
             # Initial connection event
             yield f"data: {json.dumps({'type': 'connected', 'client_id': client_id})}\n\n"
@@ -402,6 +404,8 @@ async def task_events(request: Request):
                     payload = await asyncio.get_event_loop().run_in_executor(
                         None, lambda: q.get(timeout=30)
                     )
+                    if payload == SHUTDOWN_EVENT:
+                        break
                     yield f"data: {payload}\n\n"
                 except Exception:
                     # Send heartbeat every 30s to keep connection alive
