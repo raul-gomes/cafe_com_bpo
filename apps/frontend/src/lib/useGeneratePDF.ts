@@ -10,7 +10,9 @@ import React from 'react';
 import { ProposalDocument } from '../components/pdf/ProposalDocument';
 import { PricingFormData } from '../schemas/pricing';
 import { PricingResult } from './pricingEngine';
+import { resolveProviderTitle } from './brandColors';
 import { getApiUrl } from '../api/client';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 
 import { User } from '../context/AuthContext';
 
@@ -32,6 +34,7 @@ interface UseGeneratePDFReturn {
 export function useGeneratePDF(): UseGeneratePDFReturn {
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const askConfirm = useConfirm();
 
   const generate = useCallback(async (opts: GeneratePDFOptions): Promise<boolean> => {
     setIsGenerating(true);
@@ -40,6 +43,22 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
     const renderAndDownload = async (logoUrl: string): Promise<boolean> => {
       const { form, pricing, clientName = 'Cliente', clientEmail = '', provider = null } = opts;
 
+      // Regra do título: fantasia → razão social → diálogo (nome pessoal ou branco)
+      const resolution = resolveProviderTitle(provider);
+      let providerDisplayName = resolution.title;
+      if (provider && resolution.requiresChoice) {
+        const usePersonal = await askConfirm({
+          title: 'Nome empresarial não cadastrado',
+          message:
+            'Você não possui nome empresarial cadastrado no perfil.\n' +
+            `Deseja utilizar seu nome pessoal ("${resolution.personalName}") na proposta?`,
+          confirmLabel: 'Sim, usar meu nome',
+          cancelLabel: 'Não, deixar em branco',
+          variant: 'warning',
+        });
+        providerDisplayName = usePersonal ? provider.name || '' : '';
+      }
+
       const doc = React.createElement(ProposalDocument, {
         form,
         pricing,
@@ -47,6 +66,7 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
         clientName,
         clientEmail,
         provider,
+        providerDisplayName,
         generatedAt: new Date().toLocaleDateString('pt-BR', {
           day: '2-digit',
           month: 'long',
@@ -119,7 +139,7 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
     } finally {
       setIsGenerating(false);
     }
-  }, []);
+  }, [askConfirm]);
 
   return { generate, isGenerating, error };
 }
