@@ -12,6 +12,9 @@ import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Label } from '../../components/ui/label';
+import { LegalDocumentModal } from '../ui/LegalDocumentModal';
+import { TERMOS_USO_HTML } from '../../content/termos-uso';
+import { POLITICA_PRIVACIDADE_HTML } from '../../content/politica-privacidade';
 import logo from '../../assets/logo.png';
 
 interface LoginFormProps {
@@ -23,6 +26,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
     defaultValues: { email: '', password: '', terms: false },
   });
   const [genericError, setGenericError] = useState<string | null>(null);
+  const [openTerms, setOpenTerms] = useState(false);
+  const [openPrivacy, setOpenPrivacy] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -78,6 +83,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
   };
 
   return (
+    <>
     <Card className="mx-auto max-w-[480px]">
       <CardContent className="pt-7 px-8 pb-7">
         {/* Brand */}
@@ -146,17 +152,23 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
               disabled={isSubmitting}
               className="mt-0.5 shrink-0"
             />
-            <Label htmlFor="terms" className="text-[12px] text-muted-foreground leading-relaxed cursor-pointer">
-              Li e concordo com os{' '}
-              <a href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline">
+            <div className="text-[12px] text-muted-foreground leading-relaxed">
+              <Label htmlFor="terms" className="cursor-pointer">
+                Li e concordo com os{' '}
+              </Label>
+              <button type="button" onClick={() => setOpenTerms(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
                 Termos de Uso
-              </a>{' '}
-              e{' '}
-              <a href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline">
+              </button>
+              <Label htmlFor="terms" className="cursor-pointer">
+                {' '}e{' '}
+              </Label>
+              <button type="button" onClick={() => setOpenPrivacy(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
                 Política de Privacidade
-              </a>{' '}
-              (LGPD).
-            </Label>
+              </button>
+              <Label htmlFor="terms" className="cursor-pointer">
+                {' '}(LGPD).
+              </Label>
+            </div>
           </div>
 
           <Button
@@ -172,5 +184,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
         </form>
       </CardContent>
     </Card>
+    <LegalDocumentModal open={openTerms} onOpenChange={setOpenTerms} title="Termos de Uso" content={TERMOS_USO_HTML} />
+    <LegalDocumentModal open={openPrivacy} onOpenChange={setOpenPrivacy} title="Política de Privacidade" content={POLITICA_PRIVACIDADE_HTML} />
+    </>
   );
 };
