@@ -139,6 +139,8 @@ jobs:
         with:
           context: ./apps/frontend
           push: true
+          build-args: |
+            VITE_PIX_KEY=${{ vars.VITE_PIX_KEY }}
           tags: |
             ghcr.io/${{ github.repository }}/web:latest
             ghcr.io/${{ github.repository }}/web:${{ github.sha }}

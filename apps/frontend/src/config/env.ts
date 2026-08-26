@@ -5,4 +5,4 @@
  */
 
 /** Chave PIX exibida nos modais de doação ("Nos ajude"). */
-export const PIX_KEY = import.meta.env.VITE_PIX_KEY ?? 'cafe@cafecombpo.com.br';
+export const PIX_KEY = import.meta.env.VITE_PIX_KEY ?? '';
