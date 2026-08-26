@@ -7,10 +7,6 @@ import './HomePage.css';
 const HomePage: React.FC = () => {
   const { isAuthenticated } = useAuth();
   const [isScrolled, setIsScrolled] = useState(false);
-  const [donateAmount, setDonateAmount] = useState('');
-  const [donateName, setDonateName] = useState('');
-  const [donateEmail, setDonateEmail] = useState('');
-  const [donateMethod, setDonateMethod] = useState('pix');
   const [copied, setCopied] = useState(false);
   const targetPath = isAuthenticated ? '/painel' : '/login';
 
@@ -319,38 +315,6 @@ const HomePage: React.FC = () => {
                   </button>
                 </div>
               </div>
-            </div>
-
-            <div className="donate-divider">ou</div>
-
-            <div className="donate-form-area">
-              <h3 className="donate-form-title">Faça uma doação com cartão ou boleto</h3>
-              <form className="donate-form" onSubmit={(e) => e.preventDefault()}>
-                <div className="donate-amounts">
-                  <button type="button" className="donate-amount-btn" onClick={() => setDonateAmount('10')}>R$ 10</button>
-                  <button type="button" className="donate-amount-btn" onClick={() => setDonateAmount('25')}>R$ 25</button>
-                  <button type="button" className="donate-amount-btn" onClick={() => setDonateAmount('50')}>R$ 50</button>
-                  <button type="button" className="donate-amount-btn" onClick={() => setDonateAmount('100')}>R$ 100</button>
-                </div>
-                <div className="donate-form-row">
-                  <input className="donate-amount-input" type="text" placeholder="Outro valor (R$)" value={donateAmount} onChange={(e) => setDonateAmount(e.target.value)} />
-                  <input className="donate-name-input" type="text" placeholder="Seu nome (opcional)" value={donateName} onChange={(e) => setDonateName(e.target.value)} />
-                </div>
-                <div className="donate-form-row">
-                  <input className="donate-email-input" type="email" placeholder="Seu e-mail" value={donateEmail} onChange={(e) => setDonateEmail(e.target.value)} />
-                  <select className="donate-method-select" value={donateMethod} onChange={(e) => setDonateMethod(e.target.value)}>
-                    <option value="pix">PIX</option>
-                    <option value="credit_card">Cartão de Crédito</option>
-                    <option value="boleto">Boleto</option>
-                  </select>
-                </div>
-                <button type="submit" className="donate-submit-btn">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z" />
-                  </svg>
-                  Doar agora
-                </button>
-              </form>
             </div>
           </div>
         </div>

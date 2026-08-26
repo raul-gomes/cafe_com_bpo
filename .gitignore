@@ -31,6 +31,9 @@ apps/backend/.env
 .env.test.local
 .env.production.local
 
+# SSL Certificates (Let's Encrypt)
+certbot/
+
 # Testing and Coverage
 .coverage
 .tox/
