@@ -23,6 +23,12 @@ services:
       - ./apps/backend/tests:/app/tests
       - ./apps/backend/alembic:/app/alembic
 
+  gateway:
+    build:
+      context: ./infra
+      args:
+        NGINX_CONF: nginx.conf.local
+
   web:
     build:
       context: ./apps/frontend

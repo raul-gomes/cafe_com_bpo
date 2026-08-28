@@ -70,6 +70,10 @@ spec/
 # Scripts utilitários locais
 scripts/
 
+# Config local (não versionar)
+infra/nginx.conf.local
+infra/nginx.local.conf
+
 # Local Databases
 *.db
 apps/backend/dev.db

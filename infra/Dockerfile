@@ -1,6 +1,8 @@
 FROM nginx:alpine
 
-COPY nginx.conf /etc/nginx/nginx.conf
+# NGINX_CONF: "nginx.conf" (padrão, prod/SSL) ou "nginx.conf.local" (dev/HTTP)
+ARG NGINX_CONF=nginx.conf
+COPY ${NGINX_CONF} /etc/nginx/nginx.conf
 
 EXPOSE 80 443
 
