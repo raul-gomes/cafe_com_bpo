@@ -476,9 +476,7 @@ export const useTasks = () => {
       mutationFn: async ({ task_id, file }: { task_id: string; file: File }) => {
         const formData = new FormData();
         formData.append('file', file);
-        const { data } = await apiClient.post(`/tasks/${task_id}/attachments/`, formData, {
-          headers: { 'Content-Type': 'multipart/form-data' },
-        });
+        const { data } = await apiClient.post(`/tasks/${task_id}/attachments/`, formData);
         return data;
       },
       onSuccess: (_data, variables) => {

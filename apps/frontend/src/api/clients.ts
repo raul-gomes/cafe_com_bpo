@@ -36,18 +36,14 @@ export const deleteClient = async (id: string) => {
 export const uploadAvatar = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await apiClient.post('/auth/me/avatar', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const response = await apiClient.post('/auth/me/avatar', formData);
   return response.data;
 };
 
 export const uploadCompanyLogo = async (file: File) => {
   const formData = new FormData();
   formData.append('file', file);
-  const response = await apiClient.post('/auth/me/company-logo', formData, {
-    headers: { 'Content-Type': 'multipart/form-data' },
-  });
+  const response = await apiClient.post('/auth/me/company-logo', formData);
   return response.data;
 };
 

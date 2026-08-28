@@ -198,7 +198,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
           </div>
         )}
 
-        <form onSubmit={handleSubmit(onSubmit as any)} className="flex-1 overflow-y-auto px-6 py-6">
+        <form id="task-form" onSubmit={handleSubmit(onSubmit as any)} className="flex-1 overflow-y-auto px-6 py-6">
           <div className="flex flex-col gap-6">
             <div>
               <label className={labelClass}>Título da Tarefa</label>
@@ -294,7 +294,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
               {detailsLocked ? 'Fechar' : 'Cancelar'}
             </Button>
             {(!task || editing) && (
-              <Button type="submit" disabled={isSaving}>
+              <Button type="submit" form="task-form" disabled={isSaving}>
                 {isSaving ? 'Salvando...' : task ? 'Salvar Alterações' : 'Criar Tarefa'}
               </Button>
             )}

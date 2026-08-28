@@ -477,6 +477,14 @@ export const PerfilPage: React.FC = () => {
                 <div className="border-t border-border pt-4">
                   <Label>Avatar Pessoal</Label>
                   <div className="mt-1 flex items-center gap-4">
+                    {avatarPreview && (
+                      <div
+                        className="size-12 shrink-0 rounded-full border border-border bg-cover bg-center"
+                        style={{
+                          backgroundImage: `url(${avatarPreview})`,
+                        }}
+                      />
+                    )}
                     <label
                       htmlFor="avatar-upload"
                       className="inline-flex h-7 shrink-0 cursor-pointer items-center justify-center gap-1 rounded-[min(var(--radius-md),12px)] border border-border bg-background px-3 text-[0.8rem] font-medium text-foreground transition-all hover:bg-muted hover:text-foreground"
