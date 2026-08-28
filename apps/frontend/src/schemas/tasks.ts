@@ -155,6 +155,7 @@ export interface ActivityTemplateListItem {
   is_overdue?: boolean;
   days_overdue?: number;
   activity_count: number;
+  parent_template_id?: string;
   routine_type_id?: string;
   routine_type_name?: string;
   routine_type_color?: string;
@@ -192,6 +193,7 @@ export interface ActivityTemplateResponse {
   is_active: boolean;
   is_general: boolean;
   is_archived?: boolean;
+  parent_template_id?: string;
   routine_type_id?: string;
   routine_type_name?: string;
   routine_type_color?: string;

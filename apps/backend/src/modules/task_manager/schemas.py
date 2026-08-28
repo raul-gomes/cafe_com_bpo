@@ -252,6 +252,7 @@ class ActivityTemplateUpdate(BaseModel):
 class ActivityTemplateResponse(ActivityTemplateBase):
     id: UUID
     user_id: UUID
+    parent_template_id: UUID | None = None
     created_at: datetime
     updated_at: datetime
     activities: list[TemplateActivityResponse] = []
@@ -266,6 +267,7 @@ class ActivityTemplateListItem(BaseModel):
 
     id: UUID
     user_id: UUID
+    parent_template_id: UUID | None = None
     name: str
     description: str | None = None
     process_type: str | None = None

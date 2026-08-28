@@ -16,7 +16,6 @@ import { Switch } from '../ui/switch';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
 import { cn } from '../../lib/utils';
-import { useAuth } from '../../context/AuthContext';
 
 const RECURRENCE_LABELS: Record<string, string> = {
   once: 'Uma só vez',
@@ -266,7 +265,6 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
   } = useTasks();
   const { data: template, isLoading } = useTemplate(templateId ?? '');
   const { data: routineTypes } = useRoutineTypes();
-  const { user } = useAuth();
   const createActivity = useCreateActivity();
   const updateActivity = useUpdateActivity();
   const deleteActivity = useDeleteActivity();
@@ -283,9 +281,10 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
   const [editingAct, setEditingAct] = useState<string | null>(null);
 
   const sortedActivities = [...(template?.activities || [])].sort((a, b) => a.order - b.order);
-  // Rotinas gerais de outros usuários: somente leitura; arquivadas também somente leitura
-  const canManage = !template?.is_general || template.user_id === user?.id;
   const isArchived = template?.is_archived ?? false;
+  // Rotinas gerais: qualquer usuário pode editar — o backend cria uma cópia privada (fork)
+  // automaticamente ao editar uma rotina geral de outro usuário (UX silencioso).
+  const canManage = true;
 
   const handleAddActivity = async (e: React.FormEvent) => {
     e.preventDefault();

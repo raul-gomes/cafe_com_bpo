@@ -3,7 +3,12 @@ from uuid import UUID
 from sqlalchemy import and_, asc, case, or_
 from sqlalchemy.orm import Session, aliased
 
-from ..models import ActivityTemplate, TemplateActivity, UserTemplateArchive
+from ..models import (
+    ActivityTemplate,
+    ClientTemplateAssignment,
+    TemplateActivity,
+    UserTemplateArchive,
+)
 from ..schemas import (
     ActivityTemplateCreate,
     ActivityTemplateUpdate,
@@ -31,6 +36,19 @@ class TemplateRepository:
         Ordenação: ativos primeiro, depois arquivados.
         """
         archive_alias = aliased(UserTemplateArchive)
+        fork_alias = aliased(ActivityTemplate)
+
+        # Rotinas gerais para as quais o usuário já criou uma cópia (fork) não
+        # aparecem mais na listagem — ele passa a trabalhar com a própria versão.
+        general_without_fork = and_(
+            ActivityTemplate.is_general.is_(True),
+            ~self.session.query(fork_alias.id)
+            .filter(
+                fork_alias.parent_template_id == ActivityTemplate.id,
+                fork_alias.user_id == user_id,
+            )
+            .exists(),
+        )
 
         results = (
             self.session.query(
@@ -53,7 +71,7 @@ class TemplateRepository:
             .filter(
                 or_(
                     ActivityTemplate.user_id == user_id,
-                    ActivityTemplate.is_general.is_(True),
+                    general_without_fork,
                 )
             )
             .order_by(
@@ -123,6 +141,89 @@ class TemplateRepository:
         else:
             conditions.append(ActivityTemplate.user_id == user_id)
         return self.session.query(ActivityTemplate).filter(*conditions).first()
+
+    def get_user_fork_of(
+        self, template_id: UUID, user_id: UUID
+    ) -> ActivityTemplate | None:
+        """Retorna a cópia (fork) que o usuário já criou de uma rotina geral."""
+        return (
+            self.session.query(ActivityTemplate)
+            .filter(
+                ActivityTemplate.parent_template_id == template_id,
+                ActivityTemplate.user_id == user_id,
+            )
+            .first()
+        )
+
+    def migrate_assignments_for_user(
+        self, old_template_id: UUID, new_template_id: UUID, user_id: UUID
+    ) -> int:
+        """Reaponta os vínculos do usuário de um template para outro.
+
+        Usado no fork: os vínculos existentes passam a seguir a cópia do
+        usuário (as próximas gerações usam a versão dele).
+        """
+        result = (
+            self.session.query(ClientTemplateAssignment)
+            .filter(
+                ClientTemplateAssignment.template_id == old_template_id,
+                ClientTemplateAssignment.user_id == user_id,
+            )
+            .update(
+                {ClientTemplateAssignment.template_id: new_template_id},
+                synchronize_session=False,
+            )
+        )
+        self.session.commit()
+        return result
+
+    def create_fork(
+        self, template: ActivityTemplate, user_id: UUID
+    ) -> ActivityTemplate:
+        """Cria a cópia privada (fork) de uma rotina geral para o usuário.
+
+        Copia o template e suas atividades e reaponta os vínculos existentes
+        do usuário para a nova cópia. O mestre permanece intacto para os demais.
+        """
+        tmpl = ActivityTemplate(
+            user_id=user_id,
+            name=template.name,
+            description=template.description,
+            process_type=template.process_type,
+            recurrence=template.recurrence,
+            weekday_mask=template.weekday_mask,
+            due_day=template.due_day,
+            due_month=template.due_month,
+            due_days_from_start=template.due_days_from_start,
+            due_date=template.due_date,
+            recurrence_end_date=template.recurrence_end_date,
+            is_active=template.is_active,
+            is_general=False,
+            is_archived=False,
+            parent_template_id=template.id,
+            routine_type_id=template.routine_type_id,
+        )
+        self.session.add(tmpl)
+        self.session.flush()
+        for act in self.get_activities_by_template(template.id):
+            self.session.add(
+                TemplateActivity(
+                    template_id=tmpl.id,
+                    name=act.name,
+                    description=act.description,
+                    priority=act.priority,
+                    due_day=act.due_day,
+                    due_days=act.due_days,
+                    estimated_minutes=act.estimated_minutes,
+                    order=act.order,
+                    phase_id=act.phase_id,
+                )
+            )
+        self.session.flush()
+        self.migrate_assignments_for_user(template.id, tmpl.id, user_id)
+        self.session.commit()
+        self.session.refresh(tmpl)
+        return tmpl
 
     def create_template(
         self, template_in: ActivityTemplateCreate, user_id: UUID

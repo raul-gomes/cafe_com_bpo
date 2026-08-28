@@ -75,6 +75,7 @@ erDiagram
     activity_templates ||--o{ client_template_assignments : "template_id"
     activity_templates ||--o{ invitation_routines : "template_id"
     activity_templates ||--o{ user_template_archives : "template_id"
+    activity_templates }o--o{ activity_templates : "parent_template_id (fork, SET NULL)"
     activity_templates }o--o{ routine_types : "routine_type_id (SET NULL)"
     task_phases ||--o{ tasks : "phase_id (SET NULL)"
     task_phases ||--o{ template_activities : "phase_id (SET NULL)"
@@ -252,6 +253,8 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | R | `task_manager/routine_types/repository.py` (lookup no delete) |
 | W | `task_manager/templates/repository.py` |
 
+> Coluna `parent_template_id` (self-FK, ON DELETE SET NULL): aponta para o template "mestre" quando a rotina é uma cópia privada (fork) criada ao editar uma rotina geral de outro usuário. Quando presente, a rotina é uma cópia própria do usuário (`user_id`) derivada do mestre.
+
 ### `template_activities` — dono: `task_manager`
 | Direção | Quem |
 |---------|------|
@@ -267,6 +270,7 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 |---------|------|
 | R | `task_manager/assignments/repository.py`, `task_manager/scheduler.py` |
 | W | `task_manager/assignments/repository.py` (create/update/delete) |
+| W | `task_manager/templates/repository.py` (`migrate_assignments_for_user` — migra assignment X→Y ao fazer fork) |
 | W | `task_manager/scheduler.py` (atualiza `last_generated_at`) |
 
 ### `client_slas` — dono: `task_manager`

@@ -230,6 +230,13 @@ class ActivityTemplate(Base):
     is_general = Column(Boolean, server_default="false", nullable=False)
     # Rotina arquivada: fica no final da página, pode ser desarquivada
     is_archived = Column(Boolean, server_default="false", nullable=False)
+    # Quando um usuário edita uma rotina geral, cria-se uma cópia privada (fork)
+    # dele com parent_template_id apontando para o template original (mestre).
+    parent_template_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("activity_templates.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     routine_type_id = Column(
         UUID(as_uuid=True),
         ForeignKey("routine_types.id", ondelete="SET NULL"),
@@ -253,6 +260,17 @@ class ActivityTemplate(Base):
     )
 
     routine_type = relationship("RoutineType", foreign_keys=[routine_type_id])
+
+    parent = relationship(
+        "ActivityTemplate",
+        remote_side=[id],
+        foreign_keys=[parent_template_id],
+    )
+    forks = relationship(
+        "ActivityTemplate",
+        back_populates="parent",
+        foreign_keys=[parent_template_id],
+    )
 
 
 class TemplateActivity(Base):

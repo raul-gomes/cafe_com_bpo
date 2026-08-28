@@ -9,6 +9,7 @@ from uuid import UUID
 
 from src.core.logger import log
 
+from ..models import ActivityTemplate
 from ..routine_types.repository import RoutineTypeRepository
 from ..schemas import (
     ActivityTemplateCreate,
@@ -88,6 +89,7 @@ class TemplateService:
                 ActivityTemplateListItem(
                     id=tmpl.id,
                     user_id=tmpl.user_id,
+                    parent_template_id=tmpl.parent_template_id,
                     name=tmpl.name,
                     description=tmpl.description,
                     process_type=tmpl.process_type,
@@ -166,6 +168,7 @@ class TemplateService:
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
+            parent_template_id=tmpl.parent_template_id,
             name=tmpl.name,
             description=tmpl.description,
             process_type=tmpl.process_type,
@@ -207,6 +210,7 @@ class TemplateService:
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
+            parent_template_id=tmpl.parent_template_id,
             name=tmpl.name,
             description=tmpl.description,
             process_type=tmpl.process_type,
@@ -227,10 +231,33 @@ class TemplateService:
             activities=[],
         )
 
+    def _resolve_for_write(
+        self, template_id: UUID, user_id: UUID
+    ) -> ActivityTemplate:
+        """Resolve o template para uma operação de escrita.
+
+        Se for uma rotina geral de outro usuário, cria (ou reutiliza) a cópia
+        privada (fork) do usuário e retorna essa cópia — as alterações valem
+        somente para ele. Se for do próprio usuário, retorna o template.
+        """
+        tmpl = self.repository.get_template_by_id(
+            template_id, user_id, include_general=True
+        )
+        if not tmpl:
+            raise ValueError(f"Template {template_id} not found")
+        if tmpl.user_id == user_id:
+            return tmpl
+        if not tmpl.is_general:
+            raise ValueError(f"Template {template_id} not found")
+        fork = self.repository.get_user_fork_of(template_id, user_id)
+        if fork:
+            return fork
+        return self.repository.create_fork(tmpl, user_id)
+
     def update_template(
         self, template_id: UUID, user_id: UUID, template_in: ActivityTemplateUpdate
     ) -> ActivityTemplateResponse:
-        tmpl = self.repository.get_template_by_id(template_id, user_id)
+        tmpl = self._resolve_for_write(template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {template_id} not found")
         updated = self.repository.update_template(tmpl, template_in)
@@ -247,6 +274,7 @@ class TemplateService:
         return ActivityTemplateResponse(
             id=updated.id,
             user_id=updated.user_id,
+            parent_template_id=updated.parent_template_id,
             name=updated.name,
             description=updated.description,
             process_type=updated.process_type,
@@ -269,7 +297,7 @@ class TemplateService:
         )
 
     def delete_template(self, template_id: UUID, user_id: UUID) -> None:
-        tmpl = self.repository.get_template_by_id(template_id, user_id)
+        tmpl = self._resolve_for_write(template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {template_id} not found")
         self.repository.delete_template(tmpl)
@@ -318,6 +346,7 @@ class TemplateService:
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
+            parent_template_id=tmpl.parent_template_id,
             name=tmpl.name,
             description=tmpl.description,
             process_type=tmpl.process_type,
@@ -344,10 +373,10 @@ class TemplateService:
     def create_activity(
         self, template_id: UUID, user_id: UUID, activity_in: TemplateActivityCreate
     ) -> TemplateActivityResponse:
-        tmpl = self.repository.get_template_by_id(template_id, user_id)
+        tmpl = self._resolve_for_write(template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {template_id} not found")
-        act = self.repository.create_activity(template_id, activity_in)
+        act = self.repository.create_activity(tmpl.id, activity_in)
         # Gera tasks para a atividade nova em todas as rotinas já vinculadas a clientes
         self._generate_tasks_for_new_activity(tmpl, act, user_id)
         return TemplateActivityResponse.model_validate(act)
@@ -371,11 +400,11 @@ class TemplateService:
         user_id: UUID,
         activity_in: TemplateActivityUpdate,
     ) -> TemplateActivityResponse:
-        tmpl = self.repository.get_template_by_id(template_id, user_id)
+        tmpl = self._resolve_for_write(template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {template_id} not found")
         act = self.repository.get_activity_by_id(activity_id)
-        if not act or str(act.template_id) != str(template_id):
+        if not act or str(act.template_id) != str(tmpl.id):
             raise ValueError(
                 f"Activity {activity_id} not found in template {template_id}"
             )
@@ -385,11 +414,11 @@ class TemplateService:
     def delete_activity(
         self, template_id: UUID, activity_id: UUID, user_id: UUID
     ) -> None:
-        tmpl = self.repository.get_template_by_id(template_id, user_id)
+        tmpl = self._resolve_for_write(template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {template_id} not found")
         act = self.repository.get_activity_by_id(activity_id)
-        if not act or str(act.template_id) != str(template_id):
+        if not act or str(act.template_id) != str(tmpl.id):
             raise ValueError(
                 f"Activity {activity_id} not found in template {template_id}"
             )
@@ -398,9 +427,9 @@ class TemplateService:
     def reorder_activities(
         self, template_id: UUID, user_id: UUID, ordered_ids: list[UUID]
     ) -> list[TemplateActivityResponse]:
-        tmpl = self.repository.get_template_by_id(template_id, user_id)
+        tmpl = self._resolve_for_write(template_id, user_id)
         if not tmpl:
             raise ValueError(f"Template {template_id} not found")
-        self.repository.reorder_activities(template_id, ordered_ids)
-        activities = self.repository.get_activities_by_template(template_id)
+        self.repository.reorder_activities(tmpl.id, ordered_ids)
+        activities = self.repository.get_activities_by_template(tmpl.id)
         return [TemplateActivityResponse.model_validate(a) for a in activities]
