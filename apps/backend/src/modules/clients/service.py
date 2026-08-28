@@ -11,6 +11,22 @@ from uuid import UUID
 from src.modules.clients.repository import ClientRepository
 from src.modules.clients.schemas import ClientCreate, ClientResponse, ClientUpdate
 
+# Fonte de verdade dos segmentos de clientes (vocabulário controlado).
+# Exposto via GET /clients/segments — o front consome da API (não hardcoded).
+# "Outro" (sempre por último) dispara o input de segmento personalizado no front.
+CLIENT_SEGMENTS: list[str] = [
+    "B2B - Tecnologia & Software",
+    "B2B - Marketing & Comunicação",
+    "B2B - Consultoria & Assessoria",
+    "Saúde - Clínicas & Consultórios Médicos",
+    "Saúde - Estética & Cosmiatria",
+    "Comércio - E-commerce & Marketplace",
+    "Comércio - Alimentação & Gastronomia",
+    "Serviços - Advocacia & Jurídico",
+    "Indústria & Construção Civil",
+    "Outro",
+]
+
 
 class ClientService:
     """Service layer for client operations."""

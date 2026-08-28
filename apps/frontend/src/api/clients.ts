@@ -18,6 +18,11 @@ export const getClients = async () => {
   return response.data as ClientData[];
 };
 
+export const getClientSegments = async () => {
+  const response = await apiClient.get('/clients/segments');
+  return response.data as string[];
+};
+
 export const createClient = async (data: Omit<ClientData, 'id'>) => {
   const response = await apiClient.post('/clients/', data);
   return response.data as ClientData;

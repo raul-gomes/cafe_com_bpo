@@ -146,3 +146,26 @@ def test_clients_endpoints_require_authentication(client):
     # Try GET
     resp_get = client.get("/clients/")
     assert resp_get.status_code == 401
+
+
+def test_get_client_segments_returns_expected_options(client):
+    """O endpoint /clients/segments expõe a lista oficial de segmentos."""
+    from src.modules.clients.service import CLIENT_SEGMENTS
+
+    email = f"client_seg_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = client.get("/clients/segments", headers=auth)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    # A lista deve refletir exatamente a fonte de verdade do backend.
+    assert data == CLIENT_SEGMENTS
+    # Última opção é "Outro" (dispara o input customizado no front).
+    assert data[-1] == "Outro"
+    assert "Outro" in data
+
+
+def test_get_client_segments_requires_authentication(client):
+    resp = client.get("/clients/segments")
+    assert resp.status_code == 401

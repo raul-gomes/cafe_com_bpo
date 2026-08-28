@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getClients, createClient, updateClient, deleteClient, ClientData } from '../../api/clients';
+import { getClients, getClientSegments, createClient, updateClient, deleteClient, ClientData } from '../../api/clients';
 import { MaskedCNPJ, MaskedPhone } from '../../components/ui/MaskedInput';
 import { maskCNPJ, maskPhone } from '../../lib/formatters';
 import { useTasks } from '../../api/hooks/useTasks';
@@ -36,21 +36,6 @@ import { toast } from 'sonner';
 import { EmailChipInput, type EmailChip } from '../../components/ui/EmailChipInput';
 import { useUserLookup } from '../../api/hooks/useUserLookup';
 
-const BPO_SEGMENTS = [
-  'BPO Financeiro',
-  'BPO Contábil',
-  'BPO Fiscal',
-  'BPO RH / Departamento Pessoal',
-  'Cobrança e Recebimento',
-  'Faturamento',
-  'Tesouraria',
-  'Consultoria Financeira',
-  'Gestão de Fluxo de Caixa',
-  'Conciliação Bancária',
-  'Emissão de NF / Notas Fiscais',
-  'Outro',
-];
-
 export const EmpresasPage: React.FC = () => {
   const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +44,7 @@ export const EmpresasPage: React.FC = () => {
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
   const [formData, setFormData] = useState({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
   const [customSegment, setCustomSegment] = useState('');
+  const [segments, setSegments] = useState<string[]>([]);
   const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment, useUpdateAssignment } = useTasks();
   const [linkClientId, setLinkClientId] = useState<string | null>(null);
   const [teamClientId, setTeamClientId] = useState<string | null>(null);
@@ -147,7 +133,17 @@ export const EmpresasPage: React.FC = () => {
 
   useEffect(() => {
     loadClients();
+    loadSegments();
   }, []);
+
+  const loadSegments = async () => {
+    try {
+      const data = await getClientSegments();
+      setSegments(data);
+    } catch (err) {
+      console.error('Erro ao carregar segmentos:', err);
+    }
+  };
 
   const loadClients = async () => {
     try {
@@ -173,7 +169,7 @@ export const EmpresasPage: React.FC = () => {
   const handleStartEdit = (client: ClientData) => {
     setExpandedCardId(client.id);
     const seg = client.segment || '';
-    const isKnown = !seg || (BPO_SEGMENTS as readonly string[]).includes(seg);
+    const isKnown = !seg || segments.includes(seg);
     setFormData({
       name: client.name,
       cnpj: client.cnpj || '',
@@ -392,7 +388,7 @@ export const EmpresasPage: React.FC = () => {
           onChange={e => setFormData({ ...formData, segment: e.target.value })}
         >
           <option value="">Selecione...</option>
-          {BPO_SEGMENTS.map(s => <option key={s} value={s}>{s}</option>)}
+          {segments.map(s => <option key={s} value={s}>{s}</option>)}
         </select>
         {formData.segment === 'Outro' && (
           <Input

@@ -11,6 +11,7 @@ from src.modules.auth.service import get_current_user
 
 from .repository import ClientRepository
 from .schemas import ClientCreate, ClientResponse, ClientUpdate
+from .service import CLIENT_SEGMENTS
 
 router = APIRouter(prefix="/clients", tags=["clients"])
 
@@ -23,6 +24,18 @@ def get_client_repository(
 
 ClientRepoDep = Annotated[ClientRepository, Depends(get_client_repository)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
+
+
+@router.get("/segments", response_model=list[str])
+def get_client_segments(
+    current_user: CurrentUserDep,
+):
+    """Retorna a lista oficial de segmentos de clientes.
+
+    O front consome esta lista em vez de manter as opções hardcoded,
+    garantindo uma única fonte de verdade no backend.
+    """
+    return CLIENT_SEGMENTS
 
 
 @router.get("/", response_model=list[ClientResponse])
