@@ -10,7 +10,9 @@ class FeedbackService:
     def send_feedback(
         title: str, description: str, user_name: str, user_email: str
     ) -> None:
-        support_email = settings.support_email
+        # Destinatário dedicado do "Reportar Erro" (FEEDBACK_EMAIL) com
+        # fallback para a caixa de suporte (SUPPORT_EMAIL).
+        support_email = settings.feedback_email or settings.support_email
 
         subject = f"[Feedback] {title}"
 

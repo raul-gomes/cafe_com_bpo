@@ -11,6 +11,7 @@ from src.core.database import get_db_session
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user, require_admin
+from src.modules.auth.storage_service import CloudinaryService
 from src.modules.gallery.repository import CommonGalleryRepository, GalleryRepository
 from src.modules.gallery.schemas import (
     CommonGalleryItemResponse,
@@ -194,7 +195,12 @@ async def upload_common_file(
     title: str = Query(default=""),
     description: str = Query(default=""),
 ):
-    """Upload de arquivo comunitário (restrito a administradores)."""
+    """Upload de arquivo comunitário (restrito a administradores).
+
+    O arquivo é enviado para o Cloudinary (resource_type "raw") e o banco
+    armazena apenas os metadados (url + public_id). Assim, o download é feito
+    diretamente pela CDN e fica fácil aplicar controle de permissão no futuro.
+    """
     if not file.filename:
         raise HTTPException(status_code=400, detail="Nome de arquivo inválido")
 
@@ -211,30 +217,31 @@ async def upload_common_file(
             status_code=413, detail="Arquivo muito grande. Limite de 10MB."
         )
 
-    safe_filename = f"{uuid.uuid4().hex}{ext}"
-    filepath = os.path.join(COMMON_STORAGE_DIR, safe_filename)
-
-    with open(filepath, "wb") as f:
-        f.write(content)
+    upload = await CloudinaryService.upload_raw_file(
+        content, user_id=str(admin.id), folder="gallery"
+    )
 
     item = repo.create(
         data={
             "file_name": file.filename,
             "file_type": file.content_type or "application/octet-stream",
             "file_size": len(content),
-            "file_path": f"/gallery/common/download/{safe_filename}",
+            "file_path": upload["url"],
+            "public_id": upload["id"],
             "title": title or None,
             "description": description or None,
         },
         created_by=admin.id,
     )
 
-    log.info(f"📁 Arquivo comunitário enviado: {file.filename} por admin {admin.email}")
+    log.info(
+        f"📁 Arquivo comunitário enviado p/ Cloudinary: {file.filename} por admin {admin.email}"
+    )
     return item
 
 
 @router.delete("/common/{item_id}", status_code=204)
-def delete_common_file(
+async def delete_common_file(
     item_id: uuid.UUID,
     admin: Annotated[UserResponse, Depends(require_admin)],
     repo: Annotated[CommonGalleryRepository, Depends(get_common_repo)],
@@ -244,9 +251,13 @@ def delete_common_file(
     if not item:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-    local_path = os.path.join(COMMON_STORAGE_DIR, os.path.basename(item.file_path))
-    if os.path.exists(local_path):
-        os.remove(local_path)
+    # Se veio do Cloudinary, remove de lá pelo public_id
+    if item.public_id:
+        await CloudinaryService.delete_file(item.public_id)
+    else:
+        local_path = os.path.join(COMMON_STORAGE_DIR, os.path.basename(item.file_path))
+        if os.path.exists(local_path):
+            os.remove(local_path)
 
     repo.delete(item)
     log.info(

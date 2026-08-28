@@ -1,3 +1,4 @@
+from unittest.mock import patch
 from uuid import uuid4
 
 from tests.helpers import register_user
@@ -28,6 +29,33 @@ def test_upload_gallery_file_success(client):
     assert data["description"] == "A test PDF file"
     assert data["file_size"] == len(file_content)
     assert "id" in data
+
+
+def test_upload_gallery_file_success_with_long_mime_type(client):
+    """MIME types longos (ex.: .docx) nao estouram a coluna file_type."""
+    email = f"gallery_{uuid4()}@cafe.com"
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    token = resp.json()["access_token"]
+
+    long_mime = (
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+    )
+    file_content = b"fake docx content"
+    files = {"file": ("contrato.docx", file_content, long_mime)}
+
+    response = client.post(
+        "/gallery/upload",
+        headers={"Authorization": f"Bearer {token}"},
+        files=files,
+    )
+
+    assert response.status_code == 201
+    data = response.json()
+    assert data["file_type"] == long_mime
+    assert data["file_name"] == "contrato.docx"
 
 
 def test_upload_gallery_file_rejects_unauthorized(client):
@@ -193,20 +221,31 @@ def test_common_gallery_list_public(client):
 
 
 def test_common_gallery_upload_admin(client, db_session):
-    """Test that admin can upload to common gallery."""
+    """Test that admin can upload to common gallery (stored in Cloudinary)."""
     token = _create_admin_user(client, db_session)
     file_content = b"common file content"
     files = {"file": ("common.pdf", file_content, "application/pdf")}
-    resp = client.post(
-        "/gallery/common/upload?title=Common%20Doc",
-        headers={"Authorization": f"Bearer {token}"},
-        files=files,
-    )
+
+    fake_public_id = "cafe_com_bpo/gallery/fake_user/gallery_12345"
+    fake_url = "https://res.cloudinary.com/fake/image/upload/" + fake_public_id
+    with patch(
+        "src.modules.gallery.router.CloudinaryService.upload_raw_file",
+        return_value={"id": fake_public_id, "url": fake_url},
+    ) as mock_upload:
+        resp = client.post(
+            "/gallery/common/upload?title=Common%20Doc",
+            headers={"Authorization": f"Bearer {token}"},
+            files=files,
+        )
     assert resp.status_code == 201
+    mock_upload.assert_called_once()
     data = resp.json()
     assert data["file_name"] == "common.pdf"
     assert data["title"] == "Common Doc"
     assert data["file_size"] == len(file_content)
+    assert data["file_path"] == fake_url
+    assert data["public_id"] == fake_public_id
+    assert "cloudinary" in data["file_path"]
     assert "id" in data
 
 
@@ -239,18 +278,31 @@ def test_common_gallery_delete_admin(client, db_session):
     """Test that admin can delete a common file."""
     token = _create_admin_user(client, db_session)
     files = {"file": ("delete.pdf", b"to delete", "application/pdf")}
-    upload = client.post(
-        "/gallery/common/upload",
-        headers={"Authorization": f"Bearer {token}"},
-        files=files,
-    )
+
+    fake_public_id = "cafe_com_bpo/gallery/fake_user/gallery_delete"
+    with patch(
+        "src.modules.gallery.router.CloudinaryService.upload_raw_file",
+        return_value={
+            "id": fake_public_id,
+            "url": "https://res.cloudinary.com/fake/image/upload/" + fake_public_id,
+        },
+    ):
+        upload = client.post(
+            "/gallery/common/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files=files,
+        )
     file_id = upload.json()["id"]
 
-    resp = client.delete(
-        f"/gallery/common/{file_id}",
-        headers={"Authorization": f"Bearer {token}"},
-    )
+    with patch(
+        "src.modules.gallery.router.CloudinaryService.delete_file"
+    ) as mock_delete:
+        resp = client.delete(
+            f"/gallery/common/{file_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
     assert resp.status_code == 204
+    mock_delete.assert_called_once_with(fake_public_id)
 
     # Confirm it's gone
     list_resp = client.get("/gallery/common")
@@ -263,11 +315,18 @@ def test_common_gallery_delete_rejects_regular_user(client, db_session):
     # First admin creates a file
     admin_token = _create_admin_user(client, db_session)
     files = {"file": ("protected.pdf", b"x", "application/pdf")}
-    upload = client.post(
-        "/gallery/common/upload",
-        headers={"Authorization": f"Bearer {admin_token}"},
-        files=files,
-    )
+    with patch(
+        "src.modules.gallery.router.CloudinaryService.upload_raw_file",
+        return_value={
+            "id": "cafe_com_bpo/gallery/admin/protected_123",
+            "url": "https://res.cloudinary.com/fake/image/upload/cafe_com_bpo/gallery/admin/protected_123",
+        },
+    ):
+        upload = client.post(
+            "/gallery/common/upload",
+            headers={"Authorization": f"Bearer {admin_token}"},
+            files=files,
+        )
     file_id = upload.json()["id"]
 
     # Regular user tries to delete

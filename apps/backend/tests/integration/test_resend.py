@@ -1,8 +1,9 @@
 """Testes de integração com Resend (email real).
 
 Roda APENAS com: pytest -m integration
-Requer: RESEND_API_KEY e RESEND_FROM_EMAIL no .env
-Envia para: test@cafecombpo.com.br (caixa Resend de teste)
+Requer: RESEND_API_KEY no .env
+Envia para: rsgomes86@gmail.com (sandbox Resend — só aceita este destinatário)
+From: onboarding@resend.dev (sandbox — domínio próprio precisa estar verificado)
 """
 
 import os
@@ -17,9 +18,15 @@ pytestmark = pytest.mark.integration
 # Modo sandbox do Resend só aceita envio para o próprio e-mail da conta
 TEST_EMAIL = "rsgomes86@gmail.com"
 
+# Em sandbox, o "from" precisa ser onboarding@resend.dev
+SANDBOX_FROM = "onboarding@resend.dev"
+
 
 @pytest.fixture(scope="module")
 def settings():
+    get_settings.cache_clear()
+    # Forçar from email para sandbox (domínio próprio pode não estar verificado)
+    os.environ["RESEND_FROM_EMAIL"] = SANDBOX_FROM
     get_settings.cache_clear()
     s = get_settings()
     if not s.resend_api_key:

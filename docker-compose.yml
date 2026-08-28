@@ -51,6 +51,7 @@ services:
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - EMAIL_PROVIDER=${EMAIL_PROVIDER:-resend}
       - SUPPORT_EMAIL=${SUPPORT_EMAIL}
+      - FEEDBACK_EMAIL=${FEEDBACK_EMAIL}
     expose:
       - "8000"
     healthcheck:

@@ -63,6 +63,8 @@ class Settings(BaseSettings):
 
     # Support / Feedback
     support_email: str = "cafe@cafecombpo.com.br"
+    # Destinatário dedicado do "Reportar Erro" (fallback: support_email)
+    feedback_email: str = ""
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

@@ -35,8 +35,9 @@ class GalleryItem(Base):
 
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
-    file_type = Column(String(50), nullable=False)
+    file_type = Column(String(255), nullable=False)
     file_size = Column(Integer, nullable=False)
+    public_id = Column(String(500), nullable=True)
 
     title = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
@@ -57,8 +58,9 @@ class CommonGalleryItem(Base):
     id = Column(PGUUID(as_uuid=True), primary_key=True, default=uuid4)
     file_name = Column(String(255), nullable=False)
     file_path = Column(String(500), nullable=False)
-    file_type = Column(String(50), nullable=False)
+    file_type = Column(String(255), nullable=False)
     file_size = Column(Integer, nullable=False)
+    public_id = Column(String(500), nullable=True)
     title = Column(String(255), nullable=True)
     description = Column(Text, nullable=True)
     created_by = Column(

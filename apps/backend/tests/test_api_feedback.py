@@ -105,21 +105,44 @@ class TestFeedbackEndpoint:
 
 
 class TestSupportEmailWiring:
-    def test_send_feedback_targets_support_email_from_settings(self):
-        """O destinatário do feedback é o SUPPORT_EMAIL das configurações."""
-        from src.core.config import get_settings
+    def _send(self, feedback_email, support_email):
+        """Executa send_feedback com settings controlados do módulo service."""
+        from types import SimpleNamespace
+
         from src.core.email import EmailService
-        from src.modules.feedback.service import FeedbackService
+        from src.modules import feedback
 
-        expected = get_settings().support_email
-        assert expected, "SUPPORT_EMAIL deve estar configurado"
-
-        with patch.object(EmailService, "send_email") as mock_send:
-            FeedbackService.send_feedback(
+        fake_settings = SimpleNamespace(
+            feedback_email=feedback_email, support_email=support_email
+        )
+        with (
+            patch.object(feedback.service, "settings", fake_settings),
+            patch.object(EmailService, "send_email") as mock_send,
+        ):
+            feedback.service.FeedbackService.send_feedback(
                 title="Título",
                 description="Descrição",
                 user_name="U",
                 user_email="u@x.com",
             )
-        # Primeiro argumento de send_email é o destinatário
-        assert mock_send.call_args.args[0] == expected
+            return mock_send.call_args.args[0]
+
+    def test_send_feedback_targets_support_email_from_settings(self):
+        """Sem FEEDBACK_EMAIL, usa SUPPORT_EMAIL das configurações."""
+        recipient = self._send(
+            feedback_email="", support_email="cafe@cafecombpo.com.br"
+        )
+        assert recipient == "cafe@cafecombpo.com.br"
+
+    def test_send_feedback_prefers_feedback_email_when_set(self):
+        """Quando FEEDBACK_EMAIL está definido, é o destinatário preferido."""
+        recipient = self._send(
+            feedback_email="cafecombpo@gmail.com",
+            support_email="cafe@cafecombpo.com.br",
+        )
+        assert recipient == "cafecombpo@gmail.com"
+
+    def test_send_feedback_falls_back_to_support_email_when_empty(self):
+        """Sem FEEDBACK_EMAIL definido, usa SUPPORT_EMAIL (fallback)."""
+        recipient = self._send(feedback_email="", support_email="suporte@cafe.com.br")
+        assert recipient == "suporte@cafe.com.br"

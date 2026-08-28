@@ -82,6 +82,25 @@ class TestCloudinaryUpload:
             CloudinaryService.delete_file(result["id"])
         )
 
+    def test_upload_raw_file_gallery_folder(self, settings):
+        """Upload de arquivo não-imagem (raw) para a pasta de galeria."""
+        result = asyncio.get_event_loop().run_until_complete(
+            CloudinaryService.upload_raw_file(
+                b"%PDF-1.4 test raw content",
+                user_id="integration-test-gallery",
+                folder="gallery",
+            )
+        )
+        assert "id" in result
+        assert "url" in result
+        assert result["url"].startswith("https://")
+        assert "cafe_com_bpo/gallery/integration-test-gallery" in result["id"]
+
+        # Cleanup
+        asyncio.get_event_loop().run_until_complete(
+            CloudinaryService.delete_file(result["id"])
+        )
+
 
 class TestCloudinaryDelete:
     def test_delete_nonexistent_does_not_raise(self, settings):

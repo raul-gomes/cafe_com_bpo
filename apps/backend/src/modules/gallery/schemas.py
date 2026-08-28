@@ -50,6 +50,8 @@ class CommonGalleryItemResponse(BaseModel):
     file_name: str
     file_type: str
     file_size: int
+    file_path: str | None = None
+    public_id: str | None = None
     title: str | None = None
     description: str | None = None
     created_by: UUID | None = None

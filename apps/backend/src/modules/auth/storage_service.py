@@ -35,6 +35,34 @@ class CloudinaryService:
         Returns:
             Dict com "id" (public_id) e "url" (secure_url).
         """
+        return await cls._upload(content, user_id, folder, resource_type="image")
+
+    @classmethod
+    async def upload_raw_file(
+        cls, content: bytes, user_id: str, folder: str = "gallery"
+    ) -> dict:
+        """
+        Faz o upload de um arquivo não-imagem (PDF, DOC, XLS etc.) para o Cloudinary
+        como recurso "raw" (sem transformação de mídia).
+
+        Args:
+            content: Conteúdo do arquivo em bytes.
+            user_id: ID do usuário para organizar pastas.
+            folder: Subpasta dentro de cafe_com_bpo/ (ex: "gallery").
+
+        Returns:
+            Dict com "id" (public_id) e "url" (secure_url).
+        """
+        return await cls._upload(content, user_id, folder, resource_type="raw")
+
+    @classmethod
+    async def _upload(
+        cls,
+        content: bytes,
+        user_id: str,
+        folder: str,
+        resource_type: str,
+    ) -> dict:
         try:
             timestamp = int(time.time())
             public_id = f"{folder}_{timestamp}"
@@ -43,7 +71,7 @@ class CloudinaryService:
                 folder=f"cafe_com_bpo/{folder}/{user_id}",
                 public_id=public_id,
                 overwrite=True,
-                resource_type="image",
+                resource_type=resource_type,
             )
 
             return {

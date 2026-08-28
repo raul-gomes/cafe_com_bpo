@@ -304,6 +304,17 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 |---------|------|
 | R/W | `gallery/repository.py` (ambos) |
 
+> **Migração `2c3f53fcef02`**: adicionada a coluna `public_id` em `gallery_items` e
+> `common_gallery_items` (nullable). A galeria **comum** agora armazena o arquivo no
+> Cloudinary (`resource_type="raw"`) — o banco guarda os metadados (`file_path` = URL do
+> Cloudinary, `public_id` = ID do Cloudinary p/ exclusão). A galeria do usuário segue em
+> disco local (`storage/gallery/`).
+>
+> **Migração `3e5a1b2c9d4f`**: coluna `file_type` ampliada de `VARCHAR(50)` para
+> `VARCHAR(255)` em `gallery_items` e `common_gallery_items` — MIME types longos
+> (ex.: `.docx` = `application/vnd.openxmlformats-officedocument.wordprocessingml.document`)
+> estouravam o limite de 50 e causavam `DataError` (500) no upload.
+
 ### `payments` — dono: `payments`
 | Direção | Quem |
 |---------|------|

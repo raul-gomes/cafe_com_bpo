@@ -31,7 +31,6 @@ import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
-import { communityDocs } from '../../data/communityDocs';
 
 interface GalleryFile {
   id: string;
@@ -43,7 +42,6 @@ interface GalleryFile {
   description: string | null;
   created_at: string;
   updated_at: string;
-  isStatic?: boolean;
 }
 
 const BASE_URL = (apiClient.defaults.baseURL || '/api').replace(/\/+$/, '');
@@ -240,36 +238,16 @@ export const GaleriaArquivosPage: React.FC = () => {
   };
 
   const handleDownload = (file: GalleryFile) => {
-    if (file.isStatic) {
-      const a = document.createElement('a');
-      a.href = file.file_path;
-      a.download = file.file_name;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+    // Se file_path já for uma URL absoluta (ex.: Cloudinary), abre direto.
+    if (/^https?:\/\//.test(file.file_path)) {
+      window.open(file.file_path, '_blank');
       return;
     }
     window.open(`${BASE_URL}${file.file_path}`, '_blank');
   };
 
-  const staticCommonFiles: GalleryFile[] = communityDocs.map(doc => {
-    const ext = doc.path.split('.').pop() || '';
-    return {
-      id: doc.id,
-      file_name: doc.fileName,
-      file_path: doc.path,
-      file_type: ext,
-      file_size: doc.file_size,
-      title: doc.title,
-      description: doc.description,
-      created_at: '',
-      updated_at: '',
-      isStatic: true,
-    };
-  });
-
   const currentFiles =
-    tab === 'my' ? files : [...staticCommonFiles, ...commonFiles];
+    tab === 'my' ? files : [...commonFiles];
   const filteredFiles = currentFiles.filter(
     f =>
       f.file_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -589,11 +567,9 @@ export const GaleriaArquivosPage: React.FC = () => {
                     <TableCell className="px-6 py-4 text-[13px] text-muted-foreground">
                       {formatSize(file.file_size)}
                     </TableCell>
-<TableCell className="px-6 py-4 text-[13px] text-muted-foreground">
-  {file.isStatic
-    ? '—'
-    : new Date(file.created_at).toLocaleDateString('pt-BR')}
-</TableCell>
+                      <TableCell className="px-6 py-4 text-[13px] text-muted-foreground">
+                        {new Date(file.created_at).toLocaleDateString('pt-BR')}
+                      </TableCell>
                     <TableCell className="px-6 py-4 text-right">
                       <div className="flex items-center justify-end gap-1">
                         <Button
@@ -617,7 +593,7 @@ export const GaleriaArquivosPage: React.FC = () => {
                             <line x1="12" y1="15" x2="12" y2="3" />
                           </svg>
                         </Button>
-{!file.isStatic && (tab === 'my' || isAdmin) && (
+                        {(tab === 'my' || isAdmin) && (
                           <Button
                             variant="ghost"
                             size="sm"
