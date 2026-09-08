@@ -1,4 +1,4 @@
-import { Trash2 } from 'lucide-react';
+import { Pencil, Trash2 } from 'lucide-react';
 import { ProjectResponse } from '../../api/network';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -6,12 +6,14 @@ import { Button } from '../ui/button';
 interface ProjectCardProps {
   project: ProjectResponse;
   currentUserId?: string | null;
+  onEdit?: (project: ProjectResponse) => void;
   onDelete?: (project: ProjectResponse) => void;
 }
 
 export function ProjectCard({
   project,
   currentUserId,
+  onEdit,
   onDelete,
 }: ProjectCardProps) {
   const isOwner = currentUserId != null && currentUserId === project.owner_id;
@@ -51,17 +53,29 @@ export function ProjectCard({
           )}
         </div>
 
-        {isOwner && onDelete && (
-          <div className="shrink-0">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => onDelete(project)}
-              aria-label={`Excluir projeto ${project.title}`}
-              className="text-destructive hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 size={15} />
-            </Button>
+        {isOwner && (onEdit || onDelete) && (
+          <div className="flex shrink-0 items-center gap-1">
+            {onEdit && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onEdit(project)}
+                aria-label={`Editar projeto ${project.title}`}
+              >
+                <Pencil size={15} />
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => onDelete(project)}
+                aria-label={`Excluir projeto ${project.title}`}
+                className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+              >
+                <Trash2 size={15} />
+              </Button>
+            )}
           </div>
         )}
       </div>

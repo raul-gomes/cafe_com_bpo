@@ -3,6 +3,7 @@ import { Briefcase } from 'lucide-react';
 import {
   getProjects,
   createProject,
+  updateProject,
   deleteProject,
   ProjectResponse,
   PaginatedProjects,
@@ -24,6 +25,7 @@ export function ProjectsSection() {
   const [data, setData] = useState<PaginatedProjects | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<ProjectResponse | null>(null);
   const [error, setError] = useState('');
 
   const [title, setTitle] = useState('');
@@ -50,25 +52,52 @@ export function ProjectsSection() {
   }, []);
 
   const resetForm = () => {
-    setShowForm(false);
     setTitle('');
     setDescription('');
     setSkills([]);
   };
 
-  const handleCreate = async (e: React.FormEvent) => {
+  const closeForm = () => {
+    setShowForm(false);
+    setEditing(null);
+    resetForm();
+  };
+
+  const openCreate = () => {
+    closeForm();
+    setShowForm(true);
+  };
+
+  const openEdit = (project: ProjectResponse) => {
+    setEditing(project);
+    setTitle(project.title);
+    setDescription(project.description);
+    setSkills(project.skills.map((skill) => skill.name));
+    setError('');
+    setShowForm(true);
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !description.trim()) {
       setError('Preencha título e descrição do projeto.');
       return;
     }
     try {
-      await createProject({
-        title: title.trim(),
-        description: description.trim(),
-        skills,
-      });
-      resetForm();
+      if (editing) {
+        await updateProject(editing.id, {
+          title: title.trim(),
+          description: description.trim(),
+          skills,
+        });
+      } else {
+        await createProject({
+          title: title.trim(),
+          description: description.trim(),
+          skills,
+        });
+      }
+      closeForm();
       setError('');
       loadProjects();
     } catch {
@@ -101,7 +130,7 @@ export function ProjectsSection() {
         </p>
         <Button
           variant={showForm ? 'ghost' : 'default'}
-          onClick={() => setShowForm(!showForm)}
+          onClick={() => (showForm ? closeForm() : openCreate())}
         >
           {showForm ? 'Cancelar' : 'Criar Projeto'}
         </Button>
@@ -117,10 +146,10 @@ export function ProjectsSection() {
         <Card className="mb-8 p-0">
           <div className="border-b border-border px-6 py-4">
             <h3 className="m-0 text-[18px] font-semibold text-foreground">
-              Novo Projeto
+              {editing ? 'Editar Projeto' : 'Novo Projeto'}
             </h3>
           </div>
-          <form onSubmit={handleCreate}>
+          <form onSubmit={handleSubmit}>
             <div className="flex flex-col gap-4 p-6">
               <div className="flex flex-col gap-1.5">
                 <label
@@ -206,6 +235,7 @@ export function ProjectsSection() {
               key={project.id}
               project={project}
               currentUserId={user?.id}
+              onEdit={openEdit}
               onDelete={handleDelete}
             />
           ))}

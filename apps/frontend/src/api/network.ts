@@ -123,6 +123,12 @@ export interface ProjectCreatePayload {
   remote_type?: RemoteType;
 }
 
+export interface ProjectUpdatePayload {
+  title?: string;
+  description?: string;
+  skills?: string[];
+}
+
 export const getProjects = async (
   limit = 20,
   offset = 0
@@ -137,6 +143,14 @@ export const createProject = async (
   payload: ProjectCreatePayload
 ): Promise<ProjectResponse> => {
   const { data } = await apiClient.post('/network/projects', payload);
+  return data;
+};
+
+export const updateProject = async (
+  projectId: string,
+  payload: ProjectUpdatePayload
+): Promise<ProjectResponse> => {
+  const { data } = await apiClient.patch(`/network/projects/${projectId}`, payload);
   return data;
 };
 

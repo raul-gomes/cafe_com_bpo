@@ -6,12 +6,14 @@ import { ProjectResponse } from '../src/api/network'
 
 const mockGetProjects = vi.hoisted(() => vi.fn())
 const mockCreateProject = vi.hoisted(() => vi.fn())
+const mockUpdateProject = vi.hoisted(() => vi.fn())
 const mockDeleteProject = vi.hoisted(() => vi.fn())
 const mockSearchSkills = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/api/network', () => ({
   getProjects: mockGetProjects,
   createProject: mockCreateProject,
+  updateProject: mockUpdateProject,
   deleteProject: mockDeleteProject,
   searchSkills: mockSearchSkills,
 }))
@@ -60,6 +62,7 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     vi.clearAllMocks()
     mockGetProjects.mockResolvedValue({ items: [PROJECT], total: 1 })
     mockCreateProject.mockResolvedValue(PROJECT)
+    mockUpdateProject.mockResolvedValue(PROJECT)
     mockDeleteProject.mockResolvedValue(undefined)
   })
 
@@ -75,12 +78,14 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     expect(screen.getAllByText(/Raul Gomes/i).length).toBeGreaterThan(0)
   })
 
-  it('mostra botão excluir apenas para o dono do projeto', async () => {
+  it('mostra botões editar e excluir apenas para o dono do projeto', async () => {
     mockGetProjects.mockResolvedValue({ items: [PROJECT, FOREIGN_PROJECT], total: 2 })
     renderSection()
 
     expect(await screen.findByText('Automação de fluxo fiscal')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Editar projeto Automação de fluxo fiscal/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Excluir projeto Automação de fluxo fiscal/i })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Editar projeto Migração contábil/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Excluir projeto Migração contábil/i })).not.toBeInTheDocument()
   })
 
@@ -104,6 +109,32 @@ describe('ProjectsSection — preview do mural de projetos', () => {
         skills: [],
       })
     )
+    expect(mockGetProjects).toHaveBeenCalledTimes(2)
+  })
+
+  it('edita um projeto do dono: pré-preenche o formulário e salva', async () => {
+    renderSection()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Editar projeto Automação de fluxo fiscal/i }))
+
+    expect(screen.getByLabelText(/Título do projeto/i)).toHaveValue('Automação de fluxo fiscal')
+    expect(screen.getByLabelText(/Descrição do projeto/i)).toHaveValue(
+      'Projeto para automatizar o fluxo fiscal dos clientes do escritório.'
+    )
+
+    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
+      target: { value: 'Automação fiscal 2.0' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
+
+    await waitFor(() =>
+      expect(mockUpdateProject).toHaveBeenCalledWith('p1', {
+        title: 'Automação fiscal 2.0',
+        description: 'Projeto para automatizar o fluxo fiscal dos clientes do escritório.',
+        skills: ['Python', 'Excel'],
+      })
+    )
+    expect(mockCreateProject).not.toHaveBeenCalled()
     expect(mockGetProjects).toHaveBeenCalledTimes(2)
   })
 
