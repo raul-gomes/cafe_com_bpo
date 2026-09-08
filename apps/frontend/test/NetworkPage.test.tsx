@@ -4,11 +4,20 @@ import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { NetworkPage } from '../src/pages/panel/NetworkPage'
 import { PostResponse } from '../src/api/network'
+import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
 
 const mockGetPosts = vi.hoisted(() => vi.fn())
+const mockGetProjects = vi.hoisted(() => vi.fn())
+const mockCreateProject = vi.hoisted(() => vi.fn())
+const mockDeleteProject = vi.hoisted(() => vi.fn())
+const mockSearchSkills = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/api/network', () => ({
   getPosts: mockGetPosts,
+  getProjects: mockGetProjects,
+  createProject: mockCreateProject,
+  deleteProject: mockDeleteProject,
+  searchSkills: mockSearchSkills,
 }))
 
 vi.mock('../src/api/hooks/useAppNotifications', () => ({
@@ -19,6 +28,10 @@ vi.mock('../src/api/hooks/useAppNotifications', () => ({
     useMarkAllAsRead: () => ({ mutate: vi.fn() }),
     useDeleteNotification: () => ({ mutate: vi.fn() }),
   }),
+}))
+
+vi.mock('../src/context/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'user-1' } }),
 }))
 
 const queryClient = new QueryClient({
@@ -42,11 +55,13 @@ const POST: PostResponse = {
 
 function renderPage() {
   return render(
-    <QueryClientProvider client={queryClient}>
-      <MemoryRouter>
-        <NetworkPage />
-      </MemoryRouter>
-    </QueryClientProvider>
+    <ConfirmProvider>
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter>
+          <NetworkPage />
+        </MemoryRouter>
+      </QueryClientProvider>
+    </ConfirmProvider>
   )
 }
 
@@ -54,6 +69,7 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetPosts.mockReset()
+    mockGetProjects.mockReset()
   })
 
   it('renderiza as duas abas: Fórum e Projetos', async () => {
@@ -72,14 +88,16 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
     expect(screen.queryByText(/em breve/i)).not.toBeInTheDocument()
   })
 
-  it('aba Projetos mostra o placeholder em desenvolvimento', async () => {
+  it('aba Projetos mostra o mural com o CTA de criar projeto', async () => {
     mockGetPosts.mockResolvedValue({ items: [POST], total: 1 })
+    mockGetProjects.mockResolvedValue({ items: [], total: 0 })
     renderPage()
 
     const projectsTab = await screen.findByRole('tab', { name: /Projetos/i })
     fireEvent.click(projectsTab)
 
-    expect(await screen.findByText(/em breve/i)).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /Criar Projeto/i })).toBeInTheDocument()
+    expect(screen.getByText(/Nenhum projeto publicado/i)).toBeInTheDocument()
     expect(screen.queryByText('Como reduzir custos com BPO financeiro?')).not.toBeInTheDocument()
   })
 })

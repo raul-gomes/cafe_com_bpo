@@ -114,6 +114,7 @@ import {
 } from '../../components/ui/pagination'
 import { Separator } from '../../components/ui/separator'
 import { SkillInput } from '../../components/ui/SkillInput'
+import { ProjectCard } from '../../components/network/ProjectCard'
 
 import './DesignSystemPage.css'
 
@@ -459,6 +460,42 @@ const [skills, setSkills] = useState<string[]>([])
             <Badge variant="destructive">Erro</Badge>
             <Badge variant="ghost">Ghost</Badge>
             <Badge variant="link">Link</Badge>
+          </div>
+        </ComponentCard>
+
+        {/* ── ProjectCard ── */}
+        <ComponentCard
+          name="ProjectCard"
+          description="Card do mural de projetos: título, autor, descrição, equipe, modalidade e skills"
+          howToUse={`import { ProjectCard } from '../../components/network/ProjectCard'
+
+<ProjectCard
+  project={project}
+  currentUserId={user?.id}
+  onDelete={(p) => handleDelete(p)}
+/>`}
+        >
+          <div className="ds-col">
+            <ProjectCard
+              project={{
+                id: 'demo-1',
+                owner_id: 'user-1',
+                owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                title: 'Automação de fluxo fiscal',
+                description:
+                  'Projeto para automatizar o fluxo fiscal dos clientes do escritório.',
+                status: 'open',
+                team_size: 2,
+                remote_type: 'remote',
+                published_at: null,
+                created_at: '2026-09-08T00:00:00Z',
+                updated_at: '2026-09-08T00:00:00Z',
+                skills: [
+                  { id: 's1', name: 'Python', slug: 'python', is_active: true },
+                  { id: 's2', name: 'Excel', slug: 'excel', is_active: true },
+                ],
+              }}
+            />
           </div>
         </ComponentCard>
 

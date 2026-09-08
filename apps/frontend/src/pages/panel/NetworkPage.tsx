@@ -1,9 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase } from 'lucide-react';
 import { getPosts, createPost, PaginatedPosts } from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { NotificationBell } from '../../components/panel/NotificationBell';
+import { ProjectsSection } from '../../components/network/ProjectsSection';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -295,55 +295,9 @@ export const NetworkPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="projects">
-          <Card className="p-10 text-center">
-            <div className="mx-auto mb-4 flex size-14 items-center justify-center rounded-2xl bg-primary/10 text-primary">
-              <Briefcase size={26} />
-            </div>
-            <h3 className="mb-2 text-[18px] font-bold text-foreground">
-              Em breve: Mural de Projetos
-            </h3>
-            <p className="mx-auto mb-6 max-w-xl text-[14px] leading-relaxed text-muted-foreground">
-              Publique os projetos que você quer desenvolver e encontre profissionais
-              de BPO qualificados para a sua demanda — ou candidate-se a projetos
-              publicados por outros negócios.
-            </p>
-            <ul className="mx-auto flex max-w-xl flex-col gap-2 text-left text-[13px] text-muted-foreground">
-              <li className="flex items-start gap-2">
-                <CheckIcon />
-                Publique o projeto com escopo, habilidades necessárias, orçamento, prazo
-                e modalidade (remoto, presencial ou híbrido).
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckIcon />
-                Habilidades vêm direto do catálogo da comunidade, garantindo que
-                profissionais e projetos falem a mesma língua.
-              </li>
-              <li className="flex items-start gap-2">
-                <CheckIcon />
-                Acompanhe a evolução do projeto e conecte-se com quem pode executá-lo.
-              </li>
-            </ul>
-          </Card>
+          <ProjectsSection />
         </TabsContent>
       </Tabs>
     </div>
   );
 };
-
-const CheckIcon = () => (
-  <span className="mt-0.5 inline-flex size-4 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width="10"
-      height="10"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="3"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M20 6 9 17l-5-5" />
-    </svg>
-  </span>
-);

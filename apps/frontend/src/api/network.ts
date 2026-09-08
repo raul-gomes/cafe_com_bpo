@@ -92,3 +92,54 @@ export const addMySkill = async (name: string): Promise<Skill> => {
 export const removeMySkill = async (skillId: string): Promise<void> => {
   await apiClient.delete(`/network/me/skills/${skillId}`);
 };
+
+export type RemoteType = 'remote' | 'onsite' | 'hybrid';
+
+export interface ProjectResponse {
+  id: string;
+  owner_id: string;
+  owner: UserPublic;
+  title: string;
+  description: string;
+  status: string;
+  team_size: number;
+  remote_type: string;
+  published_at: string | null;
+  created_at: string;
+  updated_at: string;
+  skills: Skill[];
+}
+
+export interface PaginatedProjects {
+  items: ProjectResponse[];
+  total: number;
+}
+
+export interface ProjectCreatePayload {
+  title: string;
+  description: string;
+  skills?: string[];
+  team_size?: number;
+  remote_type?: RemoteType;
+}
+
+export const getProjects = async (
+  limit = 20,
+  offset = 0
+): Promise<PaginatedProjects> => {
+  const { data } = await apiClient.get('/network/projects', {
+    params: { limit, offset },
+  });
+  return data;
+};
+
+export const createProject = async (
+  payload: ProjectCreatePayload
+): Promise<ProjectResponse> => {
+  const { data } = await apiClient.post('/network/projects', payload);
+  return data;
+};
+
+export const deleteProject = async (projectId: string): Promise<void> => {
+  await apiClient.delete(`/network/projects/${projectId}`);
+};
