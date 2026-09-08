@@ -59,7 +59,7 @@ const icons = {
 
 /* ── Navigation items ──
    s37/s38: ordem operacional (Início → Clientes → Rotinas → Tarefas → Orçamentos)
-   e agrupamento em "Ferramentas" (gestão) e "Conteúdo" (comunidade). */
+   e agrupamento em "Ferramentas" (gestão) e "Network" (comunidade). */
 
 const NAV_ITEMS = [
   { path: '/painel', icon: icons.dashboard, label: 'Início', matchExact: true, group: 'tools' },
@@ -68,12 +68,12 @@ const NAV_ITEMS = [
   { path: '/painel/tarefas', icon: icons.tasks, label: 'Gestão de Tarefas', group: 'tools' },
   { path: '/painel/orcamentos', icon: icons.proposals, label: 'Orçamentos', group: 'tools' },
   { path: '/painel/galeria', icon: icons.gallery, label: 'Galeria de Arquivos', group: 'content' },
-  { path: '/painel/forum', icon: icons.forum, label: 'Fórum da Comunidade', group: 'content' },
+  { path: '/painel/forum', icon: icons.forum, label: 'Comunidade', group: 'content' },
 ];
 
 const NAV_GROUPS: Record<string, { label: string; items: typeof NAV_ITEMS }> = {
   tools: { label: 'Ferramentas', items: NAV_ITEMS.filter(i => i.group === 'tools') },
-  content: { label: 'Conteúdo', items: NAV_ITEMS.filter(i => i.group === 'content') },
+  content: { label: 'Network', items: NAV_ITEMS.filter(i => i.group === 'content') },
 };
 
 /* ─── Component ─── */

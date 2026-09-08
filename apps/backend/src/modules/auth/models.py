@@ -71,6 +71,7 @@ class User(Base):
     )
     # Profile fields
     whatsapp = Column(String(50), nullable=True)
+    biografia = Column(Text, nullable=True)
     company_razao_social = Column(String(255), nullable=True)
     company_nome_fantasia = Column(String(255), nullable=True)
     company_cnpj = Column(String(50), nullable=True)

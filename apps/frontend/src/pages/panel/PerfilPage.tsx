@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { uploadAvatar, uploadCompanyLogo, updateProfile, adminCreateUser, CreateUserAdminData } from '../../api/clients';
+import { getMySkills, addMySkill, removeMySkill, type Skill } from '../../api/network';
+import { SkillInput } from '../../components/ui/SkillInput';
 import { getApiUrl } from '../../api/client';
 import { Button } from '../../components/ui/button';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
@@ -48,6 +50,7 @@ export const PerfilPage: React.FC = () => {
     company_segment: user?.company_segment || '',
     company_description: user?.company_description || '',
     whatsapp: user?.whatsapp || '',
+    biografia: user?.biografia || '',
     company_razao_social: user?.company_razao_social || '',
     company_nome_fantasia: user?.company_nome_fantasia || '',
     company_cnpj: user?.company_cnpj || '',
@@ -60,6 +63,8 @@ export const PerfilPage: React.FC = () => {
 
   const [isSaving, setIsSaving] = useState(false);
   const [segmentCustom, setSegmentCustom] = useState('');
+  const [skills, setSkills] = useState<string[]>([]);
+  const [savedSkills, setSavedSkills] = useState<Skill[]>([]);
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState<string | null>(
     user?.avatar_url
@@ -90,6 +95,16 @@ export const PerfilPage: React.FC = () => {
   }, [user?.role]);
 
   useEffect(() => {
+    getMySkills()
+      .then((list) => {
+        if (!Array.isArray(list)) return;
+        setSavedSkills(list);
+        setSkills(list.map((s) => s.name));
+      })
+      .catch(() => undefined);
+  }, []);
+
+  useEffect(() => {
     const savedSegment = user?.company_segment || '';
     const knownValues = SEGMENT_OPTIONS.map(o => o.value);
     const isCustom = savedSegment !== '' && !knownValues.includes(savedSegment);
@@ -100,6 +115,7 @@ export const PerfilPage: React.FC = () => {
       company_segment: isCustom ? 'outros' : savedSegment,
       company_description: user?.company_description || '',
       whatsapp: maskPhone(user?.whatsapp || ''),
+      biografia: user?.biografia || '',
       company_razao_social: user?.company_razao_social || '',
       company_nome_fantasia: user?.company_nome_fantasia || '',
       company_cnpj: maskCNPJ(user?.company_cnpj || ''),
@@ -224,6 +240,25 @@ export const PerfilPage: React.FC = () => {
       };
 
       const updated = await updateProfile(payload);
+
+      const added = skills.filter(
+        (n) => !savedSkills.some((s) => s.name.toLowerCase() === n.toLowerCase())
+      );
+      const removed = savedSkills.filter(
+        (s) => !skills.some((n) => n.toLowerCase() === s.name.toLowerCase())
+      );
+
+      for (const name of added) {
+        await addMySkill(name);
+      }
+      for (const skill of removed) {
+        await removeMySkill(skill.id);
+      }
+      if (added.length > 0 || removed.length > 0) {
+        const fresh = await getMySkills();
+        setSavedSkills(fresh);
+      }
+
       setUser(updated as unknown as User);
       toast.success('Perfil atualizado com sucesso!');
     } catch {
@@ -329,6 +364,30 @@ export const PerfilPage: React.FC = () => {
                     onChange={handleChange}
                     placeholder="Ex: 11988887777"
                   />
+                </Field>
+
+                <Field>
+                  <Label>Biografia</Label>
+                  <Textarea
+                    name="biografia"
+                    value={formData.biografia}
+                    onChange={handleChange}
+                    placeholder="Conte um pouco sobre você e sua experiência profissional..."
+                    rows={4}
+                    className="resize-y"
+                  />
+                </Field>
+
+                <Field>
+                  <Label>Habilidades</Label>
+                  <SkillInput
+                    value={skills}
+                    onChange={setSkills}
+                    placeholder="Digite uma habilidade e pressione Tab ou Enter"
+                  />
+                  <p className="text-[11px] text-muted-foreground/60">
+                    As habilidades são salvas no seu perfil e ajudam a encontrar oportunidades na plataforma.
+                  </p>
                 </Field>
               </div>
             </TabsContent>

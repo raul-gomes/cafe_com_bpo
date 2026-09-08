@@ -65,6 +65,7 @@ class UserResponse(BaseModel):
     avatar_url: str | None = None
     role: str = "user"
     whatsapp: str | None = None
+    biografia: str | None = None
     company_razao_social: str | None = None
     company_nome_fantasia: str | None = None
     company_cnpj: str | None = None
@@ -93,6 +94,7 @@ class UserResponse(BaseModel):
             else user.avatar_url,
             role=user.role,
             whatsapp=user.whatsapp,
+            biografia=user.biografia,
             company_razao_social=user.company_razao_social,
             company_nome_fantasia=user.company_nome_fantasia,
             company_cnpj=user.company_cnpj,
@@ -114,6 +116,7 @@ class ProfileUpdate(BaseModel):
     company_segment: str | None = None
     company_description: str | None = None
     whatsapp: str | None = None
+    biografia: str | None = None
     company_razao_social: str | None = None
     company_nome_fantasia: str | None = None
     company_cnpj: str | None = None

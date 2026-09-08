@@ -55,3 +55,17 @@ class CommentResponse(BaseModel):
     is_active: bool = True
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class SkillResponse(BaseModel):
+    id: UUID
+    name: str
+    slug: str
+    is_active: bool = True
+    created_at: datetime | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class UserSkillCreate(BaseModel):
+    name: str = Field(..., min_length=2, max_length=100)

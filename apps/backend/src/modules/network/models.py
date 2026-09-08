@@ -10,11 +10,41 @@ from sqlalchemy import (
     Integer,
     String,
     Text,
+    UniqueConstraint,
+    func,
 )
 from sqlalchemy.dialects.postgresql import ARRAY
 from sqlalchemy.orm import relationship
 
 from src.core.database import Base
+
+
+class Skill(Base):
+    __tablename__ = "skills"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    name = Column(String(100), unique=True, nullable=False)
+    slug = Column(String(120), unique=True, nullable=False)
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class UserSkill(Base):
+    __tablename__ = "user_skills"
+    __table_args__ = (
+        UniqueConstraint("user_id", "skill_id", name="uq_user_skills_user_skill"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    skill_id = Column(UUID(as_uuid=True), ForeignKey("skills.id"), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    skill = relationship("Skill")
 
 
 class DiscussionPost(Base):

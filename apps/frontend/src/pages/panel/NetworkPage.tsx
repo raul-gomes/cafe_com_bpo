@@ -109,7 +109,7 @@ export const NetworkPage: React.FC = () => {
       <div className="mb-6 flex items-start justify-between">
         <div>
           <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">
-            Fórum da Comunidade
+            Comunidade
           </h1>
           <p className="text-[14px] text-muted-foreground">
             Discuta, tire dúvidas e faça networking com outros profissionais de

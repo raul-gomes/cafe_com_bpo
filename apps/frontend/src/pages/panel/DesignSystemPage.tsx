@@ -113,6 +113,7 @@ import {
   PaginationEllipsis,
 } from '../../components/ui/pagination'
 import { Separator } from '../../components/ui/separator'
+import { SkillInput } from '../../components/ui/SkillInput'
 
 import './DesignSystemPage.css'
 
@@ -403,18 +404,41 @@ export default function DesignSystemPage() {
               <InputGroupAddon align="inline-start">CPF</InputGroupAddon>
               <MaskedInput tipo="cpf" />
             </InputGroup>
-            <InputGroup>
+<InputGroup>
               <InputGroupAddon align="inline-start">Telefone</InputGroupAddon>
               <MaskedInput tipo="phone" />
             </InputGroup>
+
             <InputGroup>
               <InputGroupText>Bio</InputGroupText>
               <InputGroupTextarea placeholder="Descreva seu perfil..." rows={2} />
             </InputGroup>
           </div>
         </ComponentCard>
-      </Section>
 
+        {/* ── SkillInput ── */}
+        <ComponentCard
+          name="SkillInput"
+          description="Chips de habilidades com autocomplete do catálogo; Tab/Enter/vírgula adiciona, '+' cria nova"
+          howToUse={`import { SkillInput } from '../../components/ui/SkillInput'
+
+const [skills, setSkills] = useState<string[]>([])
+
+<SkillInput
+  value={skills}
+  onChange={setSkills}
+  placeholder="Digite uma habilidade e pressione Tab ou Enter"
+/>`}
+        >
+          <div className="ds-col">
+            <SkillInput
+              value={['Análise de Dados']}
+              onChange={() => undefined}
+              placeholder="Digite uma habilidade e pressione Tab ou Enter"
+            />
+          </div>
+        </ComponentCard>
+      </Section>
       {/* ═══════════ 2. EXIBIÇÃO ═══════════ */}
       <Section id="display" icon="🖼️" title="Exibição de Dados">
         {/* ── Badge ── */}

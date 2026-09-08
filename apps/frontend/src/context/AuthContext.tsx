@@ -29,6 +29,7 @@ export interface User {
   created_at?: string;
   // Profile fields (FASE 3)
   whatsapp?: string;
+  biografia?: string;
   company_razao_social?: string;
   company_nome_fantasia?: string;
   company_cnpj?: string;

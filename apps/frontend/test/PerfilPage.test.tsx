@@ -26,9 +26,16 @@ vi.mock('../src/api/client', async () => {
 
 // Mock api/clients helpers used by PerfilPage
 const mockUpdateProfile = vi.hoisted(() => vi.fn().mockResolvedValue({}))
+const mockGetMySkills = vi.hoisted(() => vi.fn())
 // Ensure sonner toast doesn't require DOM rendering
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+}))
+vi.mock('../src/api/network', () => ({
+  getMySkills: mockGetMySkills,
+  addMySkill: vi.fn(),
+  removeMySkill: vi.fn(),
+  searchSkills: vi.fn().mockResolvedValue([]),
 }))
 vi.mock('../src/api/clients', () => ({
   uploadAvatar: vi.fn().mockResolvedValue({ avatar_url: 'https://example.com/avatar.png' }),
@@ -61,6 +68,7 @@ describe('PerfilPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     localStorage.clear()
+    mockGetMySkills.mockResolvedValue([])
   })
 
   it('renders breadcrumb with "Meu Perfil"', async () => {

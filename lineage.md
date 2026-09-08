@@ -24,7 +24,7 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 | `proposals` | `pricing_scenarios` (dono ativo) | Orçamentos (calculadora) |
 | `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas`, `user_template_archives` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
 | `team` | `teams`, `team_members`, `team_invitations`, `invitation_routines`, `roles` | Times/convites por cliente |
-| `network` | `discussion_posts`, `discussion_comments` | Fórum da comunidade |
+| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills` | Fórum da comunidade + catálogo de habilidades |
 | `notifications` | `app_notifications` | Notificações in-app (sininho + feed do fórum) |
 | `emails` | `email_deliveries` | Fila transacional de e-mails (worker) |
 | `gallery` | `gallery_items`, `common_gallery_items` | Galeria de arquivos pessoal/comunitária |
@@ -85,6 +85,9 @@ erDiagram
     tasks }o--o{ users : "moved_by (SET NULL)"
 
     discussion_posts ||--o{ discussion_comments : "post_id"
+
+    skills ||--o{ user_skills : "skill_id"
+    users ||--o{ user_skills : "user_id"
 ```
 
 ### Linha do tempo (recorrência de rotinas → tarefas)
@@ -295,6 +298,18 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | R/W | `network/repository.py` (posts, comentários, contadores) |
 | R | `dashboard/router.py` (última atividade) |
 
+### `skills` / `user_skills` — dono: `network`
+| Direção | Quem |
+|---------|------|
+| R | `network/repository.py` (`search_skills`, `get_user_skills`) |
+| W | `network/repository.py` (`create_skill`, `add_user_skill`, `remove_user_skill`) |
+| R | `auth/router.py`/`auth/service.py` — `users.biografia` (perfil) |
+| W | `auth/repository.py` — `users.biografia` via `PATCH /auth/me` |
+
+> **Migração `a5f6a7b8c9d0`**: adiciona `users.biografia` (TEXT, nullable) e cria as
+> tabelas `skills` (catálogo — `name` e `slug` únicos) e `user_skills`
+> (vínculo usuário↔skill, `UNIQUE(user_id, skill_id)`).
+
 ### `email_deliveries` — dono: `emails` (fila + worker)
 | Direção | Quem |
 |---------|------|
@@ -341,7 +356,7 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | `proposals` | pricing_scenarios | `repository.py`, `router.py`, `service.py` |
 | `task_manager` | tasks, task_phases, task_attachments, routine_types, activity_templates, template_activities, client_template_assignments, client_slas | `task/repository.py`, `templates/repository.py`, `assignments/repository.py`, `sla/repository.py`, `routine_types/repository.py`, `attachments/repository.py`, `scheduler.py` |
 | `team` | teams, team_members, team_invitations, invitation_routines, roles, activity_templates, clients, users | `repository.py`, `router.py` |
-| `network` | discussion_posts, discussion_comments, users | `repository.py`, `router.py` |
+| `network` | discussion_posts, discussion_comments, skills, user_skills, users | `repository.py`, `router.py` |
 | `notifications` | app_notifications | `repository.py`, `router.py` |
 | `emails` | email_deliveries | `repository.py`, `router.py`, `worker.py`, `scheduler.py` |
 | `gallery` | gallery_items, common_gallery_items | `repository.py`, `router.py` |

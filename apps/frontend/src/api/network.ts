@@ -37,6 +37,14 @@ export interface CommentResponse {
   updated_at: string;
 }
 
+export interface Skill {
+  id: string;
+  name: string;
+  slug: string;
+  is_active: boolean;
+  created_at?: string;
+}
+
 export const getPosts = async (limit = 10, offset = 0): Promise<PaginatedPosts> => {
   const { data } = await apiClient.get('/network/posts', { params: { limit, offset } });
   return data;
@@ -64,4 +72,23 @@ export const createComment = async (postId: string, message: string): Promise<Co
 export const getComments = async (postId: string): Promise<CommentResponse[]> => {
   const { data } = await apiClient.get(`/network/posts/${postId}/comments`);
   return data;
+};
+
+export const searchSkills = async (query: string, limit = 10): Promise<Skill[]> => {
+  const { data } = await apiClient.get('/network/skills', { params: { query, limit } });
+  return data;
+};
+
+export const getMySkills = async (): Promise<Skill[]> => {
+  const { data } = await apiClient.get('/network/me/skills');
+  return data;
+};
+
+export const addMySkill = async (name: string): Promise<Skill> => {
+  const { data } = await apiClient.post('/network/me/skills', { name });
+  return data;
+};
+
+export const removeMySkill = async (skillId: string): Promise<void> => {
+  await apiClient.delete(`/network/me/skills/${skillId}`);
 };
