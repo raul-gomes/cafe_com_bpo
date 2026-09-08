@@ -112,11 +112,13 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     expect(mockGetProjects).toHaveBeenCalledTimes(2)
   })
 
-  it('edita um projeto do dono: pré-preenche o formulário e salva', async () => {
+  it('edita um projeto do dono: expande o próprio card, pré-preenche e salva', async () => {
     renderSection()
 
     fireEvent.click(await screen.findByRole('button', { name: /Editar projeto Automação de fluxo fiscal/i }))
 
+    expect(screen.queryByText('Novo Projeto')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Cancelar/i })).toBeInTheDocument()
     expect(screen.getByLabelText(/Título do projeto/i)).toHaveValue('Automação de fluxo fiscal')
     expect(screen.getByLabelText(/Descrição do projeto/i)).toHaveValue(
       'Projeto para automatizar o fluxo fiscal dos clientes do escritório.'
@@ -136,6 +138,20 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     )
     expect(mockCreateProject).not.toHaveBeenCalled()
     expect(mockGetProjects).toHaveBeenCalledTimes(2)
+  })
+
+  it('cancela a edição inline sem salvar alterações', async () => {
+    renderSection()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Editar projeto Automação de fluxo fiscal/i }))
+    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
+      target: { value: 'Mudança descartada' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Cancelar/i }))
+
+    expect(mockUpdateProject).not.toHaveBeenCalled()
+    expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Cancelar/i })).not.toBeInTheDocument()
   })
 
   it('valida descrição muito curta (mínimo 10 caracteres)', async () => {

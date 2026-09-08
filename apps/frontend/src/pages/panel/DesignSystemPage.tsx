@@ -495,6 +495,8 @@ const [skills, setSkills] = useState<string[]>([])
                   { id: 's2', name: 'Excel', slug: 'excel', is_active: true },
                 ],
               }}
+              onSave={async () => undefined}
+              onDelete={() => undefined}
             />
           </div>
         </ComponentCard>
