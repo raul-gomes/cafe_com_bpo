@@ -100,6 +100,109 @@ class ProjectSkill(Base):
     skill = relationship("Skill")
 
 
+class ProjectInvitation(Base):
+    __tablename__ = "project_invitations"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "invited_user_id",
+            name="uq_project_invitations_project_invited",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(
+        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
+    )
+    invited_user_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    message = Column(Text, nullable=False)
+    status = Column(
+        String(30), nullable=False, default="pending", server_default="pending"
+    )
+    responded_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    project = relationship("Project")
+    invited_user = relationship("User")
+
+
+class Conversation(Base):
+    __tablename__ = "conversations"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    invitation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("project_invitations.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+
+    invitation = relationship("ProjectInvitation")
+    participants = relationship(
+        "ConversationParticipant",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+    )
+    messages = relationship(
+        "ConversationMessage",
+        back_populates="conversation",
+        cascade="all, delete-orphan",
+    )
+
+
+class ConversationParticipant(Base):
+    __tablename__ = "conversation_participants"
+    __table_args__ = (
+        UniqueConstraint(
+            "conversation_id",
+            "user_id",
+            name="uq_conversation_participants_conv_user",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(
+        UUID(as_uuid=True), ForeignKey("conversations.id"), nullable=False
+    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    conversation = relationship("Conversation", back_populates="participants")
+    user = relationship("User")
+
+
+class ConversationMessage(Base):
+    __tablename__ = "conversation_messages"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    conversation_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("conversations.id"),
+        nullable=False,
+        index=True,
+    )
+    sender_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+
+    conversation = relationship("Conversation", back_populates="messages")
+    sender = relationship("User")
+
+
 class DiscussionPost(Base):
     __tablename__ = "discussion_posts"
 

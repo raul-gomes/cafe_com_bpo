@@ -4,6 +4,8 @@ import { getPosts, createPost, PaginatedPosts } from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { NotificationBell } from '../../components/panel/NotificationBell';
 import { ProjectsSection } from '../../components/network/ProjectsSection';
+import { NetworkInvitationsPanel } from '../../components/network/NetworkInvitationsPanel';
+import { ConversationsSection } from '../../components/network/ConversationsSection';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
@@ -127,6 +129,7 @@ export const NetworkPage: React.FC = () => {
         <TabsList variant="line" className="mb-6 w-full justify-start">
           <TabsTrigger value="forum">Fórum</TabsTrigger>
           <TabsTrigger value="projects">Projetos</TabsTrigger>
+          <TabsTrigger value="conversations">Conversas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="forum">
@@ -295,7 +298,12 @@ export const NetworkPage: React.FC = () => {
         </TabsContent>
 
         <TabsContent value="projects">
+          <NetworkInvitationsPanel />
           <ProjectsSection />
+        </TabsContent>
+
+        <TabsContent value="conversations">
+          <ConversationsSection />
         </TabsContent>
       </Tabs>
     </div>

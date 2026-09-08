@@ -157,3 +157,122 @@ export const updateProject = async (
 export const deleteProject = async (projectId: string): Promise<void> => {
   await apiClient.delete(`/network/projects/${projectId}`);
 };
+
+export interface ProfessionalMatch {
+  id: string;
+  name: string | null;
+  email: string;
+  biografia: string | null;
+  skills: Skill[];
+}
+
+export const searchProfessionals = async (
+  skills: string[],
+  mode: 'any' | 'all' = 'any'
+): Promise<ProfessionalMatch[]> => {
+  const { data } = await apiClient.get('/network/users/search', {
+    params: { skills: skills.join(','), mode },
+  });
+  return data;
+};
+
+export interface ProjectInvitation {
+  id: string;
+  project_id: string;
+  project_title: string;
+  invited_user: UserPublic;
+  message: string;
+  status: 'pending' | 'accepted' | 'declined';
+  responded_at: string | null;
+  created_at: string;
+  conversation_id: string | null;
+}
+
+export interface ProjectInviteCreatePayload {
+  invited_user_id: string;
+  message: string;
+}
+
+export interface ConversationListItem {
+  id: string;
+  project_id: string;
+  project_title: string;
+  participant: UserPublic;
+  last_message: string | null;
+  last_message_at: string | null;
+  created_at: string;
+}
+
+export interface ConversationMessage {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  sender: UserPublic;
+  body: string;
+  created_at: string;
+}
+
+export interface ConversationDetail {
+  id: string;
+  project_id: string;
+  project_title: string;
+  participants: UserPublic[];
+  messages: ConversationMessage[];
+  created_at: string;
+}
+
+export const createInvitation = async (
+  projectId: string,
+  payload: ProjectInviteCreatePayload
+): Promise<ProjectInvitation> => {
+  const { data } = await apiClient.post(`/network/projects/${projectId}/invites`, payload);
+  return data;
+};
+
+export const getProjectInvitations = async (
+  projectId: string
+): Promise<ProjectInvitation[]> => {
+  const { data } = await apiClient.get(`/network/projects/${projectId}/invites`);
+  return data;
+};
+
+export const getMyInvitations = async (): Promise<ProjectInvitation[]> => {
+  const { data } = await apiClient.get('/network/me/invites');
+  return data;
+};
+
+export const acceptInvitation = async (
+  invitationId: string
+): Promise<ProjectInvitation> => {
+  const { data } = await apiClient.post(`/network/invites/${invitationId}/accept`);
+  return data;
+};
+
+export const declineInvitation = async (
+  invitationId: string
+): Promise<ProjectInvitation> => {
+  const { data } = await apiClient.post(`/network/invites/${invitationId}/decline`);
+  return data;
+};
+
+export const getConversations = async (): Promise<ConversationListItem[]> => {
+  const { data } = await apiClient.get('/network/conversations');
+  return data;
+};
+
+export const getConversation = async (
+  conversationId: string
+): Promise<ConversationDetail> => {
+  const { data } = await apiClient.get(`/network/conversations/${conversationId}`);
+  return data;
+};
+
+export const sendMessage = async (
+  conversationId: string,
+  body: string
+): Promise<ConversationMessage> => {
+  const { data } = await apiClient.post(`/network/conversations/${conversationId}/messages`, {
+    body,
+  });
+  return data;
+};

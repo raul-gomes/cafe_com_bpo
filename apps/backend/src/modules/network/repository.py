@@ -9,14 +9,25 @@ from sqlalchemy.orm import Session
 from src.modules.auth.models import User
 
 from .models import (
+    Conversation,
+    ConversationMessage,
+    ConversationParticipant,
     DiscussionComment,
     DiscussionPost,
     Project,
+    ProjectInvitation,
     ProjectSkill,
     Skill,
     UserSkill,
 )
-from .schemas import CommentCreate, PostCreate, ProjectCreate, ProjectUpdate
+from .schemas import (
+    CommentCreate,
+    MessageCreate,
+    PostCreate,
+    ProjectCreate,
+    ProjectInviteCreate,
+    ProjectUpdate,
+)
 
 
 def sanitize_html(html_str: str) -> str:
@@ -371,3 +382,189 @@ class NetworkRepository:
         users = q.limit(limit).all()
         users.sort(key=lambda u: (u.name or "").lower())
         return users
+
+    # ── Invitations ───────────────────────────────────────
+
+    def create_invitation(
+        self, project_id: UUID, owner_id: UUID, data: ProjectInviteCreate
+    ) -> ProjectInvitation:
+        project = self.get_project_by_id(project_id)
+        if not project:
+            raise ValueError("Project not found")
+        if project.owner_id != owner_id:
+            raise ValueError(
+                "Action Denied: You cannot invite on someone else's project."
+            )
+        if data.invited_user_id == owner_id:
+            raise ValueError("You cannot invite yourself")
+        invitee = self.session.get(User, data.invited_user_id)
+        if not invitee:
+            raise ValueError("User not found")
+
+        existing = (
+            self.session.query(ProjectInvitation)
+            .filter(
+                ProjectInvitation.project_id == project_id,
+                ProjectInvitation.invited_user_id == data.invited_user_id,
+            )
+            .first()
+        )
+        if existing:
+            if existing.status == "accepted":
+                raise ValueError(
+                    "This candidate already accepted an invitation for this project"
+                )
+            existing.status = "pending"
+            existing.message = data.message.strip()
+            existing.responded_at = None
+            self.session.commit()
+            self.session.refresh(existing)
+            return existing
+
+        invitation = ProjectInvitation(
+            project_id=project_id,
+            invited_user_id=data.invited_user_id,
+            message=data.message.strip(),
+        )
+        self.session.add(invitation)
+        self.session.commit()
+        self.session.refresh(invitation)
+        return invitation
+
+    def get_invitation_by_id(self, invitation_id: UUID) -> ProjectInvitation | None:
+        return (
+            self.session.query(ProjectInvitation)
+            .filter(ProjectInvitation.id == invitation_id)
+            .first()
+        )
+
+    def get_project_invitations(self, project_id: UUID, viewer_id: UUID) -> list:
+        project = self.get_project_by_id(project_id)
+        if not project:
+            raise ValueError("Project not found")
+        if project.owner_id != viewer_id:
+            raise ValueError(
+                "Action Denied: You cannot see invites of someone else's project."
+            )
+        return (
+            self.session.query(ProjectInvitation)
+            .filter(ProjectInvitation.project_id == project_id)
+            .order_by(desc(ProjectInvitation.created_at))
+            .all()
+        )
+
+    def get_my_invitations(self, user_id: UUID) -> list:
+        return (
+            self.session.query(ProjectInvitation)
+            .filter(ProjectInvitation.invited_user_id == user_id)
+            .order_by(desc(ProjectInvitation.created_at))
+            .all()
+        )
+
+    def respond_invitation(
+        self, invitation_id: UUID, user_id: UUID, accept: bool
+    ) -> ProjectInvitation:
+        invitation = self.get_invitation_by_id(invitation_id)
+        if not invitation:
+            raise ValueError("Invitation not found")
+        if invitation.invited_user_id != user_id:
+            raise ValueError(
+                "Action Denied: You cannot respond to someone else's invite."
+            )
+        if invitation.status != "pending":
+            raise ValueError("Invitation already responded")
+
+        if accept:
+            invitation.status = "accepted"
+            conversation = Conversation(invitation_id=invitation.id)
+            self.session.add(conversation)
+            self.session.flush()
+            self.session.add(
+                ConversationParticipant(
+                    conversation_id=conversation.id, user_id=invitation.project.owner_id
+                )
+            )
+            self.session.add(
+                ConversationParticipant(
+                    conversation_id=conversation.id, user_id=invitation.invited_user_id
+                )
+            )
+        else:
+            invitation.status = "declined"
+
+        invitation.responded_at = datetime.now(timezone.utc)
+        self.session.commit()
+        self.session.refresh(invitation)
+        return invitation
+
+    # ── Conversations ─────────────────────────────────────
+
+    def get_conversation_by_invitation_id(
+        self, invitation_id: UUID
+    ) -> Conversation | None:
+        return (
+            self.session.query(Conversation)
+            .filter(Conversation.invitation_id == invitation_id)
+            .first()
+        )
+
+    def get_conversation_by_id(self, conversation_id: UUID) -> Conversation | None:
+        return (
+            self.session.query(Conversation)
+            .filter(Conversation.id == conversation_id, Conversation.is_active)
+            .first()
+        )
+
+    def is_conversation_participant(self, conversation_id: UUID, user_id: UUID) -> bool:
+        return (
+            self.session.query(ConversationParticipant)
+            .filter(
+                ConversationParticipant.conversation_id == conversation_id,
+                ConversationParticipant.user_id == user_id,
+            )
+            .first()
+            is not None
+        )
+
+    def list_conversations(self, user_id: UUID) -> list[Conversation]:
+        return (
+            self.session.query(Conversation)
+            .join(
+                ConversationParticipant,
+                ConversationParticipant.conversation_id == Conversation.id,
+            )
+            .filter(ConversationParticipant.user_id == user_id, Conversation.is_active)
+            .order_by(desc(Conversation.created_at))
+            .all()
+        )
+
+    def get_conversation_messages(
+        self, conversation_id: UUID
+    ) -> list[ConversationMessage]:
+        return (
+            self.session.query(ConversationMessage)
+            .filter(
+                ConversationMessage.conversation_id == conversation_id,
+                ConversationMessage.is_active,
+            )
+            .order_by(ConversationMessage.created_at)
+            .all()
+        )
+
+    def send_message(
+        self, conversation_id: UUID, sender_id: UUID, data: MessageCreate
+    ) -> ConversationMessage:
+        conversation = self.get_conversation_by_id(conversation_id)
+        if not conversation:
+            raise ValueError("Conversation not found")
+        if not self.is_conversation_participant(conversation_id, sender_id):
+            raise ValueError("Action Denied: You are not part of this conversation")
+        message = ConversationMessage(
+            conversation_id=conversation_id,
+            sender_id=sender_id,
+            body=sanitize_html(data.body).strip(),
+        )
+        self.session.add(message)
+        self.session.commit()
+        self.session.refresh(message)
+        return message

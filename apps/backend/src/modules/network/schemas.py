@@ -119,3 +119,56 @@ class ProfessionalMatch(BaseModel):
     skills: list[SkillResponse]
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectInviteCreate(BaseModel):
+    invited_user_id: UUID
+    message: str = Field(..., min_length=1, max_length=2000)
+
+
+class ProjectInvitationResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    project_title: str
+    invited_user: UserPublic
+    message: str
+    status: str
+    responded_at: datetime | None = None
+    created_at: datetime
+    conversation_id: UUID | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MessageCreate(BaseModel):
+    body: str = Field(..., min_length=1, max_length=5000)
+
+
+class MessageResponse(BaseModel):
+    id: UUID
+    conversation_id: UUID
+    sender_id: UUID
+    sender: UserPublic
+    body: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ConversationListItem(BaseModel):
+    id: UUID
+    project_id: UUID
+    project_title: str
+    participant: UserPublic
+    last_message: str | None = None
+    last_message_at: datetime | None = None
+    created_at: datetime
+
+
+class ConversationDetail(BaseModel):
+    id: UUID
+    project_id: UUID
+    project_title: str
+    participants: list[UserPublic]
+    messages: list[MessageResponse]
+    created_at: datetime

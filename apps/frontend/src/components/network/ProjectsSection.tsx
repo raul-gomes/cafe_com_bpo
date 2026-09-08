@@ -12,6 +12,7 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ProjectCard } from './ProjectCard';
+import { InviteDialog } from './InviteDialog';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -31,6 +32,8 @@ export function ProjectsSection() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
+
+  const [inviteTarget, setInviteTarget] = useState<ProjectResponse | null>(null);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -231,10 +234,19 @@ export function ProjectsSection() {
               currentUserId={user?.id}
               onSave={handleSaveProject}
               onDelete={handleDelete}
+              onInvite={setInviteTarget}
             />
           ))}
         </div>
       )}
+
+      <InviteDialog
+        project={inviteTarget}
+        open={inviteTarget !== null}
+        onOpenChange={(open) => {
+          if (!open) setInviteTarget(null);
+        }}
+      />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Pencil, Trash2 } from 'lucide-react';
+import { Pencil, Trash2, Users } from 'lucide-react';
 import { ProjectResponse, ProjectUpdatePayload } from '../../api/network';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -15,6 +15,7 @@ interface ProjectCardProps {
     payload: ProjectUpdatePayload
   ) => Promise<void>;
   onDelete: (project: ProjectResponse) => void;
+  onInvite?: (project: ProjectResponse) => void;
 }
 
 export function ProjectCard({
@@ -22,6 +23,7 @@ export function ProjectCard({
   currentUserId,
   onSave,
   onDelete,
+  onInvite,
 }: ProjectCardProps) {
   const isOwner = currentUserId != null && currentUserId === project.owner_id;
 
@@ -197,6 +199,15 @@ export function ProjectCard({
 
         {isOwner && (
           <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => onInvite?.(project)}
+              aria-label={`Convidar profissionais para ${project.title}`}
+              title="Convidar profissionais"
+            >
+              <Users size={15} />
+            </Button>
             <Button
               variant="ghost"
               size="sm"

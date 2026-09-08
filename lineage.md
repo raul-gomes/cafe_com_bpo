@@ -24,7 +24,7 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 | `proposals` | `pricing_scenarios` (dono ativo) | Orçamentos (calculadora) |
 | `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas`, `user_template_archives` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
 | `team` | `teams`, `team_members`, `team_invitations`, `invitation_routines`, `roles` | Times/convites por cliente |
-| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills`, `projects`, `project_skills` | Fórum da comunidade + catálogo de habilidades + mural de projetos (Workana-like) |
+| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills`, `projects`, `project_skills`, `project_invitations`, `conversations`, `conversation_participants`, `conversation_messages` | Fórum da comunidade + catálogo de habilidades + mural de projetos + convites e conversas privadas (DM) |
 | `notifications` | `app_notifications` | Notificações in-app (sininho + feed do fórum) |
 | `emails` | `email_deliveries` | Fila transacional de e-mails (worker) |
 | `gallery` | `gallery_items`, `common_gallery_items` | Galeria de arquivos pessoal/comunitária |
@@ -92,6 +92,14 @@ erDiagram
     users ||--o{ projects : "owner_id"
     projects ||--o{ project_skills : "project_id"
     skills ||--o{ project_skills : "skill_id"
+
+    projects ||--o{ project_invitations : "project_id"
+    users ||--o{ project_invitations : "invited_user_id"
+    project_invitations ||--o| conversations : "invitation_id"
+    conversations ||--o{ conversation_participants : "conversation_id"
+    users ||--o{ conversation_participants : "user_id"
+    conversations ||--o{ conversation_messages : "conversation_id"
+    users ||--o{ conversation_messages : "sender_id"
 ```
 
 ### Linha do tempo (recorrência de rotinas → tarefas)
@@ -329,6 +337,21 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > ⚠️ Drift pré-existente (não relacionado a esta etapa): o banco real tem o índice
 > `ix_payments_user_id`, mas o modelo `payments` não o declara — a autogenerate
 > detecta a remoção em toda revisão. Não foi incluído na migration `697b671a64e0`.
+
+### `project_invitations` / `conversations` / `conversation_participants` / `conversation_messages` — dono: `network` (convites + DM)
+
+| Direção | Quem |
+|---------|------|
+| R | `network/repository.py` (`get_my_invitations`, `get_project_invitations`, `get_invitation_by_id`, `get_conversation_by_id`, `get_conversation_by_invitation_id`, `list_conversations`, `get_conversation_messages`, `is_conversation_participant`) |
+| W | `network/repository.py` (`create_invitation`, `respond_invitation` — abre a conversa no aceite, `send_message`) |
+| R | `network/router.py` — endpoints `/network/projects/{id}/invites`, `/network/me/invites`, `/network/invites/{id}/accept|decline`, `/network/conversations` |
+
+> **Migração `6ba9c023f3d0`**: cria `project_invitations` (convite do dono para um
+> profissional — status `pending|accepted|declined`, `UNIQUE(project_id, invited_user_id)`,
+> re-convite permitido após recusa), `conversations` (DM vinculada ao projeto via
+> `invitation_id` único) + `conversation_participants` (2 participantes) e
+> `conversation_messages`. A conversa nasce quando o convite é **aceito**;
+> apenas os 2 participantes têm acesso (403/404 para terceiros).
 
 ### `email_deliveries` — dono: `emails` (fila + worker)
 | Direção | Quem |

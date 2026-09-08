@@ -11,12 +11,18 @@ from .repository import NetworkRepository
 from .schemas import (
     CommentCreate,
     CommentResponse,
+    ConversationDetail,
+    ConversationListItem,
+    MessageCreate,
+    MessageResponse,
     PaginatedPosts,
     PaginatedProjects,
     PostCreate,
     PostResponse,
     ProfessionalMatch,
     ProjectCreate,
+    ProjectInvitationResponse,
+    ProjectInviteCreate,
     ProjectResponse,
     ProjectUpdate,
     SkillResponse,
@@ -302,3 +308,197 @@ def search_professionals(
     repo = NetworkRepository(db)
     users = repo.search_professionals(skill_list, mode, exclude_user_id=current_user.id)
     return [_professional_response(repo, u) for u in users]
+
+
+# ── Invitations ─────────────────────────────────────────
+
+
+def _invitation_response(
+    repo: NetworkRepository, invitation
+) -> ProjectInvitationResponse:
+    conversation_id = None
+    if invitation.status == "accepted":
+        conversation = repo.get_conversation_by_invitation_id(invitation.id)
+        conversation_id = conversation.id if conversation else None
+    return ProjectInvitationResponse(
+        id=invitation.id,
+        project_id=invitation.project_id,
+        project_title=invitation.project.title,
+        invited_user=UserPublic.model_validate(invitation.invited_user),
+        message=invitation.message,
+        status=invitation.status,
+        responded_at=invitation.responded_at,
+        created_at=invitation.created_at,
+        conversation_id=conversation_id,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/invites",
+    response_model=ProjectInvitationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_invitation(
+    project_id: UUID,
+    invite_data: ProjectInviteCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        invitation = repo.create_invitation(project_id, current_user.id, invite_data)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        if "User not found" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    return _invitation_response(repo, invitation)
+
+
+@router.get(
+    "/projects/{project_id}/invites", response_model=list[ProjectInvitationResponse]
+)
+def get_project_invitations(
+    project_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        invitations = repo.get_project_invitations(project_id, current_user.id)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
+    return [_invitation_response(repo, i) for i in invitations]
+
+
+@router.get("/me/invites", response_model=list[ProjectInvitationResponse])
+def get_my_invitations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    invitations = repo.get_my_invitations(current_user.id)
+    return [_invitation_response(repo, i) for i in invitations]
+
+
+def _respond_invitation(
+    invitation_id: UUID, current_user: User, db: Session, accept: bool
+) -> ProjectInvitationResponse:
+    repo = NetworkRepository(db)
+    try:
+        invitation = repo.respond_invitation(invitation_id, current_user.id, accept)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    return _invitation_response(repo, invitation)
+
+
+@router.post(
+    "/invites/{invitation_id}/accept", response_model=ProjectInvitationResponse
+)
+def accept_invitation(
+    invitation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    return _respond_invitation(invitation_id, current_user, db, accept=True)
+
+
+@router.post(
+    "/invites/{invitation_id}/decline", response_model=ProjectInvitationResponse
+)
+def decline_invitation(
+    invitation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    return _respond_invitation(invitation_id, current_user, db, accept=False)
+
+
+# ── Conversations ───────────────────────────────────────
+
+
+def _conversation_item(
+    repo: NetworkRepository, conversation, viewer_id: UUID
+) -> ConversationListItem:
+    participants = conversation.participants
+    other = next((p.user for p in participants if p.user_id != viewer_id), None)
+    messages = repo.get_conversation_messages(conversation.id)
+    last = messages[-1] if messages else None
+    return ConversationListItem(
+        id=conversation.id,
+        project_id=conversation.invitation.project_id,
+        project_title=conversation.invitation.project.title,
+        participant=UserPublic.model_validate(other),
+        last_message=last.body[:120] if last else None,
+        last_message_at=last.created_at if last else None,
+        created_at=conversation.created_at,
+    )
+
+
+def _conversation_detail(
+    repo: NetworkRepository, conversation, messages
+) -> ConversationDetail:
+    participants = sorted(
+        (UserPublic.model_validate(p.user) for p in conversation.participants),
+        key=lambda u: (u.name or "").lower(),
+    )
+    return ConversationDetail(
+        id=conversation.id,
+        project_id=conversation.invitation.project_id,
+        project_title=conversation.invitation.project.title,
+        participants=participants,
+        messages=[MessageResponse.model_validate(m) for m in messages],
+        created_at=conversation.created_at,
+    )
+
+
+@router.get("/conversations", response_model=list[ConversationListItem])
+def list_conversations(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    conversations = repo.list_conversations(current_user.id)
+    return [_conversation_item(repo, c, current_user.id) for c in conversations]
+
+
+@router.get("/conversations/{conversation_id}", response_model=ConversationDetail)
+def get_conversation(
+    conversation_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    conversation = repo.get_conversation_by_id(conversation_id)
+    if not conversation or not repo.is_conversation_participant(
+        conversation_id, current_user.id
+    ):
+        raise HTTPException(status_code=404, detail="Conversation not found")
+    messages = repo.get_conversation_messages(conversation_id)
+    return _conversation_detail(repo, conversation, messages)
+
+
+@router.post(
+    "/conversations/{conversation_id}/messages",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def send_message(
+    conversation_id: UUID,
+    message_data: MessageCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        message = repo.send_message(conversation_id, current_user.id, message_data)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
+    return MessageResponse.model_validate(message)
