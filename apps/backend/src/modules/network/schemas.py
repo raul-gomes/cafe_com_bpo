@@ -9,6 +9,8 @@ class UserPublic(BaseModel):
     name: str | None = None
     email: str
 
+    model_config = ConfigDict(from_attributes=True)
+
 
 class PostCreate(BaseModel):
     title: str = Field(..., max_length=180)
@@ -69,3 +71,51 @@ class SkillResponse(BaseModel):
 
 class UserSkillCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
+
+
+class ProjectCreate(BaseModel):
+    title: str = Field(..., min_length=1, max_length=160)
+    description: str = Field(..., min_length=10)
+    skills: list[str] = Field(default_factory=list)
+    team_size: int = Field(1, ge=1, le=99)
+    remote_type: str = Field("remote", pattern="^(remote|onsite|hybrid)$")
+
+
+class ProjectUpdate(BaseModel):
+    title: str | None = Field(None, min_length=1, max_length=160)
+    description: str | None = Field(None, min_length=10)
+    skills: list[str] | None = None
+    team_size: int | None = Field(None, ge=1, le=99)
+    remote_type: str | None = Field(None, pattern="^(remote|onsite|hybrid)$")
+
+
+class ProjectResponse(BaseModel):
+    id: UUID
+    owner_id: UUID
+    owner: UserPublic
+    title: str
+    description: str
+    status: str
+    team_size: int
+    remote_type: str
+    skills: list[SkillResponse]
+    published_at: datetime | None = None
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedProjects(BaseModel):
+    items: list[ProjectResponse]
+    total: int
+
+
+class ProfessionalMatch(BaseModel):
+    id: UUID
+    name: str | None = None
+    email: str
+    biografia: str | None = None
+    skills: list[SkillResponse]
+
+    model_config = ConfigDict(from_attributes=True)
