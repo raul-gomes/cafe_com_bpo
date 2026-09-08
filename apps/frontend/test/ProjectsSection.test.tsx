@@ -138,6 +138,22 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     expect(mockGetProjects).toHaveBeenCalledTimes(2)
   })
 
+  it('valida descrição muito curta (mínimo 10 caracteres)', async () => {
+    renderSection()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
+    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
+      target: { value: 'Título válido' },
+    })
+    fireEvent.change(screen.getByLabelText(/Descrição do projeto/i), {
+      target: { value: 'curto' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
+
+    expect(await screen.findByText(/pelo menos 10 caracteres/i)).toBeInTheDocument()
+    expect(mockCreateProject).not.toHaveBeenCalled()
+  })
+
   it('valida título e descrição obrigatórios no formulário', async () => {
     renderSection()
 

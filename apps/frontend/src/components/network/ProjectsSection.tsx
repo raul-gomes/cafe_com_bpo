@@ -83,6 +83,10 @@ export function ProjectsSection() {
       setError('Preencha título e descrição do projeto.');
       return;
     }
+    if (description.trim().length < 10) {
+      setError('A descrição precisa ter pelo menos 10 caracteres.');
+      return;
+    }
     try {
       if (editing) {
         await updateProject(editing.id, {
