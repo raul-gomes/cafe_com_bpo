@@ -24,7 +24,7 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 | `proposals` | `pricing_scenarios` (dono ativo) | Orçamentos (calculadora) |
 | `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas`, `user_template_archives` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
 | `team` | `teams`, `team_members`, `team_invitations`, `invitation_routines`, `roles` | Times/convites por cliente |
-| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills` | Fórum da comunidade + catálogo de habilidades |
+| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills`, `projects`, `project_skills` | Fórum da comunidade + catálogo de habilidades + mural de projetos (Workana-like) |
 | `notifications` | `app_notifications` | Notificações in-app (sininho + feed do fórum) |
 | `emails` | `email_deliveries` | Fila transacional de e-mails (worker) |
 | `gallery` | `gallery_items`, `common_gallery_items` | Galeria de arquivos pessoal/comunitária |
@@ -88,6 +88,10 @@ erDiagram
 
     skills ||--o{ user_skills : "skill_id"
     users ||--o{ user_skills : "user_id"
+
+    users ||--o{ projects : "owner_id"
+    projects ||--o{ project_skills : "project_id"
+    skills ||--o{ project_skills : "skill_id"
 ```
 
 ### Linha do tempo (recorrência de rotinas → tarefas)
@@ -309,6 +313,22 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > **Migração `a5f6a7b8c9d0`**: adiciona `users.biografia` (TEXT, nullable) e cria as
 > tabelas `skills` (catálogo — `name` e `slug` únicos) e `user_skills`
 > (vínculo usuário↔skill, `UNIQUE(user_id, skill_id)`).
+
+### `projects` / `project_skills` — dono: `network` (mural de projetos)
+| Direção | Quem |
+|---------|------|
+| R | `network/repository.py` (`get_projects`, `get_project_by_id`) |
+| W | `network/repository.py` (`create_project`, `update_project`, `delete_project` — soft delete) |
+| R | `network/repository.py` (`search_professionals` — junta `user_skills` p/ achar pessoas por skill) |
+
+> **Migração `697b671a64e0`**: cria `projects` (dono, título, descrição, status,
+> `team_size` — nº de pessoas buscadas, `remote_type`; sem orçamento/prazo) e
+> `project_skills` (skills do projeto, `UNIQUE(project_id, skill_id)`).
+> Remoção é soft delete (`is_active` + `deleted_at`), preservando a linha.
+
+> ⚠️ Drift pré-existente (não relacionado a esta etapa): o banco real tem o índice
+> `ix_payments_user_id`, mas o modelo `payments` não o declara — a autogenerate
+> detecta a remoção em toda revisão. Não foi incluído na migration `697b671a64e0`.
 
 ### `email_deliveries` — dono: `emails` (fila + worker)
 | Direção | Quem |
