@@ -6,7 +6,6 @@ import {
   deleteProject,
   ProjectResponse,
   PaginatedProjects,
-  RemoteType,
 } from '../../api/network';
 import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../ui/ConfirmDialog';
@@ -16,13 +15,6 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Skeleton } from '../ui/skeleton';
-import {
-  Select,
-  SelectTrigger,
-  SelectContent,
-  SelectValue,
-  SelectItem,
-} from '../ui/select';
 import { SkillInput } from '../ui/SkillInput';
 
 export function ProjectsSection() {
@@ -37,8 +29,6 @@ export function ProjectsSection() {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
-  const [teamSize, setTeamSize] = useState('1');
-  const [remoteType, setRemoteType] = useState<RemoteType>('remote');
 
   const loadProjects = async () => {
     setLoading(true);
@@ -64,8 +54,6 @@ export function ProjectsSection() {
     setTitle('');
     setDescription('');
     setSkills([]);
-    setTeamSize('1');
-    setRemoteType('remote');
   };
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -74,24 +62,17 @@ export function ProjectsSection() {
       setError('Preencha título e descrição do projeto.');
       return;
     }
-    const size = parseInt(teamSize, 10);
-    if (!Number.isInteger(size) || size < 1 || size > 99) {
-      setError('Informe um tamanho de equipe entre 1 e 99.');
-      return;
-    }
     try {
       await createProject({
         title: title.trim(),
         description: description.trim(),
         skills,
-        team_size: size,
-        remote_type: remoteType,
       });
       resetForm();
       setError('');
       loadProjects();
     } catch {
-      setError('Erro ao publicar o projeto. Tente novamente.');
+      setError('Erro ao salvar o projeto. Tente novamente.');
     }
   };
 
@@ -185,52 +166,10 @@ export function ProjectsSection() {
                   placeholder="Digite uma habilidade e pressione Tab ou Enter"
                 />
               </div>
-
-              <div className="grid grid-cols-2 gap-4">
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="project-team-size"
-                    className="text-[13px] font-medium text-foreground/80"
-                  >
-                    Tamanho da Equipe
-                  </label>
-                  <Input
-                    id="project-team-size"
-                    aria-label="Tamanho da equipe"
-                    type="number"
-                    min={1}
-                    max={99}
-                    value={teamSize}
-                    onChange={(e) => setTeamSize(e.target.value)}
-                  />
-                </div>
-
-                <div className="flex flex-col gap-1.5">
-                  <label
-                    htmlFor="project-remote"
-                    className="text-[13px] font-medium text-foreground/80"
-                  >
-                    Modalidade
-                  </label>
-                  <Select
-                    value={remoteType}
-                    onValueChange={(value) => setRemoteType((value as RemoteType) ?? 'remote')}
-                  >
-                    <SelectTrigger id="project-remote" aria-label="Modalidade do projeto">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="remote">Remoto</SelectItem>
-                      <SelectItem value="onsite">Presencial</SelectItem>
-                      <SelectItem value="hybrid">Híbrido</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
             </div>
             <div className="flex justify-end border-t border-border px-6 py-4">
               <Button type="submit" variant="default">
-                Publicar Projeto
+                Salvar Projeto
               </Button>
             </div>
           </form>

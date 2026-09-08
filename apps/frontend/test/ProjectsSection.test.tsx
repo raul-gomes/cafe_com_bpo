@@ -63,7 +63,7 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     mockDeleteProject.mockResolvedValue(undefined)
   })
 
-  it('lista projetos com título, autoria, skills e metadados', async () => {
+  it('lista projetos com título, autoria e skills', async () => {
     mockGetProjects.mockResolvedValue({ items: [PROJECT, FOREIGN_PROJECT], total: 2 })
     renderSection()
 
@@ -73,8 +73,6 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     expect(screen.getByText('Excel')).toBeInTheDocument()
     expect(screen.getByText('Contabilidade')).toBeInTheDocument()
     expect(screen.getAllByText(/Raul Gomes/i).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/Equipe de 2 pessoas/i).length).toBe(2)
-    expect(screen.getAllByText('Remoto').length).toBe(2)
   })
 
   it('mostra botão excluir apenas para o dono do projeto', async () => {
@@ -86,7 +84,7 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     expect(screen.queryByRole('button', { name: /Excluir projeto Migração contábil/i })).not.toBeInTheDocument()
   })
 
-  it('publica um novo projeto com formulário e recarrega a lista', async () => {
+  it('salva um novo projeto com formulário e recarrega a lista', async () => {
     renderSection()
 
     fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
@@ -96,19 +94,14 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     fireEvent.change(screen.getByLabelText(/Descrição do projeto/i), {
       target: { value: 'Organizar os processos contábeis dos clientes.' },
     })
-    fireEvent.change(screen.getByLabelText(/Tamanho da equipe/i), {
-      target: { value: '3' },
-    })
 
-    fireEvent.click(screen.getByRole('button', { name: /Publicar Projeto/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
 
     await waitFor(() =>
       expect(mockCreateProject).toHaveBeenCalledWith({
         title: 'Boa governança contábil',
         description: 'Organizar os processos contábeis dos clientes.',
         skills: [],
-        team_size: 3,
-        remote_type: 'remote',
       })
     )
     expect(mockGetProjects).toHaveBeenCalledTimes(2)
@@ -118,7 +111,7 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     renderSection()
 
     fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Publicar Projeto/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
 
     expect(await screen.findByText(/Preencha título e descrição/i)).toBeInTheDocument()
     expect(mockCreateProject).not.toHaveBeenCalled()

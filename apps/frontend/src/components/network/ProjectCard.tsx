@@ -1,4 +1,4 @@
-import { Trash2, Users } from 'lucide-react';
+import { Trash2 } from 'lucide-react';
 import { ProjectResponse } from '../../api/network';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
@@ -9,19 +9,12 @@ interface ProjectCardProps {
   onDelete?: (project: ProjectResponse) => void;
 }
 
-const REMOTE_LABELS: Record<string, string> = {
-  remote: 'Remoto',
-  onsite: 'Presencial',
-  hybrid: 'Híbrido',
-};
-
 export function ProjectCard({
   project,
   currentUserId,
   onDelete,
 }: ProjectCardProps) {
   const isOwner = currentUserId != null && currentUserId === project.owner_id;
-  const remoteLabel = REMOTE_LABELS[project.remote_type] ?? project.remote_type;
 
   return (
     <Card className="p-4 transition-colors hover:bg-muted/30">
@@ -44,23 +37,18 @@ export function ProjectCard({
             </p>
           )}
 
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="inline-flex items-center gap-1.5 rounded border border-primary/20 bg-primary/8 px-2 py-0.5 text-[11px] font-semibold text-primary-strong">
-              <Users size={11} />
-              Equipe de {project.team_size} {project.team_size === 1 ? 'pessoa' : 'pessoas'}
-            </span>
-            <span className="rounded border border-border bg-muted/40 px-2 py-0.5 text-[11px] font-medium text-foreground/80">
-              {remoteLabel}
-            </span>
-            {project.skills.map((skill) => (
-              <span
-                key={skill.id}
-                className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-strong"
-              >
-                {skill.name}
-              </span>
-            ))}
-          </div>
+          {project.skills.length > 0 && (
+            <div className="flex flex-wrap items-center gap-2">
+              {project.skills.map((skill) => (
+                <span
+                  key={skill.id}
+                  className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-strong"
+                >
+                  {skill.name}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
         {isOwner && onDelete && (

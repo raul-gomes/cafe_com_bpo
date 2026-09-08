@@ -466,7 +466,7 @@ const [skills, setSkills] = useState<string[]>([])
         {/* ── ProjectCard ── */}
         <ComponentCard
           name="ProjectCard"
-          description="Card do mural de projetos: título, autor, descrição, equipe, modalidade e skills"
+          description="Card do mural de projetos: título, autor, descrição resumida e skills"
           howToUse={`import { ProjectCard } from '../../components/network/ProjectCard'
 
 <ProjectCard
