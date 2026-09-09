@@ -10,11 +10,14 @@ import {
   Loader2,
   X,
   MessagesSquare,
+  Handshake,
+  Lock,
 } from 'lucide-react';
 import {
   createInvitation,
   getProjectInvitations,
   searchProfessionals,
+  applyToProject,
   ProfessionalMatch,
   ProjectInvitation,
   ProjectResponse,
@@ -26,6 +29,7 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { SkillInput } from '../ui/SkillInput';
 import { Badge } from '../ui/badge';
+import { ProjectApplicationsPanel } from './ProjectApplicationsPanel';
 import { cn } from '../../lib/utils';
 
 interface ProjectCardProps {
@@ -36,6 +40,7 @@ interface ProjectCardProps {
     payload: ProjectUpdatePayload
   ) => Promise<void>;
   onDelete: (project: ProjectResponse) => void;
+  onUpdated?: (project: ProjectResponse) => void;
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -49,6 +54,7 @@ export function ProjectCard({
   currentUserId,
   onSave,
   onDelete,
+  onUpdated,
 }: ProjectCardProps) {
   const isOwner = currentUserId != null && currentUserId === project.owner_id;
   const navigate = useNavigate();
@@ -72,6 +78,13 @@ export function ProjectCard({
   const [message, setMessage] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
+
+  const [isApplying, setIsApplying] = useState(false);
+  const [applicationMessage, setApplicationMessage] = useState('');
+  const [applicationSending, setApplicationSending] = useState(false);
+  const [applicationError, setApplicationError] = useState('');
+  const [hasApplied, setHasApplied] = useState(false);
+  const [showingApplications, setShowingApplications] = useState(false);
 
   const startEdit = () => {
     setTitle(project.title);
@@ -191,6 +204,42 @@ export function ProjectCard({
       setSendError('Erro ao enviar o convite. Tente novamente.');
     } finally {
       setSending(false);
+    }
+  };
+
+  const openApply = () => {
+    setIsApplying(true);
+    setApplicationMessage('');
+    setApplicationError('');
+  };
+
+  const closeApply = () => {
+    setIsApplying(false);
+    setApplicationMessage('');
+    setApplicationError('');
+  };
+
+  const handleApply = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!applicationMessage.trim()) {
+      setApplicationError('Escreva por que você quer participar deste projeto.');
+      return;
+    }
+    if (applicationMessage.trim().length < 10) {
+      setApplicationError('A proposta precisa ter pelo menos 10 caracteres.');
+      return;
+    }
+    setApplicationSending(true);
+    setApplicationError('');
+    try {
+      await applyToProject(project.id, { message: applicationMessage.trim() });
+      toast.success('Proposta enviada! O dono do projeto irá avaliar.');
+      closeApply();
+      setHasApplied(true);
+    } catch {
+      setApplicationError('Erro ao enviar a proposta. Tente novamente.');
+    } finally {
+      setApplicationSending(false);
     }
   };
 
@@ -316,6 +365,21 @@ export function ProjectCard({
 
         {isOwner && (
           <div className="flex shrink-0 items-center gap-1">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowingApplications((v) => !v)}
+              aria-label={`Ver propostas de ${project.title}`}
+              title="Ver propostas de candidatos"
+            >
+              <Handshake size={15} className="mr-1.5" />
+              Propostas
+              {project.application_count > 0 && (
+                <Badge variant="secondary" className="ml-1.5">
+                  {project.application_count}
+                </Badge>
+              )}
+            </Button>
             <Button
               variant={isInviting ? 'default' : 'ghost'}
               size="sm"
@@ -518,6 +582,77 @@ export function ProjectCard({
                 ))}
               </div>
             </div>
+          )}
+        </div>
+      )}
+
+      {isOwner && showingApplications && (
+        <ProjectApplicationsPanel
+          project={project}
+          onUpdated={(updatedProject) => onUpdated?.(updatedProject)}
+        />
+      )}
+
+      {!isOwner && (
+        <div className="mt-4 flex flex-col gap-2 border-t border-border pt-3">
+          {project.applications_closed ? (
+            <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
+              <Lock size={13} />
+              {hasApplied
+                ? 'Sua proposta foi enviada antes do fechamento.'
+                : 'Este projeto está fechado para novas propostas.'}
+            </div>
+          ) : hasApplied ? (
+            <p className="text-[12px] font-medium text-primary">
+              Proposta enviada — aguardando avaliação do dono.
+            </p>
+          ) : (
+            <Button
+              variant={isApplying ? 'ghost' : 'outline'}
+              size="sm"
+              onClick={isApplying ? closeApply : openApply}
+              aria-label={`Enviar proposta para ${project.title}`}
+            >
+              <Handshake size={14} className="mr-1.5" />
+              {isApplying ? 'Cancelar' : 'Enviar proposta'}
+            </Button>
+          )}
+
+          {isApplying && (
+            <form
+              onSubmit={handleApply}
+              className="flex flex-col gap-2 rounded-lg border border-primary/30 bg-primary/5 p-3"
+            >
+              <label
+                className="text-[13px] font-medium text-foreground/80"
+                htmlFor={`apply-message-${project.id}`}
+              >
+                Por que você quer participar?
+              </label>
+              <Textarea
+                id={`apply-message-${project.id}`}
+                aria-label="Mensagem da proposta"
+                rows={3}
+                value={applicationMessage}
+                onChange={(e) => setApplicationMessage(e.target.value)}
+                placeholder="Ex: Tenho 5 anos de experiência em conciliação bancária e posso contribuir desde já..."
+              />
+              {applicationError && (
+                <p className="text-xs text-destructive" role="alert">
+                  {applicationError}
+                </p>
+              )}
+              <div className="flex justify-end">
+                <Button type="submit" size="sm" disabled={applicationSending}>
+                  {applicationSending ? (
+                    <Loader2 size={15} className="mr-1.5 animate-spin" />
+                  ) : (
+                    <Send size={14} className="mr-1.5" />
+                  )}
+                  Enviar proposta
+                </Button>
+              </div>
+            </form>
           )}
         </div>
       )}

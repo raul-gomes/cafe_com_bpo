@@ -110,6 +110,9 @@ class ProjectResponse(BaseModel):
     updated_at: datetime
     group_id: UUID | None = None
     is_group_member: bool = False
+    is_owner: bool = False
+    application_count: int = 0
+    applications_closed: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -209,3 +212,21 @@ class ProjectGroupDetail(BaseModel):
     members: list[UserPublic]
     posts: list[GroupPostResponse]
     created_at: datetime
+
+
+class ProjectApplicationCreate(BaseModel):
+    message: str = Field(..., min_length=10, max_length=5000)
+
+
+class ProjectApplicationResponse(BaseModel):
+    id: UUID
+    project_id: UUID
+    project_title: str
+    applicant: UserPublic
+    message: str
+    status: str
+    responded_at: datetime | None = None
+    created_at: datetime
+    conversation_id: UUID | None = None
+
+    model_config = ConfigDict(from_attributes=True)

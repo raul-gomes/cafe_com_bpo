@@ -110,6 +110,9 @@ export interface ProjectResponse {
   skills: Skill[];
   group_id: string | null;
   is_group_member: boolean;
+  is_owner: boolean;
+  application_count: number;
+  applications_closed: boolean;
 }
 
 export interface PaginatedProjects {
@@ -328,5 +331,58 @@ export const createGroupPost = async (
   body: string
 ): Promise<ProjectGroupPost> => {
   const { data } = await apiClient.post(`/network/groups/${groupId}/posts`, { body });
+  return data;
+};
+
+export interface ProjectApplication {
+  id: string;
+  project_id: string;
+  project_title: string;
+  applicant: UserPublic;
+  message: string;
+  status: 'pending' | 'accepted' | 'declined';
+  responded_at: string | null;
+  created_at: string;
+  conversation_id: string | null;
+}
+
+export const applyToProject = async (
+  projectId: string,
+  payload: { message: string }
+): Promise<ProjectApplication> => {
+  const { data } = await apiClient.post(`/network/projects/${projectId}/apply`, payload);
+  return data;
+};
+
+export const getProjectApplications = async (
+  projectId: string
+): Promise<ProjectApplication[]> => {
+  const { data } = await apiClient.get(`/network/projects/${projectId}/applications`);
+  return data;
+};
+
+export const getMyApplications = async (): Promise<ProjectApplication[]> => {
+  const { data } = await apiClient.get('/network/me/applications');
+  return data;
+};
+
+export const acceptApplication = async (
+  applicationId: string
+): Promise<ProjectApplication> => {
+  const { data } = await apiClient.post(`/network/applications/${applicationId}/accept`);
+  return data;
+};
+
+export const declineApplication = async (
+  applicationId: string
+): Promise<ProjectApplication> => {
+  const { data } = await apiClient.post(`/network/applications/${applicationId}/decline`);
+  return data;
+};
+
+export const toggleProjectStatus = async (
+  projectId: string
+): Promise<ProjectResponse> => {
+  const { data } = await apiClient.patch(`/network/projects/${projectId}/status`);
   return data;
 };

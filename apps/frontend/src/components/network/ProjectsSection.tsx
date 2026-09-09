@@ -192,6 +192,19 @@ export function ProjectsSection() {
     }
   };
 
+  const handleUpdated = (updated: ProjectResponse) => {
+    setData((prev) =>
+      prev
+        ? {
+            ...prev,
+            items: prev.items.map((p) =>
+              p.id === updated.id ? updated : p
+            ),
+          }
+        : prev
+    );
+  };
+
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
@@ -424,6 +437,7 @@ export function ProjectsSection() {
               currentUserId={user?.id}
               onSave={handleSaveProject}
               onDelete={handleDelete}
+              onUpdated={handleUpdated}
             />
           ))}
         </div>

@@ -24,7 +24,7 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 | `proposals` | `pricing_scenarios` (dono ativo) | Orçamentos (calculadora) |
 | `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas`, `user_template_archives` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
 | `team` | `teams`, `team_members`, `team_invitations`, `invitation_routines`, `roles` | Times/convites por cliente |
-| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills`, `projects`, `project_skills`, `project_invitations`, `conversations`, `conversation_participants`, `conversation_messages` | Fórum da comunidade + catálogo de habilidades + mural de projetos + convites e conversas privadas (DM) |
+| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills`, `projects`, `project_skills`, `project_invitations`, `project_applications`, `conversations`, `conversation_participants`, `conversation_messages` | Fórum da comunidade + catálogo de habilidades + mural de projetos + convites e propostas de candidatos + conversas privadas (DM) |
 | `notifications` | `app_notifications` | Notificações in-app (sininho + feed do fórum) |
 | `emails` | `email_deliveries` | Fila transacional de e-mails (worker) |
 | `gallery` | `gallery_items`, `common_gallery_items` | Galeria de arquivos pessoal/comunitária |
@@ -95,7 +95,10 @@ erDiagram
 
     projects ||--o{ project_invitations : "project_id"
     users ||--o{ project_invitations : "invited_user_id"
+    projects ||--o{ project_applications : "project_id"
+    users ||--o{ project_applications : "applicant_id"
     project_invitations ||--o| conversations : "invitation_id"
+    project_applications ||--o| conversations : "application_id"
     conversations ||--o{ conversation_participants : "conversation_id"
     users ||--o{ conversation_participants : "user_id"
     conversations ||--o{ conversation_messages : "conversation_id"
@@ -342,8 +345,8 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 
 | Direção | Quem |
 |---------|------|
-| R | `network/repository.py` (`get_my_invitations`, `get_project_invitations`, `get_invitation_by_id`, `get_conversation_by_id`, `get_conversation_by_invitation_id`, `list_conversations`, `get_conversation_messages`, `is_conversation_participant`) |
-| W | `network/repository.py` (`create_invitation`, `respond_invitation` — abre a conversa no aceite, `send_message`) |
+| R | `network/repository.py` (`get_my_invitations`, `get_project_invitations`, `get_invitation_by_id`, `get_conversation_by_id`, `get_conversation_by_invitation_id`, `get_conversation_by_application_id`, `list_conversations`, `get_conversation_messages`, `is_conversation_participant`) |
+| W | `network/repository.py` (`create_invitation`, `respond_invitation` — abre a conversa no aceite/aceitação de proposta, `send_message`) |
 | R | `network/router.py` — endpoints `/network/projects/{id}/invites`, `/network/me/invites`, `/network/invites/{id}/accept|decline`, `/network/conversations` |
 
 > **Migração `6ba9c023f3d0`**: cria `project_invitations` (convite do dono para um
@@ -353,17 +356,37 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > `conversation_messages`. A conversa nasce quando o convite é **aceito**;
 > apenas os 2 participantes têm acesso (403/404 para terceiros).
 
+> **Migração `6befb539f062`**: `conversations.invitation_id` passa a ser nullable;
+> adicionado `conversations.application_id` (único) — a conversa pode nascer de um
+> convite (invitation) OU de uma proposta de candidato aceita (application).
+
+### `project_applications` — dono: `network` (propostas de candidatos)
+
+| Direção | Quem |
+|---------|------|
+| R | `network/repository.py` (`list_project_applications`, `list_my_applications`, `count_project_applications`, `get_application_by_id`) |
+| W | `network/repository.py` (`apply_to_project`, `respond_application` — aceite/recusa pelo dono, `toggle_project_applications`) |
+| R | `network/router.py` — endpoints `/network/projects/{id}/apply`, `/network/projects/{id}/applications`, `/network/me/applications`, `/network/applications/{id}/accept|decline`, `/network/projects/{id}/status` |
+
+> **Migração `6befb539f062`**: cria `project_applications` (proposta de um candidato
+> para um projeto — status `pending|accepted|declined`, `message`, `responded_at`,
+> `UNIQUE(project_id, applicant_id)`). Também adiciona `projects.applications_closed`
+> (flag do dono para fechar/reabrir o projeto a novas propostas). Ao aceitar, o
+> candidato entra no grupo do projeto e nasce uma `conversations` vinculada por
+> `application_id`. O dono recebe notificação em cada nova proposta; o candidato
+> recebe notificação quando é aceito.
+
 ### `project_groups` / `project_group_members` / `project_group_posts` — dono: `network` (fórum do grupo do projeto)
 
 | Direção | Quem |
 |---------|------|
 | R | `network/repository.py` (`list_groups_for_user`, `get_group_by_id`, `get_group_by_project_id`, `is_group_member`, `get_group_posts`) |
-| W | `network/repository.py` (`_ensure_group`, `_ensure_group_member`, `create_group_post`; chamados em `create_project`, `create_invitation`, `respond_invitation`) |
+| W | `network/repository.py` (`_ensure_group`, `_ensure_group_member`, `create_group_post`; chamados em `create_project`, `create_invitation`, `respond_invitation`, `respond_application`) |
 | R/W | `network/router.py` — endpoints `/network/groups`, `/network/groups/{group_id}`, `/network/groups/{group_id}/posts` |
 
 > **Migração `1150e26f850e`**: cria `project_groups` (1 fórum por projeto, `UNIQUE(project_id)`),
-> `project_group_members` (dono entra na criação; convidados entram no **aceite**;
-> `UNIQUE(group_id, user_id)`) e `project_group_posts` (texto simples, HTML desinfetado).
+> `project_group_members` (dono entra na criação; convidados entram no **aceite**,
+> e candidatos aceitos por proposta também; `UNIQUE(group_id, user_id)`) e `project_group_posts` (texto simples, HTML desinfetado).
 > Dono + membros (convite accepted) acessam (404/403 para terceiros). ⚠️ O soft delete
 > do projeto (`DELETE /network/projects/{id}`) **não** inativa as linhas do grupo/posts —
 > líderes/rotina a decidir se o grupo deve ser desativado junto.

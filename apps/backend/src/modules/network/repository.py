@@ -15,6 +15,7 @@ from .models import (
     DiscussionComment,
     DiscussionPost,
     Project,
+    ProjectApplication,
     ProjectGroup,
     ProjectGroupMember,
     ProjectGroupPost,
@@ -28,6 +29,7 @@ from .schemas import (
     GroupPostCreate,
     MessageCreate,
     PostCreate,
+    ProjectApplicationCreate,
     ProjectCreate,
     ProjectInviteCreate,
     ProjectUpdate,
@@ -521,6 +523,185 @@ class NetworkRepository:
         self.session.refresh(invitation)
         return invitation
 
+    # ── Applications (propostas de candidatos) ────────────
+
+    def apply_to_project(
+        self, project_id: UUID, applicant_id: UUID, data: ProjectApplicationCreate
+    ) -> ProjectApplication:
+        project = self.get_project_by_id(project_id)
+        if not project:
+            raise ValueError("Project not found")
+        if project.owner_id == applicant_id:
+            raise ValueError("You cannot apply to your own project")
+        if project.applications_closed:
+            raise ValueError("Project is closed for new applications")
+
+        existing = (
+            self.session.query(ProjectApplication)
+            .filter(
+                ProjectApplication.project_id == project_id,
+                ProjectApplication.applicant_id == applicant_id,
+            )
+            .first()
+        )
+        if existing:
+            raise ValueError("You already applied to this project")
+
+        application = ProjectApplication(
+            project_id=project_id,
+            applicant_id=applicant_id,
+            message=sanitize_html(data.message).strip(),
+        )
+        self.session.add(application)
+        self.session.flush()
+
+        self._dispatch_application_notification(project)
+        self.session.commit()
+        self.session.refresh(application)
+        return application
+
+    def get_application_by_id(self, application_id: UUID):
+        return self.session.query(ProjectApplication).get(application_id)
+
+    def list_project_applications(self, project_id: UUID, viewer_id: UUID):
+        project = self.get_project_by_id(project_id)
+        if not project:
+            raise ValueError("Project not found")
+        if project.owner_id != viewer_id:
+            raise ValueError(
+                "Action Denied: You cannot see applications of someone else's project."
+            )
+        return (
+            self.session.query(ProjectApplication)
+            .filter(ProjectApplication.project_id == project_id)
+            .order_by(desc(ProjectApplication.created_at))
+            .all()
+        )
+
+    def count_project_applications(self, project_id: UUID) -> int:
+        return (
+            self.session.query(ProjectApplication)
+            .filter(
+                ProjectApplication.project_id == project_id,
+                ProjectApplication.status == "pending",
+            )
+            .count()
+        )
+
+    def list_my_applications(self, applicant_id: UUID):
+        return (
+            self.session.query(ProjectApplication)
+            .filter(ProjectApplication.applicant_id == applicant_id)
+            .order_by(desc(ProjectApplication.created_at))
+            .all()
+        )
+
+    def respond_application(
+        self, application_id: UUID, project_owner_id: UUID, accept: bool
+    ) -> ProjectApplication:
+        application = self.get_application_by_id(application_id)
+        if not application:
+            raise ValueError("Application not found")
+        project = self.get_project_by_id(application.project_id)
+        if not project:
+            raise ValueError("Project not found")
+        if project.owner_id != project_owner_id:
+            raise ValueError(
+                "Action Denied: Only the project owner can respond to applications."
+            )
+        if application.status != "pending":
+            raise ValueError("Application already responded")
+
+        if accept:
+            application.status = "accepted"
+            group = self._ensure_group(project)
+            self._ensure_group_member(group.id, application.applicant_id)
+            conversation = self._create_application_conversation(project, application)
+            self._dispatch_application_accepted_notification(
+                project, application, conversation
+            )
+        else:
+            application.status = "declined"
+
+        application.responded_at = datetime.now(timezone.utc)
+        self.session.commit()
+        self.session.refresh(application)
+        return application
+
+    def toggle_project_applications(self, project_id: UUID, owner_id: UUID) -> Project:
+        project = self.get_project_by_id(project_id)
+        if not project:
+            raise ValueError("Project not found")
+        if project.owner_id != owner_id:
+            raise ValueError("Action Denied: You cannot change someone else's project.")
+        project.applications_closed = not project.applications_closed
+        self.session.commit()
+        self.session.refresh(project)
+        return project
+
+    def _create_application_conversation(
+        self, project: Project, application: ProjectApplication
+    ) -> Conversation:
+        existing = self.get_conversation_by_application_id(application.id)
+        if existing:
+            return existing
+        conversation = Conversation(application_id=application.id)
+        self.session.add(conversation)
+        self.session.flush()
+        self.session.add(
+            ConversationParticipant(
+                conversation_id=conversation.id, user_id=project.owner_id
+            )
+        )
+        self.session.add(
+            ConversationParticipant(
+                conversation_id=conversation.id, user_id=application.applicant_id
+            )
+        )
+        self.session.add(
+            ConversationMessage(
+                conversation_id=conversation.id,
+                sender_id=application.applicant_id,
+                body=f"Proposta: {application.message}",
+            )
+        )
+        self.session.flush()
+        return conversation
+
+    def _dispatch_application_notification(self, project: Project) -> None:
+        from src.modules.notifications.repository import NotificationRepository
+        from src.modules.notifications.service import NotificationDispatcher
+
+        self.session.flush()
+        NotificationDispatcher(NotificationRepository(self.session)).dispatch(
+            user_id=project.owner_id,
+            title="Nova proposta para seu projeto",
+            message=f"{project.title} recebeu uma nova proposta de candidato.",
+            notif_type="project_application",
+            related_entity_type="project",
+            related_entity_id=project.id,
+        )
+
+    def _dispatch_application_accepted_notification(
+        self,
+        project: Project,
+        application: ProjectApplication,
+        conversation: Conversation,
+    ) -> None:
+        from src.modules.notifications.repository import NotificationRepository
+        from src.modules.notifications.service import NotificationDispatcher
+
+        self.session.flush()
+        NotificationDispatcher(NotificationRepository(self.session)).dispatch(
+            user_id=application.applicant_id,
+            title="Você foi aceito no projeto",
+            message=f"Sua proposta foi aceita no projeto {project.title}.",
+            notif_type="application_accepted",
+            related_entity_type="conversation",
+            related_entity_id=conversation.id,
+            triggered_by_user_id=project.owner_id,
+        )
+
     # ── Project groups (fórum do projeto) ────────────────
 
     def _ensure_group(self, project: Project) -> ProjectGroup:
@@ -648,6 +829,15 @@ class NetworkRepository:
         return (
             self.session.query(Conversation)
             .filter(Conversation.invitation_id == invitation_id)
+            .first()
+        )
+
+    def get_conversation_by_application_id(
+        self, application_id: UUID
+    ) -> Conversation | None:
+        return (
+            self.session.query(Conversation)
+            .filter(Conversation.application_id == application_id)
             .first()
         )
 

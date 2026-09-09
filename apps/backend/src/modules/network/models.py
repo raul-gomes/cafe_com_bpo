@@ -79,6 +79,9 @@ class Project(Base):
     skills = relationship(
         "ProjectSkill", back_populates="project", cascade="all, delete-orphan"
     )
+    applications_closed = Column(
+        Boolean, server_default="false", default=False, nullable=False
+    )
 
 
 class ProjectSkill(Base):
@@ -137,7 +140,14 @@ class Conversation(Base):
     invitation_id = Column(
         UUID(as_uuid=True),
         ForeignKey("project_invitations.id"),
-        nullable=False,
+        nullable=True,
+        unique=True,
+        index=True,
+    )
+    application_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("project_applications.id"),
+        nullable=True,
         unique=True,
         index=True,
     )
@@ -147,6 +157,7 @@ class Conversation(Base):
     is_active = Column(Boolean, server_default="true", default=True, nullable=False)
 
     invitation = relationship("ProjectInvitation")
+    application = relationship("ProjectApplication")
     participants = relationship(
         "ConversationParticipant",
         back_populates="conversation",
@@ -269,6 +280,39 @@ class ProjectGroupPost(Base):
 
     group = relationship("ProjectGroup", back_populates="posts")
     author = relationship("User")
+
+
+class ProjectApplication(Base):
+    __tablename__ = "project_applications"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id",
+            "applicant_id",
+            name="uq_project_applications_project_applicant",
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(
+        UUID(as_uuid=True), ForeignKey("projects.id"), nullable=False, index=True
+    )
+    applicant_id = Column(
+        UUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    message = Column(Text, nullable=False)
+    status = Column(
+        String(30), nullable=False, default="pending", server_default="pending"
+    )
+    responded_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    project = relationship("Project")
+    applicant = relationship("User")
+    conversation = relationship(
+        "Conversation", back_populates="application", uselist=False
+    )
 
 
 class DiscussionPost(Base):

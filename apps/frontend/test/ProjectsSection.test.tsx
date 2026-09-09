@@ -43,6 +43,9 @@ const PROJECT: ProjectResponse = {
   ],
   group_id: 'g1',
   is_group_member: true,
+  is_owner: false,
+  application_count: 0,
+  applications_closed: false,
 }
 
 const FOREIGN_PROJECT: ProjectResponse = {

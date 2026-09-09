@@ -24,6 +24,8 @@ export const NotificationBell: React.FC = () => {
     proposal: '💰',
     post_commented: '💬',
     conversation_invite: '🔐',
+    project_application: '✋',
+    application_accepted: '✅',
     system: 'ℹ️',
   };
 
@@ -136,6 +138,10 @@ export const NotificationBell: React.FC = () => {
                       setIsOpen(false);
                       if (notif.type === 'conversation_invite' && notif.related_entity_id) {
                         navigate(`/painel/conversas/${notif.related_entity_id}`);
+                      } else if (notif.type === 'application_accepted' && notif.related_entity_id) {
+                        navigate(`/painel/conversas/${notif.related_entity_id}`);
+                      } else if (notif.type === 'project_application') {
+                        navigate('/painel/rede');
                       }
                     }}
                     style={{

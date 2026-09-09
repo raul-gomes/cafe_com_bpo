@@ -24,6 +24,8 @@ from .schemas import (
     PostCreate,
     PostResponse,
     ProfessionalMatch,
+    ProjectApplicationCreate,
+    ProjectApplicationResponse,
     ProjectCreate,
     ProjectGroupDetail,
     ProjectGroupListItem,
@@ -201,6 +203,9 @@ def _project_response(
         updated_at=project.updated_at,
         group_id=group.id if group else None,
         is_group_member=bool(group and repo.is_group_member(group.id, viewer_id)),
+        is_owner=project.owner_id == viewer_id,
+        application_count=repo.count_project_applications(project.id),
+        applications_closed=bool(project.applications_closed),
     )
 
 
@@ -453,7 +458,153 @@ def decline_invitation(
     return _respond_invitation(invitation_id, current_user, db, accept=False)
 
 
+# ── Applications (propostas de candidatos) ───────────────
+
+
+def _application_response(
+    repo: NetworkRepository, application
+) -> ProjectApplicationResponse:
+    conversation = repo.get_conversation_by_application_id(application.id)
+    return ProjectApplicationResponse(
+        id=application.id,
+        project_id=application.project_id,
+        project_title=application.project.title,
+        applicant=UserPublic.model_validate(application.applicant),
+        message=application.message,
+        status=application.status,
+        responded_at=application.responded_at,
+        created_at=application.created_at,
+        conversation_id=conversation.id if conversation else None,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/apply",
+    response_model=ProjectApplicationResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def apply_to_project(
+    project_id: UUID,
+    application_data: ProjectApplicationCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        application = repo.apply_to_project(
+            project_id, current_user.id, application_data
+        )
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    return _application_response(repo, application)
+
+
+@router.get(
+    "/projects/{project_id}/applications",
+    response_model=list[ProjectApplicationResponse],
+)
+def get_project_applications(
+    project_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        applications = repo.list_project_applications(project_id, current_user.id)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
+    return [_application_response(repo, a) for a in applications]
+
+
+@router.get("/me/applications", response_model=list[ProjectApplicationResponse])
+def get_my_applications(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    return [
+        _application_response(repo, a)
+        for a in repo.list_my_applications(current_user.id)
+    ]
+
+
+def _respond_application(
+    application_id: UUID, current_user: User, db: Session, accept: bool
+) -> ProjectApplicationResponse:
+    repo = NetworkRepository(db)
+    try:
+        application = repo.respond_application(application_id, current_user.id, accept)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    return _application_response(repo, application)
+
+
+@router.post(
+    "/applications/{application_id}/accept",
+    response_model=ProjectApplicationResponse,
+)
+def accept_application(
+    application_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    return _respond_application(application_id, current_user, db, accept=True)
+
+
+@router.post(
+    "/applications/{application_id}/decline",
+    response_model=ProjectApplicationResponse,
+)
+def decline_application(
+    application_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    return _respond_application(application_id, current_user, db, accept=False)
+
+
+@router.patch("/projects/{project_id}/status", response_model=ProjectResponse)
+def toggle_project_status(
+    project_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        project = repo.toggle_project_applications(project_id, current_user.id)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
+    return _project_response(repo, project, current_user.id)
+
+
 # ── Conversations ───────────────────────────────────────
+
+
+def _conversation_project_ref(conversation):
+    """Returns (project_id, project_title) whether the conversation came from an
+    invitation or from a project application."""
+    if conversation.invitation is not None:
+        return (
+            conversation.invitation.project_id,
+            conversation.invitation.project.title,
+        )
+    if (
+        conversation.application is not None
+        and conversation.application.project is not None
+    ):
+        return (
+            conversation.application.project_id,
+            conversation.application.project.title,
+        )
+    return None, None
 
 
 def _conversation_item(
@@ -463,10 +614,11 @@ def _conversation_item(
     other = next((p.user for p in participants if p.user_id != viewer_id), None)
     messages = repo.get_conversation_messages(conversation.id)
     last = messages[-1] if messages else None
+    project_id, project_title = _conversation_project_ref(conversation)
     return ConversationListItem(
         id=conversation.id,
-        project_id=conversation.invitation.project_id,
-        project_title=conversation.invitation.project.title,
+        project_id=project_id,
+        project_title=project_title or "Projeto",
         participant=UserPublic.model_validate(other),
         last_message=last.body[:120] if last else None,
         last_message_at=last.created_at if last else None,
@@ -481,10 +633,11 @@ def _conversation_detail(
         (UserPublic.model_validate(p.user) for p in conversation.participants),
         key=lambda u: (u.name or "").lower(),
     )
+    project_id, project_title = _conversation_project_ref(conversation)
     return ConversationDetail(
         id=conversation.id,
-        project_id=conversation.invitation.project_id,
-        project_title=conversation.invitation.project.title,
+        project_id=project_id,
+        project_title=project_title or "Projeto",
         participants=participants,
         messages=[MessageResponse.model_validate(m) for m in messages],
         created_at=conversation.created_at,

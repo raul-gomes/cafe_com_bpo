@@ -115,6 +115,7 @@ import {
 import { Separator } from '../../components/ui/separator'
 import { SkillInput } from '../../components/ui/SkillInput'
 import { ProjectCard } from '../../components/network/ProjectCard'
+import { ProjectApplicationsPanel } from '../../components/network/ProjectApplicationsPanel'
 import { GroupPostCard } from '../../components/network/GroupPostCard'
 import { ThreadReplies } from '../../components/network/ThreadReplies'
 
@@ -498,9 +499,49 @@ const [skills, setSkills] = useState<string[]>([])
                 ],
                 group_id: 'demo-group-1',
                 is_group_member: true,
+                is_owner: false,
+                application_count: 0,
+                applications_closed: false,
               }}
               onSave={async () => undefined}
               onDelete={() => undefined}
+            />
+          </div>
+        </ComponentCard>
+
+        {/* ── ProjectApplicationsPanel ── */}
+        <ComponentCard
+          name="ProjectApplicationsPanel"
+          description="Painel do dono do projeto para avaliar propostas de candidatos (aceitar/recusar, abrir/fechar para novas propostas, abrir a conversa do aceito)"
+          howToUse={`import { ProjectApplicationsPanel } from '../../components/network/ProjectApplicationsPanel'
+
+<ProjectApplicationsPanel
+  project={project}
+  onUpdated={(p) => setProjects(ps => ps.map(x => x.id === p.id ? p : x))}
+/>`}
+        >
+          <div className="ds-col">
+            <ProjectApplicationsPanel
+              project={{
+                id: 'demo-apps-1',
+                owner_id: 'user-1',
+                owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                title: 'Automação de fluxo fiscal',
+                description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
+                status: 'open',
+                team_size: 2,
+                remote_type: 'remote',
+                published_at: null,
+                created_at: '2026-09-08T00:00:00Z',
+                updated_at: '2026-09-08T00:00:00Z',
+                skills: [],
+                group_id: 'demo-group-1',
+                is_group_member: true,
+                is_owner: true,
+                application_count: 1,
+                applications_closed: false,
+              }}
+              onUpdated={() => undefined}
             />
           </div>
         </ComponentCard>
