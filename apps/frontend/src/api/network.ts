@@ -108,11 +108,18 @@ export interface ProjectResponse {
   created_at: string;
   updated_at: string;
   skills: Skill[];
+  group_id: string | null;
+  is_group_member: boolean;
 }
 
 export interface PaginatedProjects {
   items: ProjectResponse[];
   total: number;
+}
+
+export interface ProjectInvitePayload {
+  invited_user_id: string;
+  message: string;
 }
 
 export interface ProjectCreatePayload {
@@ -121,6 +128,7 @@ export interface ProjectCreatePayload {
   skills?: string[];
   team_size?: number;
   remote_type?: RemoteType;
+  invites?: ProjectInvitePayload[];
 }
 
 export interface ProjectUpdatePayload {
@@ -274,5 +282,51 @@ export const sendMessage = async (
   const { data } = await apiClient.post(`/network/conversations/${conversationId}/messages`, {
     body,
   });
+  return data;
+};
+
+export interface ProjectGroupListItem {
+  id: string;
+  project_id: string;
+  project_title: string;
+  member_count: number;
+  last_post_at: string | null;
+  created_at: string;
+}
+
+export interface ProjectGroupPost {
+  id: string;
+  group_id: string;
+  author_id: string;
+  author: UserPublic;
+  body: string;
+  created_at: string;
+}
+
+export interface ProjectGroupDetail {
+  id: string;
+  project_id: string;
+  project_title: string;
+  is_member: boolean;
+  members: UserPublic[];
+  posts: ProjectGroupPost[];
+  created_at: string;
+}
+
+export const getMyGroups = async (): Promise<ProjectGroupListItem[]> => {
+  const { data } = await apiClient.get('/network/groups');
+  return data;
+};
+
+export const getGroup = async (groupId: string): Promise<ProjectGroupDetail> => {
+  const { data } = await apiClient.get(`/network/groups/${groupId}`);
+  return data;
+};
+
+export const createGroupPost = async (
+  groupId: string,
+  body: string
+): Promise<ProjectGroupPost> => {
+  const { data } = await apiClient.post(`/network/groups/${groupId}/posts`, { body });
   return data;
 };

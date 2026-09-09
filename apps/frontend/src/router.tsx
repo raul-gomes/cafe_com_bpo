@@ -43,6 +43,7 @@ export async function buildRouter() {
   const { NetworkPage } = await import('./pages/panel/NetworkPage')
   const { NetworkPostPage } = await import('./pages/panel/NetworkPostPage')
   const { ConversationPage } = await import('./pages/panel/ConversationPage')
+  const { ProjectGroupPage } = await import('./pages/panel/ProjectGroupPage')
   const { TasksPage } = await import('./pages/panel/TasksPage')
   const { EmpresasPage } = await import('./pages/panel/EmpresasPage')
   const { PaymentsPage } = await import('./pages/panel/PaymentsPage')
@@ -137,6 +138,10 @@ export async function buildRouter() {
             {
               path: 'conversas/:id',
               element: <SuspenseWrapper><ConversationPage /></SuspenseWrapper>,
+            },
+            {
+              path: 'grupos/:id',
+              element: <SuspenseWrapper><ProjectGroupPage /></SuspenseWrapper>,
             },
             {
               path: 'tarefas',

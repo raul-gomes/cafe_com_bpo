@@ -11,6 +11,8 @@ const mockGetProjects = vi.hoisted(() => vi.fn())
 const mockCreateProject = vi.hoisted(() => vi.fn())
 const mockDeleteProject = vi.hoisted(() => vi.fn())
 const mockSearchSkills = vi.hoisted(() => vi.fn())
+const mockGetConversations = vi.hoisted(() => vi.fn())
+const mockGetMyGroups = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/api/network', () => ({
   getPosts: mockGetPosts,
@@ -18,6 +20,8 @@ vi.mock('../src/api/network', () => ({
   createProject: mockCreateProject,
   deleteProject: mockDeleteProject,
   searchSkills: mockSearchSkills,
+  getConversations: mockGetConversations,
+  getMyGroups: mockGetMyGroups,
 }))
 
 vi.mock('../src/api/hooks/useAppNotifications', () => ({
@@ -70,6 +74,8 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
     vi.clearAllMocks()
     mockGetPosts.mockReset()
     mockGetProjects.mockReset()
+    mockGetConversations.mockReset()
+    mockGetMyGroups.mockReset()
   })
 
   it('renderiza as duas abas: Fórum e Projetos', async () => {
@@ -78,6 +84,8 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
 
     expect(await screen.findByRole('tab', { name: /Fórum/i })).toBeInTheDocument()
     expect(screen.getByRole('tab', { name: /Projetos/i })).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Grupos/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Conversas/i })).not.toBeInTheDocument()
   })
 
   it('aba Fórum exibe a listagem de tópicos', async () => {
@@ -98,6 +106,32 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
 
     expect(await screen.findByRole('button', { name: /Criar Projeto/i })).toBeInTheDocument()
     expect(screen.getByText(/Nenhum projeto publicado/i)).toBeInTheDocument()
+    expect(screen.queryByText('Como reduzir custos com BPO financeiro?')).not.toBeInTheDocument()
+  })
+
+  it('Fórum privado mostra os tópicos privados unificados', async () => {
+    mockGetPosts.mockResolvedValue({ items: [POST], total: 1 })
+    mockGetConversations.mockResolvedValue([
+      {
+        id: 'c1',
+        project_id: 'p1',
+        project_title: 'Automação de fluxo fiscal',
+        participant: { id: 'u2', name: 'Ana Souza', email: 'ana@cafe.com' },
+        last_message: 'Aceito!',
+        last_message_at: '2026-09-08T12:00:00Z',
+        created_at: '2026-09-08T11:00:00Z',
+      },
+    ])
+    mockGetMyGroups.mockResolvedValue([])
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Privados/i }))
+
+    expect(
+      await screen.findByText('Automação de fluxo fiscal')
+    ).toBeInTheDocument()
+    expect(screen.getByText('Privada')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Criar Tópico/i })).not.toBeInTheDocument()
     expect(screen.queryByText('Como reduzir custos com BPO financeiro?')).not.toBeInTheDocument()
   })
 })

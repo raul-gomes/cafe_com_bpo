@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db_session
 from src.modules.auth.models import User
 from src.modules.auth.service import get_current_user
+from src.modules.notifications.repository import NotificationRepository
+from src.modules.notifications.service import NotificationDispatcher
 
 from .repository import NetworkRepository
 from .schemas import (
@@ -13,6 +15,8 @@ from .schemas import (
     CommentResponse,
     ConversationDetail,
     ConversationListItem,
+    GroupPostCreate,
+    GroupPostResponse,
     MessageCreate,
     MessageResponse,
     PaginatedPosts,
@@ -21,6 +25,8 @@ from .schemas import (
     PostResponse,
     ProfessionalMatch,
     ProjectCreate,
+    ProjectGroupDetail,
+    ProjectGroupListItem,
     ProjectInvitationResponse,
     ProjectInviteCreate,
     ProjectResponse,
@@ -173,7 +179,10 @@ def remove_my_skill(
 # ── Projects ────────────────────────────────────────────
 
 
-def _project_response(repo: NetworkRepository, project) -> ProjectResponse:
+def _project_response(
+    repo: NetworkRepository, project, viewer_id: UUID
+) -> ProjectResponse:
+    group = repo.get_group_by_project_id(project.id)
     return ProjectResponse(
         id=project.id,
         owner_id=project.owner_id,
@@ -190,6 +199,8 @@ def _project_response(repo: NetworkRepository, project) -> ProjectResponse:
         published_at=project.published_at,
         created_at=project.created_at,
         updated_at=project.updated_at,
+        group_id=group.id if group else None,
+        is_group_member=bool(group and repo.is_group_member(group.id, viewer_id)),
     )
 
 
@@ -215,7 +226,17 @@ def create_project(
     db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
-    return _project_response(repo, repo.create_project(current_user.id, project_data))
+    try:
+        project = repo.create_project(current_user.id, project_data)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        if "User not found" in str(e):
+            raise HTTPException(status_code=404, detail=str(e))
+        raise HTTPException(status_code=400, detail=str(e))
+    for invitation in repo.get_project_invitations(project.id, current_user.id):
+        _notify_invitee(db, invitation, current_user.name or current_user.email)
+    return _project_response(repo, project, current_user.id)
 
 
 @router.get("/projects", response_model=PaginatedProjects)
@@ -240,7 +261,7 @@ def get_projects(
         remote_type=remote_type,
     )
     return {
-        "items": [_project_response(repo, p) for p in items],
+        "items": [_project_response(repo, p, current_user.id) for p in items],
         "total": total,
     }
 
@@ -255,7 +276,7 @@ def get_project(
     project = repo.get_project_by_id(project_id)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
-    return _project_response(repo, project)
+    return _project_response(repo, project, current_user.id)
 
 
 @router.patch("/projects/{project_id}", response_model=ProjectResponse)
@@ -272,7 +293,7 @@ def update_project(
         if "Action Denied" in str(e):
             raise HTTPException(status_code=403, detail=str(e))
         raise HTTPException(status_code=404, detail=str(e))
-    return _project_response(repo, project)
+    return _project_response(repo, project, current_user.id)
 
 
 @router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -316,10 +337,7 @@ def search_professionals(
 def _invitation_response(
     repo: NetworkRepository, invitation
 ) -> ProjectInvitationResponse:
-    conversation_id = None
-    if invitation.status == "accepted":
-        conversation = repo.get_conversation_by_invitation_id(invitation.id)
-        conversation_id = conversation.id if conversation else None
+    conversation = repo.get_conversation_by_invitation_id(invitation.id)
     return ProjectInvitationResponse(
         id=invitation.id,
         project_id=invitation.project_id,
@@ -329,7 +347,22 @@ def _invitation_response(
         status=invitation.status,
         responded_at=invitation.responded_at,
         created_at=invitation.created_at,
-        conversation_id=conversation_id,
+        conversation_id=conversation.id if conversation else None,
+    )
+
+
+def _notify_invitee(db: Session, invitation, owner_name: str) -> None:
+    repo = NetworkRepository(db)
+    conversation = repo.get_conversation_by_invitation_id(invitation.id)
+    dispatcher = NotificationDispatcher(NotificationRepository(db))
+    dispatcher.dispatch(
+        user_id=invitation.invited_user_id,
+        title="Você tem uma mensagem para ler",
+        message=f"{invitation.project.title} — {owner_name} enviou uma mensagem para você.",
+        notif_type="conversation_invite",
+        related_entity_type="conversation",
+        related_entity_id=conversation.id if conversation else None,
+        triggered_by_user_id=invitation.project.owner_id,
     )
 
 
@@ -353,6 +386,7 @@ def create_invitation(
         if "User not found" in str(e):
             raise HTTPException(status_code=404, detail=str(e))
         raise HTTPException(status_code=400, detail=str(e))
+    _notify_invitee(db, invitation, current_user.name or current_user.email)
     return _invitation_response(repo, invitation)
 
 
@@ -502,3 +536,91 @@ def send_message(
             raise HTTPException(status_code=403, detail=str(e))
         raise HTTPException(status_code=404, detail=str(e))
     return MessageResponse.model_validate(message)
+
+
+# ── Project groups (fórum do projeto) ───────────────────
+
+
+def _group_post_response(post) -> GroupPostResponse:
+    return GroupPostResponse(
+        id=post.id,
+        group_id=post.group_id,
+        author_id=post.author_id,
+        author=UserPublic.model_validate(post.author),
+        body=post.body,
+        created_at=post.created_at,
+    )
+
+
+def _group_list_item(repo: NetworkRepository, group) -> ProjectGroupListItem:
+    posts = repo.get_group_posts(group.id)
+    last = posts[-1] if posts else None
+    return ProjectGroupListItem(
+        id=group.id,
+        project_id=group.project.id,
+        project_title=group.project.title,
+        member_count=len(group.members),
+        last_post_at=last.created_at if last else None,
+        created_at=group.created_at,
+    )
+
+
+def _group_detail(repo: NetworkRepository, group) -> ProjectGroupDetail:
+    members = sorted(
+        (UserPublic.model_validate(m.user) for m in group.members),
+        key=lambda u: (u.name or "").lower(),
+    )
+    posts = repo.get_group_posts(group.id)
+    return ProjectGroupDetail(
+        id=group.id,
+        project_id=group.project_id,
+        project_title=group.project.title,
+        is_member=True,
+        members=members,
+        posts=[_group_post_response(p) for p in posts],
+        created_at=group.created_at,
+    )
+
+
+@router.get("/groups", response_model=list[ProjectGroupListItem])
+def list_my_groups(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    groups = repo.list_groups_for_user(current_user.id)
+    return [_group_list_item(repo, g) for g in groups]
+
+
+@router.get("/groups/{group_id}", response_model=ProjectGroupDetail)
+def get_group(
+    group_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    group = repo.get_group_by_id(group_id)
+    if not group or not repo.is_group_member(group_id, current_user.id):
+        raise HTTPException(status_code=404, detail="Group not found")
+    return _group_detail(repo, group)
+
+
+@router.post(
+    "/groups/{group_id}/posts",
+    response_model=GroupPostResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_group_post(
+    group_id: UUID,
+    post_data: GroupPostCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        post = repo.create_group_post(group_id, current_user.id, post_data)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))
+    return _group_post_response(post)

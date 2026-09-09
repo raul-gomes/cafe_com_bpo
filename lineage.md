@@ -353,6 +353,21 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > `conversation_messages`. A conversa nasce quando o convite é **aceito**;
 > apenas os 2 participantes têm acesso (403/404 para terceiros).
 
+### `project_groups` / `project_group_members` / `project_group_posts` — dono: `network` (fórum do grupo do projeto)
+
+| Direção | Quem |
+|---------|------|
+| R | `network/repository.py` (`list_groups_for_user`, `get_group_by_id`, `get_group_by_project_id`, `is_group_member`, `get_group_posts`) |
+| W | `network/repository.py` (`_ensure_group`, `_ensure_group_member`, `create_group_post`; chamados em `create_project`, `create_invitation`, `respond_invitation`) |
+| R/W | `network/router.py` — endpoints `/network/groups`, `/network/groups/{group_id}`, `/network/groups/{group_id}/posts` |
+
+> **Migração `1150e26f850e`**: cria `project_groups` (1 fórum por projeto, `UNIQUE(project_id)`),
+> `project_group_members` (dono entra na criação; convidados entram no **aceite**;
+> `UNIQUE(group_id, user_id)`) e `project_group_posts` (texto simples, HTML desinfetado).
+> Dono + membros (convite accepted) acessam (404/403 para terceiros). ⚠️ O soft delete
+> do projeto (`DELETE /network/projects/{id}`) **não** inativa as linhas do grupo/posts —
+> líderes/rotina a decidir se o grupo deve ser desativado junto.
+
 ### `email_deliveries` — dono: `emails` (fila + worker)
 | Direção | Quem |
 |---------|------|

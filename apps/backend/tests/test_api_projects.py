@@ -219,3 +219,84 @@ def test_search_professionals_requires_skills(client):
     auth = get_auth_header(client, f"needskill_{uuid4()}@cafe.com")
     resp = client.get("/network/users/search", headers=auth)
     assert resp.status_code == 422
+
+
+# ── Convites na criação do projeto ──────────────────────
+
+
+def test_create_project_with_invites_creates_pending(client):
+    owner = get_auth_header(client, f"inv_owner_{uuid4()}@cafe.com")
+    invitee_email = f"invitee_{uuid4()}@cafe.com"
+    invitee = get_auth_header(client, invitee_email)
+
+    me = client.get("/auth/me", headers=invitee)
+    invitee_id = me.json()["id"]
+
+    resp = create_project(
+        client,
+        owner,
+        invites=[
+            {"invited_user_id": invitee_id, "message": "Topa uma parceria no BPO?"},
+        ],
+    )
+    assert resp.status_code == 201
+
+    invitations = client.get("/network/me/invites", headers=invitee).json()
+    assert len(invitations) == 1
+    assert invitations[0]["status"] == "pending"
+    assert invitations[0]["message"] == "Topa uma parceria no BPO?"
+    assert invitations[0]["project_title"] == "Migração de plataforma contábil"
+    assert invitations[0]["invited_user"]["id"] == invitee_id
+    assert invitations[0]["conversation_id"]
+
+    convs = client.get("/network/conversations", headers=invitee)
+    assert convs.status_code == 200
+    assert len(convs.json()) == 1
+    assert convs.json()[0]["id"] == invitations[0]["conversation_id"]
+
+
+def test_create_project_with_multiple_invites(client):
+    owner = get_auth_header(client, f"inv_multi_owner_{uuid4()}@cafe.com")
+    ids = []
+    for tag in ("a", "b"):
+        invitee = get_auth_header(client, f"multi_{tag}_{uuid4()}@cafe.com")
+        ids.append(client.get("/auth/me", headers=invitee).json()["id"])
+
+    resp = create_project(
+        client,
+        owner,
+        invites=[
+            {"invited_user_id": ids[0], "message": "Mensagem A"},
+            {"invited_user_id": ids[1], "message": "Mensagem B"},
+        ],
+    )
+    assert resp.status_code == 201
+
+    invitations = client.get(
+        f"/network/projects/{resp.json()['id']}/invites", headers=owner
+    ).json()
+    assert len(invitations) == 2
+    assert {i["message"] for i in invitations} == {"Mensagem A", "Mensagem B"}
+
+
+def test_create_project_with_self_invite_rejected(client):
+    owner = get_auth_header(client, f"selfinv_{uuid4()}@cafe.com")
+    own_id = client.get("/auth/me", headers=owner).json()["id"]
+
+    resp = create_project(
+        client,
+        owner,
+        invites=[{"invited_user_id": own_id, "message": "convite para mim"}],
+    )
+    assert resp.status_code == 400
+
+
+def test_create_project_with_unknown_invitee(client):
+    owner = get_auth_header(client, f"unk_owner_{uuid4()}@cafe.com")
+
+    resp = create_project(
+        client,
+        owner,
+        invites=[{"invited_user_id": str(uuid4()), "message": "oi"}],
+    )
+    assert resp.status_code == 404

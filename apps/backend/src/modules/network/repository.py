@@ -15,6 +15,9 @@ from .models import (
     DiscussionComment,
     DiscussionPost,
     Project,
+    ProjectGroup,
+    ProjectGroupMember,
+    ProjectGroupPost,
     ProjectInvitation,
     ProjectSkill,
     Skill,
@@ -22,6 +25,7 @@ from .models import (
 )
 from .schemas import (
     CommentCreate,
+    GroupPostCreate,
     MessageCreate,
     PostCreate,
     ProjectCreate,
@@ -262,6 +266,31 @@ class NetworkRepository:
             for name in self._dedupe_skill_names(data.skills):
                 skill = self.create_skill(name)
                 self.session.add(ProjectSkill(project_id=project.id, skill_id=skill.id))
+        if data.invites:
+            invite_emails = {
+                i.invited_user_id for i in data.invites if i.message.strip()
+            }
+            if owner_id in invite_emails:
+                raise ValueError("You cannot invite yourself")
+            existing = (
+                self.session.query(User.id).filter(User.id.in_(invite_emails)).all()
+            )
+            found = {u.id for u in existing}
+            missing = invite_emails - found
+            if missing:
+                raise ValueError("User not found")
+            for inv in data.invites:
+                if not inv.message.strip():
+                    continue
+                invitation = ProjectInvitation(
+                    project_id=project.id,
+                    invited_user_id=inv.invited_user_id,
+                    message=sanitize_html(inv.message).strip(),
+                )
+                self.session.add(invitation)
+                self.session.flush()
+                self._ensure_conversation(invitation, invitation.message)
+        self._ensure_group(project)
         self.session.commit()
         self.session.refresh(project)
         return project
@@ -401,6 +430,8 @@ class NetworkRepository:
         if not invitee:
             raise ValueError("User not found")
 
+        self._ensure_group(project)
+
         existing = (
             self.session.query(ProjectInvitation)
             .filter(
@@ -417,6 +448,8 @@ class NetworkRepository:
             existing.status = "pending"
             existing.message = data.message.strip()
             existing.responded_at = None
+            self.session.flush()
+            self._ensure_conversation(existing, existing.message)
             self.session.commit()
             self.session.refresh(existing)
             return existing
@@ -427,6 +460,8 @@ class NetworkRepository:
             message=data.message.strip(),
         )
         self.session.add(invitation)
+        self.session.flush()
+        self._ensure_conversation(invitation, invitation.message)
         self.session.commit()
         self.session.refresh(invitation)
         return invitation
@@ -476,19 +511,8 @@ class NetworkRepository:
 
         if accept:
             invitation.status = "accepted"
-            conversation = Conversation(invitation_id=invitation.id)
-            self.session.add(conversation)
-            self.session.flush()
-            self.session.add(
-                ConversationParticipant(
-                    conversation_id=conversation.id, user_id=invitation.project.owner_id
-                )
-            )
-            self.session.add(
-                ConversationParticipant(
-                    conversation_id=conversation.id, user_id=invitation.invited_user_id
-                )
-            )
+            group = self._ensure_group(invitation.project)
+            self._ensure_group_member(group.id, invitation.invited_user_id)
         else:
             invitation.status = "declined"
 
@@ -497,7 +521,126 @@ class NetworkRepository:
         self.session.refresh(invitation)
         return invitation
 
+    # ── Project groups (fórum do projeto) ────────────────
+
+    def _ensure_group(self, project: Project) -> ProjectGroup:
+        group = (
+            self.session.query(ProjectGroup)
+            .filter(ProjectGroup.project_id == project.id)
+            .first()
+        )
+        if not group:
+            group = ProjectGroup(project_id=project.id)
+            self.session.add(group)
+            self.session.flush()
+        self._ensure_group_member(group.id, project.owner_id)
+        return group
+
+    def _ensure_group_member(self, group_id: UUID, user_id: UUID) -> None:
+        existing = (
+            self.session.query(ProjectGroupMember)
+            .filter(
+                ProjectGroupMember.group_id == group_id,
+                ProjectGroupMember.user_id == user_id,
+            )
+            .first()
+        )
+        if not existing:
+            self.session.add(ProjectGroupMember(group_id=group_id, user_id=user_id))
+
+    def get_group_by_id(self, group_id: UUID) -> ProjectGroup | None:
+        return (
+            self.session.query(ProjectGroup)
+            .filter(ProjectGroup.id == group_id, ProjectGroup.is_active)
+            .first()
+        )
+
+    def get_group_by_project_id(self, project_id: UUID) -> ProjectGroup | None:
+        return (
+            self.session.query(ProjectGroup)
+            .filter(ProjectGroup.project_id == project_id, ProjectGroup.is_active)
+            .first()
+        )
+
+    def is_group_member(self, group_id: UUID, user_id: UUID) -> bool:
+        return (
+            self.session.query(ProjectGroupMember)
+            .filter(
+                ProjectGroupMember.group_id == group_id,
+                ProjectGroupMember.user_id == user_id,
+            )
+            .first()
+            is not None
+        )
+
+    def list_groups_for_user(self, user_id: UUID) -> list[ProjectGroup]:
+        return (
+            self.session.query(ProjectGroup)
+            .join(
+                ProjectGroupMember,
+                ProjectGroupMember.group_id == ProjectGroup.id,
+            )
+            .filter(ProjectGroupMember.user_id == user_id, ProjectGroup.is_active)
+            .order_by(desc(ProjectGroup.created_at))
+            .all()
+        )
+
+    def get_group_posts(self, group_id: UUID) -> list[ProjectGroupPost]:
+        return (
+            self.session.query(ProjectGroupPost)
+            .filter(ProjectGroupPost.group_id == group_id, ProjectGroupPost.is_active)
+            .order_by(ProjectGroupPost.created_at)
+            .all()
+        )
+
+    def create_group_post(
+        self, group_id: UUID, author_id: UUID, data: GroupPostCreate
+    ) -> ProjectGroupPost:
+        group = self.get_group_by_id(group_id)
+        if not group:
+            raise ValueError("Group not found")
+        if not self.is_group_member(group_id, author_id):
+            raise ValueError("Action Denied: You are not a member of this group")
+        post = ProjectGroupPost(
+            group_id=group_id,
+            author_id=author_id,
+            body=sanitize_html(data.body).strip(),
+        )
+        self.session.add(post)
+        self.session.commit()
+        self.session.refresh(post)
+        return post
+
     # ── Conversations ─────────────────────────────────────
+
+    def _ensure_conversation(
+        self, invitation: ProjectInvitation, initial_message: str
+    ) -> Conversation:
+        conversation = self.get_conversation_by_invitation_id(invitation.id)
+        if not conversation:
+            conversation = Conversation(invitation_id=invitation.id)
+            self.session.add(conversation)
+            self.session.flush()
+            self.session.add(
+                ConversationParticipant(
+                    conversation_id=conversation.id,
+                    user_id=invitation.project.owner_id,
+                )
+            )
+            self.session.add(
+                ConversationParticipant(
+                    conversation_id=conversation.id,
+                    user_id=invitation.invited_user_id,
+                )
+            )
+        self.session.add(
+            ConversationMessage(
+                conversation_id=conversation.id,
+                sender_id=invitation.project.owner_id,
+                body=sanitize_html(initial_message).strip(),
+            )
+        )
+        return conversation
 
     def get_conversation_by_invitation_id(
         self, invitation_id: UUID

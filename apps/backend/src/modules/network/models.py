@@ -203,6 +203,74 @@ class ConversationMessage(Base):
     sender = relationship("User")
 
 
+class ProjectGroup(Base):
+    __tablename__ = "project_groups"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    project_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("projects.id"),
+        nullable=False,
+        unique=True,
+        index=True,
+    )
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+
+    project = relationship("Project")
+    members = relationship(
+        "ProjectGroupMember",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+    posts = relationship(
+        "ProjectGroupPost",
+        back_populates="group",
+        cascade="all, delete-orphan",
+    )
+
+
+class ProjectGroupMember(Base):
+    __tablename__ = "project_group_members"
+    __table_args__ = (
+        UniqueConstraint(
+            "group_id", "user_id", name="uq_project_group_members_group_user"
+        ),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    group_id = Column(
+        UUID(as_uuid=True), ForeignKey("project_groups.id"), nullable=False, index=True
+    )
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    group = relationship("ProjectGroup", back_populates="members")
+    user = relationship("User")
+
+
+class ProjectGroupPost(Base):
+    __tablename__ = "project_group_posts"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    group_id = Column(
+        UUID(as_uuid=True), ForeignKey("project_groups.id"), nullable=False, index=True
+    )
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    body = Column(Text, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+
+    group = relationship("ProjectGroup", back_populates="posts")
+    author = relationship("User")
+
+
 class DiscussionPost(Base):
     __tablename__ = "discussion_posts"
 

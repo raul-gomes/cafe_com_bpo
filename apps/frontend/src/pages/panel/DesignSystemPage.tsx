@@ -115,6 +115,8 @@ import {
 import { Separator } from '../../components/ui/separator'
 import { SkillInput } from '../../components/ui/SkillInput'
 import { ProjectCard } from '../../components/network/ProjectCard'
+import { GroupPostCard } from '../../components/network/GroupPostCard'
+import { ThreadReplies } from '../../components/network/ThreadReplies'
 
 import './DesignSystemPage.css'
 
@@ -494,10 +496,61 @@ const [skills, setSkills] = useState<string[]>([])
                   { id: 's1', name: 'Python', slug: 'python', is_active: true },
                   { id: 's2', name: 'Excel', slug: 'excel', is_active: true },
                 ],
+                group_id: 'demo-group-1',
+                is_group_member: true,
               }}
               onSave={async () => undefined}
               onDelete={() => undefined}
             />
+          </div>
+        </ComponentCard>
+
+        {/* ── GroupPostCard ── */}
+        <ComponentCard
+          name="GroupPostCard"
+          description="Post do tópico do projeto: autor, data e corpo preservando quebras de linha"
+          howToUse={`import { GroupPostCard } from '../../components/network/GroupPostCard'
+
+<GroupPostCard post={post} />`}
+        >
+          <div className="ds-col">
+            <GroupPostCard
+              post={{
+                id: 'post-1',
+                group_id: 'demo-group-1',
+                author_id: 'user-1',
+                author: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                body: 'Equipe, alinhemos o escopo do primeiro entregável do fluxo fiscal.',
+                created_at: '2026-09-09T10:00:00Z',
+              }}
+            />
+          </div>
+        </ComponentCard>
+
+        {/* ── ThreadReplies ── */}
+        <ComponentCard
+          name="ThreadReplies"
+          description="Estrutura de fórum: envolve as respostas de um tópico com indentação e trilho lateral, deixando claro que fazem parte do tópico principal."
+          howToUse={`import { ThreadReplies } from '../../components/network/ThreadReplies'
+
+<Card>Tópico principal…</Card>
+<ThreadReplies>
+  <Card>Resposta 1…</Card>
+  <Card>Resposta 2…</Card>
+</ThreadReplies>`}
+        >
+          <div className="ds-col">
+            <div className="ds-card" style={{ padding: '16px' }}>
+              Tópico principal — sem indentação, no topo.
+            </div>
+            <ThreadReplies>
+              <div className="ds-card" style={{ padding: '16px' }}>
+                Resposta 1 — indentada, parte do tópico.
+              </div>
+              <div className="ds-card" style={{ padding: '16px' }}>
+                Resposta 2 — indentada, parte do tópico.
+              </div>
+            </ThreadReplies>
           </div>
         </ComponentCard>
 

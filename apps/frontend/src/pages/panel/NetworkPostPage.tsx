@@ -14,6 +14,7 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
+import { ThreadReplies } from '../../components/network/ThreadReplies';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 
@@ -175,37 +176,35 @@ export const NetworkPostPage: React.FC = () => {
       </Card>
 
       {/* Comments */}
-      <div className="mt-4 flex flex-col gap-4">
-        {comments.map(c => (
-          <Card
-            key={c.id}
-            className="flex flex-col p-0"
-            style={{ marginLeft: post.author_id === c.author_id ? 0 : 32 }}
-          >
-            <div className="flex items-center gap-3 border-b border-border px-6 py-4">
-              <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-[12px] font-bold text-primary-strong">
-                {c.author.name?.slice(0, 2).toUpperCase() || 'U'}
-              </div>
-              <div>
-                <div className="text-[13px] font-bold text-foreground">
-                  {c.author.name || 'Usuário'}
+      {comments.length > 0 && (
+        <ThreadReplies className="mt-6">
+          {comments.map(c => (
+            <Card key={c.id} className="flex flex-col p-0">
+              <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+                <div className="flex size-8 items-center justify-center rounded-full bg-primary/10 text-[12px] font-bold text-primary-strong">
+                  {c.author.name?.slice(0, 2).toUpperCase() || 'U'}
                 </div>
-                <div className="text-[11px] text-muted-foreground">
-                  {new Date(c.created_at).toLocaleDateString('pt-BR')} às{' '}
-                  {new Date(c.created_at).toLocaleTimeString('pt-BR', {
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })}
+                <div>
+                  <div className="text-[13px] font-bold text-foreground">
+                    {c.author.name || 'Usuário'}
+                  </div>
+                  <div className="text-[11px] text-muted-foreground">
+                    {new Date(c.created_at).toLocaleDateString('pt-BR')} às{' '}
+                    {new Date(c.created_at).toLocaleTimeString('pt-BR', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </div>
                 </div>
               </div>
-            </div>
-            <div
-              className="px-6 py-5 text-[14px] leading-relaxed text-foreground rich-text-content"
-              dangerouslySetInnerHTML={{ __html: c.message }}
-            />
-          </Card>
-        ))}
-      </div>
+              <div
+                className="px-6 py-5 text-[14px] leading-relaxed text-foreground rich-text-content"
+                dangerouslySetInnerHTML={{ __html: c.message }}
+              />
+            </Card>
+          ))}
+        </ThreadReplies>
+      )}
 
       {/* Reply Button */}
       <div className="mt-6 flex justify-end">

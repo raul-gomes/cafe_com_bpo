@@ -76,20 +76,22 @@ def test_accept_creates_private_conversation(client):
         json={"invited_user_id": candidate["uid"], "message": "Bora?"},
         headers=owner,
     ).json()
+    assert invite["status"] == "pending"
+    assert invite["conversation_id"]
 
-    resp = client.post(f"/network/invites/{invite['id']}/accept", headers=candidate)
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "accepted"
-    assert data["conversation_id"]
-
-    conv_id = data["conversation_id"]
+    conv_id = invite["conversation_id"]
     for who in (owner, candidate):
         detail = client.get(f"/network/conversations/{conv_id}", headers=who)
         assert detail.status_code == 200
         names = {p["email"] for p in detail.json()["participants"]}
         assert names == {owner["email"], candidate["email"]}
-        assert detail.json()["messages"] == []
+        assert [m["body"] for m in detail.json()["messages"]] == ["Bora?"]
+
+    resp = client.post(f"/network/invites/{invite['id']}/accept", headers=candidate)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["status"] == "accepted"
+    assert data["conversation_id"] == conv_id
 
 
 def test_invite_is_idempotent_while_pending(client):
@@ -205,10 +207,10 @@ def test_send_and_read_messages(client):
     detail = client.get(f"/network/conversations/{conv_id}", headers=candidate)
     assert detail.status_code == 200
     msgs = detail.json()["messages"]
-    assert len(msgs) == 1
-    assert msgs[0]["sender"]["email"] == owner["email"]
-    assert "fechamos" in msgs[0]["body"]
-    assert msgs[0]["conversation_id"] == conv_id
+    assert msgs[0]["body"] == "Vamos?"
+    assert "fechamos" in msgs[1]["body"]
+    assert msgs[1]["sender"]["email"] == owner["email"]
+    assert msgs[1]["conversation_id"] == conv_id
 
 
 def test_conversation_appears_in_my_list(client):
@@ -261,18 +263,86 @@ def test_outsider_cannot_access_conversation(client):
     )
 
 
-def test_no_conversation_before_accept(client):
+def test_conversation_exists_before_accept_and_accept_grants_project_topic(client):
     owner = auth_for(client, f"owner_{uuid4()}@cafe.com")
     candidate = auth_for(client, f"cand_{uuid4()}@cafe.com")
     project_id = create_project(client, owner)
+
+    invite = client.post(
+        f"/network/projects/{project_id}/invites",
+        json={"invited_user_id": candidate["uid"], "message": "Vamos?"},
+        headers=owner,
+    ).json()
+
+    for who in (owner, candidate):
+        convs = client.get("/network/conversations", headers=who)
+        assert convs.status_code == 200
+        assert len(convs.json()) == 1
+        assert convs.json()[0]["id"] == invite["conversation_id"]
+
+    group_id = client.get(
+        f"/network/projects/{project_id}", headers=owner
+    ).json()["group_id"]
+    assert (
+        client.get(f"/network/groups/{group_id}", headers=candidate).status_code == 404
+    )
+
+    client.post(f"/network/invites/{invite['id']}/accept", headers=candidate)
+
+    group = client.get(f"/network/groups/{group_id}", headers=candidate)
+    assert group.status_code == 200
+    assert group.json()["is_member"] is True
+
+
+def test_invite_creates_unread_message_notification(client):
+    owner = auth_for(client, f"owner_{uuid4()}@cafe.com")
+    candidate = auth_for(client, f"cand_{uuid4()}@cafe.com")
+    project_id = create_project(client, owner, title="Automação SPED")
 
     client.post(
         f"/network/projects/{project_id}/invites",
         json={"invited_user_id": candidate["uid"], "message": "Vamos?"},
         headers=owner,
     )
-    for who in (owner, candidate):
-        assert client.get("/network/conversations", headers=who).json() == []
+
+    notifs = client.get("/notifications/", headers=candidate)
+    assert notifs.status_code == 200
+    items = notifs.json()
+    assert any(
+        n["type"] == "conversation_invite"
+        and n["title"] == "Você tem uma mensagem para ler"
+        and n["is_read"] is False
+        and n["related_entity_type"] == "conversation"
+        for n in items
+    )
+
+
+def test_declined_invite_keeps_private_topic_working(client):
+    owner = auth_for(client, f"owner_{uuid4()}@cafe.com")
+    candidate = auth_for(client, f"cand_{uuid4()}@cafe.com")
+    project_id = create_project(client, owner)
+
+    invite = client.post(
+        f"/network/projects/{project_id}/invites",
+        json={"invited_user_id": candidate["uid"], "message": "Bora?"},
+        headers=owner,
+    ).json()
+    conv_id = invite["conversation_id"]
+
+    assert (
+        client.post(f"/network/invites/{invite['id']}/decline", headers=candidate)
+        .json()["status"]
+        == "declined"
+    )
+
+    sent = client.post(
+        f"/network/conversations/{conv_id}/messages",
+        json={"body": "Tudo bem não."},
+        headers=candidate,
+    )
+    assert sent.status_code == 201
+    detail = client.get(f"/network/conversations/{conv_id}", headers=owner)
+    assert detail.status_code == 200
 
 
 def test_cannot_invite_yourself_or_missing_user(client):

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { Briefcase } from 'lucide-react';
+import { Briefcase, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import {
   getProjects,
   createProject,
   updateProject,
   deleteProject,
+  searchProfessionals,
+  ProfessionalMatch,
   ProjectResponse,
   ProjectUpdatePayload,
   PaginatedProjects,
@@ -12,7 +14,6 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ProjectCard } from './ProjectCard';
-import { InviteDialog } from './InviteDialog';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -33,7 +34,12 @@ export function ProjectsSection() {
   const [description, setDescription] = useState('');
   const [skills, setSkills] = useState<string[]>([]);
 
-  const [inviteTarget, setInviteTarget] = useState<ProjectResponse | null>(null);
+  const [matches, setMatches] = useState<ProfessionalMatch[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [searchError, setSearchError] = useState('');
+  const [candidates, setCandidates] = useState<
+    { id: string; name: string | null; email: string; message: string }[]
+  >([]);
 
   const loadProjects = async () => {
     setLoading(true);
@@ -58,6 +64,60 @@ export function ProjectsSection() {
     setTitle('');
     setDescription('');
     setSkills([]);
+    setMatches([]);
+    setSearching(false);
+    setSearchError('');
+    setCandidates([]);
+  };
+
+  useEffect(() => {
+    if (skills.length === 0) {
+      setMatches([]);
+      setSearching(false);
+      setSearchError('');
+      return;
+    }
+    setSearching(true);
+    setSearchError('');
+    let cancelled = false;
+    const timer = setTimeout(async () => {
+      try {
+        const results = await searchProfessionals(skills, 'any');
+        if (!cancelled) setMatches(results);
+      } catch {
+        if (!cancelled) {
+          setSearchError('Erro ao buscar profissionais. Tente novamente.');
+          setMatches([]);
+        }
+      } finally {
+        if (!cancelled) setSearching(false);
+      }
+    }, 300);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [skills]);
+
+  const addCandidate = (person: ProfessionalMatch) => {
+    setCandidates((prev) =>
+      prev.some((c) => c.id === person.id)
+        ? prev
+        : [
+            ...prev,
+            { id: person.id, name: person.name, email: person.email, message: '' },
+          ]
+    );
+  };
+
+  const removeCandidate = (id: string) => {
+    setCandidates((prev) => prev.filter((c) => c.id !== id));
+  };
+
+  const updateCandidateMessage = (id: string, message: string) => {
+    setCandidates((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, message } : c))
+    );
   };
 
   const closeForm = () => {
@@ -80,11 +140,25 @@ export function ProjectsSection() {
       setError('A descrição precisa ter pelo menos 10 caracteres.');
       return;
     }
+    if (candidates.length > 0 && candidates.some((c) => !c.message.trim())) {
+      setError(
+        'Preencha a mensagem personalizada de cada profissional selecionado.'
+      );
+      return;
+    }
     try {
       await createProject({
         title: title.trim(),
         description: description.trim(),
         skills,
+        ...(candidates.length > 0
+          ? {
+              invites: candidates.map((c) => ({
+                invited_user_id: c.id,
+                message: c.message.trim(),
+              })),
+            }
+          : {}),
       });
       closeForm();
       setError('');
@@ -191,6 +265,122 @@ export function ProjectsSection() {
                   onChange={setSkills}
                   placeholder="Digite uma habilidade e pressione Tab ou Enter"
                 />
+                <p className="text-[11px] text-muted-foreground">
+                  Os perfis compatíveis aparecem assim que você digita as
+                  habilidades.
+                </p>
+              </div>
+
+              <div className="flex flex-col gap-2 border-t border-border pt-4">
+                {skills.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    {searching && matches.length === 0 ? (
+                      <div className="flex items-center gap-2 rounded-lg border border-dashed px-4 py-4 text-[13px] text-muted-foreground">
+                        <Loader2 size={14} className="animate-spin" />
+                        Buscando profissionais...
+                      </div>
+                    ) : searchError ? (
+                      <p className="text-xs text-destructive" role="alert">
+                        {searchError}
+                      </p>
+                    ) : matches.length === 0 ? (
+                      <div className="rounded-lg border border-dashed px-4 py-5 text-center text-[13px] text-muted-foreground">
+                        Nenhum profissional encontrado com essas habilidades.
+                      </div>
+                    ) : (
+                      <div className="flex flex-col gap-2">
+                        {matches.map((person) => {
+                          const added = candidates.some(
+                            (c) => c.id === person.id
+                          );
+                          return (
+                            <div
+                              key={person.id}
+                              className="flex items-start justify-between gap-3 rounded-lg border border-border p-3"
+                            >
+                              <div className="min-w-0">
+                                <div className="text-[14px] font-semibold text-foreground">
+                                  {person.name || person.email}
+                                </div>
+                                {person.biografia && (
+                                  <p className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground">
+                                    {person.biografia}
+                                  </p>
+                                )}
+                                {person.skills.length > 0 && (
+                                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                                    {person.skills.map((skill) => (
+                                      <span
+                                        key={skill.id}
+                                        className="rounded bg-primary/10 px-2 py-0.5 text-[11px] font-bold text-primary-strong"
+                                      >
+                                        {skill.name}
+                                      </span>
+                                    ))}
+                                  </div>
+                                )}
+                              </div>
+                              <Button
+                                variant={added ? 'ghost' : 'outline'}
+                                size="sm"
+                                disabled={added}
+                                onClick={() => addCandidate(person)}
+                              >
+                                {added ? (
+                                  <>
+                                    <CheckCircle2 size={14} className="mr-1.5" />
+                                    Adicionado
+                                  </>
+                                ) : (
+                                  'Adicionar'
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {candidates.length > 0 && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-[12px] font-semibold text-muted-foreground">
+                      Profissionais selecionados ({candidates.length})
+                    </p>
+                    {candidates.map((candidate) => (
+                      <div
+                        key={candidate.id}
+                        className="rounded-lg border border-border p-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="text-[14px] font-semibold text-foreground">
+                            {candidate.name || candidate.email}
+                          </div>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => removeCandidate(candidate.id)}
+                            aria-label={`Remover ${candidate.name || candidate.email}`}
+                            className="text-destructive hover:bg-destructive/10 hover:text-destructive"
+                          >
+                            <Trash2 size={14} />
+                          </Button>
+                        </div>
+                        <Textarea
+                          className="mt-2"
+                          aria-label={`Mensagem para ${candidate.name || candidate.email}`}
+                          rows={2}
+                          value={candidate.message}
+                          onChange={(e) =>
+                            updateCandidateMessage(candidate.id, e.target.value)
+                          }
+                          placeholder="Mensagem personalizada do convite"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
             <div className="flex justify-end border-t border-border px-6 py-4">
@@ -234,19 +424,10 @@ export function ProjectsSection() {
               currentUserId={user?.id}
               onSave={handleSaveProject}
               onDelete={handleDelete}
-              onInvite={setInviteTarget}
             />
           ))}
         </div>
       )}
-
-      <InviteDialog
-        project={inviteTarget}
-        open={inviteTarget !== null}
-        onOpenChange={(open) => {
-          if (!open) setInviteTarget(null);
-        }}
-      />
     </div>
   );
 }

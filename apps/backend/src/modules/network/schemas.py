@@ -73,12 +73,18 @@ class UserSkillCreate(BaseModel):
     name: str = Field(..., min_length=2, max_length=100)
 
 
+class ProjectInviteCreate(BaseModel):
+    invited_user_id: UUID
+    message: str = Field(..., min_length=1, max_length=2000)
+
+
 class ProjectCreate(BaseModel):
     title: str = Field(..., min_length=1, max_length=160)
     description: str = Field(..., min_length=10)
     skills: list[str] = Field(default_factory=list)
     team_size: int = Field(1, ge=1, le=99)
     remote_type: str = Field("remote", pattern="^(remote|onsite|hybrid)$")
+    invites: list[ProjectInviteCreate] = Field(default_factory=list)
 
 
 class ProjectUpdate(BaseModel):
@@ -102,6 +108,8 @@ class ProjectResponse(BaseModel):
     published_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
+    group_id: UUID | None = None
+    is_group_member: bool = False
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -119,11 +127,6 @@ class ProfessionalMatch(BaseModel):
     skills: list[SkillResponse]
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class ProjectInviteCreate(BaseModel):
-    invited_user_id: UUID
-    message: str = Field(..., min_length=1, max_length=2000)
 
 
 class ProjectInvitationResponse(BaseModel):
@@ -171,4 +174,38 @@ class ConversationDetail(BaseModel):
     project_title: str
     participants: list[UserPublic]
     messages: list[MessageResponse]
+    created_at: datetime
+
+
+class GroupPostCreate(BaseModel):
+    body: str = Field(..., min_length=1, max_length=5000)
+
+
+class GroupPostResponse(BaseModel):
+    id: UUID
+    group_id: UUID
+    author_id: UUID
+    author: UserPublic
+    body: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProjectGroupListItem(BaseModel):
+    id: UUID
+    project_id: UUID
+    project_title: str
+    member_count: int
+    last_post_at: datetime | None = None
+    created_at: datetime
+
+
+class ProjectGroupDetail(BaseModel):
+    id: UUID
+    project_id: UUID
+    project_title: str
+    is_member: bool = True
+    members: list[UserPublic]
+    posts: list[GroupPostResponse]
     created_at: datetime

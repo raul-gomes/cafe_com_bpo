@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Bell, Trash2, CheckCheck } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { useAppNotifications } from '../../api/hooks/useAppNotifications';
 
 export const NotificationBell: React.FC = () => {
@@ -9,6 +10,7 @@ export const NotificationBell: React.FC = () => {
   const markAsRead = useMarkAsRead();
   const markAllAsRead = useMarkAllAsRead();
   const deleteNotification = useDeleteNotification();
+  const navigate = useNavigate();
 
   const [isOpen, setIsOpen] = useState(false);
 
@@ -21,6 +23,7 @@ export const NotificationBell: React.FC = () => {
     phase_change: '🔄',
     proposal: '💰',
     post_commented: '💬',
+    conversation_invite: '🔐',
     system: 'ℹ️',
   };
 
@@ -128,7 +131,13 @@ export const NotificationBell: React.FC = () => {
                 notifications?.map(notif => (
                   <div
                     key={notif.id}
-                    onClick={() => handleMarkRead(notif.id)}
+                    onClick={() => {
+                      handleMarkRead(notif.id);
+                      setIsOpen(false);
+                      if (notif.type === 'conversation_invite' && notif.related_entity_id) {
+                        navigate(`/painel/conversas/${notif.related_entity_id}`);
+                      }
+                    }}
                     style={{
                       display: 'flex', gap: '12px', padding: '14px 16px',
                       borderRadius: 'var(--radius-md)', cursor: 'pointer',

@@ -1,7 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from 'react';
+import React, { useEffect, useCallback, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Send, Loader2 } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
+import { ArrowLeft, MessageSquarePlus, Loader2, Lock } from 'lucide-react';
 import {
   getConversation,
   sendMessage,
@@ -10,23 +9,22 @@ import {
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { Badge } from '../../components/ui/badge';
 import { Textarea } from '../../components/ui/textarea';
 import { Skeleton } from '../../components/ui/skeleton';
-import { cn } from '../../lib/utils';
+import { ThreadReplies } from '../../components/network/ThreadReplies';
 
-const POLL_MS = 8000;
+const POLL_MS = 15000;
 
 export const ConversationPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { user } = useAuth();
 
   const [conversation, setConversation] = useState<ConversationDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [body, setBody] = useState('');
   const [sending, setSending] = useState(false);
-  const bottomRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -34,7 +32,7 @@ export const ConversationPage: React.FC = () => {
       setConversation(await getConversation(id));
       setError('');
     } catch {
-      setError('Conversa não encontrada ou erro de conexão.');
+      setError('Tópico privado não encontrado ou erro de conexão.');
     } finally {
       setLoading(false);
     }
@@ -54,14 +52,6 @@ export const ConversationPage: React.FC = () => {
     return () => clearInterval(timer);
   }, [id]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView?.({ behavior: 'smooth' });
-  }, [conversation?.messages.length]);
-
-  const otherUser =
-    conversation?.participants.find((participant) => participant.id !== user?.id) ??
-    null;
-
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!id || !body.trim()) return;
@@ -77,6 +67,10 @@ export const ConversationPage: React.FC = () => {
       setSending(false);
     }
   };
+
+  const otherNames = conversation?.participants
+    .map((participant) => participant.name || participant.email)
+    .join(', ');
 
   return (
     <div className="animate-[panelFadeIn_0.4s_ease-out]">
@@ -98,13 +92,14 @@ export const ConversationPage: React.FC = () => {
           <ArrowLeft size={18} />
         </Button>
         <div>
-          <h1 className="text-[24px] font-extrabold tracking-tight text-foreground">
-            {conversation?.project_title ?? 'Conversa'}
-          </h1>
+          <div className="flex items-center gap-2">
+            <Lock size={16} className="text-primary" />
+            <h1 className="text-[24px] font-extrabold tracking-tight text-foreground">
+              {conversation?.project_title ?? 'Conversa'}
+            </h1>
+          </div>
           <p className="text-[13px] text-muted-foreground">
-            {otherUser
-              ? `Conversa privada com ${otherUser.name || otherUser.email}`
-              : 'Conversa privada sobre o projeto'}
+            Tópico privado{otherNames ? ` com ${otherNames}` : ''}
           </p>
         </div>
       </div>
@@ -112,7 +107,11 @@ export const ConversationPage: React.FC = () => {
       {error && !conversation && (
         <Card className="p-12 text-center">
           <p className="text-[14px] text-muted-foreground">{error}</p>
-          <Button variant="outline" className="mt-4" onClick={() => navigate('/painel/forum')}>
+          <Button
+            variant="outline"
+            className="mt-4"
+            onClick={() => navigate('/painel/forum')}
+          >
             Voltar para a Comunidade
           </Button>
         </Card>
@@ -127,89 +126,88 @@ export const ConversationPage: React.FC = () => {
       )}
 
       {conversation && (
-        <Card className="flex min-h-[60vh] flex-col overflow-hidden p-0">
-          <div className="flex flex-1 flex-col gap-3 overflow-y-auto bg-muted/20 p-4">
-            {conversation.messages.length === 0 ? (
-              <div className="flex flex-1 items-center justify-center text-center text-[13px] text-muted-foreground">
-                <div>
-                  <p className="mb-1 font-semibold text-foreground">
-                    Conversa iniciada!
-                  </p>
-                  {otherUser && (
-                    <p>
-                      Envie a primeira mensagem para {otherUser.name || otherUser.email}.
-                    </p>
-                  )}
-                </div>
-              </div>
-            ) : (
-              conversation.messages.map((message) => {
-                const mine = message.sender_id === user?.id;
-                return (
-                  <div
-                    key={message.id}
-                    className={cn('flex', mine ? 'justify-end' : 'justify-start')}
-                  >
-                    <div
-                      className={cn(
-                        'max-w-[78%] rounded-2xl px-4 py-2 text-[13px] leading-relaxed',
-                        mine
-                          ? 'rounded-br-sm bg-primary text-primary-foreground'
-                          : 'rounded-bl-sm bg-card ring-1 ring-border'
-                      )}
-                    >
-                      <div className="mb-0.5 text-[11px] opacity-70">
-                        {mine
-                          ? 'Você'
-                          : message.sender.name || message.sender.email}
+        <>
+          <Card className="mb-4 px-6 py-4">
+            <p className="text-[13px] text-muted-foreground">
+              {conversation.messages.length === 0
+                ? 'Este tópico privado ainda não tem mensagens. Responda abaixo para começar.'
+                : `${conversation.messages.length} ${
+                    conversation.messages.length === 1 ? 'mensagem' : 'mensagens'
+                  } em formato de fórum — nada de chat.`}
+            </p>
+          </Card>
+
+          <div className="flex flex-col gap-3">
+            {conversation.messages.map((message, index) => {
+              const authorName = message.sender.name || message.sender.email || 'Usuário';
+              const card = (
+                <Card key={message.id} className="flex flex-col p-0">
+                  <div className="flex items-center gap-3 border-b border-border px-6 py-4">
+                    <div className="flex size-9 shrink-0 items-center justify-center rounded-full border border-border bg-muted text-[13px] font-bold text-foreground">
+                      {authorName.slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <span className="truncate text-[14px] font-bold text-foreground">
+                          {authorName}
+                        </span>
+                        {index === 0 && <Badge variant="secondary">Tópico inicial</Badge>}
                       </div>
-                      <div className="whitespace-pre-wrap">{message.body}</div>
-                      <div className="mt-1 text-right text-[10px] opacity-60">
-                        {new Date(message.created_at).toLocaleTimeString('pt-BR', {
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })}
+                      <div className="text-[12px] text-muted-foreground">
+                        {index === 0
+                          ? `Aberto em ${new Date(message.created_at).toLocaleDateString('pt-BR')} às ${new Date(message.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+                          : `Respondido em ${new Date(message.created_at).toLocaleDateString('pt-BR')} às ${new Date(message.created_at).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`}
                       </div>
                     </div>
                   </div>
-                );
-              })
-            )}
-            <div ref={bottomRef} />
+                  <div className="whitespace-pre-wrap px-6 py-5 text-[14px] leading-relaxed text-foreground">
+                    {message.body}
+                  </div>
+                </Card>
+              );
+
+              if (index === 0) return card;
+              return (
+                <ThreadReplies key={message.id}>{card}</ThreadReplies>
+              );
+            })}
           </div>
 
           {error && conversation && (
-            <div className="px-4 pt-3 text-xs text-destructive">{error}</div>
+            <div className="mt-3 text-xs text-destructive">{error}</div>
           )}
 
-          <form
-            onSubmit={handleSend}
-            className="flex items-end gap-2 border-t border-border p-4"
-          >
-            <Textarea
-              aria-label="Mensagem"
-              rows={2}
-              className="flex-1 resize-none"
-              value={body}
-              onChange={(e) => setBody(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handleSend(e);
-                }
-              }}
-              placeholder="Digite sua mensagem..."
-            />
-            <Button type="submit" disabled={sending || !body.trim()} aria-label="Enviar mensagem">
-              {sending ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Send size={16} />
-              )}
-            </Button>
-          </form>
-        </Card>
+          <Card className="mt-4 p-6">
+            <h3 className="mb-3 flex items-center gap-2 text-[15px] font-bold text-foreground">
+              <MessageSquarePlus size={16} className="text-primary" />
+              Responder neste tópico
+            </h3>
+            <form onSubmit={handleSend}>
+              <Textarea
+                aria-label="Resposta"
+                rows={3}
+                className="w-full resize-y"
+                value={body}
+                onChange={(e) => setBody(e.target.value)}
+                placeholder="Escreva sua resposta no formato de fórum..."
+              />
+              <div className="mt-3 flex justify-end">
+                <Button
+                  type="submit"
+                  disabled={sending || !body.trim()}
+                  aria-label="Publicar resposta"
+                >
+                  {sending ? (
+                    <Loader2 size={16} className="animate-spin" />
+                  ) : (
+                    'Publicar resposta'
+                  )}
+                </Button>
+              </div>
+            </form>
+          </Card>
+        </>
       )}
     </div>
   );
-}
+};

@@ -1,4 +1,5 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
 import { ProjectsSection } from '../src/components/network/ProjectsSection'
@@ -9,6 +10,7 @@ const mockCreateProject = vi.hoisted(() => vi.fn())
 const mockUpdateProject = vi.hoisted(() => vi.fn())
 const mockDeleteProject = vi.hoisted(() => vi.fn())
 const mockSearchSkills = vi.hoisted(() => vi.fn())
+const mockSearchProfessionals = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/api/network', () => ({
   getProjects: mockGetProjects,
@@ -16,6 +18,7 @@ vi.mock('../src/api/network', () => ({
   updateProject: mockUpdateProject,
   deleteProject: mockDeleteProject,
   searchSkills: mockSearchSkills,
+  searchProfessionals: mockSearchProfessionals,
 }))
 
 vi.mock('../src/context/AuthContext', () => ({
@@ -38,6 +41,8 @@ const PROJECT: ProjectResponse = {
     { id: 's1', name: 'Python', slug: 'python', is_active: true },
     { id: 's2', name: 'Excel', slug: 'excel', is_active: true },
   ],
+  group_id: 'g1',
+  is_group_member: true,
 }
 
 const FOREIGN_PROJECT: ProjectResponse = {
@@ -51,9 +56,11 @@ const FOREIGN_PROJECT: ProjectResponse = {
 
 function renderSection() {
   return render(
-    <ConfirmProvider>
-      <ProjectsSection />
-    </ConfirmProvider>
+    <MemoryRouter>
+      <ConfirmProvider>
+        <ProjectsSection />
+      </ConfirmProvider>
+    </MemoryRouter>
   )
 }
 
@@ -64,6 +71,7 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     mockCreateProject.mockResolvedValue(PROJECT)
     mockUpdateProject.mockResolvedValue(PROJECT)
     mockDeleteProject.mockResolvedValue(undefined)
+    mockSearchProfessionals.mockResolvedValue([])
   })
 
   it('lista projetos com título, autoria e skills', async () => {
@@ -177,6 +185,93 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
 
     expect(await screen.findByText(/Preencha título e descrição/i)).toBeInTheDocument()
+    expect(mockCreateProject).not.toHaveBeenCalled()
+  })
+
+  it('cria o projeto já convidando profissionais selecionados', async () => {
+    mockSearchProfessionals.mockResolvedValue([
+      {
+        id: 'u2',
+        name: 'Ana Souza',
+        email: 'ana@cafe.com',
+        biografia: 'BPO financeiro há 5 anos.',
+        skills: [{ id: 's1', name: 'Python', slug: 'python', is_active: true }],
+      },
+    ])
+    renderSection()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
+    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
+      target: { value: 'Boa governança contábil' },
+    })
+    fireEvent.change(screen.getByLabelText(/Descrição do projeto/i), {
+      target: { value: 'Organizar os processos contábeis dos clientes.' },
+    })
+
+    const skillsInput = screen.getByRole('textbox', { name: /Habilidades/i })
+    fireEvent.change(skillsInput, { target: { value: 'Python' } })
+    fireEvent.keyDown(skillsInput, { key: 'Enter' })
+
+    expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Adicionar/i }))
+
+    await screen.findByText(/Profissionais selecionados \(1\)/i)
+    fireEvent.change(
+      screen.getByRole('textbox', { name: /Mensagem para Ana Souza/i }),
+      { target: { value: 'Topa uma parceria no BPO?' } }
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
+
+    await waitFor(() =>
+      expect(mockCreateProject).toHaveBeenCalledWith({
+        title: 'Boa governança contábil',
+        description: 'Organizar os processos contábeis dos clientes.',
+        skills: ['Python'],
+        invites: [
+          {
+            invited_user_id: 'u2',
+            message: 'Topa uma parceria no BPO?',
+          },
+        ],
+      })
+    )
+    expect(mockGetProjects).toHaveBeenCalledTimes(2)
+  })
+
+  it('exige mensagem personalizada para cada profissional selecionado', async () => {
+    mockSearchProfessionals.mockResolvedValue([
+      {
+        id: 'u2',
+        name: 'Ana Souza',
+        email: 'ana@cafe.com',
+        biografia: 'BPO financeiro há 5 anos.',
+        skills: [{ id: 's1', name: 'Python', slug: 'python', is_active: true }],
+      },
+    ])
+    renderSection()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
+    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
+      target: { value: 'Boa governança contábil' },
+    })
+    fireEvent.change(screen.getByLabelText(/Descrição do projeto/i), {
+      target: { value: 'Organizar os processos contábeis dos clientes.' },
+    })
+    const skillsInput = screen.getByRole('textbox', { name: /Habilidades/i })
+    fireEvent.change(skillsInput, { target: { value: 'Python' } })
+    fireEvent.keyDown(skillsInput, { key: 'Enter' })
+
+    expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Adicionar/i }))
+
+    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
+
+    expect(
+      await screen.findByText(
+        /Preencha a mensagem personalizada de cada profissional selecionado/i
+      )
+    ).toBeInTheDocument()
     expect(mockCreateProject).not.toHaveBeenCalled()
   })
 })
