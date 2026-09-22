@@ -49,6 +49,7 @@ export async function buildRouter() {
   const { PaymentsPage } = await import('./pages/panel/PaymentsPage')
   const { TemplateListPage } = await import('./pages/panel/TemplateListPage')
   const { TemplateDetailPage } = await import('./pages/panel/TemplateDetailPage')
+  const { UnderConstructionPanelPage } = await import('./pages/panel/UnderConstructionPanelPage')
 
   return createBrowserRouter([
     {
@@ -162,6 +163,22 @@ export async function buildRouter() {
             {
               path: 'templates-atividades/:id',
               element: <SuspenseWrapper><TemplateDetailPage /></SuspenseWrapper>,
+            },
+            {
+              path: 'contratos',
+              element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper>,
+            },
+            {
+              path: 'contatos',
+              element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper>,
+            },
+            {
+              path: 'gestao-equipes',
+              element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper>,
+            },
+            {
+              path: 'projetos',
+              element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper>,
             },
             {
               path: 'design-system',
