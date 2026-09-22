@@ -20,12 +20,14 @@ class PricingScenarioRepository:
         client_name: str,
         input_payload: dict,
         result_payload: dict,
+        prospect_id: uuid.UUID | None = None,
     ) -> PricingScenario:
         scenario = PricingScenario(
             user_id=user_id,
             client_name=client_name,
             input_payload=input_payload,
             result_payload=result_payload,
+            prospect_id=prospect_id,
         )
         self.session.add(scenario)
         self.session.flush()
@@ -61,6 +63,7 @@ class PricingScenarioRepository:
         client_name: str,
         input_payload: dict,
         result_payload: dict,
+        prospect_id: uuid.UUID | None = None,
     ) -> PricingScenario | None:
         scenario = self.get_scenario_by_id(user_id=user_id, scenario_id=scenario_id)
         if not scenario:
@@ -69,6 +72,7 @@ class PricingScenarioRepository:
         scenario.client_name = client_name
         scenario.input_payload = input_payload
         scenario.result_payload = result_payload
+        scenario.prospect_id = prospect_id
 
         self.session.flush()
         return scenario

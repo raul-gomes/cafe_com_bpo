@@ -9,7 +9,7 @@ Alembic. Todos os modelos vivem em `apps/backend/src/modules/{modulo}/models.py`
 O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 
 **Snapshot do banco real (`docker compose exec db psql -U postgres -d cafe_bpo`):**
-27 tabelas aplicadas, 44 foreign keys. 3 modelos **não migrados** (ver seção
+30 tabelas aplicadas, 49 foreign keys. 3 modelos **não migrados** (ver seção
 "Tabelas de modelo sem tabela no banco").
 
 ---
@@ -20,6 +20,8 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 |--------|-----------------------------|-------|
 | `auth` | `users` (inclui `asaas_customer_id`), `user_files`, `password_reset_tokens` | Identidade, perfil, senha, avatares |
 | `clients` | `clients` | Portfólio de clientes do usuário ("Empresas") |
+| `prospects` | `prospects` | Leads com dados cadastrais; convertible em Cliente |
+| `contracts` | `contract_templates`, `contracts` | Modelo padrão de contrato (único por usuário) + contratos gerados/finalizados |
 | `payments` | `payments` | Cobranças via Asaas |
 | `proposals` | `pricing_scenarios` (dono ativo) | Orçamentos (calculadora) |
 | `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas`, `user_template_archives` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
@@ -42,6 +44,7 @@ erDiagram
     users ||--o{ user_files : "user_id / avatar_file_id"
     users ||--o{ password_reset_tokens : "user_id"
     users ||--o{ clients : "user_id"
+    users ||--o{ prospects : "user_id"
     users ||--o{ pricing_scenarios : "user_id"
     users ||--o{ tasks : "user_id"
     users ||--o{ routine_types : "user_id"
@@ -65,6 +68,14 @@ erDiagram
     clients ||--o{ tasks : "client_id"
     clients ||--o{ client_template_assignments : "client_id"
     clients ||--o{ client_slas : "client_id"
+
+    prospects ||--o{ pricing_scenarios : "prospect_id"
+    prospects }o--o| clients : "converted_client_id (SET NULL)"
+    prospects ||--o{ contracts : "prospect_id"
+    pricing_scenarios ||--o{ contracts : "proposal_id"
+
+    users ||--o{ contract_templates : "user_id"
+    users ||--o{ contracts : "user_id"
 
     teams ||--o{ team_members : "team_id"
     teams ||--o{ team_invitations : "team_id"
@@ -219,10 +230,49 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | R | `team/repository.py` |
 | W | `team/repository.py` (`ensure_default_roles` — seed admin/member) |
 
+### `prospects` — dono: `prospects`
+> Leads com dados cadastrais apenas (nome/cnpj/telefone/email/cor/descrição/
+> segmento/endereço normalizado: `street`/`number`/`complement`/`neighborhood`/
+> `city`/`state`/`cep`). Sem times, rotinas ou SLA — é a origem de orçamentos e
+> contratos. Ao finalizar um contrato, o prospecto é convertido em Cliente:
+> `converted_client_id` aponta para o registro criado em `clients` e o prospecto
+> some da listagem ativa (`is_active=false`, `converted_at` preenchido).
+> **Migração `e7f8a9b0c1d2`**: endereço dividido (coluna `address` removida) em
+> `clients` e `prospects` — agora campos separados seguindo normalização de BD.
+| Direção | Quem |
+|---------|------|
+| R | `prospects/repository.py`, `prospects/router.py` |
+| R/W | `prospects/router.py` (CRUD + soft-delete) |
+| R/W | `prospects/service.py` (`convert_prospect` — cria `clients` e marca conversão; fonte única da regra) |
+| W | `proposals/repository.py`/`router.py` (referência `propect_id` em orçamentos) |
+
+### `contract_templates` — dono: `contracts`
+> Modelo padrão de contrato do usuário: **único por usuário** (`UNIQUE(user_id)`),
+> coluna `sections` (JSON — lista ordenada `{title, content}`). Novos contratos
+> são cópias editáveis deste modelo (com placeholders `{{...}}` substituídos).
+> **Migração `f8a9b0c1d2e3`**: cria `contract_templates` e `contracts`.
+| Direção | Quem |
+|---------|------|
+| R | `contracts/repository.py`, `contracts/router.py` |
+| R/W | `contracts/service.py`/`router.py` (`GET/PUT /contracts/templates`) |
+
+### `contracts` — dono: `contracts`
+> Contrato gerado a partir do modelo padrão: `status draft|finalized`,
+> `client_name`, `prospect_id` (FK SET NULL), `proposal_id` (FK SET NULL),
+> `sections` (JSON) e `finalized_at`. Ganha **draft** editável; ao **finalizar**
+> vira **finalizado/imutável** (edição/exclusão → 409) e o prospecto é convertido
+> em Cliente via `ProspectService.convert_prospect` (regra §7/§8 de regras_negocio).
+| Direção | Quem |
+|---------|------|
+| R | `contracts/repository.py`, `contracts/router.py` |
+| R/W | `contracts/service.py`/`router.py` (generate, PATCH draft, finalize, delete draft) |
+| R | `proposals/repository.py` (lookup do orçamento vinculado na geração) |
+
 ### `pricing_scenarios` — dono: `proposals`
 > Dono único. O modelo duplicado de `pricing/models.py` foi removido. O schema aplicado
 > no banco é o do `proposals` (`client_name`, `input_payload`, `result_payload`,
-> `client_id`, `is_active`, `deleted_at`).
+> `client_id`, `prospect_id`, `is_active`, `deleted_at`). `propect_id` (FK
+> `prospects.id`, SET NULL) liga o orçamento a um prospecto.
 | Direção | Quem |
 |---------|------|
 | R | `proposals/repository.py`, `dashboard/service.py`, `dashboard/router.py` |
@@ -434,7 +484,9 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 |--------|-------------------|----------|
 | `auth` | users, user_files, password_reset_tokens | `repository.py`, `service.py`, `router.py` |
 | `clients` | clients, teams (get_or_create), tasks (cascade), pricing_scenarios (cascade) | `repository.py`, `router.py` |
-| `proposals` | pricing_scenarios | `repository.py`, `router.py`, `service.py` |
+| `proposals` | pricing_scenarios (inclui prospect_id) | `repository.py`, `router.py`, `service.py` |
+| `prospects` | prospects, clients (conversão via service) | `repository.py`, `router.py`, `service.py` |
+| `contracts` | contract_templates, contracts, prospects, pricing_scenarios (leitura p/ placeholders), clients (conversão) | `repository.py`, `router.py`, `service.py` |
 | `task_manager` | tasks, task_phases, task_attachments, routine_types, activity_templates, template_activities, client_template_assignments, client_slas | `task/repository.py`, `templates/repository.py`, `assignments/repository.py`, `sla/repository.py`, `routine_types/repository.py`, `attachments/repository.py`, `scheduler.py` |
 | `team` | teams, team_members, team_invitations, invitation_routines, roles, activity_templates, clients, users | `repository.py`, `router.py` |
 | `network` | discussion_posts, discussion_comments, skills, user_skills, users | `repository.py`, `router.py` |
@@ -473,7 +525,8 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 |-----------|------------------|--------------|
 | `/auth/*` | `api/client.ts`, `context/AuthContext.tsx`, `api/clients.ts` (profile/avatar/logo) | LoginForm, RegisterForm, RegisterModal, ProtectedRoute, PanelSidebar, PanelNavbar, PerfilPage, ForgotPassword, ResetPassword, OAuthCallback, InvitationAccept |
 | `/clients/*` | `api/clients.ts`, `api/hooks/useTasks.ts` (useUpdateClient) | EmpresasPage (CRUD), OrcamentoDetalhadoPage, TasksPage, TaskModal, ClientTimelinePage |
-| `/proposals/*` | chamadas diretas a `apiClient` | OrcamentosPage (R/W), OrcamentoNovoPage (R/W), OrcamentoDetalhadoPage (R + send-email), DashboardPage (R/W legado), AuthContext (sync sessão) |
+| `/proposals/*` | chamadas diretas a `apiClient` | OrcamentosPage (R/W), OrcamentoNovoPage (R/W), OrcamentoDetalhadoPage (R + send-email), DashboardPage (R/W legado), AuthContext (sync sessão), NovoContratoModal (R de orçamentos do prospecto) |
+| `/contracts/*` | `api/contracts.ts` (funções, sem hook) | ContratosPage (templates + listagem), ContratoDetalhePage (R/W/finalize/delete), NovoContratoModal (generate) |
 | `/pricing/calculate` | `api/hooks/usePricing.ts` | **não consumido** — calculadora usa `lib/pricingEngine.ts` local |
 | `/tasks/*`, `/templates/*`, `/routines/*` | `api/hooks/useTasks.ts` (hub central) | TasksPage, TemplateListPage, TemplateDetailPage, EmpresasPage (assignments), ClientTimelinePage |
 | `/team/*` | `api/team.ts` (funções, sem hook) | EmpresasPage (invite/remove/resend), PendingInvitationCard (accept/decline), LoginForm/RegisterForm (invite_token), InvitationAcceptPage |
@@ -504,6 +557,8 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | NetworkPostPage | `/painel/forum/:id` | R `GET /network/posts/{id}`, `GET /comments` · W `POST comments`, `DELETE post` |
 | GaleriaArquivosPage | `/painel/galeria` | R `GET /gallery/`, `GET /gallery/common` · W uploads/deletes (comum só admin) |
 | DesignSystemPage | `/painel/design-system` (admin) | nenhuma |
+| ContratosPage | `/painel/contratos` | R `GET /contracts/`, `GET /contracts/template` · W `PUT /contracts/template`, `POST /contracts/generate` |
+| ContratoDetalhePage | `/painel/contrato/:id` | R `GET /contracts/{id}` · W `PATCH /contracts/{id}` (draft), `POST /contracts/{id}/finalize`, `DELETE /contracts/{id}` (draft) |
 
 ### Rotas públicas (sem painel)
 | Página | Rota | APIs |
@@ -519,7 +574,7 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 
 ## Tabelas de modelo sem tabela no banco (migrações pendentes/órfãs)
 
-O banco aplicado está em `276b8d51e2d9` (head atual do Alembic). A tabela abaixo
+O banco aplicado está em `f8a9b0c1d2e3` (head atual do Alembic). A tabela abaixo
 **existe no modelo mas NÃO existe no PostgreSQL** — sua migração é órfã
 (`down_revision` não pertence à cadeia principal):
 
@@ -541,11 +596,16 @@ O banco aplicado está em `276b8d51e2d9` (head atual do Alembic). A tabela abaix
 3. **Cascade de soft-delete em `clients`** — deletar um cliente desativa em cascata
    `tasks` e `pricing_scenarios` (mantém histórico com `deleted_at`). O frontend
    apresenta como "arquivar" (soft delete), não exclusão permanente.
-4. **Sistema único de notificação** — `app_notifications` é a única fonte de verdade
+4. **Conversão Prospecto→Cliente** — `prospects/service.py:convert_prospect` é a fonte
+   única da regra: cria registro em `clients` (mesmos dados cadastrais) e marca o
+   prospecto com `converted_client_id`/`converted_at` e `is_active=false`. A finalização
+   de contratos (`contracts/service.py` → `ContractService.finalize`) chama o mesmo
+   service (regras §7 e §8 de `docs/regras_negocio.md`).
+5. **Sistema único de notificação** — `app_notifications` é a única fonte de verdade
    (sininho + feed de atividades). A tabela `notifications` (network) foi removida e
    seus dados migrados para `app_notifications` com `related_entity_type/related_entity_id`
    (`discussion_post`) e `triggered_by_user_id`.
-5. **Workers acessam o banco fora da API** — scheduler de tarefas e worker de e-mail
+6. **Workers acessam o banco fora da API** — scheduler de tarefas e worker de e-mail
    usam `SessionLocal()` diretamente (rocketry), não passam por routers.
-6. **`email_deliveries` é a única fila** — todos os e-mails transacionais (reset de senha,
+7. **`email_deliveries` é a única fila** — todos os e-mails transacionais (reset de senha,
    convite, proposta, entrega de tarefa, custom) passam por ela.

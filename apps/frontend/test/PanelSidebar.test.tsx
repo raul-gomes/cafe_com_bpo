@@ -158,7 +158,7 @@ describe('PanelSidebar — dropdown de menus', () => {
     expect(screen.queryByRole('button', { name: 'Config' })).not.toBeInTheDocument()
   })
 
-  it('troca para Captar e renderiza seus submenus', () => {
+  it('troca para Captar e renderiza seus submenus (Prospectos primeiro, sem Contatos/Pagamentos que foram para Gestão)', () => {
     renderSidebar()
 
     fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
@@ -167,9 +167,11 @@ describe('PanelSidebar — dropdown de menus', () => {
     // Trigger agora exibe "Captar"
     expect(screen.getByRole('button', { name: /selecionar menu/i })).toHaveTextContent('Captar')
 
+    expect(screen.getByRole('button', { name: 'Prospectos' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Orçamentos' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Contratos' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Contatos' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Contatos' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Pagamentos' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Gestor de Tarefas' })).not.toBeInTheDocument()
   })
 
@@ -184,7 +186,7 @@ describe('PanelSidebar — dropdown de menus', () => {
     expect(screen.queryByRole('button', { name: 'Workana' })).not.toBeInTheDocument()
   })
 
-  it('troca para Gestão e renderiza Projetos e Gestão de equipes (sem Clientes, que ficou no Operacional)', () => {
+  it('troca para Gestão e renderiza Projetos, Gestão de equipes, Contatos e Pagamentos (sem Clientes, que ficou no Operacional)', () => {
     renderSidebar()
 
     fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
@@ -192,6 +194,8 @@ describe('PanelSidebar — dropdown de menus', () => {
 
     expect(screen.getByRole('button', { name: 'Projetos' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Gestão de equipes' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Contatos' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Pagamentos' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Clientes' })).not.toBeInTheDocument()
   })
 
@@ -226,7 +230,7 @@ describe('PanelSidebar — dropdown de menus', () => {
   })
 
   it.each([
-    ['Captar', '/painel/orcamentos'],
+    ['Captar', '/painel/prospectos'],
     ['Comunidade', '/painel/forum'],
     ['Gestão', '/painel/projetos'],
   ])('ao trocar para %s navega para a primeira opção do submenu (%s)', (menuLabel, expectedPath) => {

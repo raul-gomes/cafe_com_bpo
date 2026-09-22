@@ -15,6 +15,8 @@ interface MaskedInputBaseProps {
   required?: boolean;
   id?: string;
   name?: string;
+  onBlur?: React.FocusEventHandler<HTMLInputElement>;
+  onFocus?: React.FocusEventHandler<HTMLInputElement>;
 }
 
 /* ── Date mask helper ── */
@@ -54,6 +56,8 @@ export const MaskedInput: React.FC<MaskedInputProps> = ({
   required,
   id,
   name,
+  onBlur,
+  onFocus,
 }) => {
   const config = MASK_CONFIG[tipo];
   const isControlled = externalValue !== undefined;
@@ -91,6 +95,8 @@ export const MaskedInput: React.FC<MaskedInputProps> = ({
       required={required}
       id={id}
       name={name}
+      onBlur={onBlur}
+      onFocus={onFocus}
       maxLength={config.maxLength}
     />
   );

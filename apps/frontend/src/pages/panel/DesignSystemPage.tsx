@@ -118,6 +118,8 @@ import { ProjectCard } from '../../components/network/ProjectCard'
 import { ProjectApplicationsPanel } from '../../components/network/ProjectApplicationsPanel'
 import { GroupPostCard } from '../../components/network/GroupPostCard'
 import { ThreadReplies } from '../../components/network/ThreadReplies'
+import { ContractSectionDialog } from '../../components/contracts/ContractSectionDialog'
+import { ContractSectionsEditor } from '../../components/contracts/ContractSectionsEditor'
 
 import './DesignSystemPage.css'
 
@@ -127,7 +129,9 @@ const sections = [
   { id: 'display', icon: '🖼️', label: 'Exibição' },
   { id: 'feedback', icon: '💬', label: 'Feedback' },
   { id: 'overlay', icon: '📦', label: 'Sobreposições' },
+  { id: 'contratos', icon: '📄', label: 'Contratos' },
   { id: 'navigation', icon: '🧭', label: 'Navegação' },
+  { id: 'modes', icon: '🎨', label: 'Modos' },
 ]
 
 // ─── Section wrapper ──────────────────────────────────────────────────
@@ -1195,6 +1199,95 @@ toast.promise(fetchData(), {
               </div>
             ))}
           </Carousel>
+        </ComponentCard>
+      </Section>
+
+      {/* ═══════════ CONTRATOS ═══════════ */}
+      <Section id="contratos" icon="📄" title="Contratos">
+        <ComponentCard
+          name="ContractSectionsEditor"
+          description="Editor de seções ordenadas de contratos · título + conteúdo, reordenar, adicionar e remover · modo readOnly para contratos finalizados"
+          howToUse={`import { ContractSectionsEditor } from '../../components/contracts/ContractSectionsEditor'
+
+const [sections, setSections] = useState([
+  { title: 'Das Partes', content: 'Contratante: {{nome}}' },
+])
+
+// Editável (rascunho):
+<ContractSectionsEditor sections={sections} onChange={setSections} />
+
+// Somente leitura (finalizado):
+<ContractSectionsEditor sections={sections} readOnly />`}
+        >
+          <div className="ds-col">
+            <ContractSectionsEditor
+              sections={[
+                { title: 'Das Partes', content: 'Contratante: {{nome}}, inscrito sob CNPJ {{cnpj}}.' },
+                { title: 'Do Objeto', content: 'Prestação de serviços de BPO financeiro pelo valor mensal de {{valor_mensal}}.' },
+                { title: 'Da Vigência', content: 'O presente contrato terá vigência de 12 meses.' },
+              ]}
+              onChange={() => {}}
+            />
+          </div>
+        </ComponentCard>
+
+        <ComponentCard
+          name="ContractSectionDialog"
+          description="Dialog controlado para criar/editar uma seção de contrato (título input + conteúdo textarea)"
+          howToUse={`import { ContractSectionDialog } from '../../components/contracts/ContractSectionDialog'
+
+<ContractSectionDialog
+  open={open}
+  mode="create" // ou "edit"
+  initialTitle=""
+  initialContent=""
+  onSave={(title, content) => setSections([...sections, { title, content }])}
+  onClose={() => setOpen(false)}
+/>`}
+        >
+          <ContractSectionDialog
+            open={false}
+            mode="create"
+            onSave={() => {}}
+            onClose={() => {}}
+          />
+        </ComponentCard>
+      </Section>
+
+      {/* ═══════════ 6. MODOS ═══════════ */}
+      <Section id="modes" icon="🎨" title="Modos de Trabalho">
+        <ComponentCard
+          name="Modos"
+          description="Cada modo do painel (sidebar) aplica um acento próprio via data-mode no wrapper do painel — muda a percepção de 'modo de trabalho'. Operacional mantém o dourado da marca."
+          howToUse={`// PanelLayout aplica data-mode derivado do menu ativo:
+<div data-mode="captar">…painel…</div>
+
+// CSS (globals.css): sobrescreve os tokens de acento por modo:
+[data-mode="captar"] { --primary: 152 62% 45%; … }
+.light-theme [data-mode="captar"] { --primary: 152 65% 38%; … }`}
+        >
+          <div className="ds-col">
+            {[
+              { mode: 'operacional', label: 'Operacional', desc: 'Tarefas · Rotinas · Clientes' },
+              { mode: 'captar', label: 'Captar', desc: 'Orçamentos · Contratos · Contatos · Pagamentos' },
+              { mode: 'comunidade', label: 'Comunidade', desc: 'Fórum · Galeria' },
+              { mode: 'gestao', label: 'Gestão', desc: 'Projetos · Equipes' },
+              { mode: 'config', label: 'Config', desc: 'Design System' },
+            ].map((m) => (
+              <div
+                key={m.mode}
+                data-mode={m.mode}
+                className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
+              >
+                <span className="size-4 shrink-0 rounded-full" style={{ background: 'hsl(var(--primary))' }} />
+                <div className="flex-1">
+                  <div className="text-[13px] font-bold text-foreground">{m.label}</div>
+                  <div className="text-[11px] text-muted-foreground">{m.desc}</div>
+                </div>
+                <span className="text-[11px] font-semibold text-primary-strong">hsl(var(--primary))</span>
+              </div>
+            ))}
+          </div>
         </ComponentCard>
       </Section>
     </div>

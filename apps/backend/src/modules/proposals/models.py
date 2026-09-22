@@ -61,6 +61,11 @@ class PricingScenario(Base):
     client_id = Column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True
     )
+    prospect_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("prospects.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     input_payload = Column(JSONText(), nullable=False)
     result_payload = Column(JSONText(), nullable=False)
     created_at = Column(

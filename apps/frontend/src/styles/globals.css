@@ -77,6 +77,115 @@
     --font-sans: 'Inter', sans-serif;
   }
 
+  /* ── Painel por modo de trabalho ──
+     O wrapper do painel recebe `data-mode` e sobrescreve os tokens de acento
+     (dark por padrão). Operacional mantém o dourado da marca. */
+
+  [data-mode="captar"] {
+    --primary: 152 62% 45%;
+    --accent: 152 62% 45%;
+    --ring: 152 62% 45%;
+    --chart-1: 152 62% 45%;
+    --ds-primary-strong: #4ade80;
+    --ds-primary-soft: rgba(74, 222, 128, 0.10);
+    --ds-primary-dark: #22c55e;
+    --ds-primary-btn-text: #4ade80;
+    --ds-primary-btn-border: rgba(74, 222, 128, 0.2);
+    --ds-primary-btn-hover-bg: rgba(74, 222, 128, 0.1);
+  }
+
+  [data-mode="comunidade"] {
+    --primary: 262 83% 68%;
+    --accent: 262 83% 68%;
+    --ring: 262 83% 68%;
+    --chart-1: 262 83% 68%;
+    --ds-primary-strong: #a78bfa;
+    --ds-primary-soft: rgba(167, 139, 250, 0.10);
+    --ds-primary-dark: #8b5cf6;
+    --ds-primary-btn-text: #a78bfa;
+    --ds-primary-btn-border: rgba(167, 139, 250, 0.2);
+    --ds-primary-btn-hover-bg: rgba(167, 139, 250, 0.1);
+  }
+
+  [data-mode="gestao"] {
+    --primary: 217 91% 60%;
+    --accent: 217 91% 60%;
+    --ring: 217 91% 60%;
+    --chart-1: 217 91% 60%;
+    --ds-primary-strong: #60a5fa;
+    --ds-primary-soft: rgba(96, 165, 250, 0.10);
+    --ds-primary-dark: #3b82f6;
+    --ds-primary-btn-text: #60a5fa;
+    --ds-primary-btn-border: rgba(96, 165, 250, 0.2);
+    --ds-primary-btn-hover-bg: rgba(96, 165, 250, 0.1);
+  }
+
+  [data-mode="config"] {
+    --primary: 0 0% 55%;
+    --accent: 0 0% 55%;
+    --ring: 0 0% 55%;
+    --chart-1: 0 0% 55%;
+    --ds-primary-strong: #a1a1aa;
+    --ds-primary-soft: rgba(161, 161, 170, 0.10);
+    --ds-primary-dark: #71717a;
+    --ds-primary-btn-text: #a1a1aa;
+    --ds-primary-btn-border: rgba(161, 161, 170, 0.2);
+    --ds-primary-btn-hover-bg: rgba(161, 161, 170, 0.1);
+  }
+
+  /* ── Tema claro por modo ── */
+  .light-theme [data-mode="captar"] {
+    --primary: 152 65% 38%;
+    --accent: 152 65% 38%;
+    --ring: 152 65% 38%;
+    --chart-1: 152 65% 38%;
+    --ds-primary-strong: #15803d;
+    --ds-primary-soft: rgba(21, 128, 61, 0.10);
+    --ds-primary-dark: #16a34a;
+    --ds-primary-btn-text: #15803d;
+    --ds-primary-btn-border: rgba(21, 128, 61, 0.3);
+    --ds-primary-btn-hover-bg: rgba(21, 128, 61, 0.1);
+  }
+
+  .light-theme [data-mode="comunidade"] {
+    --primary: 262 83% 52%;
+    --accent: 262 83% 52%;
+    --ring: 262 83% 52%;
+    --chart-1: 262 83% 52%;
+    --ds-primary-strong: #6d28d9;
+    --ds-primary-soft: rgba(109, 40, 217, 0.10);
+    --ds-primary-dark: #7c3aed;
+    --ds-primary-btn-text: #6d28d9;
+    --ds-primary-btn-border: rgba(109, 40, 217, 0.3);
+    --ds-primary-btn-hover-bg: rgba(109, 40, 217, 0.1);
+  }
+
+  .light-theme [data-mode="gestao"] {
+    --primary: 217 91% 50%;
+    --accent: 217 91% 50%;
+    --ring: 217 91% 50%;
+    --chart-1: 217 91% 50%;
+    --ds-primary-strong: #1d4ed8;
+    --ds-primary-soft: rgba(29, 78, 216, 0.10);
+    --ds-primary-dark: #2563eb;
+    --ds-primary-btn-text: #1d4ed8;
+    --ds-primary-btn-border: rgba(29, 78, 216, 0.3);
+    --ds-primary-btn-hover-bg: rgba(29, 78, 216, 0.1);
+  }
+
+  .light-theme [data-mode="config"] {
+    --primary: 0 0% 45%;
+    --accent: 0 0% 45%;
+    --ring: 0 0% 45%;
+    --chart-1: 0 0% 45%;
+    --ds-primary-strong: #52525b;
+    --ds-primary-soft: rgba(82, 82, 91, 0.10);
+    --ds-primary-dark: #71717a;
+    --ds-primary-btn-text: #52525b;
+    --ds-primary-btn-border: rgba(82, 82, 91, 0.3);
+    --ds-primary-btn-hover-bg: rgba(82, 82, 91, 0.1);
+  }
+
   .light-theme {
     /* ── Light theme ── */
     --background: 0 0% 96%;
@@ -140,6 +249,16 @@
 
   * {
     @apply border-border outline-ring/50;
+  }
+
+  .mode-transition,
+  .mode-transition * {
+    transition:
+      background-color 0.3s ease,
+      border-color 0.3s ease,
+      color 0.3s ease,
+      fill 0.3s ease,
+      stroke 0.3s ease;
   }
 
   body {

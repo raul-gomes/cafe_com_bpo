@@ -13,6 +13,8 @@ interface PanelSidebarProps {
   onToggleTheme?: () => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  mode?: string;
+  onModeChange?: (modeId: string) => void;
 }
 
 /* ── SVG icon components (kept as-is from original) ── */
@@ -43,6 +45,12 @@ const icons = {
   tasks: (
     <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
+    </svg>
+  ),
+  prospects: (
+    <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 2l8 4-8 4-8-4z" /><path d="M4 6v5c0 3 3.6 5.5 8 6.5 4.4-1 8-3.5 8-6.5V6" />
+      <path d="M4 12.7V18c0 2 3.6 3 8 3s8-1 8-3v-5.3" />
     </svg>
   ),
   gallery: (
@@ -155,10 +163,9 @@ const NAV_MENUS: MenuConfig[] = [
     label: 'Captar',
     icon: icons.menu.captar,
     items: [
+      { path: '/painel/prospectos', icon: icons.prospects, label: 'Prospectos' },
       { path: '/painel/orcamentos', icon: icons.proposals, label: 'Orçamentos' },
       { path: '/painel/contratos', icon: icons.contracts, label: 'Contratos' },
-      { path: '/painel/contatos', icon: icons.contacts, label: 'Contatos' },
-      { path: '/painel/pagamentos', icon: icons.payments, label: 'Pagamentos' },
     ],
   },
   {
@@ -177,6 +184,8 @@ const NAV_MENUS: MenuConfig[] = [
     items: [
       { path: '/painel/projetos', icon: icons.projects, label: 'Projetos' },
       { path: '/painel/gestao-equipes', icon: icons.teams, label: 'Gestão de equipes' },
+      { path: '/painel/contatos', icon: icons.contacts, label: 'Contatos' },
+      { path: '/painel/pagamentos', icon: icons.payments, label: 'Pagamentos' },
     ],
   },
   {
@@ -199,30 +208,41 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
   onToggleTheme,
   collapsed = false,
   onToggleCollapsed,
+  mode,
+  onModeChange,
 }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
   const [showDonateModal, setShowDonateModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
-  const [activeMenuId, setActiveMenuId] = useState<string>(() => {
-    const saved = localStorage.getItem('cafe_bpo_active_menu');
-    return saved || 'operacional';
+  const [internalMode, setInternalMode] = useState<string>(() => {
+    try {
+      return localStorage.getItem('cafe_bpo_active_menu') || 'operacional';
+    } catch {
+      return 'operacional';
+    }
   });
   const [menuOpen, setMenuOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  const activeMenuId = mode ?? internalMode;
+  const isControlled = typeof mode === 'string';
 
   const isAdmin = user?.role === 'admin';
   const visibleMenus = NAV_MENUS.filter((menu) => !menu.adminOnly || isAdmin);
   const activeMenu = visibleMenus.find((menu) => menu.id === activeMenuId) ?? visibleMenus[0];
 
+  // Persist internal (uncontrolled) mode for backward compat / standalone usage
   useEffect(() => {
-    try {
-      localStorage.setItem('cafe_bpo_active_menu', activeMenuId);
-    } catch {
-      // localStorage may be unavailable
+    if (!isControlled) {
+      try {
+        localStorage.setItem('cafe_bpo_active_menu', internalMode);
+      } catch {
+        // localStorage may be unavailable
+      }
     }
-  }, [activeMenuId]);
+  }, [internalMode, isControlled]);
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -245,7 +265,11 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
   };
 
   const handleSelectMenu = (menu: MenuConfig) => {
-    setActiveMenuId(menu.id);
+    if (isControlled) {
+      onModeChange?.(menu.id);
+    } else {
+      setInternalMode(menu.id);
+    }
     setMenuOpen(false);
     // Sempre seleciona (navega para) a primeira opção do submenu do menu escolhido
     if (menu.items.length > 0) {
@@ -256,6 +280,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
 
   const isActive = (path: string) => {
     if (path === '/painel' && (location.pathname === '/painel' || location.pathname === '/painel/')) return true;
+    if (path === '/painel/contratos' && location.pathname.startsWith('/painel/contrato/')) return true;
     return path !== '/painel' && location.pathname.startsWith(path);
   };
 
@@ -346,7 +371,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
         <div className={cn('h-px bg-border', collapsed ? 'mx-2' : 'mx-6')} />
 
         {/* Menu selector (below Editar Perfil) */}
-        <div className={cn('py-3', collapsed ? 'px-2' : 'px-3')} ref={dropdownRef}>
+        <div className={cn('pt-3', collapsed ? 'px-2' : 'px-3')} ref={dropdownRef}>
           <button
             type="button"
             onClick={() => setMenuOpen((open) => !open)}
@@ -396,10 +421,8 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
           )}
         </div>
 
-        <div className={cn('h-px bg-border', collapsed ? 'mx-2' : 'mx-6')} />
-
         {/* Navigation — submenus of active menu */}
-        <div className={cn('flex-1 py-4', collapsed ? 'px-2' : 'px-3')}>
+        <div className={cn('flex-1 pt-1', collapsed ? 'px-2' : 'px-3')}>
           <nav className="flex flex-col gap-0.5">
             {activeMenu.items.map((item) => (
               <button

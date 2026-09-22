@@ -43,6 +43,9 @@ interface PricingCalculatorLayoutProps {
   onSave?: (data: PricingFormData, clientName: string) => void;
   saveButtonLabel?: string;
   isEditing?: boolean;
+  prospects?: { id: string; name: string; email?: string }[];
+  prospectId?: string | null;
+  onProspectChange?: (prospectId: string | null) => void;
 }
 
 export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = ({
@@ -51,7 +54,10 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   isSaving = false,
   onSave,
   saveButtonLabel = 'Salvar Proposta',
-  isEditing = false
+  isEditing = false,
+  prospects = [],
+  prospectId,
+  onProspectChange
 }) => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -278,9 +284,13 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
   const activeServicesCount = watchedValues?.services?.filter(s => s.active).length || 0;
   const hasActiveService = activeServicesCount > 0;
 
-  // Validação do Cliente
+  // Validação do Cliente (lógica nova: prospecto vinculado também é válido)
   const selectedClient = clients.find(c => c.name.trim().toLowerCase() === clientName.trim().toLowerCase());
-  const isClientValid = !!selectedClient;
+  const selectedProspect = prospects.find(p => p.id === prospectId);
+  const isLinkedProspect =
+    !!prospectId &&
+    (selectedProspect ? selectedProspect.name === clientName : clientName.trim().length > 0);
+  const isClientValid = !!selectedClient || isLinkedProspect;
   const showClientError = clientName.trim().length > 0 && !isClientValid && !showNewClientForm;
 
   const handlePrimaryAction = () => {
@@ -308,7 +318,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
       pricing,
       logoUrl: finalLogoUrl,
       clientName: clientName,
-      clientEmail: selectedClient?.email || '', // Busca o email do cliente selecionado
+      clientEmail: selectedClient?.email || selectedProspect?.email || '', // Email do cliente/prospecto selecionado
       provider: user
     });
 
@@ -364,6 +374,33 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                   </button>
                 </div>
 
+                {prospects.length > 0 && (
+                  <div style={{ marginBottom: '12px' }}>
+                    <label className="ds-label" style={{ fontSize: '11px' }}>Vincular a um Prospecto</label>
+                    <select
+                      className="ds-input"
+                      value={prospectId ?? ''}
+                      onChange={e => {
+                        const selectedId = e.target.value;
+                        if (selectedId) {
+                          const prospect = prospects.find(p => p.id === selectedId);
+                          if (prospect) {
+                            setClientName(prospect.name);
+                            onProspectChange?.(selectedId);
+                          }
+                        } else {
+                          onProspectChange?.(null);
+                        }
+                      }}
+                    >
+                      <option value="">Nenhum prospecto</option>
+                      {prospects.map(p => (
+                        <option key={p.id} value={p.id}>{p.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
                 {!showNewClientForm ? (
                   <>
                     <input 
@@ -371,6 +408,7 @@ export const PricingCalculatorLayout: React.FC<PricingCalculatorLayoutProps> = (
                       value={clientName} 
                       onChange={e => {
                         setClientName(e.target.value);
+                        if (prospectId) onProspectChange?.(null);
                         setShowClientMenu(true);
                       }} 
                       onFocus={() => setShowClientMenu(true)}

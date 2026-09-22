@@ -74,30 +74,43 @@ def test_get_clients_success_and_isolation(client):
     assert "Outro Cliente do B" in names
 
 
-def test_create_client_with_address(client):
+def test_create_client_with_normalized_address(client):
     email = f"client_addr_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
 
     payload = {
         "name": "Empresa com Endereço",
         "cnpj": "98.765.432/0001-10",
-        "address": "Rua Example, 123, Centro, São Paulo - SP, 01001-000",
+        "street": "Rua Example",
+        "number": "123",
+        "neighborhood": "Centro",
+        "city": "São Paulo",
+        "state": "SP",
+        "cep": "01001-000",
     }
 
     resp = client.post("/clients/", json=payload, headers=auth)
     assert resp.status_code == 201
     data = resp.json()
-    assert data["address"] == "Rua Example, 123, Centro, São Paulo - SP, 01001-000"
+    assert data["street"] == "Rua Example"
+    assert data["number"] == "123"
+    assert data["neighborhood"] == "Centro"
+    assert data["city"] == "São Paulo"
+    assert data["state"] == "SP"
+    assert data["cep"] == "01001-000"
     assert data["cnpj"] == "98765432000110"
 
-    # GET should also return address
+    # GET should also return address fields
     resp_get = client.get("/clients/", headers=auth)
     assert resp_get.status_code == 200
     clients = resp_get.json()
-    assert any(c["address"] == payload["address"] for c in clients)
+    assert any(
+        c["street"] == payload["street"] and c["city"] == payload["city"]
+        for c in clients
+    )
 
 
-def test_update_client_address(client):
+def test_update_client_address_fields(client):
     email = f"client_upd_addr_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
 
@@ -105,16 +118,16 @@ def test_update_client_address(client):
     resp = client.post("/clients/", json={"name": "Empresa Teste"}, headers=auth)
     client_id = resp.json()["id"]
 
-    # Update with address
+    # Update with address fields
     resp_upd = client.put(
         f"/clients/{client_id}",
-        json={"address": "Av. Paulista, 1000, Bela Vista, São Paulo - SP"},
+        json={"street": "Av. Paulista", "number": "1000", "neighborhood": "Bela Vista"},
         headers=auth,
     )
     assert resp_upd.status_code == 200
-    assert (
-        resp_upd.json()["address"] == "Av. Paulista, 1000, Bela Vista, São Paulo - SP"
-    )
+    assert resp_upd.json()["street"] == "Av. Paulista"
+    assert resp_upd.json()["number"] == "1000"
+    assert resp_upd.json()["neighborhood"] == "Bela Vista"
 
 
 def test_update_client_sanitizes_cnpj_and_phone(client):

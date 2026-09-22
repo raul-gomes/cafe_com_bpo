@@ -43,6 +43,7 @@ def create_proposal(
             client_name=proposal.client_name,
             input_payload=proposal.input_payload,
             result_payload=proposal.result_payload,
+            prospect_id=proposal.prospect_id,
         )
         repo.session.commit()
         repo.session.refresh(new_scenario)
@@ -96,6 +97,7 @@ def update_proposal(
             client_name=proposal.client_name,
             input_payload=proposal.input_payload,
             result_payload=proposal.result_payload,
+            prospect_id=proposal.prospect_id,
         )
         if not updated:
             log.warning(

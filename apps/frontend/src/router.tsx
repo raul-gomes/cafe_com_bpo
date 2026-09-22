@@ -46,6 +46,9 @@ export async function buildRouter() {
   const { ProjectGroupPage } = await import('./pages/panel/ProjectGroupPage')
   const { TasksPage } = await import('./pages/panel/TasksPage')
   const { EmpresasPage } = await import('./pages/panel/EmpresasPage')
+  const { ProspectosPage } = await import('./pages/panel/ProspectosPage')
+  const { ContratosPage } = await import('./pages/panel/ContratosPage')
+  const { ContratoDetalhePage } = await import('./pages/panel/ContratoDetalhePage')
   const { PaymentsPage } = await import('./pages/panel/PaymentsPage')
   const { TemplateListPage } = await import('./pages/panel/TemplateListPage')
   const { TemplateDetailPage } = await import('./pages/panel/TemplateDetailPage')
@@ -153,6 +156,10 @@ export async function buildRouter() {
               element: <SuspenseWrapper><EmpresasPage /></SuspenseWrapper>,
             },
             {
+              path: 'prospectos',
+              element: <SuspenseWrapper><ProspectosPage /></SuspenseWrapper>,
+            },
+            {
               path: 'pagamentos',
               element: <SuspenseWrapper><PaymentsPage /></SuspenseWrapper>,
             },
@@ -166,7 +173,11 @@ export async function buildRouter() {
             },
             {
               path: 'contratos',
-              element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper>,
+              element: <SuspenseWrapper><ContratosPage /></SuspenseWrapper>,
+            },
+            {
+              path: 'contrato/:id',
+              element: <SuspenseWrapper><ContratoDetalhePage /></SuspenseWrapper>,
             },
             {
               path: 'contatos',

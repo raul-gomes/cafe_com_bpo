@@ -22,9 +22,18 @@ function getInitialCollapsed(): boolean {
   }
 }
 
+function getInitialMode(): string {
+  try {
+    return localStorage.getItem('cafe_bpo_active_menu') || 'operacional';
+  } catch {
+    return 'operacional';
+  }
+}
+
 export const PanelLayout: React.FC = () => {
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
   const [collapsed, setCollapsed] = useState<boolean>(getInitialCollapsed);
+  const [mode, setMode] = useState<string>(getInitialMode);
 
   useEffect(() => {
     try {
@@ -34,6 +43,14 @@ export const PanelLayout: React.FC = () => {
     }
     document.documentElement.classList.toggle('light-theme', theme === 'light');
   }, [theme]);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem('cafe_bpo_active_menu', mode);
+    } catch {
+      // localStorage may be unavailable
+    }
+  }, [mode]);
 
   const toggleTheme = useCallback(() => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark');
@@ -52,7 +69,9 @@ export const PanelLayout: React.FC = () => {
   }, []);
 
   return (
-    <div className={`grid h-screen w-screen overflow-hidden${theme === 'light' ? ' light-theme' : ''}`}
+    <div
+      data-mode={mode}
+      className={`panel-mode-grid grid h-screen w-screen overflow-hidden mode-transition${theme === 'light' ? ' light-theme' : ''}`}
       style={{ gridTemplateColumns: collapsed ? '72px 1fr' : '260px 1fr', gridTemplateRows: '1fr' }}>
       <aside className="col-start-1 row-start-1">
         <PanelSidebar 
@@ -62,6 +81,8 @@ export const PanelLayout: React.FC = () => {
           onToggleTheme={toggleTheme}
           collapsed={collapsed}
           onToggleCollapsed={toggleCollapsed}
+          mode={mode}
+          onModeChange={setMode}
         />
       </aside>
       <main className="panel-main relative col-start-2 row-start-1 overflow-y-auto bg-background p-7 text-foreground">

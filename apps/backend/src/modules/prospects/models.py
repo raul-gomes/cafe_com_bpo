@@ -5,12 +5,17 @@ from sqlalchemy import UUID, Boolean, Column, DateTime, ForeignKey, String, Text
 from src.core.database import Base
 
 
-class Client(Base):
+class Prospect(Base):
     """
-    Representa a entidade de um Cliente (Empresa) vinculado a um Usuário.
+    Representa um Prospecto (lead com dados cadastrais apenas) vinculado
+    a um Usuário. Diferente do Cliente, um prospecto não possui times,
+    rotinas ou SLA — serve como origem de orçamentos e contratos.
+
+    Quando um contrato é finalizado, o prospecto é convertido em Cliente
+    (converted_client_id aponta para o registro criado em `clients`).
     """
 
-    __tablename__ = "clients"
+    __tablename__ = "prospects"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(
@@ -32,6 +37,11 @@ class Client(Base):
     city = Column(String(100), nullable=True)
     state = Column(String(50), nullable=True)
     cep = Column(String(20), nullable=True)
+
+    converted_client_id = Column(
+        UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True
+    )
+    converted_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

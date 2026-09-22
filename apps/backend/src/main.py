@@ -17,6 +17,7 @@ from src.core.rate_limit import limiter
 from src.modules.auth.router import router as auth_router
 from src.modules.calendar.router import router as calendar_router
 from src.modules.clients.router import router as clients_router
+from src.modules.contracts.router import router as contracts_router
 from src.modules.dashboard.router import router as dashboard_router
 from src.modules.emails.router import router as emails_router
 from src.modules.emails.scheduler import email_scheduler_instance
@@ -27,6 +28,7 @@ from src.modules.notifications.router import router as notifications_router
 from src.modules.payments.router import router as payments_router
 from src.modules.pricing.router import router as pricing_router
 from src.modules.proposals.router import router as proposals_router
+from src.modules.prospects.router import router as prospects_router
 from src.modules.task_manager import router as tasks_router
 from src.modules.task_manager.scheduler import scheduler_instance
 from src.modules.team.router import router as team_router
@@ -129,8 +131,10 @@ def create_app() -> FastAPI:
     app.include_router(pricing_router)
     app.include_router(auth_router)
     app.include_router(proposals_router)
+    app.include_router(prospects_router)
     app.include_router(gallery_router)
     app.include_router(clients_router)
+    app.include_router(contracts_router)
     app.include_router(network_router)
     app.include_router(tasks_router)
     app.include_router(dashboard_router)

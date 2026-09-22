@@ -4,6 +4,7 @@ import { PricingCalculatorLayout } from '../../components/pricing/PricingCalcula
 import { apiClient } from '../../api/client';
 import { calculatePricing } from '../../lib/pricingEngine';
 import { PricingFormData } from '../../schemas/pricing';
+import { getProspects, ProspectData } from '../../api/prospects';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Skeleton } from '../../components/ui/skeleton';
 import { toast } from 'sonner';
@@ -13,8 +14,15 @@ export const OrcamentoNovoPage: React.FC = () => {
   const navigate = useNavigate();
   const [initialData, setInitialData] = useState<PricingFormData | undefined>(undefined);
   const [clientName, setClientName] = useState('');
+  const [prospectId, setProspectId] = useState<string | null>(null);
+  const [prospects, setProspects] = useState<ProspectData[]>([]);
   const [loading, setLoading] = useState(!!id);
   const [saving, setSaving] = useState(false);
+  useEffect(() => {
+    getProspects()
+      .then(setProspects)
+      .catch(err => console.error('Erro ao carregar prospectos:', err));
+  }, []);
   useEffect(() => {
     if (id) {
       const fetchProposal = async () => {
@@ -22,6 +30,7 @@ export const OrcamentoNovoPage: React.FC = () => {
           const resp = await apiClient.get(`/proposals/${id}`);
           setInitialData(resp.data.input_payload);
           setClientName(resp.data.client_name);
+          setProspectId(resp.data.prospect_id ?? null);
         } catch (err) {
           console.error('Erro ao carregar orçamento:', err);
           toast.error('Não foi possível carregar o orçamento.');
@@ -60,11 +69,12 @@ export const OrcamentoNovoPage: React.FC = () => {
         formData.term_discount
       );
 
-      const payload = {
+      const payload: Record<string, unknown> = {
         client_name: name,
         input_payload: formData,
         result_payload: result
       };
+      if (prospectId) payload.prospect_id = prospectId;
 
       if (id) {
         await apiClient.put(`/proposals/${id}`, payload);
@@ -108,6 +118,9 @@ export const OrcamentoNovoPage: React.FC = () => {
           isSaving={saving}
           saveButtonLabel={id ? 'Salvar Alterações' : 'Criar Orçamento'}
           isEditing={!!id}
+          prospects={prospects.map(p => ({ id: p.id, name: p.name, email: p.email }))}
+          prospectId={prospectId}
+          onProspectChange={setProspectId}
         />
       </div>
     </div>

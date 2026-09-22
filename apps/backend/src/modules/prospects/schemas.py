@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, EmailStr, field_validator
 
 
-class ClientBase(BaseModel):
+class ProspectBase(BaseModel):
     name: str
     cnpj: str | None = None
     phone: str | None = None
@@ -42,20 +42,26 @@ class ClientBase(BaseModel):
         return cleaned
 
 
-class ClientCreate(ClientBase):
+class ProspectCreate(ProspectBase):
     pass
 
 
-class ClientUpdate(ClientBase):
+class ProspectUpdate(ProspectBase):
     name: str | None = None
 
 
-class ClientResponse(ClientBase):
+class ProspectResponse(ProspectBase):
     id: UUID
     user_id: UUID
-    role: str = "owner"  # "owner" | "member"
+    converted_client_id: UUID | None = None
+    converted_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 
     class Config:
         from_attributes = True
+
+
+class ProspectConvertResponse(BaseModel):
+    prospect_id: UUID
+    client_id: UUID
