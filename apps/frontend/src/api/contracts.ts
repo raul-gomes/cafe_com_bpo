@@ -23,6 +23,10 @@ export interface ContractTemplateData {
   updated_at: string;
 }
 
+export interface ContractPreviewData {
+  sections: ContractSection[];
+}
+
 export interface ContractFinalizeResponse {
   contract_id: string;
   client_id: string | null;
@@ -56,6 +60,11 @@ export const getContracts = async () => {
 export const getContract = async (id: string) => {
   const response = await apiClient.get(`/contracts/${id}`);
   return response.data as ContractData;
+};
+
+export const previewContract = async (id: string) => {
+  const response = await apiClient.get(`/contracts/${id}/preview`);
+  return response.data as ContractPreviewData;
 };
 
 export const updateContract = async (id: string, sections: ContractSection[]) => {

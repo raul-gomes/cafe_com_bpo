@@ -81,6 +81,7 @@ describe('ContratosPage', () => {
         <Routes>
           <Route path="/painel/contratos" element={<ContratosPage />} />
           <Route path="/painel/contrato/:id" element={<div data-testid="detail-route">detalhe</div>} />
+          <Route path="/painel/contrato/:id/visualizar" element={<div data-testid="view-route">visualizar</div>} />
         </Routes>
       </MemoryRouter>
     )
@@ -107,6 +108,13 @@ describe('ContratosPage', () => {
     expect(await screen.findByTestId('detail-route')).toBeInTheDocument()
   })
 
+  it('navega para a visualização do contrato ao clicar em Visualizar', async () => {
+    renderPage()
+    const viewBtn = await screen.findByTestId('view-contract-c2')
+    fireEvent.click(viewBtn)
+    expect(await screen.findByTestId('view-route')).toBeInTheDocument()
+  })
+
   it('carrega o modelo padrão e permite salvar alterações', async () => {
     renderPage()
     const user = userEvent.setup()
@@ -130,6 +138,21 @@ describe('ContratosPage', () => {
       ...TEMPLATE.sections,
       { title: 'Da Vigência', content: '12 meses.' },
     ])
+  })
+
+  it('visualiza o modelo padrão com os tokens como estão', async () => {
+    renderPage()
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('tab', { name: /modelo padrão/i }))
+    await user.click(await screen.findByTestId('template-preview-button'))
+
+    expect(await screen.findByText('Modelo padrão de contrato')).toBeInTheDocument()
+    expect(screen.getAllByText('{{nome}}').length).toBeGreaterThan(0)
+    expect(screen.getByText(/aguardam preenchimento manual/i)).toBeInTheDocument()
+
+    await user.click(screen.getByTestId('template-preview-button'))
+    expect(screen.queryByText(/aguardam preenchimento manual/i)).not.toBeInTheDocument()
   })
 
   it('abre o modal de novo contrato e navega após gerar', async () => {

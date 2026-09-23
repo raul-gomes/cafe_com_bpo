@@ -47,3 +47,7 @@ class ContractResponse(BaseModel):
 class ContractFinalizeResponse(BaseModel):
     contract_id: UUID
     client_id: UUID | None = None
+
+
+class ContractPreviewResponse(BaseModel):
+    sections: list[ContractSection]

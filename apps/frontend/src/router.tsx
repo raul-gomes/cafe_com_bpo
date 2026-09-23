@@ -49,6 +49,7 @@ export async function buildRouter() {
   const { ProspectosPage } = await import('./pages/panel/ProspectosPage')
   const { ContratosPage } = await import('./pages/panel/ContratosPage')
   const { ContratoDetalhePage } = await import('./pages/panel/ContratoDetalhePage')
+  const { VisualizarContratoPage } = await import('./pages/panel/VisualizarContratoPage')
   const { PaymentsPage } = await import('./pages/panel/PaymentsPage')
   const { TemplateListPage } = await import('./pages/panel/TemplateListPage')
   const { TemplateDetailPage } = await import('./pages/panel/TemplateDetailPage')
@@ -178,6 +179,10 @@ export async function buildRouter() {
             {
               path: 'contrato/:id',
               element: <SuspenseWrapper><ContratoDetalhePage /></SuspenseWrapper>,
+            },
+            {
+              path: 'contrato/:id/visualizar',
+              element: <SuspenseWrapper><VisualizarContratoPage /></SuspenseWrapper>,
             },
             {
               path: 'contatos',

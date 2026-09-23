@@ -1,8 +1,10 @@
+from copy import deepcopy
 from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from .default_template import DEFAULT_TEMPLATE_SECTIONS
 from .models import Contract, ContractTemplate
 from .schemas import ContractSection
 
@@ -23,8 +25,14 @@ class ContractRepository:
     def get_or_create_template(self, user_id: UUID) -> ContractTemplate:
         template = self.get_template(user_id)
         if template is not None:
+            if not template.sections:
+                template.sections = deepcopy(DEFAULT_TEMPLATE_SECTIONS)
+                self.session.commit()
+                self.session.refresh(template)
             return template
-        template = ContractTemplate(user_id=user_id, sections=[])
+        template = ContractTemplate(
+            user_id=user_id, sections=deepcopy(DEFAULT_TEMPLATE_SECTIONS)
+        )
         self.session.add(template)
         self.session.commit()
         self.session.refresh(template)

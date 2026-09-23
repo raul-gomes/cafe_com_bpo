@@ -13,6 +13,7 @@ from src.modules.contracts.repository import ContractRepository
 from src.modules.contracts.schemas import (
     ContractFinalizeResponse,
     ContractGenerate,
+    ContractPreviewResponse,
     ContractResponse,
     ContractTemplateResponse,
     ContractTemplateUpdate,
@@ -80,6 +81,19 @@ def update_template(
     return template
 
 
+def _contractada_from_user(user: UserResponse) -> dict:
+    return {
+        "name": user.name,
+        "email": user.email,
+        "company_name": user.company_name,
+        "company_razao_social": user.company_razao_social,
+        "company_nome_fantasia": user.company_nome_fantasia,
+        "company_cnpj": user.company_cnpj,
+        "company_address": user.company_address,
+        "company_professional_email": user.company_professional_email,
+    }
+
+
 @router.post("/generate", response_model=ContractResponse, status_code=201)
 def generate_contract(
     payload: ContractGenerate,
@@ -89,13 +103,16 @@ def generate_contract(
     """Gera um novo contrato a partir do modelo padrão do usuário.
 
     Copia as seções do modelo e substitui os placeholders `{{token}}`
-    pelos dados do prospecto (e do orçamento, se vinculado).
+    pelos dados do prospecto, do orçamento (se vinculado) e da empresa
+    contratada (dados do perfil do usuário).
     """
+    contractada = _contractada_from_user(current_user)
     try:
         contract = service.generate_contract(
             user_id=current_user.id,
             prospect_id=payload.prospect_id,
             proposal_id=payload.proposal_id,
+            contractada=contractada,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
@@ -111,6 +128,30 @@ def list_contracts(repo: ContractRepoDep, current_user: CurrentUserDep):
     contracts = repo.list_contracts(current_user.id)
     log.debug(f"📋 Usuário {current_user.email} listou {len(contracts)} contratos")
     return contracts
+
+
+@router.get("/{contract_id}/preview", response_model=ContractPreviewResponse)
+def preview_contract(
+    contract_id: UUID,
+    service: ServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Resolve os tokens das seções com os dados atuais do prospecto, do
+    orçamento vinculado e da empresa contratada (perfil) — para visualização.
+
+    Tokens sem fonte permanecem literais `{{...}}`.
+    """
+    try:
+        sections = service.preview_contract(
+            current_user.id,
+            contract_id,
+            contractada=_contractada_from_user(current_user),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    log.debug(f"👁️ Visualização do contrato {contract_id} por {current_user.email}")
+    return ContractPreviewResponse(sections=sections)
 
 
 @router.get("/{contract_id}", response_model=ContractResponse)

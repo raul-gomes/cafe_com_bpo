@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowRight, FileText, Info, Plus } from 'lucide-react';
+import { Eye, FileText, Info, Plus } from 'lucide-react';
 import {
   getContracts,
   getContractTemplate,
@@ -10,6 +10,7 @@ import {
 } from '../../api/contracts';
 import { NovoContratoModal } from '../../components/contracts/NovoContratoModal';
 import { ContractSectionsEditor } from '../../components/contracts/ContractSectionsEditor';
+import { ContractDocument } from '../../components/contracts/ContractDocument';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -19,9 +20,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/ta
 import { toast } from 'sonner';
 
 const PLACEHOLDER_GROUPS: string[][] = [
-  ['{{nome}}', '{{cnpj}}', '{{telefone}}', '{{email}}', '{{segmento}}'],
-  ['{{rua}}', '{{numero}}', '{{complemento}}', '{{bairro}}', '{{cidade}}', '{{uf}}', '{{cep}}'],
-  ['{{valor_mensal}}', '{{valor_servicos}}', '{{valor_sem_desconto}}', '{{pessoas}}', '{{horas}}', '{{complexidade}}', '{{faturamento}}', '{{desconto_prazo}}'],
+  ['{{empresa_contratada}}', '{{cnpj_contratada}}', '{{endereco_contratada}}', '{{socio_contratada}}', '{{email_contratada}}'],
+  ['{{nome}}', '{{cnpj}}', '{{telefone}}', '{{email}}', '{{segmento}}', '{{endereco}}', '{{cidade}}', '{{uf}}'],
+  ['{{rua}}', '{{numero}}', '{{complemento}}', '{{bairro}}', '{{cep}}'],
+  ['{{valor_mensal}}', '{{valor_mensal_extenso}}', '{{valor_servicos}}', '{{valor_sem_desconto}}', '{{pessoas}}', '{{horas}}', '{{complexidade}}', '{{faturamento}}', '{{desconto_prazo}}', '{{servicos_contratados}}'],
+  ['{{cpf_contratada}}', '{{municipio_contratada}}', '{{socio_contratante}}', '{{cpf_contratante}}', '{{dia}}', '{{mes}}', '{{ano}}'],
 ];
 
 export const ContratosPage: React.FC = () => {
@@ -37,6 +40,7 @@ export const ContratosPage: React.FC = () => {
   const [templateLoaded, setTemplateLoaded] = useState(false);
   const [templateDirty, setTemplateDirty] = useState(false);
   const [templateSaving, setTemplateSaving] = useState(false);
+  const [templatePreviewOpen, setTemplatePreviewOpen] = useState(false);
 
   const [newContractOpen, setNewContractOpen] = useState(false);
 
@@ -159,28 +163,38 @@ export const ContratosPage: React.FC = () => {
             <div className="flex flex-col gap-3">
               {contracts.map((contract) => (
                 <Card key={contract.id} className="p-4">
-                  <button
-                    type="button"
-                    className="flex w-full items-center gap-3 text-left"
-                    onClick={() => navigate(`/painel/contrato/${contract.id}`)}
-                    data-testid={`contract-card-${contract.id}`}
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-strong">
-                      <FileText className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-foreground">
-                        {contract.client_name}
+                  <div className="flex items-center gap-3">
+                    <button
+                      type="button"
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                      onClick={() => navigate(`/painel/contrato/${contract.id}`)}
+                      data-testid={`contract-card-${contract.id}`}
+                    >
+                      <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary-strong">
+                        <FileText className="size-4" />
                       </span>
-                      <span className="block text-xs text-muted-foreground">
-                        {contract.sections.length} seções · criado em {formatDate(contract.created_at)}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold text-foreground">
+                          {contract.client_name}
+                        </span>
+                        <span className="block text-xs text-muted-foreground">
+                          {contract.sections.length} seções · criado em {formatDate(contract.created_at)}
+                        </span>
                       </span>
-                    </span>
-                    <Badge variant={contract.status === 'finalized' ? 'secondary' : 'default'}>
-                      {contract.status === 'finalized' ? 'Finalizado' : 'Rascunho'}
-                    </Badge>
-                    <ArrowRight className="size-4 text-muted-foreground" />
-                  </button>
+                      <Badge variant={contract.status === 'finalized' ? 'secondary' : 'default'}>
+                        {contract.status === 'finalized' ? 'Finalizado' : 'Rascunho'}
+                      </Badge>
+                    </button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => navigate(`/painel/contrato/${contract.id}/visualizar`)}
+                      data-testid={`view-contract-${contract.id}`}
+                    >
+                      <Eye className="size-3.5" />
+                      <span className="hidden sm:inline">Visualizar</span>
+                    </Button>
+                  </div>
                 </Card>
               ))}
             </div>
@@ -194,9 +208,10 @@ export const ContratosPage: React.FC = () => {
               <div className="text-xs leading-relaxed text-muted-foreground">
                 <p className="font-semibold text-foreground">Tokens disponíveis</p>
                 <p className="mt-1">
-                  Ao gerar um contrato, os tokens abaixo são substituídos pelos dados
-                  do prospecto (nome, CNPJ, endereço, ...) e do orçamento vinculado (valores,
-                  pessoas, horas, ...). Tokens sem valor permanecem como estão.
+                  Ao gerar um contrato, os tokens abaixo são substituídos pelos dados da
+                  sua empresa (CONTRATADA, do perfil), do prospecto (CONTRATANTE) e do
+                  orçamento vinculado. Tokens sem valor permanecem no texto para
+                  preenchimento manual antes da finalização.
                 </p>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   {PLACEHOLDER_GROUPS.flat().map((token) => (
@@ -223,6 +238,15 @@ export const ContratosPage: React.FC = () => {
             <div className="flex justify-end gap-2">
               <Button
                 variant="outline"
+                onClick={() => setTemplatePreviewOpen((open) => !open)}
+                disabled={templateLoading || templateSaving}
+                data-testid="template-preview-button"
+              >
+                <Eye className="size-3.5" />
+                {templatePreviewOpen ? 'Ocultar visualização' : 'Visualizar modelo'}
+              </Button>
+              <Button
+                variant="outline"
                 onClick={loadTemplate}
                 disabled={templateLoading || templateSaving}
               >
@@ -236,6 +260,13 @@ export const ContratosPage: React.FC = () => {
                 {templateSaving ? 'Salvando...' : 'Salvar modelo padrão'}
               </Button>
             </div>
+
+            {templatePreviewOpen && !templateLoading && (
+              <ContractDocument
+                clientName="Modelo padrão de contrato"
+                sections={templateSections}
+              />
+            )}
           </div>
         </TabsContent>
       </Tabs>

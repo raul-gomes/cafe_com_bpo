@@ -118,8 +118,8 @@ import { ProjectCard } from '../../components/network/ProjectCard'
 import { ProjectApplicationsPanel } from '../../components/network/ProjectApplicationsPanel'
 import { GroupPostCard } from '../../components/network/GroupPostCard'
 import { ThreadReplies } from '../../components/network/ThreadReplies'
-import { ContractSectionDialog } from '../../components/contracts/ContractSectionDialog'
 import { ContractSectionsEditor } from '../../components/contracts/ContractSectionsEditor'
+import { ContractDocument } from '../../components/contracts/ContractDocument'
 
 import './DesignSystemPage.css'
 
@@ -1206,7 +1206,7 @@ toast.promise(fetchData(), {
       <Section id="contratos" icon="📄" title="Contratos">
         <ComponentCard
           name="ContractSectionsEditor"
-          description="Editor de seções ordenadas de contratos · título + conteúdo, reordenar, adicionar e remover · modo readOnly para contratos finalizados"
+          description="Editor de seções de contratos por acordeom · clique na seta para expandir e editar inline (título + conteúdo) · reordenação por drag & drop · adicionar/remover · modo readOnly para contratos finalizados"
           howToUse={`import { ContractSectionsEditor } from '../../components/contracts/ContractSectionsEditor'
 
 const [sections, setSections] = useState([
@@ -1232,25 +1232,28 @@ const [sections, setSections] = useState([
         </ComponentCard>
 
         <ComponentCard
-          name="ContractSectionDialog"
-          description="Dialog controlado para criar/editar uma seção de contrato (título input + conteúdo textarea)"
-          howToUse={`import { ContractSectionDialog } from '../../components/contracts/ContractSectionDialog'
+          name="ContractDocument"
+          description="Renderização do contrato completo em formato de documento para leitura: folha estilizada, título, seções com cabeçalhos e tokens pendentes {{...}} destacados em âmbar + legenda de preenchimento manual"
+          howToUse={`import { ContractDocument } from '../../components/contracts/ContractDocument'
 
-<ContractSectionDialog
-  open={open}
-  mode="create" // ou "edit"
-  initialTitle=""
-  initialContent=""
-  onSave={(title, content) => setSections([...sections, { title, content }])}
-  onClose={() => setOpen(false)}
+<ContractDocument
+  clientName="Alpha Consultoria"
+  sections={[
+    { title: 'Das Partes', content: 'Contratante: {{nome}}' },
+    { title: 'Do Objeto', content: 'Serviços de BPO financeiro.' },
+  ]}
 />`}
         >
-          <ContractSectionDialog
-            open={false}
-            mode="create"
-            onSave={() => {}}
-            onClose={() => {}}
-          />
+          <div className="ds-col">
+            <ContractDocument
+              clientName="Alpha Consultoria"
+              sections={[
+                { title: 'Das Partes', content: 'Contratante: {{nome}}, inscrito sob CNPJ {{cnpj}}.' },
+                { title: 'Do Objeto', content: 'Prestação de serviços de BPO financeiro pelo valor mensal de {{valor_mensal}}.' },
+                { title: 'Da Vigência', content: 'O presente contrato terá vigência de 12 meses.' },
+              ]}
+            />
+          </div>
         </ComponentCard>
       </Section>
 

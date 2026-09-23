@@ -57,6 +57,7 @@ describe('ContratoDetalhePage', () => {
           <Routes>
             <Route path="/painel/contrato/:id" element={<ContratoDetalhePage />} />
             <Route path="/painel/contratos" element={<div data-testid="contracts-route">contratos</div>} />
+            <Route path="/painel/contrato/:id/visualizar" element={<div data-testid="view-route">visualizar</div>} />
           </Routes>
         </ConfirmProvider>
       </MemoryRouter>
@@ -69,6 +70,15 @@ describe('ContratoDetalhePage', () => {
     expect(screen.getByText('Rascunho')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /salvar alterações/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /finalizar contrato/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /visualizar/i })).toBeInTheDocument()
+  })
+
+  it('navega para a visualização do contrato ao clicar em Visualizar', async () => {
+    renderPage()
+    const user = userEvent.setup()
+
+    await user.click(await screen.findByRole('button', { name: /visualizar/i }))
+    expect(await screen.findByTestId('view-route')).toBeInTheDocument()
   })
 
   it('edita uma seção e salva as alterações', async () => {

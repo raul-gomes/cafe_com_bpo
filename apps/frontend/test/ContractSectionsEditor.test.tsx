@@ -22,7 +22,7 @@ describe('ContractSectionsEditor', () => {
     expect(screen.getByText(`${'x'.repeat(140)}...`)).toBeInTheDocument()
   })
 
-  it('adiciona uma seção pelo dialog e notifica onChange', async () => {
+  it('adiciona uma seção pelo editor inline e notifica onChange', async () => {
     const user = userEvent.setup()
     const onChange = vi.fn()
     render(<ContractSectionsEditor sections={BASE} onChange={onChange} />)
@@ -36,6 +36,29 @@ describe('ContractSectionsEditor', () => {
       ...BASE,
       { title: 'Da Vigência', content: '12 meses de vigência.' },
     ])
+  })
+
+  it('expande uma seção ao clicar na seta para editar inline', async () => {
+    const user = userEvent.setup()
+    render(<ContractSectionsEditor sections={BASE} onChange={() => {}} />)
+
+    expect(screen.queryByTestId('section-editor-0')).not.toBeInTheDocument()
+    await user.click(screen.getAllByRole('button', { name: /editar seção/i })[0])
+    expect(screen.getByTestId('section-editor-0')).toBeInTheDocument()
+  })
+
+  it('cancelar a edição inline não altera as seções', async () => {
+    const user = userEvent.setup()
+    const onChange = vi.fn()
+    render(<ContractSectionsEditor sections={BASE} onChange={onChange} />)
+
+    await user.click(screen.getAllByRole('button', { name: /editar seção/i })[0])
+    await user.clear(screen.getByTestId('contract-section-title'))
+    await user.type(screen.getByTestId('contract-section-title'), 'Alteração descartada')
+    await user.click(screen.getByRole('button', { name: /cancelar/i }))
+
+    expect(onChange).not.toHaveBeenCalled()
+    expect(screen.getByText('Das Partes')).toBeInTheDocument()
   })
 
   it('salva sem criar seção com título vazio', async () => {

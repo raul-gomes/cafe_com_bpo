@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, FileText, Lock } from 'lucide-react';
 import {
   deleteContract,
   finalizeContract,
@@ -170,9 +170,14 @@ export const ContratoDetalhePage: React.FC = () => {
             </p>
           </div>
         </div>
-        <Button variant="ghost" onClick={() => navigate('/painel/contratos')}>
-          <ArrowLeft className="size-4" /> Voltar
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" onClick={() => navigate(`/painel/contrato/${contract.id}/visualizar`)}>
+            <Eye className="size-4" /> Visualizar
+          </Button>
+          <Button variant="ghost" onClick={() => navigate('/painel/contratos')}>
+            <ArrowLeft className="size-4" /> Voltar
+          </Button>
+        </div>
       </div>
 
       {isFinalized && (
