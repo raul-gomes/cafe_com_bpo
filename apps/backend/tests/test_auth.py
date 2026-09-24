@@ -119,6 +119,7 @@ def test_update_profile_with_company_fields(client):
     headers = {"Authorization": f"Bearer {token}"}
 
     update_payload = {
+        "cpf": "390.533.447-05",
         "whatsapp": "11988887777",
         "company_razao_social": "Minha Empresa Ltda",
         "company_nome_fantasia": "Minha Empresa",
@@ -134,6 +135,7 @@ def test_update_profile_with_company_fields(client):
     assert resp.status_code == 200
     data = resp.json()
 
+    assert data["cpf"] == "39053344705"
     assert data["whatsapp"] == "11988887777"
     assert data["company_razao_social"] == "Minha Empresa Ltda"
     assert data["company_nome_fantasia"] == "Minha Empresa"
@@ -150,8 +152,41 @@ def test_update_profile_with_company_fields(client):
     assert resp_get.json()["whatsapp"] == "11988887777"
 
 
-def test_update_profile_sanitizes_cnpj_and_phones(client):
-    """PATCH /auth/me normaliza CNPJ e telefones (remove máscara/pontuação)."""
+def test_update_profile_with_company_address_fields(client):
+    """PATCH /auth/me aceita e retorna endereço estruturado da empresa"""
+    email = f"addr_{uuid4()}@cafe.com"
+    register_user(payload={"email": email, "password": "StrongPassword123!"})
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    headers = {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+    payload = {
+        "company_street": "Rua das Flores",
+        "company_number": "100",
+        "company_complement": "Sala 2",
+        "company_neighborhood": "Centro",
+        "company_city": "São Paulo",
+        "company_state": "SP",
+        "company_cep": "01310-100",
+    }
+    resp = client.patch("/auth/me", json=payload, headers=headers)
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["company_street"] == "Rua das Flores"
+    assert data["company_number"] == "100"
+    assert data["company_complement"] == "Sala 2"
+    assert data["company_neighborhood"] == "Centro"
+    assert data["company_city"] == "São Paulo"
+    assert data["company_state"] == "SP"
+    assert data["company_cep"] == "01310-100"
+
+    resp_get = client.get("/auth/me", headers=headers)
+    assert resp_get.json()["company_city"] == "São Paulo"
+
+
+def test_update_profile_sanitizes_cpf_cnpj_and_phones(client):
+    """PATCH /auth/me normaliza CPF, CNPJ e telefones (remove máscara/pontuação)."""
     email = f"sani_{uuid4()}@cafe.com"
     register_user(payload={"email": email, "password": "StrongPassword123!"})
     resp = client.post(
@@ -163,6 +198,7 @@ def test_update_profile_sanitizes_cnpj_and_phones(client):
     resp = client.patch(
         "/auth/me",
         json={
+            "cpf": "390.533.447-05",
             "whatsapp": "(11) 98888-7777",
             "company_cnpj": "12.345.678/0001-99",
             "company_commercial_phone": "+55 11 3333-4444",
@@ -171,6 +207,7 @@ def test_update_profile_sanitizes_cnpj_and_phones(client):
     )
     assert resp.status_code == 200
     data = resp.json()
+    assert data["cpf"] == "39053344705"
     assert data["whatsapp"] == "11988887777"
     assert data["company_cnpj"] == "12345678000199"
     assert data["company_commercial_phone"] == "551133334444"

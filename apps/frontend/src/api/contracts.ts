@@ -7,14 +7,34 @@ export interface ContractSection {
 
 export interface ContractData {
   id: string;
+  number: number | null;
   prospect_id: string | null;
   proposal_id: string | null;
   client_name: string;
   sections: ContractSection[];
+  fields: Record<string, unknown> | null;
   status: 'draft' | 'finalized';
   finalized_at: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface ContractFieldDescriptor {
+  key: string;
+  label: string;
+  kind?: 'text' | 'number' | 'date' | 'select' | 'boolean' | 'money' | 'list';
+  hint?: string | null;
+  options?: string[] | null;
+  default?: unknown;
+  required?: boolean;
+  group?: string;
+  list_fields?: { key: string; label: string; kind?: string }[];
+  rows?: Record<string, unknown>[];
+}
+
+export interface ContractMissingFieldsData {
+  fields: ContractFieldDescriptor[];
+  count: number;
 }
 
 export interface ContractTemplateData {
@@ -35,11 +55,31 @@ export interface ContractFinalizeResponse {
 export interface ContractGeneratePayload {
   prospect_id: string;
   proposal_id?: string | null;
+  fields?: Record<string, unknown>;
 }
 
 export const getContractTemplate = async () => {
   const response = await apiClient.get('/contracts/templates');
   return response.data as ContractTemplateData;
+};
+
+export const getContractMissingFields = async (
+  prospectId: string,
+  proposalId?: string | null,
+) => {
+  const response = await apiClient.post('/contracts/missing-fields', {
+    prospect_id: prospectId,
+    proposal_id: proposalId ?? null,
+  });
+  return response.data as ContractMissingFieldsData;
+};
+
+export const updateContractFields = async (
+  id: string,
+  fields: Record<string, unknown>,
+) => {
+  const response = await apiClient.patch(`/contracts/${id}/fields`, { fields });
+  return response.data as ContractData;
 };
 
 export const updateContractTemplate = async (sections: ContractSection[]) => {

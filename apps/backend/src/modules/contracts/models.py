@@ -8,6 +8,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     Text,
     TypeDecorator,
@@ -100,7 +101,10 @@ class Contract(Base):
         nullable=True,
     )
     client_name = Column(String(255), nullable=False)
+    number = Column(Integer, nullable=True)
     sections = Column(JSONText(), default=list, nullable=False)
+    template_sections = Column(JSONText(), default=list, nullable=False)
+    fields = Column(JSONText(), default=dict, nullable=True)
     status = Column(String(20), default=STATUS_DRAFT, nullable=False)
     finalized_at = Column(DateTime(timezone=True), nullable=True)
 

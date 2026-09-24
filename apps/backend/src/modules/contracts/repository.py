@@ -2,9 +2,13 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from uuid import UUID
 
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from .default_template import DEFAULT_TEMPLATE_SECTIONS
+from .default_template import (
+    DEFAULT_TEMPLATE_SECTIONS,
+    LEGACY_DEFAULT_TEMPLATE_SECTIONS,
+)
 from .models import Contract, ContractTemplate
 from .schemas import ContractSection
 
@@ -25,7 +29,11 @@ class ContractRepository:
     def get_or_create_template(self, user_id: UUID) -> ContractTemplate:
         template = self.get_template(user_id)
         if template is not None:
-            if not template.sections:
+            # Modelo vazio ou legado (pré-contrato.pdf) → re-seed no novo padrão.
+            if (
+                not template.sections
+                or template.sections == LEGACY_DEFAULT_TEMPLATE_SECTIONS
+            ):
                 template.sections = deepcopy(DEFAULT_TEMPLATE_SECTIONS)
                 self.session.commit()
                 self.session.refresh(template)
@@ -67,6 +75,18 @@ class ContractRepository:
             .first()
         )
 
+    def next_contract_number(self, user_id: UUID) -> int:
+        """Próximo número sequencial do contrato para o usuário (por BPO)."""
+        last = (
+            self.session.query(func.max(Contract.number))
+            .filter(
+                Contract.user_id == user_id,
+                Contract.number.isnot(None),
+            )
+            .scalar()
+        )
+        return int(last or 0) + 1
+
     def create_contract(
         self,
         user_id: UUID,
@@ -74,6 +94,9 @@ class ContractRepository:
         proposal_id: UUID | None,
         client_name: str,
         sections: list[dict],
+        number: int | None = None,
+        fields: dict | None = None,
+        template_sections: list[dict] | None = None,
     ) -> Contract:
         contract = Contract(
             user_id=user_id,
@@ -81,6 +104,9 @@ class ContractRepository:
             proposal_id=proposal_id,
             client_name=client_name,
             sections=sections,
+            template_sections=template_sections or sections,
+            number=number,
+            fields=fields,
             status=Contract.STATUS_DRAFT,
         )
         self.session.add(contract)
@@ -91,7 +117,25 @@ class ContractRepository:
     def set_contract_sections(
         self, contract: Contract, sections: list[ContractSection]
     ) -> Contract:
-        contract.sections = [s.model_dump() for s in sections]
+        raw = [s.model_dump() for s in sections]
+        contract.sections = raw
+        # Alterações manuais passam a ser o snapshot base de re-render.
+        contract.template_sections = deepcopy(raw)
+        self.session.commit()
+        self.session.refresh(contract)
+        return contract
+
+    def set_contract_fields(self, contract: Contract, fields: dict) -> Contract:
+        contract.fields = fields
+        self.session.commit()
+        self.session.refresh(contract)
+        return contract
+
+    def set_contract_data(
+        self, contract: Contract, sections: list[dict], fields: dict
+    ) -> Contract:
+        contract.sections = sections
+        contract.fields = fields
         self.session.commit()
         self.session.refresh(contract)
         return contract

@@ -1,15 +1,19 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, CheckCircle2, Eye, FileText, Lock } from 'lucide-react';
+import { ArrowLeft, CheckCircle2, Eye, FileText, Lock, Pencil } from 'lucide-react';
 import {
   deleteContract,
   finalizeContract,
   getContract,
+  getContractMissingFields,
   updateContract,
+  updateContractFields,
   ContractData,
+  ContractFieldDescriptor,
   ContractSection,
 } from '../../api/contracts';
 import { ContractSectionsEditor } from '../../components/contracts/ContractSectionsEditor';
+import { ContractFieldsModal } from '../../components/contracts/ContractFieldsModal';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
@@ -30,6 +34,10 @@ export const ContratoDetalhePage: React.FC = () => {
   const [dirty, setDirty] = useState(false);
   const [saving, setSaving] = useState(false);
   const [finalizing, setFinalizing] = useState(false);
+
+  const [fieldsOpen, setFieldsOpen] = useState(false);
+  const [fieldsDescriptors, setFieldsDescriptors] = useState<ContractFieldDescriptor[]>([]);
+  const [fieldsLoading, setFieldsLoading] = useState(false);
 
   const loadContract = async () => {
     if (!id) return;
@@ -116,6 +124,34 @@ export const ContratoDetalhePage: React.FC = () => {
     }
   };
 
+  const handleEditFields = async () => {
+    if (!contract) return;
+    try {
+      setFieldsLoading(true);
+      const data = await getContractMissingFields(
+        contract.prospect_id as string,
+        contract.proposal_id,
+      );
+      setFieldsDescriptors(data.fields);
+      setFieldsOpen(true);
+    } catch (err) {
+      console.error(err);
+      toast.error('Não foi possível carregar os dados do contrato.');
+    } finally {
+      setFieldsLoading(false);
+    }
+  };
+
+  const handleSaveFields = async (fields: Record<string, unknown>) => {
+    if (!contract) return;
+    const updated = await updateContractFields(contract.id, fields);
+    setContract(updated);
+    setSections(updated.sections);
+    setDirty(false);
+    setFieldsOpen(false);
+    toast.success('Dados do contrato atualizados.');
+  };
+
   const formatDate = (value: string | null) =>
     value ? new Date(value).toLocaleDateString('pt-BR') : '—';
 
@@ -165,12 +201,23 @@ export const ContratoDetalhePage: React.FC = () => {
               </Badge>
             </h1>
             <p className="mt-1 text-sm text-muted-foreground">
+              {contract.number ? `Contrato nº ${String(contract.number).padStart(4, '0')} · ` : ''}
               Criado em {formatDate(contract.created_at)}
               {contract.finalized_at && ` · finalizado em ${formatDate(contract.finalized_at)}`}
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {!isFinalized && contract.prospect_id && (
+            <Button
+              variant="outline"
+              onClick={handleEditFields}
+              disabled={fieldsLoading}
+              data-testid="edit-contract-fields-button"
+            >
+              <Pencil className="size-4" /> {fieldsLoading ? 'Carregando...' : 'Editar dados'}
+            </Button>
+          )}
           <Button variant="outline" onClick={() => navigate(`/painel/contrato/${contract.id}/visualizar`)}>
             <Eye className="size-4" /> Visualizar
           </Button>
@@ -232,6 +279,17 @@ export const ContratoDetalhePage: React.FC = () => {
           </div>
         </div>
       )}
+
+      <ContractFieldsModal
+        open={fieldsOpen}
+        title="Dados do contrato"
+        description="Atualize os dados informados na geração. As seções do contrato serão recalculadas com os novos valores."
+        descriptors={fieldsDescriptors}
+        initialValues={contract.fields ?? undefined}
+        submitLabel="Salvar dados"
+        onClose={() => setFieldsOpen(false)}
+        onSubmit={handleSaveFields}
+      />
     </div>
   );
 };

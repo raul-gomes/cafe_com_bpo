@@ -123,11 +123,12 @@ function renderContent(content: string): React.ReactNode[] {
     if (lines[i].trim().startsWith('|') && isTableSeparator(lines[i + 1])) {
       flush();
       const block: string[] = [];
+      const tableIndex = i;
       while (i < lines.length && lines[i].trim().startsWith('|')) {
         block.push(lines[i]);
         i++;
       }
-      nodes.push(renderTable(block));
+      nodes.push(<React.Fragment key={`table-${tableIndex}`}>{renderTable(block)}</React.Fragment>);
     } else {
       plain.push(lines[i]);
       i++;

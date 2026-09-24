@@ -1,4 +1,5 @@
 import { screen, fireEvent, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { AuthProvider } from '../src/context/AuthContext'
 import { PerfilPage } from '../src/pages/panel/PerfilPage'
@@ -41,6 +42,13 @@ vi.mock('../src/api/clients', () => ({
   uploadAvatar: vi.fn().mockResolvedValue({ avatar_url: 'https://example.com/avatar.png' }),
   updateProfile: mockUpdateProfile,
 }))
+
+vi.mock('../src/lib/brasilApi', () => ({
+  lookupCnpj: vi.fn(),
+  lookupCep: vi.fn(),
+}))
+
+import { lookupCnpj, lookupCep } from '../src/lib/brasilApi'
 
 // Static import of apiClient — vi.mock hoisting ensures we get the mocked version
 import { apiClient as _apiClient } from '../src/api/client'
@@ -96,12 +104,57 @@ describe('PerfilPage', () => {
     expect(emailInput.disabled).toBe(true)
   })
 
+  it('renders masked CPF in Dados Pessoais and saves it unmasked', async () => {
+    mockUser({ ...BASE_USER, cpf: '39053344705' })
+
+    renderPage()
+
+    await screen.findByDisplayValue('390.533.447-05')
+
+    const cpfInput = screen.getByDisplayValue('390.533.447-05')
+    fireEvent.change(cpfInput, { target: { value: '111.444.777-35' } })
+    expect(screen.getByDisplayValue('111.444.777-35')).toBeInTheDocument()
+
+    const saveBtn = screen.getByText('Salvar Alterações')
+    fireEvent.click(saveBtn)
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith(expect.objectContaining({
+        cpf: '11144477735',
+      }))
+    })
+  })
+
+  it('renders Cargo do Representante in Dados Pessoais and saves it', async () => {
+    mockUser({ ...BASE_USER, representante_cargo: 'Sócio' })
+
+    renderPage()
+
+    await screen.findByDisplayValue('Sócio')
+
+    const cargoInput = screen.getByDisplayValue('Sócio')
+    fireEvent.change(cargoInput, { target: { value: 'Diretor Administrativo' } })
+
+    const saveBtn = screen.getByText('Salvar Alterações')
+    fireEvent.click(saveBtn)
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith(expect.objectContaining({
+        representante_cargo: 'Diretor Administrativo',
+      }))
+    })
+  })
+
   it('switches to Empresa tab and shows all company fields', async () => {
     mockUser({
       ...BASE_USER,
       company_razao_social: 'Café com BPO Serviços Ltda',
       company_nome_fantasia: 'Café com BPO',
       company_cnpj: '12.345.678/0001-99',
+      company_city: 'São Paulo',
+      company_state: 'SP',
+      company_cep: '01310100',
+      company_professional_email: 'contato@cafe.com',
     })
 
     renderPage()
@@ -109,7 +162,7 @@ describe('PerfilPage', () => {
     // Wait for page to load
     await screen.findByDisplayValue('Raul Gomes')
 
-    // Switch to company tab
+    // Switch to company tab (abas Empresa e Contato foram unificadas)
     const companyTab = screen.getByText('Empresa')
     fireEvent.click(companyTab)
 
@@ -117,7 +170,15 @@ describe('PerfilPage', () => {
       expect(screen.getByDisplayValue('Café com BPO Serviços Ltda')).toBeInTheDocument()
       expect(screen.getByDisplayValue('Café com BPO')).toBeInTheDocument()
       expect(screen.getByDisplayValue('12.345.678/0001-99')).toBeInTheDocument()
+      // campos vindos da antiga aba Contato agora estão na aba Empresa
+      expect(screen.getByDisplayValue('contato@cafe.com')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('São Paulo')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('SP')).toBeInTheDocument()
+      expect(screen.getByDisplayValue('01310-100')).toBeInTheDocument()
     })
+
+    // A aba Contato não existe mais
+    expect(screen.queryByText('Contato')).not.toBeInTheDocument()
   })
 
   it('saves all profile fields via updateProfile', async () => {
@@ -152,6 +213,124 @@ describe('PerfilPage', () => {
       expect(mockUpdateProfile).toHaveBeenCalledWith(expect.objectContaining({
         whatsapp: '11999990000',
         company_cnpj: '98765432000110',
+      }))
+    })
+  })
+
+  it('autofills company and address data from CNPJ lookup on blur (aba Empresa)', async () => {
+    const user = userEvent.setup()
+    mockUser(BASE_USER)
+    ;(lookupCnpj as ReturnType<typeof vi.fn>).mockResolvedValue({
+      razao_social: 'Empresa XPTO LTDA',
+      nome_fantasia: '',
+      logradouro: 'Avenida Paulista',
+      numero: '1000',
+      complemento: 'Sala 2',
+      bairro: 'Bela Vista',
+      municipio: 'São Paulo',
+      uf: 'SP',
+      cep: '01310100',
+      email: 'contato@xpto.com',
+      ddd_telefone_1: '11988887777',
+    })
+
+    renderPage()
+
+    await screen.findByDisplayValue('Raul Gomes')
+
+    fireEvent.click(screen.getByText('Empresa'))
+
+    const cnpjInput = await screen.findByPlaceholderText('Ex: 12.345.678/0001-99')
+    await user.type(cnpjInput, '12345678000199')
+    fireEvent.blur(cnpjInput)
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Rua / Avenida')).toHaveValue('Avenida Paulista')
+    })
+    expect(screen.getByPlaceholderText('Número')).toHaveValue('1000')
+    expect(screen.getByPlaceholderText('Bairro')).toHaveValue('Bela Vista')
+    expect(screen.getByPlaceholderText('Cidade')).toHaveValue('São Paulo')
+    expect(screen.getByPlaceholderText('UF')).toHaveValue('SP')
+    expect(screen.getByPlaceholderText('00000-000')).toHaveValue('01310-100')
+    expect(screen.getByPlaceholderText('Ex: contato@empresa.com')).toHaveValue('contato@xpto.com')
+    expect(screen.getByPlaceholderText('Ex: BPO Soluções Financeiras Ltda')).toHaveValue('Empresa XPTO LTDA')
+    expect(lookupCnpj).toHaveBeenCalledWith('12.345.678/0001-99')
+  })
+
+  it('does not autofill when CNPJ is not found', async () => {
+    const user = userEvent.setup()
+    mockUser(BASE_USER)
+    ;(lookupCnpj as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+
+    renderPage()
+
+    await screen.findByDisplayValue('Raul Gomes')
+    fireEvent.click(screen.getByText('Empresa'))
+
+    const cnpjInput = await screen.findByPlaceholderText('Ex: 12.345.678/0001-99')
+    await user.type(cnpjInput, '12345678000199')
+    fireEvent.blur(cnpjInput)
+
+    await waitFor(() => {
+      expect(lookupCnpj).toHaveBeenCalledWith('12.345.678/0001-99')
+    })
+    expect(screen.getByPlaceholderText('Rua / Avenida')).toHaveValue('')
+    expect(screen.getByPlaceholderText('Ex: BPO Soluções Financeiras Ltda')).toHaveValue('')
+  })
+
+  it('autofills address data from CEP lookup on blur (aba Empresa)', async () => {
+    const user = userEvent.setup()
+    mockUser(BASE_USER)
+    ;(lookupCep as ReturnType<typeof vi.fn>).mockResolvedValue({
+      cep: '01310100',
+      state: 'SP',
+      city: 'São Paulo',
+      neighborhood: 'Bela Vista',
+      street: 'Avenida Paulista',
+    })
+
+    renderPage()
+
+    await screen.findByDisplayValue('Raul Gomes')
+    fireEvent.click(screen.getByText('Empresa'))
+
+    const cepInput = await screen.findByPlaceholderText('00000-000')
+    await user.type(cepInput, '01310100')
+    fireEvent.blur(cepInput)
+
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Rua / Avenida')).toHaveValue('Avenida Paulista')
+    })
+    expect(screen.getByPlaceholderText('Bairro')).toHaveValue('Bela Vista')
+    expect(screen.getByPlaceholderText('Cidade')).toHaveValue('São Paulo')
+    expect(screen.getByPlaceholderText('UF')).toHaveValue('SP')
+    expect(lookupCep).toHaveBeenCalledWith('01310100')
+  })
+
+  it('saves structured address fields unmasked via updateProfile', async () => {
+    mockUser({
+      ...BASE_USER,
+      company_city: 'São Paulo',
+      company_state: 'SP',
+    })
+
+    renderPage()
+
+    await screen.findByDisplayValue('Raul Gomes')
+    fireEvent.click(screen.getByText('Empresa'))
+
+    const cepInput = await screen.findByPlaceholderText('00000-000')
+    fireEvent.change(cepInput, { target: { value: '01310-100' } })
+    expect(screen.getByDisplayValue('01310-100')).toBeInTheDocument()
+
+    const saveBtn = screen.getByText('Salvar Alterações')
+    fireEvent.click(saveBtn)
+
+    await waitFor(() => {
+      expect(mockUpdateProfile).toHaveBeenCalledWith(expect.objectContaining({
+        company_cep: '01310100',
+        company_state: 'SP',
+        company_city: 'São Paulo',
       }))
     })
   })

@@ -180,6 +180,24 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | W | `auth/router.py` | avatar_url, company_logo_url, nome |
 | W ⚠️ | `payments/repository.py` | SQL raw `UPDATE users SET metadata = jsonb_set(...)` (`save_customer_id`) — **viola o módulo auth** |
 
+> **Migração `f9a0b1c2d3e4`**: adiciona `users.cpf` (`String(20)`, nullable) — CPF do
+> perfil pessoal, gravado/retornado via `PATCH /auth/me` e `GET /auth/me`
+> (limpo de máscara como `company_cnpj`).
+>
+> **Migração `c1d2e3f4a5b6`**: adiciona endereço estruturado da empresa —
+> `company_street`, `company_number`, `company_complement`, `company_neighborhood`,
+> `company_city`, `company_state`, `company_cep` (todas nullable). Preenchidos pelo
+> perfil (aba Empresa) com autofill via Brasil API (CNPJ/CEP). A composição do
+> endereço da **contratada** nos contratos passa a usar esses campos com fallback
+> para `company_address` (legado) quando vazios.
+>
+> **Migração `2a4b9c7d0e1f`**: adiciona `users.representante_cargo`
+> (`String(100)`, nullable) — cargo do representante no perfil pessoal (aba
+> "Dados Pessoais" → "Cargo do Representante"), gravado via `PATCH /auth/me`.
+> Nos contratos é o token `{{contratada_representante_cargo}}` da CONTRATADA — e,
+> quando preenchido no perfil, o campo é omitido do modal de geração
+> (`CONTRATADA_SOURCE_KEYS`).
+
 ### `user_files` — dono: `auth`
 | Direção | Quem |
 |---------|------|
@@ -231,12 +249,14 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | W | `team/repository.py` (`ensure_default_roles` — seed admin/member) |
 
 ### `prospects` — dono: `prospects`
-> Leads com dados cadastrais apenas (nome/cnpj/telefone/email/cor/descrição/
-> segmento/endereço normalizado: `street`/`number`/`complement`/`neighborhood`/
-> `city`/`state`/`cep`). Sem times, rotinas ou SLA — é a origem de orçamentos e
-> contratos. Ao finalizar um contrato, o prospecto é convertido em Cliente:
-> `converted_client_id` aponta para o registro criado em `clients` e o prospecto
-> some da listagem ativa (`is_active=false`, `converted_at` preenchido).
+> Leads com dados cadastrais (nome/cnpj/telefone/email/cor/descrição/
+> segmento/**representante da empresa**: `representante_nome`/`representante_email`/
+> `representante_cpf`/`representante_telefone`/`representante_cargo` —
+> **Migração `13fe9b86fdca`**; endereço normalizado: `street`/`number`/`complement`/
+> `neighborhood`/`city`/`state`/`cep`). Sem times, rotinas ou SLA — é a origem de
+> orçamentos e contratos. Ao finalizar um contrato, o prospecto é convertido em
+> Cliente: `converted_client_id` aponta para o registro criado em `clients` e o
+> prospecto some da listagem ativa (`is_active=false`, `converted_at` preenchido).
 > **Migração `e7f8a9b0c1d2`**: endereço dividido (coluna `address` removida) em
 > `clients` e `prospects` — agora campos separados seguindo normalização de BD.
 | Direção | Quem |
@@ -262,10 +282,15 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > `sections` (JSON) e `finalized_at`. Ganha **draft** editável; ao **finalizar**
 > vira **finalizado/imutável** (edição/exclusão → 409) e o prospecto é convertido
 > em Cliente via `ProspectService.convert_prospect` (regra §7/§8 de regras_negocio).
+> Colunas extras: `number` (sequência por usuário do número do contrato),
+> `fields` (JSON — dados informados no modal de geração sem fonte no banco) e
+> `template_sections` (JSON — snapshot do template com tokens **não** substituídos,
+> usado para re-render ao editar os campos). Na migração `b1c2d3e4f5a6`,
+> `template_sections` ganha `server_default='[]'` para linhas existentes.
 | Direção | Quem |
 |---------|------|
 | R | `contracts/repository.py`, `contracts/router.py` |
-| R/W | `contracts/service.py`/`router.py` (generate, PATCH draft, finalize, delete draft) |
+| R/W | `contracts/service.py`/`router.py` (generate, PATCH draft, PATCH fields, finalize, delete draft) |
 | R | `proposals/repository.py` (lookup do orçamento vinculado na geração) |
 
 ### `pricing_scenarios` — dono: `proposals`

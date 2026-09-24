@@ -28,6 +28,12 @@ describe('interceptor 401 do apiClient', () => {
     return Promise.reject(err);
   };
 
+  it('faz upload de FormData SEM Content-Type default global (evita 422 no avatar/logo)', () => {
+    // Regressão: o Content-Type default 'application/json' no instance level era
+    // enviado junto com FormData, fazendo o FastAPI ignorar o multipart → 422.
+    expect(apiClient.defaults.headers['Content-Type']).toBeUndefined();
+  });
+
   it('falha de login NÃO dispara refresh e preserva a mensagem original', async () => {
     const postSpy = vi.spyOn(axios, 'post');
     apiClient.defaults.adapter = respondWith(401, { detail: 'Credenciais inválidas' });

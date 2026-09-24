@@ -5,6 +5,7 @@ import { NovoContratoModal } from '../src/components/contracts/NovoContratoModal
 
 const mockGetProspects = vi.hoisted(() => vi.fn())
 const mockGenerateContract = vi.hoisted(() => vi.fn())
+const mockGetMissingFields = vi.hoisted(() => vi.fn())
 const mockApiGet = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/api/prospects', () => ({
@@ -12,6 +13,7 @@ vi.mock('../src/api/prospects', () => ({
 }))
 vi.mock('../src/api/contracts', () => ({
   generateContract: mockGenerateContract,
+  getContractMissingFields: mockGetMissingFields,
 }))
 vi.mock('../src/api/client', () => ({
   apiClient: { get: mockApiGet },
@@ -25,12 +27,18 @@ const PROPOSALS = [
   { id: 'o1', client_name: 'Alpha Consultoria', prospect_id: 'p1', created_at: '2026-01-01T00:00:00Z' },
   { id: 'o2', client_name: 'Beta Ltda', prospect_id: 'p2', created_at: '2026-01-02T00:00:00Z' },
 ]
+const DESCRIPTORS = [
+  { key: 'sistema_gestao', label: 'Sistema de gestão', kind: 'text', default: '', group: 'Operação' },
+  { key: 'dia_vencimento', label: 'Dia de vencimento', kind: 'number', default: '10', group: 'Financeiro' },
+]
 const GENERATED = {
   id: 'c1',
+  number: 1,
   prospect_id: 'p1',
   proposal_id: 'o1',
   client_name: 'Alpha Consultoria',
   sections: [],
+  fields: {},
   status: 'draft',
   finalized_at: null,
   created_at: '2026-01-03T00:00:00Z',
@@ -42,6 +50,7 @@ describe('NovoContratoModal', () => {
     vi.clearAllMocks()
     mockGetProspects.mockResolvedValue(PROSPECTS)
     mockApiGet.mockResolvedValue({ data: PROPOSALS })
+    mockGetMissingFields.mockResolvedValue({ fields: DESCRIPTORS, count: DESCRIPTORS.length })
     mockGenerateContract.mockResolvedValue(GENERATED)
   })
 
@@ -63,6 +72,15 @@ describe('NovoContratoModal', () => {
     return screen.getByTestId('contract-proposal-select')
   }
 
+  const goToFields = async () => {
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /continuar/i }))
+    await screen.findByText('Dados do contrato')
+    await waitFor(() => {
+      expect(mockGetMissingFields).toHaveBeenCalled()
+    })
+  }
+
   it('carrega prospectos e orçamentos ao abrir', async () => {
     open()
     await screen.findByText('Alpha Consultoria')
@@ -70,7 +88,7 @@ describe('NovoContratoModal', () => {
     expect(mockApiGet).toHaveBeenCalledWith('/proposals/')
   })
 
-  it('gera contrato vinculando prospecto e orçamento', async () => {
+  it('gera contrato via modal de campos vinculando prospecto e orçamento', async () => {
     const onGenerated = open()
     const user = userEvent.setup()
 
@@ -84,11 +102,14 @@ describe('NovoContratoModal', () => {
     expect(options).not.toContain('Beta Ltda')
 
     await fireEvent.change(proposalSelect, { target: { value: 'o1' } })
-    await user.click(screen.getByRole('button', { name: /gerar a partir do modelo/i }))
+    await goToFields()
+
+    await user.click(screen.getByRole('button', { name: /gerar contrato/i }))
 
     expect(mockGenerateContract).toHaveBeenCalledWith({
       prospect_id: 'p1',
       proposal_id: 'o1',
+      fields: expect.objectContaining({ dia_vencimento: '10' }),
     })
     expect(onGenerated).toHaveBeenCalledWith(GENERATED)
   })
@@ -102,20 +123,22 @@ describe('NovoContratoModal', () => {
       expect(proposalSelect).toBeEnabled()
     })
     await fireEvent.change(proposalSelect, { target: { value: '' } })
+    await goToFields()
 
-    await user.click(screen.getByRole('button', { name: /gerar a partir do modelo/i }))
+    await user.click(screen.getByRole('button', { name: /gerar contrato/i }))
 
     expect(mockGenerateContract).toHaveBeenCalledWith({
       prospect_id: 'p1',
       proposal_id: null,
+      fields: expect.objectContaining({ dia_vencimento: '10' }),
     })
     expect(onGenerated).toHaveBeenCalledWith(GENERATED)
   })
 
-  it('desabilita o botão de gerar antes de escolher prospecto', async () => {
+  it('desabilita o botão de continuar antes de escolher prospecto', async () => {
     open()
-    const generateBtn = await screen.findByRole('button', { name: /gerar a partir do modelo/i })
-    expect(generateBtn).toBeDisabled()
+    const nextBtn = await screen.findByRole('button', { name: /continuar/i })
+    expect(nextBtn).toBeDisabled()
   })
 
   it('mostra mensagem quando o prospecto não tem orçamentos', async () => {
@@ -123,5 +146,16 @@ describe('NovoContratoModal', () => {
     await pickProspect('p3')
     const message = await screen.findByText(/ainda não possui orçamentos vinculados/i)
     expect(message).toBeInTheDocument()
+  })
+
+  it('consulta os campos faltantes ao continuar', async () => {
+    open()
+    await pickProspect('p1')
+    const user = userEvent.setup()
+    await user.click(screen.getByRole('button', { name: /continuar/i }))
+    await waitFor(() => {
+      expect(mockGetMissingFields).toHaveBeenCalledWith('p1', null)
+    })
+    expect(await screen.findByLabelText(/sistema de gestão/i)).toBeInTheDocument()
   })
 })

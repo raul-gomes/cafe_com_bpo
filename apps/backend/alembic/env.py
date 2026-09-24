@@ -15,6 +15,7 @@ from src.modules.network.models import (  # noqa: F401
 )
 from src.modules.payments.models import Payment  # noqa: F401
 from src.modules.proposals.models import PricingScenario  # noqa: F401
+from src.modules.prospects.models import Prospect  # noqa: F401
 from src.modules.task_manager.models import (  # noqa: F401
     ActivityTemplate,
     ClientSLA,

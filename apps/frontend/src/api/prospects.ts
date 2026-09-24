@@ -9,6 +9,11 @@ export interface ProspectData {
   color?: string;
   description?: string;
   segment?: string;
+  representante_nome?: string;
+  representante_email?: string;
+  representante_cpf?: string;
+  representante_telefone?: string;
+  representante_cargo?: string;
   street?: string;
   number?: string;
   complement?: string;

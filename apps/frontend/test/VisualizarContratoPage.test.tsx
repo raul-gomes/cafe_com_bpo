@@ -135,6 +135,42 @@ describe('VisualizarContratoPage', () => {
     expect(screen.getByText(/aguardam preenchimento manual/i)).toBeInTheDocument()
   })
 
+  it('renderiza múltiplas tabelas e parágrafos sem warnings de key do React', async () => {
+    mockPreviewContract.mockResolvedValue({
+      sections: [
+        {
+          title: 'Anexo I',
+          content:
+            'Parágrafo antes.\n\n' +
+            '| Item | Limite |\n' +
+            '|------|--------|\n' +
+            '| Lançamentos | 500 |\n\n' +
+            'Parágrafo após a primeira tabela.\n\n' +
+            '| Nº | Serviço |\n' +
+            '|----|---------|\n' +
+            '| 1 | BPO |',
+        },
+        {
+          title: 'Assinaturas',
+          content:
+            '| Parte | Assinatura |\n' +
+            '|-------|------------|\n' +
+            '| CONTRATADA | |\n',
+        },
+      ],
+    })
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    renderPage()
+
+    await screen.findByRole('heading', { name: /visualizar contrato/i })
+    expect(screen.getAllByTestId('contract-table')).toHaveLength(3)
+    const keyWarning = errorSpy.mock.calls.some((call) =>
+      String(call[0]).includes('unique "key" prop'),
+    )
+    expect(keyWarning).toBe(false)
+    errorSpy.mockRestore()
+  })
+
   it('volta para a listagem ao clicar em Voltar', async () => {
     renderPage()
     const user = userEvent.setup()

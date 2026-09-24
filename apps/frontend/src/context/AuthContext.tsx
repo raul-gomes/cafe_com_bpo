@@ -28,12 +28,21 @@ export interface User {
   role?: string;
   created_at?: string;
   // Profile fields (FASE 3)
+  cpf?: string;
+  representante_cargo?: string;
   whatsapp?: string;
   biografia?: string;
   company_razao_social?: string;
   company_nome_fantasia?: string;
   company_cnpj?: string;
   company_address?: string;
+  company_street?: string;
+  company_number?: string;
+  company_complement?: string;
+  company_neighborhood?: string;
+  company_city?: string;
+  company_state?: string;
+  company_cep?: string;
   company_professional_email?: string;
   company_commercial_phone?: string;
   company_logo_url?: string;

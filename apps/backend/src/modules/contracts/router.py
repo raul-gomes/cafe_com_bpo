@@ -11,8 +11,11 @@ from src.modules.auth.service import get_current_user
 from src.modules.clients.repository import ClientRepository
 from src.modules.contracts.repository import ContractRepository
 from src.modules.contracts.schemas import (
+    ContractFieldsUpdate,
     ContractFinalizeResponse,
     ContractGenerate,
+    ContractMissingFieldsRequest,
+    ContractMissingFieldsResponse,
     ContractPreviewResponse,
     ContractResponse,
     ContractTemplateResponse,
@@ -85,13 +88,48 @@ def _contractada_from_user(user: UserResponse) -> dict:
     return {
         "name": user.name,
         "email": user.email,
+        "cpf": user.cpf,
+        "representante_cargo": user.representante_cargo,
         "company_name": user.company_name,
         "company_razao_social": user.company_razao_social,
         "company_nome_fantasia": user.company_nome_fantasia,
         "company_cnpj": user.company_cnpj,
         "company_address": user.company_address,
+        "company_street": user.company_street,
+        "company_number": user.company_number,
+        "company_complement": user.company_complement,
+        "company_neighborhood": user.company_neighborhood,
+        "company_city": user.company_city,
+        "company_state": user.company_state,
+        "company_cep": user.company_cep,
         "company_professional_email": user.company_professional_email,
+        "company_logo_url": user.company_logo_url,
     }
+
+
+@router.post("/missing-fields", response_model=ContractMissingFieldsResponse)
+def missing_fields(
+    payload: ContractMissingFieldsRequest,
+    service: ServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Lista os campos sem fonte no banco (perfil/prospecto/orçamento) que o
+    usuário precisa informar para gerar o contrato — usado pelo modal."""
+    try:
+        descriptors = service.missing_fields(
+            current_user.id,
+            payload.prospect_id,
+            payload.proposal_id,
+            contractada=_contractada_from_user(current_user),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+
+    log.debug(
+        f"🧩 Campos faltantes do contrato consultados por {current_user.email} "
+        f"({len(descriptors)})"
+    )
+    return ContractMissingFieldsResponse(fields=descriptors, count=len(descriptors))
 
 
 @router.post("/generate", response_model=ContractResponse, status_code=201)
@@ -103,8 +141,8 @@ def generate_contract(
     """Gera um novo contrato a partir do modelo padrão do usuário.
 
     Copia as seções do modelo e substitui os placeholders `{{token}}`
-    pelos dados do prospecto, do orçamento (se vinculado) e da empresa
-    contratada (dados do perfil do usuário).
+    pelos dados do prospecto, do orçamento (se vinculado), da empresa
+    contratada (perfil) e dos campos informados no modal (`payload.fields`).
     """
     contractada = _contractada_from_user(current_user)
     try:
@@ -113,12 +151,14 @@ def generate_contract(
             prospect_id=payload.prospect_id,
             proposal_id=payload.proposal_id,
             contractada=contractada,
+            fields=payload.fields,
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
 
     log.info(
-        f"📄 Contrato gerado para '{contract.client_name}' por {current_user.email}"
+        f"📄 Contrato {contract.number} gerado para '{contract.client_name}' "
+        f"por {current_user.email}"
     )
     return contract
 
@@ -181,6 +221,31 @@ def update_contract(
         raise HTTPException(status_code=409, detail=str(e)) from e
 
     log.info(f"📝 Contrato {contract_id} atualizado por {current_user.email}")
+    return contract
+
+
+@router.patch("/{contract_id}/fields", response_model=ContractResponse)
+def update_contract_fields(
+    contract_id: UUID,
+    payload: ContractFieldsUpdate,
+    service: ServiceDep,
+    current_user: CurrentUserDep,
+):
+    """Atualiza os dados informados no modal de um rascunho e re-resolve as
+    seções do contrato com os novos valores."""
+    try:
+        contract = service.update_contract_fields(
+            current_user.id,
+            contract_id,
+            payload.fields,
+            contractada=_contractada_from_user(current_user),
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e)) from e
+    except PermissionError as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
+
+    log.info(f"🧩 Dados do contrato {contract_id} atualizados por {current_user.email}")
     return contract
 
 

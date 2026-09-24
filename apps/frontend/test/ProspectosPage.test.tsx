@@ -30,7 +30,7 @@ vi.mock('../src/api/clients', () => ({
   getClientSegments: vi.fn().mockResolvedValue(['B2B - Tecnologia & Software', 'Outro']),
 }))
 
-import { getProspects, deleteProspect, convertProspect } from '../src/api/prospects'
+import { getProspects, createProspect, deleteProspect, convertProspect } from '../src/api/prospects'
 import { lookupCnpj, lookupCep } from '../src/lib/brasilApi'
 import { getClientSegments } from '../src/api/clients'
 
@@ -273,5 +273,84 @@ describe('ProspectosPage', () => {
       expect(screen.getByPlaceholderText('Cidade')).toHaveValue('São Paulo')
       expect(screen.getByPlaceholderText('UF')).toHaveValue('SP')
     })
+  })
+
+  it('mostra a seção de Representante da Empresa no formulário', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(await screen.findByText('Novo Prospecto'))
+
+    expect(screen.getByPlaceholderText('Nome do representante')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('representante@empresa.com')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('000.000.000-00')).toBeInTheDocument()
+    expect(screen.getByPlaceholderText('Ex.: Sócio(a), Diretor(a), CFO')).toBeInTheDocument()
+    const phones = screen.getAllByPlaceholderText('(00) 00000-0000')
+    expect(phones).toHaveLength(2)
+  })
+
+  it('cria prospecto enviando os dados do representante', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(await screen.findByText('Novo Prospecto'))
+
+    const nameInput = screen.getByPlaceholderText('Nome do prospecto')
+    await user.type(nameInput, 'Empresa Potencial')
+
+    const repName = screen.getByPlaceholderText('Nome do representante')
+    await user.type(repName, 'Maria Silva')
+
+    const repEmail = screen.getByPlaceholderText('representante@empresa.com')
+    await user.type(repEmail, 'maria@potencial.com')
+
+    const repCpf = screen.getByPlaceholderText('000.000.000-00')
+    await user.type(repCpf, '12345678901')
+
+    const repPhone = screen.getAllByPlaceholderText('(00) 00000-0000')[1]
+    await user.type(repPhone, '11977771234')
+
+    const repCargo = screen.getByPlaceholderText('Ex.: Sócio(a), Diretor(a), CFO')
+    await user.type(repCargo, 'CFO')
+
+    await user.click(screen.getByRole('button', { name: 'Criar Prospecto' }))
+
+    await waitFor(() => {
+      expect(createProspect).toHaveBeenCalledWith(
+        expect.objectContaining({
+          name: 'Empresa Potencial',
+          representante_nome: 'Maria Silva',
+          representante_email: 'maria@potencial.com',
+          representante_cpf: '12345678901',
+          representante_telefone: '11977771234',
+          representante_cargo: 'CFO',
+        })
+      )
+    })
+  })
+
+  it('abre a edição com os dados do representante preenchidos', async () => {
+    (getProspects as ReturnType<typeof vi.fn>).mockResolvedValue([
+      {
+        id: '9',
+        name: 'Lead Com Rep',
+        representante_nome: 'Maria Silva',
+        representante_email: 'maria@potencial.com',
+        representante_cpf: '12345678901',
+        representante_telefone: '11977771234',
+        representante_cargo: 'CFO',
+      },
+    ])
+    renderPage()
+    const user = userEvent.setup()
+
+    const leadText = await screen.findByText('Lead Com Rep')
+    const card = leadText.closest('[data-slot="card"]')!
+    await user.click(card)
+
+    expect(screen.getByPlaceholderText('Nome do representante')).toHaveValue('Maria Silva')
+    expect(screen.getByPlaceholderText('representante@empresa.com')).toHaveValue('maria@potencial.com')
+    expect(screen.getByPlaceholderText('000.000.000-00')).toHaveValue('123.456.789-01')
+    expect(screen.getByPlaceholderText('Ex.: Sócio(a), Diretor(a), CFO')).toHaveValue('CFO')
+    const phones = screen.getAllByPlaceholderText('(00) 00000-0000')
+    expect(phones[1]).toHaveValue('(11) 97777-1234')
   })
 })

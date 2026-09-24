@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getClients, getClientSegments, createClient, updateClient, deleteClient, ClientData } from '../../api/clients';
 import { MaskedCNPJ, MaskedPhone } from '../../components/ui/MaskedInput';
-import { maskCNPJ, maskPhone } from '../../lib/formatters';
+import { maskCNPJ, maskPhone, maskCEP, onlyNumbers } from '../../lib/formatters';
+import { lookupCnpj, lookupCep } from '../../lib/brasilApi';
 import { useTasks } from '../../api/hooks/useTasks';
 import { Link, Unlink, FileText } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -42,7 +43,7 @@ export const EmpresasPage: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [expandedCardId, setExpandedCardId] = useState<string | null>(null);
-  const [formData, setFormData] = useState({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
+  const [formData, setFormData] = useState({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5', street: '', number: '', complement: '', neighborhood: '', city: '', state: '', cep: '' });
   const [customSegment, setCustomSegment] = useState('');
   const [segments, setSegments] = useState<string[]>([]);
   const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment, useUpdateAssignment } = useTasks();
@@ -160,7 +161,7 @@ export const EmpresasPage: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5' });
+    setFormData({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5', street: '', number: '', complement: '', neighborhood: '', city: '', state: '', cep: '' });
     setCustomSegment('');
     setShowForm(false);
     setExpandedCardId(null);
@@ -178,6 +179,13 @@ export const EmpresasPage: React.FC = () => {
       description: client.description || '',
       segment: isKnown ? seg : 'Outro',
       color: client.color || '#4287f5',
+      street: client.street || '',
+      number: client.number || '',
+      complement: client.complement || '',
+      neighborhood: client.neighborhood || '',
+      city: client.city || '',
+      state: client.state || '',
+      cep: client.cep || '',
     });
     setCustomSegment(isKnown ? '' : seg);
     setShowForm(false);
@@ -199,6 +207,13 @@ export const EmpresasPage: React.FC = () => {
       description: formData.description || undefined,
       segment: resolvedSegment,
       color: formData.color,
+      street: formData.street || undefined,
+      number: formData.number || undefined,
+      complement: formData.complement || undefined,
+      neighborhood: formData.neighborhood || undefined,
+      city: formData.city || undefined,
+      state: formData.state || undefined,
+      cep: formData.cep || undefined,
     };
 
     try {
@@ -213,6 +228,39 @@ export const EmpresasPage: React.FC = () => {
       console.error(e);
       toast.error('Erro ao salvar cliente.');
     }
+  };
+
+  const handleCnpjBlur = async () => {
+    const data = await lookupCnpj(formData.cnpj);
+    if (!data) return; // não encontrado na Brasil API → deixa os campos em branco
+
+    setFormData(prev => ({
+      ...prev,
+      name: prev.name || (data.nome_fantasia || data.razao_social || ''),
+      phone: data.ddd_telefone_1 ? maskPhone(data.ddd_telefone_1) : prev.phone,
+      email: data.email || prev.email,
+      street: data.logradouro || prev.street,
+      number: data.numero || prev.number,
+      complement: data.complemento || prev.complement,
+      neighborhood: data.bairro || prev.neighborhood,
+      city: data.municipio || prev.city,
+      state: data.uf || prev.state,
+      cep: data.cep ? maskCEP(data.cep) : prev.cep,
+    }));
+  };
+
+  const handleCepBlur = async () => {
+    const data = await lookupCep(formData.cep);
+    if (!data) return; // não encontrado na Brasil API → deixa os campos em branco
+
+    setFormData(prev => ({
+      ...prev,
+      street: data.street || prev.street,
+      neighborhood: data.neighborhood || prev.neighborhood,
+      city: data.city || prev.city,
+      state: data.state || prev.state,
+      cep: maskCEP(data.cep) || prev.cep,
+    }));
   };
 
   const handleDelete = async (id: string, name: string) => {
@@ -365,12 +413,13 @@ export const EmpresasPage: React.FC = () => {
   const renderFormFields = () => (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
       <div className="flex flex-col gap-1.5">
-        <label className="text-[13px] font-medium text-foreground">Nome do Cliente *</label>
-        <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Razão social ou nome fantasia" />
+        <label className="text-[13px] font-medium text-foreground">CNPJ</label>
+        <MaskedCNPJ value={formData.cnpj} onChange={(raw) => setFormData({ ...formData, cnpj: raw })} onBlur={handleCnpjBlur} />
+        <p className="text-[11px] text-muted-foreground">Informar o CNPJ preenche os dados da empresa automaticamente.</p>
       </div>
       <div className="flex flex-col gap-1.5">
-        <label className="text-[13px] font-medium text-foreground">CNPJ</label>
-        <MaskedCNPJ value={formData.cnpj} onChange={(raw) => setFormData({ ...formData, cnpj: raw })} />
+        <label className="text-[13px] font-medium text-foreground">Nome do Cliente *</label>
+        <Input value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} placeholder="Razão social ou nome fantasia" />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-[13px] font-medium text-foreground">Telefone</label>
@@ -398,6 +447,38 @@ export const EmpresasPage: React.FC = () => {
             className="mt-1"
           />
         )}
+      </div>
+      <div className="flex flex-col gap-1.5" style={{ gridColumn: '1 / -1' }}>
+        <label className="text-[13px] font-medium text-foreground">Endereço</label>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">CEP</label>
+        <Input value={maskCEP(formData.cep)} onChange={e => setFormData({ ...formData, cep: onlyNumbers(e.target.value) })} onBlur={handleCepBlur} placeholder="00000-000" inputMode="numeric" />
+        <p className="text-[11px] text-muted-foreground">Informar o CEP preenche o endereço automaticamente.</p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">Logradouro</label>
+        <Input value={formData.street} onChange={e => setFormData({ ...formData, street: e.target.value })} placeholder="Rua / Avenida" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">Número</label>
+        <Input value={formData.number} onChange={e => setFormData({ ...formData, number: e.target.value })} placeholder="Número" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">Complemento</label>
+        <Input value={formData.complement} onChange={e => setFormData({ ...formData, complement: e.target.value })} placeholder="Apto / Sala / Andar" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">Bairro</label>
+        <Input value={formData.neighborhood} onChange={e => setFormData({ ...formData, neighborhood: e.target.value })} placeholder="Bairro" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">Cidade</label>
+        <Input value={formData.city} onChange={e => setFormData({ ...formData, city: e.target.value })} placeholder="Cidade" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">UF</label>
+        <Input value={formData.state} onChange={e => setFormData({ ...formData, state: e.target.value.toUpperCase().slice(0, 2) })} placeholder="UF" maxLength={2} />
       </div>
       <div className="flex flex-col gap-1.5">
         <label className="text-[13px] font-medium text-foreground">Cor</label>

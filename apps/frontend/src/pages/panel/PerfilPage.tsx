@@ -16,13 +16,14 @@ import {
   TabsContent,
 } from '../../components/ui/tabs';
 import { ColorPicker } from '../../components/ui/ColorPicker';
-import { maskCNPJ, maskPhone, unmask } from '../../utils/masks';
+import { maskCNPJ, maskPhone, maskCPF, maskCEP, unmask } from '../../utils/masks';
+import { lookupCnpj, lookupCep } from '../../lib/brasilApi';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 import { CheckCircle } from 'lucide-react';
 import type { User } from '../../context/AuthContext';
 
-type TabType = 'personal' | 'company' | 'contact' | 'customization' | 'addMember';
+type TabType = 'personal' | 'company' | 'customization' | 'addMember';
 
 const SEGMENT_OPTIONS = [
   { value: '', label: 'Selecione um segmento' },
@@ -36,7 +37,6 @@ const SEGMENT_OPTIONS = [
 const TAB_MAP: Record<TabType, string> = {
   personal: 'Dados Pessoais',
   company: 'Empresa',
-  contact: 'Contato',
   customization: 'Personalização',
   addMember: 'Adicionar Membro',
 };
@@ -46,6 +46,8 @@ export const PerfilPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<TabType>('personal');
   const [formData, setFormData] = useState({
     name: user?.name || '',
+    cpf: user?.cpf || '',
+    representante_cargo: user?.representante_cargo || '',
     email: user?.email || '',
     company_segment: user?.company_segment || '',
     company_description: user?.company_description || '',
@@ -54,7 +56,13 @@ export const PerfilPage: React.FC = () => {
     company_razao_social: user?.company_razao_social || '',
     company_nome_fantasia: user?.company_nome_fantasia || '',
     company_cnpj: user?.company_cnpj || '',
-    company_address: user?.company_address || '',
+    company_street: user?.company_street || '',
+    company_number: user?.company_number || '',
+    company_complement: user?.company_complement || '',
+    company_neighborhood: user?.company_neighborhood || '',
+    company_city: user?.company_city || '',
+    company_state: user?.company_state || '',
+    company_cep: user?.company_cep || '',
     company_professional_email: user?.company_professional_email || '',
     company_commercial_phone: user?.company_commercial_phone || '',
     company_color_code: user?.company_color_code || '',
@@ -111,6 +119,8 @@ export const PerfilPage: React.FC = () => {
 
     setFormData({
       name: user?.name || '',
+      cpf: maskCPF(user?.cpf || ''),
+      representante_cargo: user?.representante_cargo || '',
       email: user?.email || '',
       company_segment: isCustom ? 'outros' : savedSegment,
       company_description: user?.company_description || '',
@@ -119,7 +129,13 @@ export const PerfilPage: React.FC = () => {
       company_razao_social: user?.company_razao_social || '',
       company_nome_fantasia: user?.company_nome_fantasia || '',
       company_cnpj: maskCNPJ(user?.company_cnpj || ''),
-      company_address: user?.company_address || '',
+      company_street: user?.company_street || '',
+      company_number: user?.company_number || '',
+      company_complement: user?.company_complement || '',
+      company_neighborhood: user?.company_neighborhood || '',
+      company_city: user?.company_city || '',
+      company_state: user?.company_state || '',
+      company_cep: user?.company_cep || '',
       company_professional_email: user?.company_professional_email || '',
       company_commercial_phone: maskPhone(user?.company_commercial_phone || ''),
       company_color_code: user?.company_color_code || '',
@@ -150,12 +166,50 @@ export const PerfilPage: React.FC = () => {
     const { name, value } = e.target;
     let masked = value;
     if (name === 'company_cnpj') masked = maskCNPJ(value);
+    else if (name === 'cpf') masked = maskCPF(value);
     else if (name === 'whatsapp' || name === 'company_commercial_phone')
       masked = maskPhone(value);
     if (name === 'company_segment' && value !== 'outros') {
       setSegmentCustom('');
     }
     setFormData(prev => ({ ...prev, [name]: masked }));
+  };
+
+  const handleCnpjBlur = async () => {
+    const data = await lookupCnpj(formData.company_cnpj);
+    if (!data) return;
+
+    setFormData(prev => ({
+      ...prev,
+      company_razao_social:
+        prev.company_razao_social || (data.nome_fantasia || data.razao_social || ''),
+      company_nome_fantasia: data.nome_fantasia || prev.company_nome_fantasia,
+      company_street: data.logradouro || prev.company_street,
+      company_number: data.numero || prev.company_number,
+      company_complement: data.complemento || prev.company_complement,
+      company_neighborhood: data.bairro || prev.company_neighborhood,
+      company_city: data.municipio || prev.company_city,
+      company_state: data.uf || prev.company_state,
+      company_cep: data.cep ? unmask(data.cep) : prev.company_cep,
+      company_commercial_phone: data.ddd_telefone_1
+        ? maskPhone(data.ddd_telefone_1)
+        : prev.company_commercial_phone,
+      company_professional_email: data.email || prev.company_professional_email,
+    }));
+  };
+
+  const handleCepBlur = async () => {
+    const data = await lookupCep(formData.company_cep);
+    if (!data) return;
+
+    setFormData(prev => ({
+      ...prev,
+      company_street: data.street || prev.company_street,
+      company_neighborhood: data.neighborhood || prev.company_neighborhood,
+      company_city: data.city || prev.company_city,
+      company_state: data.state || prev.company_state,
+      company_cep: unmask(data.cep) || prev.company_cep,
+    }));
   };
 
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -230,6 +284,7 @@ export const PerfilPage: React.FC = () => {
 
       const payload = {
         ...formData,
+        cpf: unmask(formData.cpf),
         whatsapp: unmask(formData.whatsapp),
         company_cnpj: unmask(formData.company_cnpj),
         company_commercial_phone: unmask(formData.company_commercial_phone),
@@ -344,6 +399,18 @@ export const PerfilPage: React.FC = () => {
                 </Field>
 
                 <Field>
+                  <Label>CPF</Label>
+                  <Input
+                    type="text"
+                    name="cpf"
+                    value={formData.cpf}
+                    onChange={handleChange}
+                    placeholder="Ex: 000.000.000-00"
+                    inputMode="numeric"
+                  />
+                </Field>
+
+                <Field>
                   <Label>E-mail</Label>
                   <Input
                     type="email"
@@ -353,6 +420,20 @@ export const PerfilPage: React.FC = () => {
                     placeholder="email@exemplo.com"
                     disabled
                   />
+                </Field>
+
+                <Field>
+                  <Label>Cargo do Representante</Label>
+                  <Input
+                    type="text"
+                    name="representante_cargo"
+                    value={formData.representante_cargo}
+                    onChange={handleChange}
+                    placeholder="Ex: Sócio, Diretor Administrativo"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Cargo usado no contrato (CONTRATADA) com a clientela.
+                  </p>
                 </Field>
 
                 <Field>
@@ -392,9 +473,25 @@ export const PerfilPage: React.FC = () => {
               </div>
             </TabsContent>
 
-            {/* ───────────── EMPRESA ───────────── */}
+            {/* ───────────── EMPRESA (identificação + contato + endereço) ───────────── */}
             <TabsContent value="company">
-              <div className="flex flex-col gap-4">
+              <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
+                <Field>
+                  <Label>CNPJ</Label>
+                  <Input
+                    type="text"
+                    name="company_cnpj"
+                    value={formData.company_cnpj}
+                    onChange={handleChange}
+                    onBlur={handleCnpjBlur}
+                    placeholder="Ex: 12.345.678/0001-99"
+                    inputMode="numeric"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Informar o CNPJ preenche os dados da empresa automaticamente.
+                  </p>
+                </Field>
+
                 <Field>
                   <Label>Razão Social</Label>
                   <Input
@@ -414,17 +511,6 @@ export const PerfilPage: React.FC = () => {
                     value={formData.company_nome_fantasia}
                     onChange={handleChange}
                     placeholder="Ex: BPO Soluções"
-                  />
-                </Field>
-
-                <Field>
-                  <Label>CNPJ</Label>
-                  <Input
-                    type="text"
-                    name="company_cnpj"
-                    value={formData.company_cnpj}
-                    onChange={handleChange}
-                    placeholder="Ex: 12.345.678/0001-99"
                   />
                 </Field>
 
@@ -455,34 +541,6 @@ export const PerfilPage: React.FC = () => {
                 </Field>
 
                 <Field>
-                  <Label>Descrição da Empresa</Label>
-                  <Textarea
-                    name="company_description"
-                    value={formData.company_description}
-                    onChange={handleChange}
-                    placeholder="Descreva brevemente o que sua empresa faz..."
-                    rows={4}
-                    className="resize-y"
-                  />
-                </Field>
-              </div>
-            </TabsContent>
-
-            {/* ───────────── CONTATO ───────────── */}
-            <TabsContent value="contact">
-              <div className="flex flex-col gap-4">
-                <Field>
-                  <Label>Endereço</Label>
-                  <Input
-                    type="text"
-                    name="company_address"
-                    value={formData.company_address}
-                    onChange={handleChange}
-                    placeholder="Ex: Rua Exemplo, 123"
-                  />
-                </Field>
-
-                <Field>
                   <Label>E-mail Profissional</Label>
                   <Input
                     type="email"
@@ -501,6 +559,116 @@ export const PerfilPage: React.FC = () => {
                     value={formData.company_commercial_phone}
                     onChange={handleChange}
                     placeholder="Ex: 1133334444"
+                  />
+                </Field>
+
+                <div className="flex flex-col gap-1.5" style={{ gridColumn: '1 / -1' }}>
+                  <Label>Endereço</Label>
+                </div>
+
+                <Field>
+                  <Label>CEP</Label>
+                  <Input
+                    type="text"
+                    value={maskCEP(formData.company_cep)}
+                    onChange={(e) =>
+                      setFormData(prev => ({
+                        ...prev,
+                        company_cep: unmask(e.target.value),
+                      }))
+                    }
+                    onBlur={handleCepBlur}
+                    placeholder="00000-000"
+                    inputMode="numeric"
+                  />
+                  <p className="text-[11px] text-muted-foreground">
+                    Informar o CEP preenche o endereço automaticamente.
+                  </p>
+                </Field>
+
+                <Field>
+                  <Label>Logradouro</Label>
+                  <Input
+                    type="text"
+                    name="company_street"
+                    value={formData.company_street}
+                    onChange={handleChange}
+                    placeholder="Rua / Avenida"
+                  />
+                </Field>
+
+                <Field>
+                  <Label>Número</Label>
+                  <Input
+                    type="text"
+                    name="company_number"
+                    value={formData.company_number}
+                    onChange={handleChange}
+                    placeholder="Número"
+                  />
+                </Field>
+
+                <Field>
+                  <Label>Complemento</Label>
+                  <Input
+                    type="text"
+                    name="company_complement"
+                    value={formData.company_complement}
+                    onChange={handleChange}
+                    placeholder="Apto / Sala / Andar"
+                  />
+                </Field>
+
+                <Field>
+                  <Label>Bairro</Label>
+                  <Input
+                    type="text"
+                    name="company_neighborhood"
+                    value={formData.company_neighborhood}
+                    onChange={handleChange}
+                    placeholder="Bairro"
+                  />
+                </Field>
+
+                <Field>
+                  <Label>Cidade</Label>
+                  <Input
+                    type="text"
+                    name="company_city"
+                    value={formData.company_city}
+                    onChange={handleChange}
+                    placeholder="Cidade"
+                  />
+                </Field>
+
+                <Field>
+                  <Label>UF</Label>
+                  <Input
+                    type="text"
+                    name="company_state"
+                    value={formData.company_state}
+                    onChange={(e) =>
+                      setFormData(prev => ({
+                        ...prev,
+                        company_state: e.target.value
+                          .toUpperCase()
+                          .slice(0, 2),
+                      }))
+                    }
+                    placeholder="UF"
+                    maxLength={2}
+                  />
+                </Field>
+
+                <Field className="w-full" style={{ gridColumn: '1 / -1' }}>
+                  <Label>Descrição da Empresa</Label>
+                  <Textarea
+                    name="company_description"
+                    value={formData.company_description}
+                    onChange={handleChange}
+                    placeholder="Descreva brevemente o que sua empresa faz..."
+                    rows={3}
+                    className="resize-y"
                   />
                 </Field>
               </div>
@@ -757,6 +925,14 @@ const Label = ({ children, className, ...props }: React.ComponentProps<'label'>)
 );
 
 /** Field wrapper */
-const Field = ({ children, className }: { children: React.ReactNode; className?: string }) => (
-  <div className={cn('flex flex-col gap-1.5', className)}>{children}</div>
+const Field = ({
+  children,
+  className,
+  style,
+}: {
+  children: React.ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) => (
+  <div className={cn('flex flex-col gap-1.5', className)} style={style}>{children}</div>
 );

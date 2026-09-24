@@ -1,7 +1,10 @@
 from uuid import uuid4
 
 from src.modules.contracts.default_template import DEFAULT_TEMPLATE_SECTIONS
+from src.modules.contracts.fields import SERVICO_RECORRENTE
 from tests.helpers import register_user
+
+SERVICO_KEY = SERVICO_RECORRENTE
 
 
 def _auth_header(client, email):
@@ -65,10 +68,8 @@ def test_get_template_creates_default_model(client):
     assert resp.status_code == 200
     sections = resp.json()["sections"]
     assert sections == DEFAULT_TEMPLATE_SECTIONS
-    assert len(sections) == 15
-    assert any(
-        s["title"] == "CLÁUSULA PRIMEIRA - DO OBJETO DO CONTRATO" for s in sections
-    )
+    assert len(sections) == 17
+    assert any(s["title"] == "CLÁUSULA PRIMEIRA – DO OBJETO" for s in sections)
 
 
 def test_get_template_same_user_returns_cached_model(client):
@@ -193,8 +194,7 @@ def test_generate_default_model_replaces_contractada_tokens(client):
     assert "Rua das Flores" in head
     assert "Raul Gomes" in head
     assert "Empresa Contrato" in head
-    assert "{{cpf_contratada}}" in head
-    assert "{{socio_contratante}}" in head
+    assert "{{contratada_representante_cpf}}" not in head
 
     valores = next(s for s in sections if s["title"].startswith("CLÁUSULA SÉTIMA"))[
         "content"
@@ -202,10 +202,10 @@ def test_generate_default_model_replaces_contractada_tokens(client):
     assert "R$ 1.250,00" in valores
     assert "mil e duzentos e cinquenta reais" in valores
 
-    lgpd = next(
-        s for s in sections if s["title"].startswith("CLÁUSULA DÉCIMA SEGUNDA")
+    comunicacoes = next(
+        s for s in sections if s["title"].startswith("CLÁUSULA DÉCIMA PRIMEIRA")
     )["content"]
-    assert "contato@cafecombpo.com.br" in lgpd
+    assert "contato@cafecombpo.com.br" in comunicacoes
 
 
 def test_generate_renders_contracted_services_table(client):
@@ -270,23 +270,16 @@ def test_generate_renders_contracted_services_table(client):
     )
 
     assert resp.status_code == 201
-    valores = next(
-        s for s in resp.json()["sections"] if s["title"].startswith("CLÁUSULA SÉTIMA")
+    anexo = next(
+        s for s in resp.json()["sections"] if s["title"].startswith("ANEXO I")
     )["content"]
-    assert "| Item | Descrição | Limite do Plano |" in valores
-    assert "| Plano | Plano contratado | Básico |" in valores
-    assert "| Contas Bancárias | Contas para conciliação | Até 2 contas |" in valores
-    assert (
-        "| Nº | Serviço contratado | Valor do serviço | Quantidade | Total do serviço |"
-        in valores
-    )
-    assert "| 1 | Implantação e Treinamento | R$ 100,00 | 10 | R$ 1.000,00 |" in valores
-    assert (
-        "| 2 | Controle de contas pagar e a receber | R$ 50,00 | 5 | R$ 250,00 |"
-        in valores
-    )
-    assert "| **Total dos serviços** | | | | **R$ 1.250,00** |" in valores
-    assert "Cobrança ativa" not in valores
+    assert "| SERVIÇO | FREQUÊNCIA | PRAZO DE ENTREGA |" in anexo
+    assert "| Implantação e Treinamento | 10x/mês |" in anexo
+    assert "| Controle de contas pagar e a receber | 5x/mês |" in anexo
+    assert "| ITEM | LIMITE MENSAL |" in anexo
+    assert "| Implantação e Treinamento | 10 |" in anexo
+    assert "| Controle de contas pagar e a receber | 5 |" in anexo
+    assert "Cobrança ativa" not in anexo
 
 
 def test_generate_resolves_document_date_tokens(client):
@@ -321,14 +314,17 @@ def test_generate_keeps_unresolved_tokens_literal(client):
     )
 
     assert resp.status_code == 201
-    sections = resp.json()["sections"]
-    head = sections[0]["content"]
-    assert "{{empresa_contratada}}" in head
-    assert "{{cnpj_contratada}}" in head
-    valores = next(s for s in sections if s["title"].startswith("CLÁUSULA SÉTIMA"))[
-        "content"
-    ]
-    assert "{{valor_mensal}}" in valores
+    content = "\n".join(s["content"] for s in resp.json()["sections"])
+
+    # Sem perfil de contratada preenchido, os tokens de endereço ficam vazios
+    # (não literais) e os blocos opcionais sem valor são removidos.
+    assert "{{contratada_razao_social}}" not in content
+    assert "{{contratada_endereco}}" not in content
+    # Sem orçamento vinculado, o token de valor mensal permanece literal.
+    assert "{{valor_mensal}}" in content
+    # Bloco opcional sem valor (testemunhas / implantação) é removido.
+    assert "TESTEMUNHAS" not in content
+    assert "7.6. Pela implantação" not in content
 
 
 def test_valor_por_extenso():
@@ -339,6 +335,319 @@ def test_valor_por_extenso():
     assert valor_por_extenso(1) == "um real"
     assert valor_por_extenso(0.05) == "cinco centavos"
     assert valor_por_extenso(2.35) == "dois reais e trinta e cinco centavos"
+
+
+def test_missing_fields_lists_modal_field_descriptors(client):
+    email = f"mf_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+    proposal = _create_proposal(client, auth, prospect).json()
+
+    resp = client.post(
+        "/contracts/missing-fields",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["count"] == len(data["fields"])
+    keys = {f["key"] for f in data["fields"]}
+    # Campos sem valor pré-preenchido continuam sendo solicitados
+    assert "sistema_gestao" in keys
+    assert "foro_comarca" in keys
+    assert "testemunhas" in keys
+    # Campos com default preenchido (Operação / Financeiro e prazo) não são
+    # pedidos — o usuário ajusta diretamente no contrato.
+    assert "dia_vencimento" not in keys
+    assert "data_inicio" not in keys
+    assert "horario_atendimento" not in keys
+    assert "prazo_minimo_meses" not in keys
+    assert "autoriza_citacao_cliente" not in keys
+    # Serviços e volumes vêm do orçamento — não são pedidos no modal.
+    assert "volumes" not in keys
+    assert SERVICO_KEY not in keys
+    assert "servicos_pontuais" not in keys
+    assert all(f.get("group") for f in data["fields"])
+
+
+def _set_company_profile(client, auth, **overrides):
+    profile = {
+        "company_razao_social": "Café BPO Serviços Financeiros Ltda",
+        "company_nome_fantasia": "Café BPO",
+        "company_cnpj": "12.345.678/0001-99",
+        "company_street": "Rua das Flores",
+        "company_number": "100",
+        "company_complement": "Sala 2",
+        "company_neighborhood": "Centro",
+        "company_city": "São Paulo",
+        "company_state": "SP",
+        "company_cep": "01310100",
+        "company_professional_email": "contato@cafebpo.com",
+    }
+    profile.update(overrides)
+    resp = client.patch("/auth/me", json=profile, headers=auth)
+    assert resp.status_code == 200
+    return resp.json()
+
+
+def test_missing_fields_omits_contratada_address_when_profile_has_city_state_cep(
+    client,
+):
+    email = f"mf_omits_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    _set_company_profile(client, auth)
+    prospect = _create_prospect(client, auth).json()
+
+    resp = client.post(
+        "/contracts/missing-fields",
+        json={"prospect_id": prospect["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 200
+    keys = {f["key"] for f in resp.json()["fields"]}
+    assert "contratada_cidade" not in keys
+    assert "contratada_uf" not in keys
+    assert "contratada_cep" not in keys
+    # Sem fonte no perfil, continua sendo solicitado
+    assert "contratada_representante_cargo" in keys
+    assert "sistema_gestao" in keys
+
+
+def test_missing_fields_keeps_contratada_address_when_profile_empty(client):
+    email = f"mf_keeps_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+
+    resp = client.post(
+        "/contracts/missing-fields",
+        json={"prospect_id": prospect["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 200
+    keys = {f["key"] for f in resp.json()["fields"]}
+    assert "contratada_cidade" in keys
+    assert "contratada_uf" in keys
+    assert "contratada_cep" in keys
+
+
+def test_preview_pulls_structured_company_address_after_profile_update(client):
+    email = f"pv_addr_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+    client.put(
+        "/contracts/templates",
+        json={
+            "sections": [
+                {
+                    "title": "Das Partes",
+                    "content": (
+                        "CONTRATADA: {{contratada_razao_social}}, "
+                        "{{contratada_cnpj}}, {{contratada_endereco}}, "
+                        "{{contratada_cidade}}/{{contratada_uf}}, "
+                        "CEP {{contratada_cep}}"
+                    ),
+                }
+            ]
+        },
+        headers=auth,
+    )
+    contract = client.post(
+        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+    ).json()
+
+    _set_company_profile(client, auth)
+
+    preview = client.get(f"/contracts/{contract['id']}/preview", headers=auth)
+
+    assert preview.status_code == 200
+    content = preview.json()["sections"][0]["content"]
+    assert "Café BPO Serviços Financeiros Ltda" in content
+    assert "12345678000199" in content
+    assert "Rua das Flores, 100, Sala 2 - Centro" in content
+    assert "São Paulo/SP" in content
+    assert "CEP 01310100" in content
+
+
+def test_missing_fields_omits_contratante_representante_when_prospect_has_them(client):
+    email = f"mf_cont_rep_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+    client.put(
+        f"/prospects/{prospect['id']}",
+        json={
+            "representante_nome": "Maria Silva",
+            "representante_cargo": "CFO",
+            "representante_cpf": "12345678901",
+        },
+        headers=auth,
+    )
+
+    resp = client.post(
+        "/contracts/missing-fields",
+        json={"prospect_id": prospect["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 200
+    keys = {f["key"] for f in resp.json()["fields"]}
+    assert "contratante_representante_nome" not in keys
+    assert "contratante_representante_cargo" not in keys
+    assert "contratante_representante_cpf" not in keys
+    assert "sistema_gestao" in keys
+
+
+def test_missing_fields_keeps_contratante_representante_when_prospect_empty(client):
+    email = f"mf_cont_rep2_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+
+    resp = client.post(
+        "/contracts/missing-fields",
+        json={"prospect_id": prospect["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 200
+    keys = {f["key"] for f in resp.json()["fields"]}
+    assert "contratante_representante_nome" in keys
+    assert "contratante_representante_cargo" in keys
+    assert "contratante_representante_cpf" in keys
+
+
+def test_generate_pulls_contratante_representante_from_prospect(client):
+    email = f"gen_rep_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth, name="Contratante SA").json()
+    client.put(
+        f"/prospects/{prospect['id']}",
+        json={
+            "representante_nome": "Maria Silva",
+            "representante_email": "maria@contratante.com",
+            "representante_cpf": "12345678901",
+            "representante_telefone": "11977771234",
+            "representante_cargo": "CFO",
+        },
+        headers=auth,
+    )
+    client.put(
+        "/contracts/templates",
+        json={
+            "sections": [
+                {
+                    "title": "Das Partes",
+                    "content": (
+                        "DEPOIS {{contratante_representante_nome}} "
+                        "({{contratante_representante_cargo}}), CPF "
+                        "{{contratante_representante_cpf}}, tel "
+                        "{{contratante_representante_telefone}}, e-mail "
+                        "{{contratante_representante_email}}"
+                    ),
+                }
+            ]
+        },
+        headers=auth,
+    )
+
+    resp = client.post(
+        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+    )
+
+    assert resp.status_code == 201
+    content = resp.json()["sections"][0]["content"]
+    assert "Maria Silva" in content
+    assert "CFO" in content
+    assert "12345678901" in content
+    assert "11977771234" in content
+    assert "maria@contratante.com" in content
+    assert "{{contratante_representante_cpf}}" not in content
+
+
+def test_generate_persists_fields_and_number(client):
+    email = f"gen_f_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+
+    fields = {
+        "sistema_gestao": "Conta Azul",
+        "dia_vencimento": "15",
+        "data_inicio": "2026-10-01",
+        "valor_implantacao": "1500,00",
+        "autoriza_citacao_cliente": True,
+    }
+    resp = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"], "fields": fields},
+        headers=auth,
+    )
+
+    assert resp.status_code == 201
+    contract = resp.json()
+    assert contract["number"] == 1
+    assert contract["fields"]["sistema_gestao"] == "Conta Azul"
+
+    content = "\n".join(s["content"] for s in contract["sections"])
+    assert "Conta Azul" in content
+    assert "vencimento no dia 15 de cada mês" in content
+    assert "R$ 1.500,00" in content
+    assert "mil e quinhentos reais" in content
+    assert "7.6. Pela implantação" in content
+
+
+def test_generate_removes_optional_block_when_field_empty(client):
+    email = f"gen_opt_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+
+    resp = client.post(
+        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+    )
+    assert resp.status_code == 201
+    valores = next(
+        s for s in resp.json()["sections"] if s["title"].startswith("CLÁUSULA SÉTIMA")
+    )["content"]
+    assert "7.6. Pela implantação" not in valores
+
+
+def test_generate_number_sequence_increments(client):
+    email = f"gen_seq_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+
+    first = client.post(
+        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+    ).json()
+    second = client.post(
+        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+    ).json()
+
+    assert first["number"] == 1
+    assert second["number"] == 2
+    assert "Contrato nº 0001" in "\n".join(s["content"] for s in first["sections"])
+    assert "Contrato nº 0002" in "\n".join(s["content"] for s in second["sections"])
+
+
+def test_patch_contract_fields_rerenders_sections(client):
+    email = f"gen_patch_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+
+    contract = client.post(
+        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+    ).json()
+
+    patch = client.patch(
+        f"/contracts/{contract['id']}/fields",
+        json={"fields": {"sistema_gestao": "Omie"}},
+        headers=auth,
+    )
+
+    assert patch.status_code == 200
+    content = "\n".join(s["content"] for s in patch.json()["sections"])
+    assert "| Sistema de gestão | Omie (licença: CONTRATANTE) |" in content
+    assert patch.json()["fields"]["sistema_gestao"] == "Omie"
 
 
 def test_generate_without_proposal_keeps_orcamento_tokens(client):
@@ -475,6 +784,7 @@ def test_contracts_endpoints_require_authentication(client):
     assert client.get("/contracts/").status_code == 401
     assert client.get("/contracts/templates").status_code == 401
     assert client.post("/contracts/generate", json={}).status_code == 401
+    assert client.post("/contracts/missing-fields", json={}).status_code == 401
     assert client.post(f"/contracts/{uuid4()}/finalize").status_code == 401
 
 
@@ -508,9 +818,10 @@ def test_preview_resolves_tokens_with_current_data(client):
                 {
                     "title": "Das Partes",
                     "content": (
-                        "Contratada {{empresa_contratada}} ({{cnpj_contratada}}) "
-                        "e Contratante {{nome}}, CNPJ {{cnpj}}, cpf pendente "
-                        "{{cpf_contratada}}."
+                        "Contratada {{contratada_razao_social}} "
+                        "({{contratada_cnpj}}) e Contratante {{nome}}, CNPJ "
+                        "{{cnpj}}, representante CPF "
+                        "{{contratada_representante_cpf}}."
                     ),
                 },
                 {
@@ -531,7 +842,7 @@ def test_preview_resolves_tokens_with_current_data(client):
     assert "00112233000144" in parte
     assert "Empresa Visualizar" in parte
     assert "12345678000199" in parte
-    assert "{{cpf_contratada}}" in parte
+    assert "{{contratada_representante_cpf}}" not in parte
 
     objeto = sections[1]["content"]
     assert "R$ 2.500,00" in objeto
@@ -547,3 +858,245 @@ def test_preview_unknown_contract_returns_404(client):
 
 def test_preview_requires_authentication(client):
     assert client.get(f"/contracts/{uuid4()}/preview").status_code == 401
+
+
+def test_generate_composes_contratada_address_from_structured_fields(client):
+    email = f"gen_addr_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    client.patch(
+        "/auth/me",
+        json={
+            "name": "Raul Gomes",
+            "company_name": "Café Com BPO Ltda",
+            "company_cnpj": "00112233000144",
+            "company_street": "Avenida Paulista",
+            "company_number": "1000",
+            "company_complement": "Sala 501",
+            "company_neighborhood": "Bela Vista",
+            "company_city": "São Paulo",
+            "company_state": "SP",
+            "company_cep": "01310100",
+            "company_professional_email": "contato@cafecombpo.com.br",
+        },
+        headers=auth,
+    )
+    prospect = _create_prospect(client, auth).json()
+    proposal = _create_proposal(client, auth, prospect, final_price=1250.0).json()
+
+    resp = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    head = next(
+        s for s in resp.json()["sections"] if s["title"] == "CONTRATADA E CONTRATANTE"
+    )["content"]
+    assert "Avenida Paulista, 1000, Sala 501 - Bela Vista" in head
+    assert "São Paulo/SP" in head
+    assert "01310100" in head
+
+
+def test_generate_contratada_address_falls_back_to_company_address(client):
+    email = f"gen_legacy_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    client.patch(
+        "/auth/me",
+        json={
+            "name": "Raul Gomes",
+            "company_name": "Café Com BPO Ltda",
+            "company_address": "Rua das Flores, 100 - Centro, São Paulo - SP",
+            "company_professional_email": "contato@cafecombpo.com.br",
+        },
+        headers=auth,
+    )
+    prospect = _create_prospect(client, auth).json()
+    proposal = _create_proposal(client, auth, prospect, final_price=1250.0).json()
+
+    resp = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    head = next(
+        s for s in resp.json()["sections"] if s["title"] == "CONTRATADA E CONTRATANTE"
+    )["content"]
+    assert "Rua das Flores" in head
+
+
+def test_generate_pulls_implantacao_from_pontual_services(client):
+    email = f"gen_imp_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+    proposal = client.post(
+        "/proposals/",
+        json={
+            "client_name": prospect["name"],
+            "input_payload": {
+                "operation": {
+                    "people_count": 3,
+                    "hours_per_month": 160,
+                    "total_cost": 15000,
+                },
+                "desired_profit_margin": 0.5,
+                "term_discount": 0.1,
+                "complexity": "Média",
+                "revenue": 50000,
+                "services": [
+                    {
+                        "name": "Implantação do sistema",
+                        "type": "fixed",
+                        "fixed_value": 1000,
+                        "monthly_quantity": 1,
+                        "active": True,
+                    },
+                    {
+                        "name": "Migração de dados",
+                        "type": "fixed",
+                        "fixed_value": 500,
+                        "monthly_quantity": 1,
+                        "active": True,
+                    },
+                    {
+                        "name": "Controle de contas pagar e a receber",
+                        "monthly_quantity": 5,
+                        "active": True,
+                    },
+                ],
+            },
+            "result_payload": {
+                "final_price": 1250.0,
+                "breakdown": {"total_service_cost": 833.33},
+            },
+            "prospect_id": prospect["id"],
+        },
+        headers=auth,
+    ).json()
+
+    resp = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 201
+    sections = resp.json()["sections"]
+    valores = next(s for s in sections if s["title"].startswith("CLÁUSULA SÉTIMA"))[
+        "content"
+    ]
+    assert "7.6. Pela implantação" in valores
+    assert "R$ 1.500,00" in valores
+    assert "mil e quinhentos reais" in valores
+
+    anexo = next(s for s in sections if s["title"].startswith("ANEXO I"))["content"]
+    assert "2. Serviços pontuais" in anexo
+    assert "| Implantação do sistema |" in anexo
+    assert "| Migração de dados |" in anexo
+
+
+def test_generate_omits_implantacao_without_pontual_services(client):
+    email = f"gen_imp2_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+    proposal = client.post(
+        "/proposals/",
+        json={
+            "client_name": prospect["name"],
+            "input_payload": {
+                "operation": {
+                    "people_count": 3,
+                    "hours_per_month": 160,
+                    "total_cost": 15000,
+                },
+                "desired_profit_margin": 0.5,
+                "term_discount": 0.1,
+                "complexity": "Média",
+                "revenue": 50000,
+                "services": [
+                    {
+                        "name": "Controle de contas pagar e a receber",
+                        "monthly_quantity": 5,
+                        "active": True,
+                    },
+                ],
+            },
+            "result_payload": {
+                "final_price": 1250.0,
+                "breakdown": {"total_service_cost": 833.33},
+            },
+            "prospect_id": prospect["id"],
+        },
+        headers=auth,
+    ).json()
+
+    resp = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 201
+    valores = next(
+        s for s in resp.json()["sections"] if s["title"].startswith("CLÁUSULA SÉTIMA")
+    )["content"]
+    assert "7.6. Pela implantação" not in valores
+
+
+def test_missing_fields_omits_contratada_representante_cargo_when_profile_has_cargo(
+    client,
+):
+    email = f"mf_cargo_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    profile = _set_company_profile(client, auth, representante_cargo="Sócio")
+    assert profile.get("representante_cargo") == "Sócio"
+    prospect = _create_prospect(client, auth).json()
+
+    resp = client.post(
+        "/contracts/missing-fields",
+        json={"prospect_id": prospect["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 200
+    keys = {f["key"] for f in resp.json()["fields"]}
+    assert "contratada_representante_cargo" not in keys
+
+
+def test_generate_uses_representante_cargo_from_profile(client):
+    email = f"gen_cargo_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    _set_company_profile(client, auth, representante_cargo="Sócio Diretor")
+    prospect = _create_prospect(client, auth).json()
+    proposal = _create_proposal(client, auth, prospect).json()
+
+    resp = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 201
+    head = next(
+        s for s in resp.json()["sections"] if s["title"] == "CONTRATADA E CONTRATANTE"
+    )["content"]
+    assert "Sócio Diretor" in head
+
+
+def test_generate_uses_prospect_city_in_signature(client):
+    email = f"gen_cidade_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+    assert prospect["city"] == "São Paulo"
+
+    resp = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"]},
+        headers=auth,
+    )
+
+    assert resp.status_code == 201
+    assinaturas = next(
+        s for s in resp.json()["sections"] if s["title"] == "ASSINATURAS"
+    )["content"]
+    assert "São Paulo, " in assinaturas

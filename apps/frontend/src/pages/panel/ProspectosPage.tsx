@@ -7,8 +7,8 @@ import {
   convertProspect,
   ProspectData,
 } from '../../api/prospects';
-import { MaskedCNPJ, MaskedPhone } from '../../components/ui/MaskedInput';
-import { maskCNPJ, maskPhone, maskCEP, onlyNumbers } from '../../lib/formatters';
+import { MaskedCNPJ, MaskedPhone, MaskedCPF } from '../../components/ui/MaskedInput';
+import { maskCNPJ, maskPhone, maskCEP, maskCPF, onlyNumbers } from '../../lib/formatters';
 import { lookupCnpj, lookupCep } from '../../lib/brasilApi';
 import { getClientSegments } from '../../api/clients';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
@@ -35,6 +35,11 @@ export const ProspectosPage: React.FC = () => {
     description: '',
     segment: '',
     color: '#4287f5',
+    representante_nome: '',
+    representante_email: '',
+    representante_cpf: '',
+    representante_telefone: '',
+    representante_cargo: '',
     street: '',
     number: '',
     complement: '',
@@ -76,7 +81,7 @@ export const ProspectosPage: React.FC = () => {
   };
 
   const resetForm = () => {
-    setFormData({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5', street: '', number: '', complement: '', neighborhood: '', city: '', state: '', cep: '' });
+    setFormData({ name: '', cnpj: '', phone: '', email: '', description: '', segment: '', color: '#4287f5', representante_nome: '', representante_email: '', representante_cpf: '', representante_telefone: '', representante_cargo: '', street: '', number: '', complement: '', neighborhood: '', city: '', state: '', cep: '' });
     setCustomSegment('');
     setShowForm(false);
     setExpandedCardId(null);
@@ -94,6 +99,11 @@ export const ProspectosPage: React.FC = () => {
       description: prospect.description || '',
       segment: isKnown ? seg : 'Outro',
       color: prospect.color || '#4287f5',
+      representante_nome: prospect.representante_nome || '',
+      representante_email: prospect.representante_email || '',
+      representante_cpf: prospect.representante_cpf || '',
+      representante_telefone: prospect.representante_telefone || '',
+      representante_cargo: prospect.representante_cargo || '',
       street: prospect.street || '',
       number: prospect.number || '',
       complement: prospect.complement || '',
@@ -122,6 +132,11 @@ export const ProspectosPage: React.FC = () => {
       description: formData.description || undefined,
       segment: resolvedSegment,
       color: formData.color,
+      representante_nome: formData.representante_nome || undefined,
+      representante_email: formData.representante_email.trim() || undefined,
+      representante_cpf: formData.representante_cpf || undefined,
+      representante_telefone: formData.representante_telefone || undefined,
+      representante_cargo: formData.representante_cargo || undefined,
       street: formData.street || undefined,
       number: formData.number || undefined,
       complement: formData.complement || undefined,
@@ -257,6 +272,32 @@ export const ProspectosPage: React.FC = () => {
         )}
       </div>
       <div className="flex flex-col gap-1.5" style={{ gridColumn: '1 / -1' }}>
+        <label className="text-[13px] font-medium text-foreground">Representante da Empresa</label>
+        <p className="text-[11px] text-muted-foreground">
+          Dados do representante legal. Usados automaticamente no contrato (cláusula "Das Partes").
+        </p>
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">Nome Completo</label>
+        <Input value={formData.representante_nome} onChange={e => setFormData({ ...formData, representante_nome: e.target.value })} placeholder="Nome do representante" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">E-mail</label>
+        <Input type="email" value={formData.representante_email} onChange={e => setFormData({ ...formData, representante_email: e.target.value })} placeholder="representante@empresa.com" />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">CPF</label>
+        <MaskedCPF value={formData.representante_cpf} onChange={(raw) => setFormData({ ...formData, representante_cpf: raw })} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">Telefone</label>
+        <MaskedPhone value={formData.representante_telefone} onChange={(raw) => setFormData({ ...formData, representante_telefone: raw })} />
+      </div>
+      <div className="flex flex-col gap-1.5">
+        <label className="text-[13px] font-medium text-foreground">Cargo</label>
+        <Input value={formData.representante_cargo} onChange={e => setFormData({ ...formData, representante_cargo: e.target.value })} placeholder="Ex.: Sócio(a), Diretor(a), CFO" />
+      </div>
+      <div className="flex flex-col gap-1.5" style={{ gridColumn: '1 / -1' }}>
         <label className="text-[13px] font-medium text-foreground">Endereço</label>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -386,6 +427,16 @@ export const ProspectosPage: React.FC = () => {
                             {p.cnpj && <span>{maskCNPJ(p.cnpj)}</span>}
                             {p.phone && <><span className="opacity-30">|</span><span>{maskPhone(p.phone)}</span></>}
                             {p.email && <><span className="opacity-30">|</span><span className="normal-case">{p.email}</span></>}
+                            {p.representante_nome && (
+                              <>
+                                <span className="opacity-30">|</span>
+                                <span>
+                                  {p.representante_nome}
+                                  {p.representante_cargo ? ` (${p.representante_cargo})` : ''}
+                                  {p.representante_cpf ? ` — CPF ${maskCPF(p.representante_cpf)}` : ''}
+                                </span>
+                              </>
+                            )}
                           </div>
                           {p.description && (
                             <p className="mt-1 max-w-[500px] truncate text-[12px] text-muted-foreground">{p.description}</p>

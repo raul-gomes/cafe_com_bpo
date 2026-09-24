@@ -64,12 +64,21 @@ class UserResponse(BaseModel):
     company_description: str | None = None
     avatar_url: str | None = None
     role: str = "user"
+    cpf: str | None = None
+    representante_cargo: str | None = None
     whatsapp: str | None = None
     biografia: str | None = None
     company_razao_social: str | None = None
     company_nome_fantasia: str | None = None
     company_cnpj: str | None = None
     company_address: str | None = None
+    company_street: str | None = None
+    company_number: str | None = None
+    company_complement: str | None = None
+    company_neighborhood: str | None = None
+    company_city: str | None = None
+    company_state: str | None = None
+    company_cep: str | None = None
     company_professional_email: str | None = None
     company_commercial_phone: str | None = None
     company_logo_url: str | None = None
@@ -93,12 +102,21 @@ class UserResponse(BaseModel):
             if user.avatar_file
             else user.avatar_url,
             role=user.role,
+            cpf=user.cpf,
+            representante_cargo=user.representante_cargo,
             whatsapp=user.whatsapp,
             biografia=user.biografia,
             company_razao_social=user.company_razao_social,
             company_nome_fantasia=user.company_nome_fantasia,
             company_cnpj=user.company_cnpj,
             company_address=user.company_address,
+            company_street=user.company_street,
+            company_number=user.company_number,
+            company_complement=user.company_complement,
+            company_neighborhood=user.company_neighborhood,
+            company_city=user.company_city,
+            company_state=user.company_state,
+            company_cep=user.company_cep,
             company_professional_email=user.company_professional_email,
             company_commercial_phone=user.company_commercial_phone,
             company_logo_url=user.company_logo_url,
@@ -115,12 +133,21 @@ class ProfileUpdate(BaseModel):
     company_name: str | None = None
     company_segment: str | None = None
     company_description: str | None = None
+    cpf: str | None = None
+    representante_cargo: str | None = None
     whatsapp: str | None = None
     biografia: str | None = None
     company_razao_social: str | None = None
     company_nome_fantasia: str | None = None
     company_cnpj: str | None = None
     company_address: str | None = None
+    company_street: str | None = None
+    company_number: str | None = None
+    company_complement: str | None = None
+    company_neighborhood: str | None = None
+    company_city: str | None = None
+    company_state: str | None = None
+    company_cep: str | None = None
     company_professional_email: str | None = None
     company_commercial_phone: str | None = None
     company_logo_url: str | None = None
@@ -145,6 +172,16 @@ class ProfileUpdate(BaseModel):
         cleaned = re.sub(r"\D", "", v)
         if not cleaned:
             raise ValueError("Informe um CNPJ válido")
+        return cleaned
+
+    @field_validator("cpf")
+    @classmethod
+    def sanitize_cpf(cls, v: str | None) -> str | None:
+        if v is None or not v.strip():
+            return v
+        cleaned = re.sub(r"\D", "", v)
+        if not cleaned:
+            raise ValueError("Informe um CPF válido")
         return cleaned
 
 

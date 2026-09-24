@@ -30,6 +30,12 @@ class Prospect(Base):
     description = Column(Text, nullable=True)
     segment = Column(String(100), nullable=True)
 
+    representante_nome = Column(String(255), nullable=True)
+    representante_email = Column(String(255), nullable=True)
+    representante_cpf = Column(String(20), nullable=True)
+    representante_telefone = Column(String(50), nullable=True)
+    representante_cargo = Column(String(100), nullable=True)
+
     street = Column(String(255), nullable=True)
     number = Column(String(20), nullable=True)
     complement = Column(String(255), nullable=True)

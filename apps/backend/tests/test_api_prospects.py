@@ -229,6 +229,53 @@ def test_convert_prospect_is_idempotent_and_protected(client):
     assert resp2.status_code == 404
 
 
+def test_create_prospect_with_representante_fields(client):
+    email = f"prospect_rep_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    resp = create_prospect(
+        client,
+        auth,
+        representante_nome="Maria Silva",
+        representante_email="maria@potencial.com",
+        representante_cpf="123.456.789-01",
+        representante_telefone="(11) 97777-1234",
+        representante_cargo="CFO",
+    )
+
+    assert resp.status_code == 201
+    data = resp.json()
+    assert data["representante_nome"] == "Maria Silva"
+    assert data["representante_email"] == "maria@potencial.com"
+    assert data["representante_cpf"] == "12345678901"
+    assert data["representante_telefone"] == "11977771234"
+    assert data["representante_cargo"] == "CFO"
+
+
+def test_update_prospect_representante_fields(client):
+    email = f"prospect_rep_upd_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth).json()
+
+    resp = client.put(
+        f"/prospects/{prospect['id']}",
+        json={
+            "representante_nome": "João Souza",
+            "representante_cargo": "Diretor",
+            "representante_cpf": "987.654.321-00",
+        },
+        headers=auth,
+    )
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["representante_nome"] == "João Souza"
+    assert data["representante_cargo"] == "Diretor"
+    assert data["representante_cpf"] == "98765432100"
+    assert data["representante_email"] is None
+    assert data["representante_telefone"] is None
+
+
 def test_proposal_can_reference_prospect(client):
     email = f"prospect_prop_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)

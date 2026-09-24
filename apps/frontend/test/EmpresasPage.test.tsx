@@ -16,6 +16,7 @@ vi.mock('../src/api/clients', () => ({
     { id: '1', name: 'Cliente A', cnpj: '12.345.678/0001-99' },
     { id: '2', name: 'Cliente B', cnpj: '98.765.432/0001-10' },
   ]),
+  getClientSegments: vi.fn().mockResolvedValue(['B2B - Tecnologia & Software', 'Outro']),
   createClient: vi.fn(),
   updateClient: vi.fn(),
   deleteClient: vi.fn(),
@@ -31,6 +32,13 @@ vi.mock('../src/api/hooks/useTasks', () => ({
     useUpdateAssignment: () => ({ mutateAsync: vi.fn(), isPending: false }),
   }),
 }))
+
+vi.mock('../src/lib/brasilApi', () => ({
+  lookupCnpj: vi.fn(),
+  lookupCep: vi.fn(),
+}))
+
+import { lookupCnpj, lookupCep } from '../src/lib/brasilApi'
 
 describe('EmpresasPage', () => {
   const renderPage = () => {
@@ -122,5 +130,94 @@ describe('EmpresasPage', () => {
     fireEvent.click(newBtn)
     const topFormNameInput = screen.getByPlaceholderText('Razão social ou nome fantasia')
     expect(topFormNameInput).toBeInTheDocument()
+  })
+
+  it('autofills company and address data from CNPJ lookup on blur', async () => {
+    const user = userEvent.setup()
+    ;(lookupCnpj as ReturnType<typeof vi.fn>).mockResolvedValue({
+      razao_social: 'Empresa XPTO LTDA',
+      logradouro: 'Avenida Paulista',
+      numero: '1000',
+      bairro: 'Bela Vista',
+      municipio: 'São Paulo',
+      uf: 'SP',
+      cep: '01310100',
+      email: 'contato@xpto.com',
+      ddd_telefone_1: '11988887777',
+      nome_fantasia: '',
+    })
+    renderPage()
+    const newBtn = await screen.findByText('Novo Cliente')
+    await user.click(newBtn)
+    const cnpjInput = screen.getByPlaceholderText('00.000.000/0000-00')
+    await user.type(cnpjInput, '12345678000199')
+    fireEvent.blur(cnpjInput)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Rua / Avenida')).toHaveValue('Avenida Paulista')
+    })
+    expect(screen.getByPlaceholderText('Número')).toHaveValue('1000')
+    expect(screen.getByPlaceholderText('Bairro')).toHaveValue('Bela Vista')
+    expect(screen.getByPlaceholderText('Cidade')).toHaveValue('São Paulo')
+    expect(screen.getByPlaceholderText('UF')).toHaveValue('SP')
+    expect(screen.getByPlaceholderText('00000-000')).toHaveValue('01310-100')
+    expect(screen.getByPlaceholderText('contato@empresa.com')).toHaveValue('contato@xpto.com')
+    expect(screen.getByPlaceholderText('Razão social ou nome fantasia')).toHaveValue('Empresa XPTO LTDA')
+    expect(lookupCnpj).toHaveBeenCalledWith('12345678000199')
+  })
+
+  it('does not autofill when CNPJ is not found', async () => {
+    const user = userEvent.setup()
+    ;(lookupCnpj as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    renderPage()
+    const newBtn = await screen.findByText('Novo Cliente')
+    await user.click(newBtn)
+    const cnpjInput = screen.getByPlaceholderText('00.000.000/0000-00')
+    await user.type(cnpjInput, '12345678000199')
+    fireEvent.blur(cnpjInput)
+    await waitFor(() => {
+      expect(lookupCnpj).toHaveBeenCalledWith('12345678000199')
+    })
+    expect(screen.getByPlaceholderText('Razão social ou nome fantasia')).toHaveValue('')
+    expect(screen.getByPlaceholderText('Rua / Avenida')).toHaveValue('')
+  })
+
+  it('autofills address data from CEP lookup on blur', async () => {
+    const user = userEvent.setup()
+    ;(lookupCep as ReturnType<typeof vi.fn>).mockResolvedValue({
+      cep: '01310100',
+      state: 'SP',
+      city: 'São Paulo',
+      neighborhood: 'Bela Vista',
+      street: 'Avenida Paulista',
+    })
+    renderPage()
+    const newBtn = await screen.findByText('Novo Cliente')
+    await user.click(newBtn)
+    const cepInput = screen.getByPlaceholderText('00000-000')
+    await user.type(cepInput, '01310100')
+    fireEvent.blur(cepInput)
+    await waitFor(() => {
+      expect(screen.getByPlaceholderText('Rua / Avenida')).toHaveValue('Avenida Paulista')
+    })
+    expect(screen.getByPlaceholderText('Bairro')).toHaveValue('Bela Vista')
+    expect(screen.getByPlaceholderText('Cidade')).toHaveValue('São Paulo')
+    expect(screen.getByPlaceholderText('UF')).toHaveValue('SP')
+    expect(lookupCep).toHaveBeenCalledWith('01310100')
+  })
+
+  it('does not autofill when CEP is not found', async () => {
+    const user = userEvent.setup()
+    ;(lookupCep as ReturnType<typeof vi.fn>).mockResolvedValue(null)
+    renderPage()
+    const newBtn = await screen.findByText('Novo Cliente')
+    await user.click(newBtn)
+    const cepInput = screen.getByPlaceholderText('00000-000')
+    await user.type(cepInput, '01310100')
+    fireEvent.blur(cepInput)
+    await waitFor(() => {
+      expect(lookupCep).toHaveBeenCalledWith('01310100')
+    })
+    expect(screen.getByPlaceholderText('Rua / Avenida')).toHaveValue('')
+    expect(screen.getByPlaceholderText('Cidade')).toHaveValue('')
   })
 })

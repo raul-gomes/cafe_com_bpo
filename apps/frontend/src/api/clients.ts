@@ -9,6 +9,13 @@ export interface ClientData {
   color?: string;
   description?: string;
   segment?: string;
+  street?: string;
+  number?: string;
+  complement?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  cep?: string;
   created_at?: string;
   updated_at?: string;
 }

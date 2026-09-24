@@ -1,4 +1,15 @@
 /**
+ * Formata um valor aplicando a máscara de CPF: XXX.XXX.XXX-XX
+ */
+export function maskCPF(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 11);
+  return digits
+    .replace(/^(\d{3})(\d)/, '$1.$2')
+    .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+    .replace(/\.(\d{3})(\d)/, '.$1-$2');
+}
+
+/**
  * Formata um valor aplicando a máscara de CNPJ: XX.XXX.XXX/XXXX-XX
  */
 export function maskCNPJ(value: string): string {
@@ -25,6 +36,14 @@ export function maskPhone(value: string): string {
   return digits
     .replace(/^(\d{2})(\d)/, '($1) $2')
     .replace(/(\d{5})(\d)/, '$1-$2');
+}
+
+/**
+ * Formata um valor aplicando a máscara de CEP: XXXXX-XXX
+ */
+export function maskCEP(value: string): string {
+  const digits = value.replace(/\D/g, '').slice(0, 8);
+  return digits.replace(/^(\d{5})(\d)/, '$1-$2');
 }
 
 /**

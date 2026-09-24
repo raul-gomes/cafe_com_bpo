@@ -18,38 +18,37 @@ down_revision: str | Sequence[str] | None = "5709a864e1c8"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
+# Migration órfã (nunca aplicada): os bancos existentes já nascem com essas
+# colunas vindas de migrações ancestrais. O upgrade é idempotente para não
+# falhar em ambientes que já possuem a estrutura e ainda aplica em bases novas.
+_PROFILE_COLUMNS = [
+    ("whatsapp", sa.String(50)),
+    ("company_razao_social", sa.String(255)),
+    ("company_nome_fantasia", sa.String(255)),
+    ("company_cnpj", sa.String(50)),
+    ("company_address", sa.Text()),
+    ("company_professional_email", sa.String(255)),
+    ("company_commercial_phone", sa.String(50)),
+    ("company_logo_url", sa.String(500)),
+    ("company_color_code", sa.String(10)),
+]
+
 
 def upgrade() -> None:
     """Upgrade schema."""
-    op.add_column("users", sa.Column("whatsapp", sa.String(50), nullable=True))
-    op.add_column(
-        "users", sa.Column("company_razao_social", sa.String(255), nullable=True)
-    )
-    op.add_column(
-        "users", sa.Column("company_nome_fantasia", sa.String(255), nullable=True)
-    )
-    op.add_column("users", sa.Column("company_cnpj", sa.String(50), nullable=True))
-    op.add_column("users", sa.Column("company_address", sa.Text(), nullable=True))
-    op.add_column(
-        "users", sa.Column("company_professional_email", sa.String(255), nullable=True)
-    )
-    op.add_column(
-        "users", sa.Column("company_commercial_phone", sa.String(50), nullable=True)
-    )
-    op.add_column("users", sa.Column("company_logo_url", sa.String(500), nullable=True))
-    op.add_column(
-        "users", sa.Column("company_color_code", sa.String(10), nullable=True)
-    )
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing = {c["name"] for c in inspector.get_columns("users")}
+    for name, column_type in _PROFILE_COLUMNS:
+        if name not in existing:
+            op.add_column("users", sa.Column(name, column_type, nullable=True))
 
 
 def downgrade() -> None:
     """Downgrade schema."""
-    op.drop_column("users", "company_color_code")
-    op.drop_column("users", "company_logo_url")
-    op.drop_column("users", "company_commercial_phone")
-    op.drop_column("users", "company_professional_email")
-    op.drop_column("users", "company_address")
-    op.drop_column("users", "company_cnpj")
-    op.drop_column("users", "company_nome_fantasia")
-    op.drop_column("users", "company_razao_social")
-    op.drop_column("users", "whatsapp")
+    bind = op.get_bind()
+    inspector = sa.inspect(bind)
+    existing = {c["name"] for c in inspector.get_columns("users")}
+    for name, _ in reversed(_PROFILE_COLUMNS):
+        if name in existing:
+            op.drop_column("users", name)

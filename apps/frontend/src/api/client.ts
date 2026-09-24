@@ -12,9 +12,6 @@ export const getApiUrl = () => import.meta.env.VITE_API_URL || '/api';
 
 export const apiClient = axios.create({
   baseURL: getApiUrl(),
-  headers: {
-    'Content-Type': 'application/json',
-  },
   withCredentials: true, // Send cookies (refresh_token) with requests
 });
 

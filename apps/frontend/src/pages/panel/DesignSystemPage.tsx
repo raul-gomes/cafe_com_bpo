@@ -1255,6 +1255,33 @@ const [sections, setSections] = useState([
             />
           </div>
         </ComponentCard>
+
+        <ComponentCard
+          name="ContractFieldsModal"
+          description="Formulário dinâmico para dados do contrato sem fonte no banco · campos agrupados por grupo · kinds text/number/date/select/boolean/money/list · submit filtra vazios"
+          howToUse={`import { ContractFieldsModal } from '../../components/contracts/ContractFieldsModal'
+import { ContractFieldDescriptor } from '../../api/contracts'
+
+const descriptors: ContractFieldDescriptor[] = [
+  { key: 'sistema_gestao', label: 'Sistema de gestão', kind: 'text', group: 'Operação' },
+  { key: 'dia_vencimento', label: 'Dia de vencimento', kind: 'number', default: '10', group: 'Financeiro' },
+]
+
+<ContractFieldsModal
+  open={open}
+  title="Dados do contrato"
+  descriptors={descriptors}
+  submitLabel="Gerar contrato"
+  onClose={() => setOpen(false)}
+  onSubmit={async (fields) => { console.log(fields) }}
+/>`}
+        >
+          <div className="ds-col">
+            <p className="text-sm text-muted-foreground">
+              Abre em diálogo. Veja a page Contrato Detalhe / Novo Contrato para uso real.
+            </p>
+          </div>
+        </ComponentCard>
       </Section>
 
       {/* ═══════════ 6. MODOS ═══════════ */}
