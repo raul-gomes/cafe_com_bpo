@@ -18,6 +18,10 @@ from datetime import datetime
 from typing import Any
 
 from src.modules.proposals.models import PricingScenario
+
+# Campos que definem o vencimento do contrato: mesmo com default preenchido,
+# são SEMPRE pedidos no modal de geração (com o default como valor inicial).
+_ALWAYS_ASKED_KEYS = {"dia_vencimento", "primeiro_vencimento"}
 from src.modules.prospects.models import Prospect
 
 # Listas de colocação dos serviços no Anexo I.
@@ -264,14 +268,77 @@ def describe_list_fields() -> list[dict[str, Any]]:
     ]
 
 
+def _service_costs_by_name(proposal: PricingScenario | None) -> dict[str, float]:
+    """Custo de cada serviço do orçamento, por nome.
+
+    Aceita `service_costs` como lista de objetos `{name, cost}` (formato do
+    simulador no frontend) ou posicional (números na mesma ordem dos serviços
+    do `input_payload`, formado pelo motor de pricing no backend).
+    """
+    if proposal is None:
+        return {}
+    payload = proposal.input_payload or {}
+    result = proposal.result_payload or {}
+    breakdown = result.get("breakdown") or {}
+    costs = breakdown.get("service_costs") or []
+    services = payload.get("services") or []
+
+    by_name: dict[str, float] = {}
+    if costs and isinstance(costs[0], dict):
+        for item in costs:
+            name = str((item or {}).get("name") or "").strip()
+            if not name:
+                continue
+            try:
+                by_name[name] = float(item.get("cost") or 0)
+            except (TypeError, ValueError):
+                continue
+        return by_name
+
+    for svc, cost in zip(services, costs):
+        name = str((svc or {}).get("name") or "").strip()
+        if not name:
+            continue
+        try:
+            by_name.setdefault(name, float(cost or 0))
+        except (TypeError, ValueError):
+            continue
+    return by_name
+
+
+def _servico_valores(proposal: PricingScenario | None) -> dict[str, float]:
+    """Valor mensal de cada serviço recorrente (custo × preço final ÷ custo total).
+
+    Espelha o `serviceMonthlyValue` do frontend: o preço final (com margem,
+    impostos e desconto) é alocado entre os serviços na proporção do custo de
+    cada um.
+    """
+    if proposal is None:
+        return {}
+    result = proposal.result_payload or {}
+    breakdown = result.get("breakdown") or {}
+    try:
+        final_price = float(result.get("final_price") or 0)
+        total_cost = float(breakdown.get("total_service_cost") or 0)
+    except (TypeError, ValueError):
+        return {}
+    if not total_cost:
+        return {}
+    costs = _service_costs_by_name(proposal)
+    return {name: cost * final_price / total_cost for name, cost in costs.items()}
+
+
 def _servico_rows(proposal: PricingScenario | None) -> tuple[list[dict], list[dict]]:
     """Separa serviços recorrentes (`servicos`) de pontuais (`servicos_pontuais`).
 
     A frequência dos recorrentes é derivada da quantidade mensal do orçamento.
-    Descrição e prazo não têm fonte no banco — ficam em branco para o modal.
+    O valor mensal de cada recorrente vem do `result_payload` (proporcional ao
+    custo). Descrição e prazo não têm fonte no banco — ficam em branco para o
+    modal.
     """
     recorrentes: list[dict] = []
     pontuais: list[dict] = []
+    valores = _servico_valores(proposal)
     if proposal is not None:
         services = (proposal.input_payload or {}).get("services") or []
         for svc in services:
@@ -284,11 +351,23 @@ def _servico_rows(proposal: PricingScenario | None) -> tuple[list[dict], list[di
             quantidade = int(svc.get("monthly_quantity") or 1)
             frequencia = f"{quantidade}x/mês" if quantidade > 1 else "1x/mês"
             recorrentes.append(
-                {"nome": nome, "descricao": "", "frequencia": frequencia, "prazo": ""}
+                {
+                    "nome": nome,
+                    "descricao": "",
+                    "frequencia": frequencia,
+                    "prazo": "",
+                    "valor": valores.get(nome, ""),
+                }
             )
     if not recorrentes and not pontuais:
         recorrentes.append(
-            {"nome": "", "descricao": "", "frequencia": "1x/mês", "prazo": ""}
+            {
+                "nome": "",
+                "descricao": "",
+                "frequencia": "1x/mês",
+                "prazo": "",
+                "valor": "",
+            }
         )
     return recorrentes, pontuais
 
@@ -330,7 +409,9 @@ def all_missing_field_descriptors(
                     descriptor["default"] = ""
             # Já preenchido por default (sessão Operação / Financeiro e prazo):
             # não perguntar — valor é resolvido na geração e pode ser editado.
-            if descriptor.get("default"):
+            # Exceção: dia_vencimento/primeiro_vencimento são sempre pedidos,
+            # com o default como valor pré-preenchido no modal.
+            if descriptor.get("default") and field["key"] not in _ALWAYS_ASKED_KEYS:
                 continue
             descriptors.append(descriptor)
     descriptors.extend(describe_list_fields())

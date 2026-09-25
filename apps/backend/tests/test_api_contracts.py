@@ -273,13 +273,52 @@ def test_generate_renders_contracted_services_table(client):
     anexo = next(
         s for s in resp.json()["sections"] if s["title"].startswith("ANEXO I")
     )["content"]
-    assert "| SERVIÇO | FREQUÊNCIA | PRAZO DE ENTREGA |" in anexo
-    assert "| Implantação e Treinamento | 10x/mês |" in anexo
-    assert "| Controle de contas pagar e a receber | 5x/mês |" in anexo
+    assert "| SERVIÇO | FREQUÊNCIA | VALOR |" in anexo
+    assert "| Implantação e Treinamento | 10x/mês | R$ 1.000,00 |" in anexo
+    assert "| Controle de contas pagar e a receber | 5x/mês | R$ 250,00 |" in anexo
     assert "| ITEM | LIMITE MENSAL |" in anexo
     assert "| Implantação e Treinamento | 10 |" in anexo
     assert "| Controle de contas pagar e a receber | 5 |" in anexo
     assert "Cobrança ativa" not in anexo
+
+
+def test_generate_asks_and_applies_vencimento_fields(client):
+    email = f"gen_venc_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = _create_prospect(client, auth).json()
+
+    resp = client.post(
+        "/contracts/missing-fields",
+        json={"prospect_id": prospect["id"]},
+        headers=auth,
+    )
+    assert resp.status_code == 200
+    fields = {f["key"]: f for f in resp.json()["fields"]}
+    assert "dia_vencimento" in fields
+    assert fields["dia_vencimento"]["default"] == "10"
+    assert "primeiro_vencimento" in fields
+    assert fields["primeiro_vencimento"]["kind"] == "date"
+
+    generated = client.post(
+        "/contracts/generate",
+        json={
+            "prospect_id": prospect["id"],
+            "fields": {
+                "dia_vencimento": "15",
+                "primeiro_vencimento": "2026-10-01",
+                "data_inicio": "2026-09-25",
+            },
+        },
+        headers=auth,
+    )
+
+    assert generated.status_code == 201
+    content = "\n".join(s["content"] for s in generated.json()["sections"])
+    assert "vencimento no dia 15 de cada mês" in content
+    assert "primeiro vencimento em 01/10/2026" in content
+    assert "vigora a partir de 25/09/2026" in content
+    assert "{{dia_vencimento}}" not in content
+    assert "{{primeiro_vencimento}}" not in content
 
 
 def test_generate_resolves_document_date_tokens(client):
@@ -357,9 +396,15 @@ def test_missing_fields_lists_modal_field_descriptors(client):
     assert "sistema_gestao" in keys
     assert "foro_comarca" in keys
     assert "testemunhas" in keys
-    # Campos com default preenchido (Operação / Financeiro e prazo) não são
-    # pedidos — o usuário ajusta diretamente no contrato.
-    assert "dia_vencimento" not in keys
+    # dia_vencimento/primeiro_vencimento são SEMPRE pedidos no modal (com o
+    # default como valor pré-preenchido), pois definem o vencimento do contrato.
+    assert "dia_vencimento" in keys
+    assert "primeiro_vencimento" in keys
+    by_key = {f["key"]: f for f in data["fields"]}
+    assert by_key["dia_vencimento"]["default"] == "10"
+    assert by_key["primeiro_vencimento"]["kind"] == "date"
+    # Demais campos com default preenchido (Operação / Financeiro e prazo)
+    # não são pedidos — o usuário ajusta diretamente no contrato.
     assert "data_inicio" not in keys
     assert "horario_atendimento" not in keys
     assert "prazo_minimo_meses" not in keys

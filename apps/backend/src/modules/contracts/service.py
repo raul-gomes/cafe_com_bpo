@@ -53,6 +53,16 @@ def _data_extenso(value: date) -> str:
     return f"{value.day} de {_MESES[value.month]} de {value.year}"
 
 
+def _data_curta(value: Any) -> str:
+    """Converte ISO 'YYYY-MM-DD' em 'DD/MM/AAAA'; mantém texto livre como está."""
+    if not isinstance(value, str):
+        return "" if value is None else str(value)
+    m = re.fullmatch(r"\s*(\d{4})-(\d{2})-(\d{2})\s*", value)
+    if m:
+        return f"{m.group(3)}/{m.group(2)}/{m.group(1)}"
+    return value
+
+
 _UNIDADES = (
     "",
     "um",
@@ -410,6 +420,17 @@ def _servico_listas(
     proposal: PricingScenario | None, extra: dict[str, Any]
 ) -> dict[str, Any]:
     recorrentes, pontuais = _servico_rows(proposal)
+    recorrentes = [
+        {
+            **row,
+            "valor": (
+                format_money(row["valor"])
+                if isinstance(row.get("valor"), (int, float))
+                else row.get("valor", "")
+            ),
+        }
+        for row in recorrentes
+    ]
 
     def _apply(listname: str, default: list[dict]) -> list[dict]:
         if not isinstance(extra.get(listname), list):
@@ -581,8 +602,11 @@ def build_context(
             ctx[key] = value
 
     # Derivações dependentes
-    ctx["data_inicio"] = ctx["data_inicio"] or datetime.now().date().isoformat()
-    ctx["primeiro_vencimento"] = ctx["primeiro_vencimento"] or ctx["data_inicio"]
+    raw_data_inicio = ctx["data_inicio"] or datetime.now().date().isoformat()
+    ctx["data_inicio"] = _data_curta(raw_data_inicio)
+    ctx["primeiro_vencimento"] = _data_curta(
+        ctx["primeiro_vencimento"] or raw_data_inicio
+    )
     if ctx.get("valor_implantacao"):
         ctx["valor_implantacao"] = format_money(parse_money(ctx["valor_implantacao"]))
         ctx["valor_implantacao_extenso"] = valor_por_extenso(
