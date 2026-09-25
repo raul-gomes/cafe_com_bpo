@@ -65,12 +65,15 @@ def get_tasks(
     today: bool = False,
     overdue: bool = False,
     client_id: UUID | None = None,
+    team_only: bool = False,
 ):
     """Retorna as tarefas visíveis ao usuário atual.
 
     - Owner do cliente: vê todas as tarefas do cliente (dele e dos membros).
     - Membro da equipe: vê as próprias tarefas individuais mais as tarefas
       das rotinas (templates) que foram liberadas a ele no convite.
+    - team_only=true: retorna SOMENTE as tarefas dos clientes onde o usuário
+      é membro (clientes compartilhados), sem as dos clientes próprios.
     """
     if client_id:
         from src.modules.team.repository import TeamRepository
@@ -127,20 +130,22 @@ def get_tasks(
     all_tasks: list = []
     seen: set = set()
 
-    # 1) Clientes onde o usuário é OWNER → vê todas as tarefas (dele + membros)
+    # 1) Clientes onde o usuário é OWNER → vê todas as tarefas (dele + membros).
+    #    Pule esta seção na visão "Equipe" (team_only=clientes compartilhados).
     owned_clients = client_repo.get_by_user(current_user.id)
-    for c in owned_clients:
-        cid = c.id
-        user_ids = [current_user.id] + [
-            m.user_id
-            for m in team_repo.get_team_members(cid)
-            if m.user_id != current_user.id
-        ]
-        for uid in user_ids:
-            for t in repo.get_by_user(uid, today_filter=today, overdue_filter=overdue):
-                if str(t.client_id) == str(cid) and t.id not in seen:
-                    seen.add(t.id)
-                    all_tasks.append(t)
+    if not team_only:
+        for c in owned_clients:
+            cid = c.id
+            user_ids = [current_user.id] + [
+                m.user_id
+                for m in team_repo.get_team_members(cid)
+                if m.user_id != current_user.id
+            ]
+            for uid in user_ids:
+                for t in repo.get_by_user(uid, today_filter=today, overdue_filter=overdue):
+                    if str(t.client_id) == str(cid) and t.id not in seen:
+                        seen.add(t.id)
+                        all_tasks.append(t)
 
     # 2) Clientes onde o usuário é MEMBER → próprias + rotinas liberadas
     for cid in team_repo.get_team_client_ids(current_user.id):

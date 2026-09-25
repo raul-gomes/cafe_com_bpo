@@ -88,8 +88,7 @@ export const TasksPage: React.FC = () => {
     }, []);
 
     const [showTeamCards, setShowTeamCards] = useState(false);
-    const [teamClientId, setTeamClientId] = useState<string | undefined>(undefined);
-    const { data: teamTasks } = useTasksList(teamClientId);
+    const { data: teamTasks } = useTasksList(showTeamCards);
 
     const { data: clients } = useQuery({
         queryKey: ['clients'],
@@ -99,38 +98,14 @@ export const TasksPage: React.FC = () => {
         }
     });
 
-    // When toggle changes, fetch team tasks for all member-clients
+    // When toggle on, fetch only the tasks of shared (team) clients
     const handleToggleTeamCards = () => {
-        if (!showTeamCards) {
-            setShowTeamCards(true);
-            // For simplicity, use first member client_id to fetch team tasks
-            // A real implementation would fetch for all clients and merge
-            const memberClient = (clients || []).find(c => c.role === 'member');
-            if (memberClient) {
-                setTeamClientId(memberClient.id);
-            }
-        } else {
-            setShowTeamCards(false);
-            setTeamClientId(undefined);
-        }
+        setShowTeamCards(v => !v);
     };
 
-    // Merge team tasks into main task list when toggle is on
+    // Exibe apenas as tasks dos clientes compartilhados quando o switch está ativo
     const allTasks = useMemo(() => {
-        if (!showTeamCards || !teamTasks || !tasks) return tasks || [];
-        const seen = new Set<string>();
-        const merged: TaskResponse[] = [];
-        for (const t of tasks) {
-            seen.add(t.id);
-            merged.push(t);
-        }
-        for (const t of teamTasks) {
-            if (!seen.has(t.id)) {
-                seen.add(t.id);
-                merged.push(t);
-            }
-        }
-        return merged;
+        return (showTeamCards ? teamTasks : tasks) || [];
     }, [tasks, teamTasks, showTeamCards]);
 
     const handleBulkComplete = async (colId: string) => {
@@ -531,7 +506,7 @@ export const TasksPage: React.FC = () => {
                                 ? 'border border-primary bg-primary text-primary-foreground'
                                 : 'border border-white/10 bg-muted text-muted-foreground'
                         )}
-                        title="Mostrar cards da equipe"
+                        title="Mostrar somente as tarefas dos clientes onde você é membro da equipe"
                     >
                         <Users size={14} />
                         Equipe

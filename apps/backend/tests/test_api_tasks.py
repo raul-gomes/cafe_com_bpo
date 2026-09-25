@@ -1451,3 +1451,109 @@ def test_routine_instance_id_dedup(client):
     r2 = _get_scheduler_result(now=now)
     assert r2["tasks_generated"] == 0
     assert r2["tasks_skipped"] >= 1
+
+
+# ── Visão "Equipe": GET /tasks/?team_only=true ──
+
+
+def _make_template_with_activity(client, auth, name, client_id):
+    tmpl = client.post(
+        "/tasks/templates/",
+        json={"name": name, "process_type": "fiscal", "recurrence": "once", "due_days": 5},
+        headers=auth,
+    )
+    tmpl_id = tmpl.json()["id"]
+    client.post(
+        f"/tasks/templates/{tmpl_id}/activities/",
+        json={"name": f"Atividade {name}", "due_days": 5},
+        headers=auth,
+    )
+    client.post(
+        "/tasks/client-templates/",
+        json={"client_id": client_id, "template_id": tmpl_id},
+        headers=auth,
+    )
+    return tmpl_id
+
+
+def _accept_invite_raw(client, auth, client_id, invited_email, template_ids):
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.team.repository import TeamRepository
+
+    session = SessionLocal()
+    try:
+        repo = TeamRepository(session)
+        team = repo.get_team_by_client_id(UUID(client_id))
+        inv = repo.get_pending_invitation_by_email(team.id, invited_email)
+        assert inv is not None, "Convite pendente não encontrado"
+        _, raw = repo.create_invitation(
+            team_id=team.id,
+            invited_by=inv.invited_by,
+            invited_email=invited_email,
+            template_ids=[UUID(t) for t in template_ids],
+        )
+    finally:
+        session.close()
+    acc = client.get(f"/invitations/accept?token={raw}", headers=auth)
+    assert acc.status_code == 200, acc.text
+
+
+def test_tasks_team_only_returns_shared_client_tasks(client):
+    """GET /tasks/?team_only=true retorna SÓ as tasks dos clientes onde o
+    usuário é MEMBRO (compartilhados), excluindo as tasks dos clientes próprios."""
+    suf = uuid4().hex[:8]
+    x_email = f"teamowner_{suf}@cafe.com"
+    y_email = f"owner_{suf}@cafe.com"
+
+    # X: dono do cliente X (task pessoal) E membro do cliente Y (equipe)
+    x_auth = get_auth_header(client, x_email)
+    y_auth = get_auth_header(client, y_email)
+
+    x_cli = create_client(client, x_auth, name=f"Cliente do X {suf}")
+
+    # Task pessoal no cliente próprio de X (não deve aparecer em team_only)
+    own_task = client.post(
+        "/tasks/",
+        json={"title": "Pessoal do X", "client_id": x_cli["id"], "priority": "low"},
+        headers=x_auth,
+    )
+    assert own_task.status_code == 201
+    own_task_id = own_task.json()["id"]
+
+    # Y cria cliente, rotina vinculada e convida X como membro (liberando a rotina)
+    y_cli = create_client(client, y_auth, name=f"Cliente do Y {suf}")
+    y_tmpl = _make_template_with_activity(client, y_auth, "Rotina Y", y_cli["id"])
+
+    inv = client.post(
+        f"/clients/{y_cli['id']}/invite",
+        json={"emails": [x_email], "template_ids": [y_tmpl]},
+        headers=y_auth,
+    )
+    assert inv.status_code == 201, inv.text
+    _accept_invite_raw(client, x_auth, y_cli["id"], x_email, [y_tmpl])
+
+    # X cria também uma task pessoal DENTRO do cliente compartilhado
+    shared_own = client.post(
+        "/tasks/",
+        json={"title": "Pessoal dentro do Y", "client_id": y_cli["id"], "priority": "medium"},
+        headers=x_auth,
+    )
+    assert shared_own.status_code == 201
+    shared_own_id = shared_own.json()["id"]
+
+    # Visão geral inclui tudo (próprio + compartilhado)
+    overview = client.get("/tasks/", headers=x_auth).json()
+    overview_ids = {t["id"] for t in overview}
+    assert own_task_id in overview_ids
+    assert shared_own_id in overview_ids
+    assert any(t["template_id"] == y_tmpl for t in overview), "rotina liberada do Y na visão geral"
+
+    # team_only=true → apenas as do cliente compartilhado
+    team = client.get("/tasks/?team_only=true", headers=x_auth)
+    assert team.status_code == 200
+    team_ids = {t["id"] for t in team.json()}
+    assert own_task_id not in team_ids, "task do cliente próprio NÃO deve aparecer"
+    assert shared_own_id in team_ids, "task pessoal dentro do cliente compartilhado deve aparecer"
+    assert any(t["template_id"] == y_tmpl for t in team.json()), "rotina liberada deve aparecer"

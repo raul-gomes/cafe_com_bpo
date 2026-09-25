@@ -14,11 +14,15 @@ vi.mock('../src/api/hooks/useTasks', () => {
   const now = new Date()
   const todayDeadline = new Date(now).toISOString()
   const mockData = {
-    useTasksList: () => ({
-      data: [
-        { id: 'task-c1', title: 'Alpha mensal', client_id: 'c1', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
-        { id: 'task-c2', title: 'Beta semanal', client_id: 'c2', priority: 'medium', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
-      ],
+    useTasksList: (teamOnly = false) => ({
+      data: teamOnly
+        ? [
+            { id: 'task-gama', title: 'Gama da equipe', client_id: 'c3', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u2', is_cancelled: false },
+          ]
+        : [
+          { id: 'task-c1', title: 'Alpha mensal', client_id: 'c1', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
+          { id: 'task-c2', title: 'Beta semanal', client_id: 'c2', priority: 'medium', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false },
+        ],
       isLoading: false,
     }),
     useUpdateTaskStatus: mockMutation,
@@ -153,5 +157,47 @@ describe('TasksPage — filtro por cliente', () => {
 
     expect(await screen.findByText('Alpha mensal')).toBeInTheDocument()
     expect(screen.getByText('Beta semanal')).toBeInTheDocument()
+  })
+})
+
+describe('TasksPage — switch Equipe (só clientes compartilhados)', () => {
+  const renderPage = () => {
+    return render(
+      <QueryClientProvider client={queryClient}>
+        <MemoryRouter initialEntries={['/painel/tarefas']}>
+          <ConfirmProvider>
+            <TasksPage />
+          </ConfirmProvider>
+        </MemoryRouter>
+      </QueryClientProvider>
+    )
+  }
+
+  it('ao ativar Equipe, mostra somente as tasks dos clientes onde sou membro', async () => {
+    renderPage()
+
+    expect(await screen.findByText('Alpha mensal')).toBeInTheDocument()
+    expect(screen.queryByText('Gama da equipe')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Equipe' }))
+
+    await waitFor(() =>
+      expect(screen.queryByText('Alpha mensal')).not.toBeInTheDocument()
+    )
+    expect(await screen.findByText('Gama da equipe')).toBeInTheDocument()
+  })
+
+  it('ao desativar Equipe, volta a mostrar as tasks próprias', async () => {
+    renderPage()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Equipe' }))
+    await screen.findByText('Gama da equipe')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Equipe' }))
+
+    await waitFor(() =>
+      expect(screen.queryByText('Gama da equipe')).not.toBeInTheDocument()
+    )
+    expect(await screen.findByText('Alpha mensal')).toBeInTheDocument()
   })
 })

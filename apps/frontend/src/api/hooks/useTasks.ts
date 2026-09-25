@@ -20,11 +20,11 @@ import {
 export const useTasks = () => {
   const queryClient = useQueryClient();
 
-  const useTasksList = (clientId?: string) => {
+  const useTasksList = (teamOnly = false) => {
     return useQuery<TaskResponse[]>({
-      queryKey: clientId ? ['tasks', 'team', clientId] : ['tasks'],
+      queryKey: teamOnly ? ['tasks', 'team'] : ['tasks'],
       queryFn: async () => {
-        const params = clientId ? { client_id: clientId } : {};
+        const params = teamOnly ? { team_only: true } : {};
         const { data } = await apiClient.get('/tasks/', { params });
         return data;
       },
