@@ -50,6 +50,10 @@ export const PanelLayout: React.FC = () => {
     } catch {
       // localStorage may be unavailable
     }
+    document.body.setAttribute('data-mode', mode);
+    return () => {
+      document.body.removeAttribute('data-mode');
+    };
   }, [mode]);
 
   const toggleTheme = useCallback(() => {

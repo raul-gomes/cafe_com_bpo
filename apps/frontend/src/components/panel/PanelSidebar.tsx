@@ -287,6 +287,12 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
   const isActive = (path: string) => {
     if (path === '/painel' && (location.pathname === '/painel' || location.pathname === '/painel/')) return true;
     if (path === '/painel/contratos' && location.pathname.startsWith('/painel/contrato/')) return true;
+    if (
+      path === '/painel/orcamentos' &&
+      (location.pathname.startsWith('/painel/orcamento/') ||
+        location.pathname.startsWith('/painel/novo-orcamento') ||
+        location.pathname.startsWith('/painel/editar-orcamento'))
+    ) return true;
     return path !== '/painel' && location.pathname.startsWith(path);
   };
 
