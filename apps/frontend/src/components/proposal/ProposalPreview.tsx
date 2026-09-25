@@ -29,6 +29,7 @@ interface ProposalPreviewProps {
   pricing: PricingResult;
   clientName: string;
   generatedAt: string;
+  hideDownload?: boolean;
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -37,6 +38,7 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
   pricing,
   clientName,
   generatedAt,
+  hideDownload,
 }) => {
   const { user } = useAuth();
   const { primary, secondary } = resolveBrandColors(user);
@@ -213,11 +215,13 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
         </footer>
       </div>
 
-      <ProposalDownloadGate
-        form={form}
-        pricing={pricing}
-        clientName={clientName}
-      />
+      {!hideDownload && (
+        <ProposalDownloadGate
+          form={form}
+          pricing={pricing}
+          clientName={clientName}
+        />
+      )}
     </div>
   );
 };

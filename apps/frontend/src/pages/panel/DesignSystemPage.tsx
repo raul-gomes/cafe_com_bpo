@@ -120,6 +120,9 @@ import { GroupPostCard } from '../../components/network/GroupPostCard'
 import { ThreadReplies } from '../../components/network/ThreadReplies'
 import { ContractSectionsEditor } from '../../components/contracts/ContractSectionsEditor'
 import { ContractDocument } from '../../components/contracts/ContractDocument'
+import { DealCard } from '../../components/governanca/DealCard'
+import { DealTimeline } from '../../components/governanca/DealTimeline'
+import type { Deal } from '../../api/governanca'
 
 import './DesignSystemPage.css'
 
@@ -130,6 +133,7 @@ const sections = [
   { id: 'feedback', icon: '💬', label: 'Feedback' },
   { id: 'overlay', icon: '📦', label: 'Sobreposições' },
   { id: 'contratos', icon: '📄', label: 'Contratos' },
+  { id: 'governanca', icon: '📈', label: 'Governança' },
   { id: 'navigation', icon: '🧭', label: 'Navegação' },
   { id: 'modes', icon: '🎨', label: 'Modos' },
 ]
@@ -181,6 +185,68 @@ const ComponentCard = ({
     </div>
   </div>
 )
+
+// ─── Demo data: Governança ──────────────────────────────────────────────
+const DEMO_GOVERNANCA: Deal[] = [
+  {
+    id: 'deal-conquistado',
+    name: 'TechFinance BPOS',
+    status: 'conquistado',
+    reference_date: '2026-09-15T10:00:00',
+    segment: 'Gestão financeira',
+    cnpj: '39123456000180',
+    city: 'São Paulo',
+    state: 'SP',
+    email: 'contato@techfinance.example',
+    phone: '1134567890',
+    color: '#10b981',
+    representante_nome: 'Mariana Costa',
+    representante_cargo: 'CFO',
+    proposal: { id: 'p-1', final_price: 8990, created_at: '2026-09-02T09:00:00' },
+    contract: { id: 'c-1', number: 12, status: 'ativo', finalized_at: '2026-09-15T10:00:00', created_at: '2026-09-15T09:00:00' },
+    timeline: [
+      { type: 'created', label: 'Prospecção iniciada', date: '2026-08-20T09:00:00' },
+      { type: 'sent', label: 'Proposta enviada', date: '2026-09-02T09:00:00' },
+      { type: 'approved', label: 'Proposta aprovada / Contrato assinado', date: '2026-09-15T10:00:00' },
+    ],
+  },
+  {
+    id: 'deal-negociacao',
+    name: 'Contabilidade Souza',
+    status: 'em_negociacao',
+    reference_date: '2026-09-18T14:00:00',
+    segment: 'Contabilidade',
+    cnpj: '18222333000177',
+    city: 'Belo Horizonte',
+    state: 'MG',
+    email: 'comercial@souza.example',
+    color: '#4287f5',
+    proposal: { id: 'p-2', final_price: 5400, created_at: '2026-09-18T14:00:00' },
+    timeline: [
+      { type: 'created', label: 'Prospecção iniciada', date: '2026-09-05T10:00:00' },
+      { type: 'sent', label: 'Proposta enviada', date: '2026-09-18T14:00:00' },
+      { type: 'pending', label: 'Aguardando aprovação', mock: true },
+    ],
+  },
+  {
+    id: 'deal-perdido',
+    name: 'Café Exportadora',
+    status: 'perdido',
+    reference_date: '2026-09-10T11:30:00',
+    segment: 'Agronegócio',
+    cnpj: '27444555000100',
+    city: 'Uberlândia',
+    state: 'MG',
+    email: 'propostas@cafeexport.example',
+    color: '#ef4444',
+    proposal: { id: 'p-3', final_price: 12500, created_at: '2026-09-08T15:00:00' },
+    timeline: [
+      { type: 'created', label: 'Prospecção iniciada', date: '2026-08-27T09:00:00' },
+      { type: 'sent', label: 'Proposta enviada', date: '2026-09-08T15:00:00' },
+      { type: 'rejected', label: 'Proposta recusada', date: '2026-09-10T11:30:00' },
+    ],
+  },
+]
 
 // ═══════════════════════════════════════════════════════════════════════
 // PAGE
@@ -1284,7 +1350,49 @@ const descriptors: ContractFieldDescriptor[] = [
         </ComponentCard>
       </Section>
 
-      {/* ═══════════ 6. MODOS ═══════════ */}
+      {/* ═══════════ 6. GOVERNANÇA ═══════════ */}
+      <Section id="governanca" icon="📈" title="Governança">
+        <ComponentCard
+          name="DealCard"
+          description="Card de negócio da Governança: nome, status, segmento/CNPJ/cidade, valor da proposta e detalhe expansível com dados, links e timeline."
+          howToUse={`import { DealCard } from '../../components/governanca/DealCard'
+import type { Deal } from '../../api/governanca'
+
+<DealCard deal={deal.conquistado} />
+
+// Deal: { id, name, status: 'conquistado'|'em_negociacao'|'perdido',
+//   reference_date, proposal: {id, final_price}, contract: {id, number},
+//   timeline: [{type: 'created'|'sent'|'approved'|'rejected'|'pending', label, date, mock?}] }`}
+        >
+          <div className="ds-col gap-3">
+            {DEMO_GOVERNANCA.map((deal) => (
+              <DealCard key={deal.id} deal={deal} />
+            ))}
+          </div>
+        </ComponentCard>
+
+        <ComponentCard
+          name="DealTimeline"
+          description="Timeline visual do negócio. Eventos mockados (sem data) exibem 'Aguardando decisão do prospecto'."
+          howToUse={`import { DealTimeline } from '../../components/governanca/DealTimeline'
+
+<DealTimeline events={deal.timeline} />
+
+// Tipos: created (cinza), sent (primary), approved (verde),
+//        rejected (vermelho), pending (âmbar, mock sem data)`}
+        >
+          <div className="ds-col gap-3">
+            {DEMO_GOVERNANCA.map((deal) => (
+              <div key={deal.id} className="rounded-lg border border-border bg-muted/40 p-4">
+                <div className="mb-2 text-[13px] font-semibold text-foreground">{deal.name}</div>
+                <DealTimeline events={deal.timeline} />
+              </div>
+            ))}
+          </div>
+        </ComponentCard>
+      </Section>
+
+      {/* ═══════════ 7. MODOS ═══════════ */}
       <Section id="modes" icon="🎨" title="Modos de Trabalho">
         <ComponentCard
           name="Modos"

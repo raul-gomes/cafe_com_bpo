@@ -19,6 +19,7 @@ vi.mock('../src/api/prospects', () => ({
   updateProspect: vi.fn().mockResolvedValue({ id: '1', name: 'Lead A Atualizado' }),
   deleteProspect: vi.fn().mockResolvedValue({}),
   convertProspect: vi.fn().mockResolvedValue({ prospect_id: '1', client_id: 'c1' }),
+  reproveProspect: vi.fn().mockResolvedValue({ id: '1', name: 'Lead A', reproved_at: '2026-09-20T10:00:00' }),
 }))
 
 vi.mock('../src/lib/brasilApi', () => ({
@@ -30,7 +31,7 @@ vi.mock('../src/api/clients', () => ({
   getClientSegments: vi.fn().mockResolvedValue(['B2B - Tecnologia & Software', 'Outro']),
 }))
 
-import { getProspects, createProspect, deleteProspect, convertProspect } from '../src/api/prospects'
+import { getProspects, createProspect, deleteProspect, convertProspect, reproveProspect } from '../src/api/prospects'
 import { lookupCnpj, lookupCep } from '../src/lib/brasilApi'
 import { getClientSegments } from '../src/api/clients'
 
@@ -324,6 +325,22 @@ describe('ProspectosPage', () => {
           representante_cargo: 'CFO',
         })
       )
+    })
+  })
+
+  it('marca um prospecto como não captado e o remove da listagem', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    const leadText = await screen.findByText('Lead A')
+    const card = leadText.closest('[data-slot="card"]')!
+    fireEvent.click(card.querySelector('button[aria-label="Marcar como não captado"]')!)
+
+    const dialog = await screen.findByRole('dialog')
+    await user.click(within(dialog).getByRole('button', { name: /não captado/i }))
+
+    await waitFor(() => {
+      expect(reproveProspect).toHaveBeenCalledWith('1')
+      expect(screen.queryByText('Lead A')).not.toBeInTheDocument()
     })
   })
 

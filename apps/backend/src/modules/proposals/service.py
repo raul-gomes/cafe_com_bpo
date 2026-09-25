@@ -1,10 +1,13 @@
 """
 Proposals Module - Service Layer
 
-Business logic for proposal management, PDF generation, and sharing.
+Business logic for proposal management, PDF generation, public sharing,
+client decision, and sharing via email/WhatsApp.
 """
 
 import math
+import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from src.core.config import get_settings
@@ -14,9 +17,16 @@ from src.modules.proposals.schemas import (
     ProposalCreate,
     ProposalResponse,
     ProposalUpdate,
+    PublicProposalResponse,
 )
 
 settings = get_settings()
+
+SHARE_LINK_TTL_HOURS = 24
+
+
+class ProposalShareError(ValueError):
+    """Erro de link público inválido ou expirado."""
 
 
 class ProposalService:
@@ -127,6 +137,116 @@ class ProposalService:
         """Get frontend URL for PDF download (PDF is generated client-side)."""
         return f"{settings.frontend_url}/proposta?id={proposal_id}"
 
+    # ── Compartilhamento público ─────────────────────────────────
+
+    def _set_share_hash(self, proposal) -> None:
+        """Gera novo hash (cancela o anterior) e registra o envio."""
+        share_hash = secrets.token_urlsafe(24)
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        proposal.public_hash = share_hash
+        proposal.public_hash_expires_at = now + timedelta(hours=SHARE_LINK_TTL_HOURS)
+        proposal.shared_at = now
+        proposal.shared_count = (proposal.shared_count or 0) + 1
+        self.repository.session.flush()
+
+    def create_share_link(self, proposal_id: UUID, user_id: UUID) -> dict:
+        """Cancela o hash anterior e gera um novo link público de análise."""
+        proposal = self.get_proposal(proposal_id, user_id)
+        self._set_share_hash(proposal)
+        return {
+            "url": self._share_url(proposal.public_hash),
+            "expires_at": proposal.public_hash_expires_at,
+        }
+
+    @staticmethod
+    def _share_url(share_hash: str) -> str:
+        return f"{settings.frontend_url}/orcamento/{share_hash}"
+
+    @staticmethod
+    def _as_utc(value) -> datetime | None:
+        """Normaliza datetime do banco (pode vir naive, ex.: SQLite)."""
+        if value is None:
+            return None
+        if value.tzinfo is None:
+            return value.replace(tzinfo=timezone.utc)
+        return value.astimezone(timezone.utc)
+
+    def _is_share_valid(self, proposal) -> bool:
+        expires = self._as_utc(proposal.public_hash_expires_at)
+        if expires is None:
+            return False
+        return expires > datetime.now(timezone.utc)
+
+    def get_public_proposal(self, share_hash: str) -> PublicProposalResponse:
+        """Retorna dados públicos do orçamento pelo hash (validando validade)."""
+        proposal = self.repository.get_by_public_hash(share_hash)
+        if not proposal:
+            raise ProposalShareError("Link de orçamento inválido ou expirado.")
+        if not self._is_share_valid(proposal):
+            raise ProposalShareError("Link de orçamento inválido ou expirado.")
+
+        result_payload = (
+            self._sanitize_result_payload(proposal.result_payload)
+            if proposal.result_payload
+            else {}
+        )
+        return PublicProposalResponse(
+            client_name=proposal.client_name,
+            input_payload=proposal.input_payload or {},
+            result_payload=result_payload,
+            created_at=proposal.created_at,
+            expires_at=proposal.public_hash_expires_at,
+            client_decision=proposal.client_decision,
+            client_observation=proposal.client_observation,
+            client_decided_at=proposal.client_decided_at,
+        )
+
+    def submit_client_decision(
+        self,
+        share_hash: str,
+        decision: str,
+        observation: str | None,
+    ) -> PublicProposalResponse:
+        """Registra a decisão do cliente pelo link público (mantendo histórico)."""
+        proposal = self.repository.get_by_public_hash(share_hash)
+        if not proposal:
+            raise ProposalShareError("Link de orçamento inválido ou expirado.")
+        if not self._is_share_valid(proposal):
+            raise ProposalShareError("Link de orçamento inválido ou expirado.")
+
+        now = datetime.now(timezone.utc).replace(microsecond=0)
+        history = proposal.decision_history or []
+        if not isinstance(history, list):
+            history = []
+        history.append(
+            {
+                "decision": decision,
+                "observation": observation or None,
+                "decided_at": now.isoformat(),
+            }
+        )
+        proposal.decision_history = history
+        proposal.client_decision = decision
+        proposal.client_observation = observation or None
+        proposal.client_decided_at = now
+        self.repository.session.flush()
+
+        result_payload = (
+            self._sanitize_result_payload(proposal.result_payload)
+            if proposal.result_payload
+            else {}
+        )
+        return PublicProposalResponse(
+            client_name=proposal.client_name,
+            input_payload=proposal.input_payload or {},
+            result_payload=result_payload,
+            created_at=proposal.created_at,
+            expires_at=proposal.public_hash_expires_at,
+            client_decision=decision,
+            client_observation=observation or None,
+            client_decided_at=now,
+        )
+
     def send_email(
         self,
         proposal_id: UUID,
@@ -134,8 +254,9 @@ class ProposalService:
         recipient_email: str,
         client_name: str,
         message: str = "",
+        share_url: str | None = None,
     ) -> bool:
-        """Send proposal summary via email."""
+        """Send proposal summary via email (com link público de análise)."""
         proposal = self.get_proposal(proposal_id, user_id)
         result = proposal.result_payload or {}
         final_price = self._safe_float(result.get("final_price", 0))
@@ -145,6 +266,10 @@ class ProposalService:
             .replace(".", ",")
             .replace("X", ".")
         )
+
+        if not share_url:
+            self._set_share_hash(proposal)
+            share_url = self._share_url(proposal.public_hash)
 
         body_html = f"""
         <html>
@@ -156,8 +281,10 @@ class ProposalService:
                 <p style="margin: 0;"><strong>Valor Total: {price_str}</strong></p>
             </div>
             {f"<p>{message}</p>" if message else ""}
-            <p>Para visualizar o documento completo com todos os detalhes dos serviços, 
-            <a href="{settings.frontend_url}/proposta?id={proposal_id}">clique aqui</a>.</p>
+            <p>Para visualizar o documento completo e dar seu parecer (aprovar, solicitar
+            alteração ou reprovar), acesse o link abaixo:</p>
+            <p><a href="{share_url}" style="background: #1a1a2e; color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; display: inline-block;">Avaliar Orçamento</a></p>
+            <p style="font-size: 11px; color: #666;">Link válido por {SHARE_LINK_TTL_HOURS}h. Se expirar, peça um novo link ao prestador.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;">
             <p style="font-size: 12px; color: #666;">Enviado via Café com BPO</p>
         </body>
@@ -172,9 +299,8 @@ Valor Total: R$ {final_price:,.2f}
 
 {message}
 
-Visualize o documento completo: {settings.frontend_url}/proposta?id={proposal_id}
-
-Enviado via Café com BPO
+Avalie o orçamento e dê seu parecer: {share_url}
+(Link válido por {SHARE_LINK_TTL_HOURS}h.)
         """.strip()
 
         try:
@@ -189,7 +315,7 @@ Enviado via Café com BPO
             raise RuntimeError(f"Falha ao enviar e-mail: {e!s}")
 
     def get_whatsapp_message(self, proposal_id: UUID, user_id: UUID) -> dict:
-        """Generate WhatsApp share message for a proposal."""
+        """Generate WhatsApp share message for a proposal (com link público)."""
         proposal = self.get_proposal(proposal_id, user_id)
         result = proposal.result_payload or {}
         final_price = self._safe_float(result.get("final_price", 0))
@@ -199,12 +325,14 @@ Enviado via Café com BPO
             .replace("X", ".")
         )
 
+        self._set_share_hash(proposal)
+        share_url = self._share_url(proposal.public_hash)
+
         text = (
-            f"Olá! Segue o detalhamento do seu orçamento no Café com BPO.\n\n"
+            f"Olá! Segue o link do seu orçamento no Café com BPO para avaliação.\n\n"
             f"*Cliente:* {proposal.client_name}\n"
             f"*Valor Total:* {price_str}\n\n"
-            f"Para visualizar o documento completo com todos os detalhes dos serviços, "
-            f"acesse: {settings.frontend_url}/proposta?id={proposal_id}"
+            f"Abra o link, confira os serviços e dê seu parecer: {share_url}"
         )
 
         return {

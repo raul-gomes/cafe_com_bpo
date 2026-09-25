@@ -70,6 +70,7 @@ class ProspectResponse(ProspectBase):
     user_id: UUID
     converted_client_id: UUID | None = None
     converted_at: datetime | None = None
+    reproved_at: datetime | None = None
     created_at: datetime
     updated_at: datetime
 

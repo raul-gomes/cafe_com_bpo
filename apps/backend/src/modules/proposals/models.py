@@ -8,6 +8,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Integer,
     String,
     Text,
     TypeDecorator,
@@ -79,3 +80,13 @@ class PricingScenario(Base):
     )
     deleted_at = Column(DateTime(timezone=True), nullable=True)
     is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    # Compartilhamento público (link de análise do cliente)
+    public_hash = Column(String(128), nullable=True)
+    public_hash_expires_at = Column(DateTime(timezone=True), nullable=True)
+    shared_at = Column(DateTime(timezone=True), nullable=True)
+    shared_count = Column(Integer, server_default="0", default=0, nullable=False)
+    # Parecer do cliente
+    client_decision = Column(String(20), nullable=True)
+    client_observation = Column(Text, nullable=True)
+    client_decided_at = Column(DateTime(timezone=True), nullable=True)
+    decision_history = Column(JSONText(), nullable=True)

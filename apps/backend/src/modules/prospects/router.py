@@ -115,3 +115,49 @@ def convert_prospect(
         f"🎯 Prospecto convertido em cliente: {prospect_id} -> {result.client_id} por {current_user.email}"
     )
     return result
+
+
+@router.post("/{prospect_id}/reprove", response_model=ProspectResponse)
+def reprove_prospect(
+    prospect_id: UUID,
+    repo: ProspectRepoDep,
+    current_user: CurrentUserDep,
+):
+    """Marca um prospecto como não captado (perdido).
+
+    Define a flag binária `reproved_at` (1 = não captado) usada pela
+    Governança para separar painéis de captação. O prospecto permanece
+    ativo na listagem e pode ser revertido com `unreprove`.
+    """
+    prospect = repo.get_by_id(prospect_id, current_user.id)
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Prospecto não encontrado")
+
+    if prospect.converted_client_id is not None:
+        raise HTTPException(
+            status_code=409, detail="Prospecto já convertido em Cliente"
+        )
+
+    updated = repo.mark_reproved(prospect)
+    log.info(
+        f"🚫 Prospecto marcado como não captado: {prospect_id} por {current_user.email}"
+    )
+    return _to_response(updated)
+
+
+@router.post("/{prospect_id}/unreprove", response_model=ProspectResponse)
+def unreprove_prospect(
+    prospect_id: UUID,
+    repo: ProspectRepoDep,
+    current_user: CurrentUserDep,
+):
+    """Desfaz a reprovação, devolvendo o prospecto à negociação."""
+    prospect = repo.get_by_id(prospect_id, current_user.id)
+    if not prospect:
+        raise HTTPException(status_code=404, detail="Prospecto não encontrado")
+
+    updated = repo.clear_reproved(prospect)
+    log.info(
+        f"↩️ Prospecto de volta à negociação: {prospect_id} por {current_user.email}"
+    )
+    return _to_response(updated)

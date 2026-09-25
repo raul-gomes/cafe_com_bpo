@@ -259,12 +259,25 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > prospecto some da listagem ativa (`is_active=false`, `converted_at` preenchido).
 > **Migração `e7f8a9b0c1d2`**: endereço dividido (coluna `address` removida) em
 > `clients` e `prospects` — agora campos separados seguindo normalização de BD.
+> **Migração `3c5d8f9a1b2c`**: coluna `reproved_at` (DateTime nullable) — flag
+> binária de "não captado" (preenchida = perdido; nula = em negociação),
+> separada de `is_active` (soft-delete). Alimenta a Governança.
+> O prospecto convertido (`converted_client_id`) vira "Conquistado";
+> o reprovado ("não captado") vira "Perdido" na Governança.
 | Direção | Quem |
 |---------|------|
-| R | `prospects/repository.py`, `prospects/router.py` |
-| R/W | `prospects/router.py` (CRUD + soft-delete) |
+| R | `prospects/repository.py`, `prospects/router.py`, `governanca/repository.py` |
+| R/W | `prospects/router.py` (CRUD + soft-delete + `reprove`/`unreprove`) |
 | R/W | `prospects/service.py` (`convert_prospect` — cria `clients` e marca conversão; fonte única da regra) |
 | W | `proposals/repository.py`/`router.py` (referência `propect_id` em orçamentos) |
+
+### `governanca` — agregação (sem tabela)
+> Módulo de agregação (como o dashboard): `GET /governanca/deals` une prospectos
+> ativos/convertidos, orçamentos e contratos para gerar `months` e `deals`
+> (grupo por `reference_date` — mín. de prospect/propostas/contratos). Negócios
+> conquistados (convertidos) e perdidos (`reproved_at`) entram aqui; orçamentos
+> vinculados a convertidos **somem** de `GET /proposals/` e contratos
+> finalizados **somem** de `GET /contracts/` (detalhes continuam acessíveis).
 
 ### `contract_templates` — dono: `contracts`
 > Modelo padrão de contrato do usuário: **único por usuário** (`UNIQUE(user_id)`),
@@ -298,10 +311,17 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > no banco é o do `proposals` (`client_name`, `input_payload`, `result_payload`,
 > `client_id`, `prospect_id`, `is_active`, `deleted_at`). `propect_id` (FK
 > `prospects.id`, SET NULL) liga o orçamento a um prospecto.
+>
+> **Migração `d4e5f6a7b8c9` (compartilhamento público + parecer do cliente)**:
+> `public_hash` (String 128), `public_hash_expires_at` (DateTime), `shared_at`
+> (DateTime), `shared_count` (Integer default 0), `client_decision` (String 20 —
+> approved/changes/rejected), `client_observation` (Text), `client_decided_at`
+> (DateTime), `decision_history` (Text — JSON com histórico de decisões).
 | Direção | Quem |
 |---------|------|
 | R | `proposals/repository.py`, `dashboard/service.py`, `dashboard/router.py` |
-| R/W | `proposals/router.py` (CRUD de orçamentos) |
+| R/W | `proposals/router.py` (CRUD de orçamentos + share-link + decisões públicas) |
+| R/W | `proposals/service.py` (geração de hash, decisão do cliente, histórico) |
 | W | `clients/repository.py` (cascade soft-delete ao deletar cliente) |
 
 ### `tasks` — dono: `task_manager`
@@ -509,7 +529,7 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 |--------|-------------------|----------|
 | `auth` | users, user_files, password_reset_tokens | `repository.py`, `service.py`, `router.py` |
 | `clients` | clients, teams (get_or_create), tasks (cascade), pricing_scenarios (cascade) | `repository.py`, `router.py` |
-| `proposals` | pricing_scenarios (inclui prospect_id) | `repository.py`, `router.py`, `service.py` |
+| `proposals` | pricing_scenarios (inclui prospect_id, public_hash, decision_history) | `repository.py`, `router.py`, `service.py` |
 | `prospects` | prospects, clients (conversão via service) | `repository.py`, `router.py`, `service.py` |
 | `contracts` | contract_templates, contracts, prospects, pricing_scenarios (leitura p/ placeholders), clients (conversão) | `repository.py`, `router.py`, `service.py` |
 | `task_manager` | tasks, task_phases, task_attachments, routine_types, activity_templates, template_activities, client_template_assignments, client_slas | `task/repository.py`, `templates/repository.py`, `assignments/repository.py`, `sla/repository.py`, `routine_types/repository.py`, `attachments/repository.py`, `scheduler.py` |

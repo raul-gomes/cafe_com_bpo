@@ -1,7 +1,8 @@
 from datetime import datetime
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProposalCreate(BaseModel):
@@ -18,6 +19,12 @@ class ProposalResponse(BaseModel):
     input_payload: dict
     result_payload: dict
     created_at: datetime
+    public_hash_expires_at: datetime | None = None
+    shared_at: datetime | None = None
+    shared_count: int = 0
+    client_decision: str | None = None
+    client_observation: str | None = None
+    client_decided_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -27,3 +34,24 @@ class ProposalUpdate(BaseModel):
     input_payload: dict | None = None
     result_payload: dict | None = None
     prospect_id: UUID | None = None
+
+
+class ShareLinkResponse(BaseModel):
+    url: str
+    expires_at: datetime
+
+
+class PublicProposalResponse(BaseModel):
+    client_name: str
+    input_payload: dict
+    result_payload: dict
+    created_at: datetime
+    expires_at: datetime | None = None
+    client_decision: str | None = None
+    client_observation: str | None = None
+    client_decided_at: datetime | None = None
+
+
+class ClientDecisionRequest(BaseModel):
+    decision: Literal["approved", "changes", "rejected"]
+    observation: str | None = Field(default=None, max_length=2000)

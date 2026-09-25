@@ -1,6 +1,9 @@
 import uuid
 
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
+
+from src.modules.prospects.models import Prospect
 
 from .models import PricingScenario
 from .schemas import ProposalCreate, ProposalUpdate
@@ -34,11 +37,22 @@ class PricingScenarioRepository:
         return scenario
 
     def list_scenarios_by_user(self, user_id: uuid.UUID) -> list[PricingScenario]:
+        """Orçamentos ativos do usuário, **exceto** os vinculados a um
+        prospecto já conquistado (convertido) ou não captado (reprovado) —
+        esses saem da lista de orçamentos e passam a viver na Governança."""
         return (
             self.session.query(PricingScenario)
+            .outerjoin(Prospect, PricingScenario.prospect_id == Prospect.id)
             .filter(
                 PricingScenario.user_id == user_id,
                 PricingScenario.is_active,
+                or_(
+                    Prospect.id.is_(None),
+                    and_(
+                        Prospect.converted_client_id.is_(None),
+                        Prospect.reproved_at.is_(None),
+                    ),
+                ),
             )
             .all()
         )
@@ -51,6 +65,17 @@ class PricingScenarioRepository:
             .filter(
                 PricingScenario.id == scenario_id,
                 PricingScenario.user_id == user_id,
+                PricingScenario.is_active,
+            )
+            .first()
+        )
+
+    def get_by_public_hash(self, public_hash: str) -> PricingScenario | None:
+        """Busca orçamento pelo hash público de compartilhamento."""
+        return (
+            self.session.query(PricingScenario)
+            .filter(
+                PricingScenario.public_hash == public_hash,
                 PricingScenario.is_active,
             )
             .first()

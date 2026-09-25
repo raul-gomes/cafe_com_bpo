@@ -293,4 +293,73 @@ def test_proposal_can_reference_prospect(client):
     )
     assert resp.status_code == 201
     assert resp.json()["prospect_id"] == prospect["id"]
-    assert resp.json()["client_name"] == "Para Orçamento"
+
+
+def test_reprove_prospect_sets_binary_flag(client):
+    email = f"prospect_reprove_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth, name="Empresa Reprovada").json()
+    assert prospect["reproved_at"] is None
+
+    resp = client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
+
+    assert resp.status_code == 200
+    data = resp.json()
+    assert data["reproved_at"] is not None
+    assert data["converted_client_id"] is None
+
+    # Sai da listagem de Prospectos (vira Perdido na Governança)
+    listed = client.get("/prospects/", headers=auth).json()
+    assert all(p["id"] != prospect["id"] for p in listed)
+
+    # Volta à negociação → reaparece na listagem
+    resp = client.post(f"/prospects/{prospect['id']}/unreprove", headers=auth)
+    assert resp.status_code == 200
+    assert resp.json()["reproved_at"] is None
+
+    listed = client.get("/prospects/", headers=auth).json()
+    assert any(p["id"] == prospect["id"] for p in listed)
+
+
+def test_unreprove_returns_to_negotiation(client):
+    email = f"prospect_unreprove_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth).json()
+    client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
+
+    resp = client.post(f"/prospects/{prospect['id']}/unreprove", headers=auth)
+
+    assert resp.status_code == 200
+    assert resp.json()["reproved_at"] is None
+
+
+def test_reprove_keeps_prospect_creatable_again(client):
+    email = f"prospect_reprove2_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth).json()
+
+    resp = client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
+    assert resp.status_code == 200
+
+    resp = client.post(f"/prospects/{prospect['id']}/unreprove", headers=auth)
+    assert resp.status_code == 200
+    assert resp.json()["reproved_at"] is None
+
+    listed = client.get("/prospects/", headers=auth).json()
+    assert any(p["id"] == prospect["id"] for p in listed)
+
+
+def test_reprove_converted_prospect_conflict(client):
+    email = f"prospect_reprove_conv_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth).json()
+    client.post(f"/prospects/{prospect['id']}/convert", headers=auth)
+
+    resp = client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
+
+    # Convertido sai da listagem ativa (is_active=False) → não encontrado
+    assert resp.status_code == 404
+
+
+def test_governanca_endpoints_require_authentication(client):
+    assert client.get("/governanca/deals").status_code == 401

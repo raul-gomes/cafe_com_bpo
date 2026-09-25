@@ -5,11 +5,15 @@ import { useGeneratePDF } from '../../lib/useGeneratePDF';
 import logoAsset from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { getClients, ClientData } from '../../api/clients';
+import { CLIENT_DECISION_LABELS, ClientDecision } from '../../api/proposals';
+import { generateShareLink, ShareLinkResponse } from '../../api/proposals';
+import { DealTimeline } from '../../components/governanca/DealTimeline';
+import { TimelineEvent } from '../../api/governanca';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
-import { MessageSquare } from 'lucide-react';
+import { MessageSquare, Link2, Copy, CheckCircle2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Proposal {
@@ -18,6 +22,13 @@ interface Proposal {
   input_payload: any;
   result_payload: any;
   created_at: string;
+  public_hash?: string | null;
+  public_hash_expires_at?: string | null;
+  shared_at?: string | null;
+  shared_count?: number;
+  client_decision?: ClientDecision | null;
+  client_observation?: string | null;
+  client_decided_at?: string | null;
 }
 
 export const OrcamentoDetalhadoPage: React.FC = () => {
@@ -25,6 +36,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [clients, setClients] = useState<ClientData[]>([]);
   const [loading, setLoading] = useState(true);
+  const [shareLink, setShareLink] = useState<ShareLinkResponse | null>(null);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { generate: generatePDF, isGenerating, error: pdfError } = useGeneratePDF();
@@ -48,6 +60,34 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   useEffect(() => {
     if (id) fetchData();
   }, [id, fetchData]);
+
+  const handleGenerateShareLink = async () => {
+    if (!proposal) return;
+    try {
+      const link = await generateShareLink(proposal.id);
+      setShareLink(link);
+      toast.success('Link de análise gerado!');
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Erro ao gerar o link de análise.');
+    }
+  };
+
+  const handleCopyLink = async () => {
+    if (!proposal) return;
+    try {
+      let url = shareLink?.url || null;
+      if (!url) {
+        const link = await generateShareLink(proposal.id);
+        setShareLink(link);
+        url = link.url;
+      }
+      await navigator.clipboard.writeText(url);
+      toast.success('Link copiado para a área de transferência!');
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Não foi possível copiar o link.');
+    }
+  };
 
   const handlePrint = async () => {
     if (!proposal) return;
@@ -93,18 +133,26 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
     }
 
     try {
+      let shareUrl = shareLink?.url;
+      if (!shareUrl) {
+        const link = await generateShareLink(proposal.id);
+        setShareLink(link);
+        shareUrl = link.url;
+      }
       await apiClient.post(`/proposals/${id}/send-email`, {
         email,
         client_name: proposal.client_name,
         message: 'Olá, segue o orçamento detalhado da nossa proposta de serviços BPO.',
+        share_url: shareUrl,
       });
+      fetchData();
       toast.success(`E-mail enviado para ${email}!`);
     } catch (err: any) {
       toast.error(err.response?.data?.detail || 'Erro ao enviar e-mail.');
     }
   };
 
-  const handleWhatsApp = () => {
+  const handleWhatsApp = async () => {
     if (!proposal) return;
 
     const client = clients.find(
@@ -119,12 +167,23 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
       return;
     }
 
-    handlePrint();
-    const cleanPhone = phone.replace(/\D/g, '');
-    const value = formatPrice(proposal.result_payload?.final_price || 0);
-    const message = `Olá ${proposal.client_name}, seguem os detalhes do orçamento: Valor: ${value}. Acesse o painel para mais informações.`;
-    const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    try {
+      let shareUrl = shareLink?.url;
+      if (!shareUrl) {
+        const link = await generateShareLink(proposal.id);
+        setShareLink(link);
+        shareUrl = link.url;
+      }
+      handlePrint();
+      const cleanPhone = phone.replace(/\D/g, '');
+      const value = formatPrice(proposal.result_payload?.final_price || 0);
+      const message = `Olá ${proposal.client_name}, seguem os detalhes do orçamento: Valor: ${value}. Acesse o link para dar seu parecer: ${shareUrl}`;
+      const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`;
+      window.open(url, '_blank');
+      fetchData();
+    } catch (err: any) {
+      toast.error(err.response?.data?.detail || 'Erro ao preparar o envio.');
+    }
   };
 
   const safeNumber = (value: unknown): number => {
@@ -195,14 +254,29 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
           <h1 className="text-[28px] font-extrabold tracking-tight text-foreground">
             {proposal.client_name}
           </h1>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Criado em {formatDate(proposal.created_at)}
-          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-2">
+            <p className="text-[13px] text-muted-foreground">
+              Criado em {formatDate(proposal.created_at)}
+            </p>
+            {proposal.client_decision && (
+              <ClientDecisionTag decision={proposal.client_decision} />
+            )}
+          </div>
+          {proposal.client_observation && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
+              <span className="font-bold">Observação do cliente: </span>
+              {proposal.client_observation}
+            </div>
+          )}
           {pdfError && (
             <p className="mt-2 text-[13px] font-semibold text-red-500">⚠️ {pdfError}</p>
           )}
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          <Button variant="outline" onClick={handleCopyLink}>
+            <Link2 size={16} />
+            {shareLink ? 'Copiar Link' : 'Copiar Link de Análise'}
+          </Button>
           <Button
             variant="default"
             onClick={() => navigate(`/painel/editar-orcamento/${id}`)}
@@ -321,6 +395,55 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
           </div>
         </Card>
 
+        {/* Envio e avaliação do cliente */}
+        <Card className="col-span-2 p-5">
+          <h2 className="mb-4 text-[15px] font-bold text-foreground">
+            Envio e avaliação do cliente
+          </h2>
+
+          {shareLink ? (
+            <div className="mb-5 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-muted/40 p-3">
+              <input
+                readOnly
+                value={shareLink.url}
+                aria-label="Link de análise do orçamento"
+                className="min-w-0 flex-1 bg-transparent text-[13px] text-foreground outline-none"
+              />
+              <Button size="sm" variant="outline" onClick={handleCopyLink}>
+                <Copy size={14} /> Copiar
+              </Button>
+              <span className="text-[12px] text-muted-foreground">
+                Expira em {formatDate(shareLink.expires_at)}
+              </span>
+            </div>
+          ) : (
+            <div className="mb-5 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-dashed border-border p-4">
+              <p className="text-[13px] text-muted-foreground">
+                {proposal.shared_at
+                  ? 'Enviado ao cliente anteriormente. Gere um novo link (o anterior será cancelado).'
+                  : 'Ainda não enviado ao cliente. Envie o link por e-mail, WhatsApp ou copie.'}
+              </p>
+              <Button variant="outline" size="sm" onClick={handleGenerateShareLink}>
+                <Link2 size={14} />
+                Gerar link de análise
+              </Button>
+            </div>
+          )}
+
+          <ProposalShareTimeline
+            sharedAt={proposal.shared_at}
+            decision={proposal.client_decision}
+            decidedAt={proposal.client_decided_at}
+          />
+
+          <div className="mt-4 flex flex-wrap gap-4 text-[12px] text-muted-foreground">
+            <span>Enviado {proposal.shared_count || 0} vez(es)</span>
+            {proposal.shared_at && (
+              <span>Último envio: {formatDate(proposal.shared_at)}</span>
+            )}
+          </div>
+        </Card>
+
         {/* Dados do Cliente e Simulação */}
         <Card className="col-span-2 p-5">
           <h2 className="mb-4 text-[15px] font-bold text-foreground">Dados do Cliente e Simulação</h2>
@@ -373,3 +496,58 @@ const Field = ({ label, value }: { label: string; value: string }) => (
     <span className="text-[14px] text-foreground">{value}</span>
   </div>
 );
+
+const DECISION_TAG_STYLES: Record<ClientDecision, string> = {
+  approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+  changes: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',
+  rejected: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+};
+
+const ClientDecisionTag = ({ decision }: { decision: ClientDecision }) => (
+  <span
+    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${DECISION_TAG_STYLES[decision]}`}
+  >
+    <CheckCircle2 size={12} />
+    {CLIENT_DECISION_LABELS[decision]}
+  </span>
+);
+
+const DECISION_EVENT_TYPE: Record<ClientDecision, TimelineEvent['type']> = {
+  approved: 'approved',
+  changes: 'changes',
+  rejected: 'rejected',
+};
+
+interface ShareTimelineProps {
+  sharedAt?: string | null;
+  decision?: ClientDecision | null;
+  decidedAt?: string | null;
+}
+
+const ProposalShareTimeline: React.FC<ShareTimelineProps> = ({
+  sharedAt,
+  decision,
+  decidedAt,
+}) => {
+  const events: TimelineEvent[] = [];
+  if (sharedAt) {
+    events.push({ type: 'sent', label: 'Enviado ao cliente para análise', date: sharedAt });
+  }
+  if (decision && decidedAt) {
+    events.push({
+      type: DECISION_EVENT_TYPE[decision],
+      label: `Cliente respondeu: ${CLIENT_DECISION_LABELS[decision]}`,
+      date: decidedAt,
+    });
+  }
+  return (
+    <div>
+      <DealTimeline events={events} />
+      {events.length === 0 && (
+        <p className="text-[13px] text-muted-foreground">
+          Envie o orçamento ao cliente para acompanhar o parecer.
+        </p>
+      )}
+    </div>
+  );
+};

@@ -48,6 +48,7 @@ class Prospect(Base):
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True
     )
     converted_at = Column(DateTime(timezone=True), nullable=True)
+    reproved_at = Column(DateTime(timezone=True), nullable=True)
 
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

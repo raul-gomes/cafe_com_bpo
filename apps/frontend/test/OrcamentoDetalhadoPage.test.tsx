@@ -27,6 +27,11 @@ const mockProposal = vi.hoisted(() => ({
     },
   },
   created_at: '2026-08-16T00:00:00.000Z',
+  shared_at: '2026-08-17T00:00:00.000Z',
+  shared_count: 1,
+  client_decision: 'approved',
+  client_observation: 'Tudo certo, por favor prosseguir.',
+  client_decided_at: '2026-08-17T01:00:00.000Z',
 }))
 
 vi.mock('../src/api/client', async () => {
@@ -35,7 +40,17 @@ vi.mock('../src/api/client', async () => {
     ...actual,
     apiClient: {
       get: vi.fn().mockResolvedValue({ data: mockProposal }),
-      post: vi.fn().mockResolvedValue({ data: {} }),
+      post: vi.fn().mockImplementation((url: string) => {
+        if (url.includes('/share-link')) {
+          return Promise.resolve({
+            data: {
+              url: 'http://localhost:3000/orcamento/share-hash-123',
+              expires_at: '2026-08-18T00:00:00.000Z',
+            },
+          })
+        }
+        return Promise.resolve({ data: {} })
+      }),
       put: vi.fn().mockResolvedValue({ data: {} }),
       patch: vi.fn().mockResolvedValue({ data: {} }),
       defaults: { headers: { common: {} } },
@@ -106,7 +121,10 @@ describe('OrcamentoDetalhadoPage', () => {
     await waitFor(() => {
       expect(_apiClient.post).toHaveBeenCalledWith(
         '/proposals/prop-1/send-email',
-        expect.objectContaining({ email: 'contato@exemplo.com' })
+        expect.objectContaining({
+          email: 'contato@exemplo.com',
+          share_url: 'http://localhost:3000/orcamento/share-hash-123',
+        })
       )
     })
   })
@@ -147,6 +165,46 @@ describe('OrcamentoDetalhadoPage', () => {
       )
     })
     openSpy.mockRestore()
+  })
+
+  it('shows the client decision tag and observation', async () => {
+    renderPage()
+
+    await screen.findByRole('heading', { name: 'Empresa Exemplo' })
+
+    expect(screen.getByText('Aprovado')).toBeInTheDocument()
+    expect(
+      screen.getByText(/observação do cliente/i)
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Tudo certo, por favor prosseguir\./)).toBeInTheDocument()
+    expect(screen.getByText(/Enviado ao cliente para análise/)).toBeInTheDocument()
+    expect(screen.getByText(/Cliente respondeu: Aprovado/)).toBeInTheDocument()
+    expect(screen.getByText(/Enviado 1 vez\(es\)/)).toBeInTheDocument()
+  })
+
+  it('generates a share link when clicking copy', async () => {
+    Object.defineProperty(navigator, 'clipboard', {
+      value: { writeText: vi.fn().mockResolvedValue(undefined) },
+      configurable: true,
+    })
+    const clipboardSpy = vi.spyOn(navigator.clipboard, 'writeText')
+    renderPage()
+
+    await screen.findByRole('heading', { name: 'Empresa Exemplo' })
+
+    const copyBtn = screen.getByText('Copiar Link de Análise')
+    fireEvent.click(copyBtn)
+
+    await waitFor(() => {
+      expect(_apiClient.post).toHaveBeenCalledWith('/proposals/prop-1/share-link')
+    })
+    await waitFor(() => {
+      expect(clipboardSpy).toHaveBeenCalledWith('http://localhost:3000/orcamento/share-hash-123')
+    })
+    expect(screen.getByLabelText('Link de análise do orçamento')).toHaveValue(
+      'http://localhost:3000/orcamento/share-hash-123'
+    )
+    clipboardSpy.mockRestore()
   })
 
   it('shows toast when client has no registered phone', async () => {

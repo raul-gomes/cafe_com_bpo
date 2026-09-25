@@ -2,8 +2,10 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import func
+from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
+
+from src.modules.prospects.models import Prospect
 
 from .default_template import (
     DEFAULT_TEMPLATE_SECTIONS,
@@ -57,9 +59,22 @@ class ContractRepository:
     # ── Contratos ───────────────────────────────────────────────
 
     def list_contracts(self, user_id: UUID) -> list[Contract]:
+        """Contratos em rascunho. Os finalizados saem da listagem e passam
+        a ser visualizados pela Governança. Contratos vinculados a um
+        prospecto não captado (reprovado) também saem até o prospecto
+        voltar à negociação."""
         return (
             self.session.query(Contract)
-            .filter(Contract.user_id == user_id, Contract.is_active)
+            .outerjoin(Prospect, Contract.prospect_id == Prospect.id)
+            .filter(
+                Contract.user_id == user_id,
+                Contract.is_active,
+                Contract.status != Contract.STATUS_FINALIZED,
+                or_(
+                    Prospect.id.is_(None),
+                    Prospect.reproved_at.is_(None),
+                ),
+            )
             .order_by(Contract.created_at.desc())
             .all()
         )

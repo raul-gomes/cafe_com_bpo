@@ -5,6 +5,7 @@ import {
   updateProspect,
   deleteProspect,
   convertProspect,
+  reproveProspect,
   ProspectData,
 } from '../../api/prospects';
 import { MaskedCNPJ, MaskedPhone, MaskedCPF } from '../../components/ui/MaskedInput';
@@ -12,7 +13,7 @@ import { maskCNPJ, maskPhone, maskCEP, maskCPF, onlyNumbers } from '../../lib/fo
 import { lookupCnpj, lookupCep } from '../../lib/brasilApi';
 import { getClientSegments } from '../../api/clients';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
-import { UserCheck, Trash2 } from 'lucide-react';
+import { UserCheck, UserX, Trash2 } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -233,6 +234,24 @@ export const ProspectosPage: React.FC = () => {
     }
   };
 
+  const handleReprove = async (prospect: ProspectData) => {
+    const ok = await confirm({
+      title: 'Marcar como não captado?',
+      message: `O negócio com "${prospect.name}" sairá de Meus Prospectos e será registrado como Perdido na Governança. Você poderá revertê-lo com "Voltar à negociação" na Governança. Os dados do prospecto são preservados.`,
+      variant: 'warning',
+      confirmLabel: 'Não captado',
+    });
+    if (!ok) return;
+    try {
+      await reproveProspect(prospect.id);
+      setProspects(prev => prev.filter(p => p.id !== prospect.id));
+      toast.success(`"${prospect.name}" marcado como não captado.`);
+    } catch (e) {
+      console.error(e);
+      toast.error('Erro ao marcar como não captado.');
+    }
+  };
+
   const renderFormFields = () => (
     <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-4">
       <div className="flex flex-col gap-1.5">
@@ -445,8 +464,11 @@ export const ProspectosPage: React.FC = () => {
                       </div>
                     </div>
                     <div className="flex items-center gap-2" onClick={e => e.stopPropagation()}>
-                      <Button variant="default" size="sm" onClick={() => handleConvert(p)} aria-label="Converter em Cliente">
+                      <Button variant="default" size="sm" onClick={() => handleConvert(p)} aria-label="Converter em Cliente" title="Converter em Cliente">
                         <UserCheck size={14} /> Converter
+                      </Button>
+                      <Button variant="ghost" size="sm" onClick={() => handleReprove(p)} aria-label="Marcar como não captado" title="Marcar como não captado" className="text-destructive hover:text-destructive">
+                        <UserX size={14} />
                       </Button>
                       <Button variant="ghost" size="sm" onClick={() => { setShowForm(false); handleStartEdit(p); }} title="Editar">
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">

@@ -11,6 +11,7 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage'))
 const SimulatorPage = React.lazy(() => import('./pages/SimulatorPage'))
 const UnderConstructionPage = React.lazy(() => import('./pages/UnderConstructionPage'))
 const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage'))
+const PublicProposalPage = React.lazy(() => import('./pages/PublicProposalPage'))
 const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
 
 // ── Suspense wrapper ─────────────────────────────────────────────
@@ -47,6 +48,7 @@ export async function buildRouter() {
   const { TasksPage } = await import('./pages/panel/TasksPage')
   const { EmpresasPage } = await import('./pages/panel/EmpresasPage')
   const { ProspectosPage } = await import('./pages/panel/ProspectosPage')
+  const { GovernancaPage } = await import('./pages/panel/GovernancaPage')
   const { ContratosPage } = await import('./pages/panel/ContratosPage')
   const { ContratoDetalhePage } = await import('./pages/panel/ContratoDetalhePage')
   const { VisualizarContratoPage } = await import('./pages/panel/VisualizarContratoPage')
@@ -87,6 +89,10 @@ export async function buildRouter() {
     {
       path: '/proposta',
       element: <SuspenseWrapper><ProposalPreviewPage /></SuspenseWrapper>,
+    },
+    {
+      path: '/orcamento/:hash',
+      element: <SuspenseWrapper><PublicProposalPage /></SuspenseWrapper>,
     },
     {
       path: '/em-construcao',
@@ -159,6 +165,10 @@ export async function buildRouter() {
             {
               path: 'prospectos',
               element: <SuspenseWrapper><ProspectosPage /></SuspenseWrapper>,
+            },
+            {
+              path: 'governanca',
+              element: <SuspenseWrapper><GovernancaPage /></SuspenseWrapper>,
             },
             {
               path: 'pagamentos',

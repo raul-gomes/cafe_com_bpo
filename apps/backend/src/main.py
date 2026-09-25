@@ -23,6 +23,7 @@ from src.modules.emails.router import router as emails_router
 from src.modules.emails.scheduler import email_scheduler_instance
 from src.modules.feedback.router import router as feedback_router
 from src.modules.gallery.router import router as gallery_router
+from src.modules.governanca.router import router as governanca_router
 from src.modules.network.router import router as network_router
 from src.modules.notifications.router import router as notifications_router
 from src.modules.payments.router import router as payments_router
@@ -135,6 +136,7 @@ def create_app() -> FastAPI:
     app.include_router(gallery_router)
     app.include_router(clients_router)
     app.include_router(contracts_router)
+    app.include_router(governanca_router)
     app.include_router(network_router)
     app.include_router(tasks_router)
     app.include_router(dashboard_router)

@@ -42,6 +42,11 @@ const icons = {
       <path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
     </svg>
   ),
+  governanca: (
+    <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" /><rect x="7" y="9" width="3" height="7" /><rect x="13" y="5" width="3" height="11" /><rect x="11" y="13" width="3" height="3" />
+    </svg>
+  ),
   tasks: (
     <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M9 11l3 3L22 4" /><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11" />
@@ -166,6 +171,7 @@ const NAV_MENUS: MenuConfig[] = [
       { path: '/painel/prospectos', icon: icons.prospects, label: 'Prospectos' },
       { path: '/painel/orcamentos', icon: icons.proposals, label: 'Orçamentos' },
       { path: '/painel/contratos', icon: icons.contracts, label: 'Contratos' },
+      { path: '/painel/governanca', icon: icons.governanca, label: 'Governança' },
     ],
   },
   {

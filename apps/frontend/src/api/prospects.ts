@@ -23,6 +23,7 @@ export interface ProspectData {
   cep?: string;
   converted_client_id?: string | null;
   converted_at?: string | null;
+  reproved_at?: string | null;
   created_at?: string;
   updated_at?: string;
   user_id?: string;
@@ -56,4 +57,14 @@ export const deleteProspect = async (id: string) => {
 export const convertProspect = async (id: string) => {
   const response = await apiClient.post(`/prospects/${id}/convert`);
   return response.data as ProspectConvertResponse;
+};
+
+export const reproveProspect = async (id: string) => {
+  const response = await apiClient.post(`/prospects/${id}/reprove`);
+  return response.data as ProspectData;
+};
+
+export const unreproveProspect = async (id: string) => {
+  const response = await apiClient.post(`/prospects/${id}/unreprove`);
+  return response.data as ProspectData;
 };

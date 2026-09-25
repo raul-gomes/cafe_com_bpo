@@ -10,8 +10,14 @@ from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
 from .repository import PricingScenarioRepository
-from .schemas import ProposalCreate, ProposalResponse
-from .service import ProposalService
+from .schemas import (
+    ClientDecisionRequest,
+    ProposalCreate,
+    ProposalResponse,
+    PublicProposalResponse,
+    ShareLinkResponse,
+)
+from .service import ProposalService, ProposalShareError
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
@@ -31,6 +37,39 @@ def get_service(
 RepoDep = Annotated[PricingScenarioRepository, Depends(get_repo)]
 ServiceDep = Annotated[ProposalService, Depends(get_service)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
+
+ShareExpiredHTTP = HTTPException(
+    status_code=404, detail="Link de orçamento inválido ou expirado."
+)
+
+
+@router.get("/public/{share_hash}", response_model=PublicProposalResponse)
+def get_public_proposal(share_hash: str, service: ServiceDep):
+    """Endpoint público (sem autenticação) para o cliente analisar o orçamento."""
+    try:
+        return service.get_public_proposal(share_hash)
+    except ProposalShareError:
+        raise ShareExpiredHTTP
+
+
+@router.post("/public/{share_hash}/decision", response_model=PublicProposalResponse)
+def submit_public_decision(
+    share_hash: str, payload: ClientDecisionRequest, service: ServiceDep
+):
+    """Endpoint público para o cliente enviar o parecer (aprovado/alterar/reprovado)."""
+    try:
+        decision = service.submit_client_decision(
+            share_hash, payload.decision, payload.observation
+        )
+        service.repository.session.commit()
+        return decision
+    except ProposalShareError:
+        raise ShareExpiredHTTP
+    except Exception:
+        service.repository.session.rollback()
+        raise HTTPException(
+            status_code=400, detail="Não foi possível registrar o parecer."
+        )
 
 
 @router.post("/", response_model=ProposalResponse, status_code=201)
@@ -145,6 +184,19 @@ def get_pdf_url(proposal_id: str, service: ServiceDep, current_user: CurrentUser
     return {"url": url}
 
 
+@router.post("/{proposal_id}/share-link", response_model=ShareLinkResponse)
+def create_share_link(
+    proposal_id: str, service: ServiceDep, current_user: CurrentUserDep
+):
+    """Cancela o link anterior e gera um novo link público de análise (24h)."""
+    try:
+        link = service.create_share_link(uuid.UUID(proposal_id), current_user.id)
+        service.repository.session.commit()
+        return link
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Proposta não encontrada")
+
+
 @router.post("/{proposal_id}/send-email")
 def send_proposal_email(
     proposal_id: str,
@@ -156,6 +208,7 @@ def send_proposal_email(
     recipient_email = payload.get("email", "")
     client_name = payload.get("client_name", "")
     message = payload.get("message", "")
+    share_url = payload.get("share_url", "")
 
     if not recipient_email:
         raise HTTPException(
@@ -169,7 +222,9 @@ def send_proposal_email(
             recipient_email=recipient_email,
             client_name=client_name,
             message=message,
+            share_url=share_url or None,
         )
+        service.repository.session.commit()
         log.info(
             f"📧 Orçamento enviado por e-mail para {recipient_email} por {current_user.email}"
         )
@@ -187,4 +242,5 @@ def get_whatsapp_link(
 ):
     """Gera link de compartilhamento via WhatsApp."""
     result = service.get_whatsapp_message(uuid.UUID(proposal_id), current_user.id)
+    service.repository.session.commit()
     return result

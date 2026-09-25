@@ -23,13 +23,16 @@ class ProspectRepository:
         )
 
     def get_by_user(self, user_id: UUID) -> list[Prospect]:
-        """Prospectos ativos e ainda não convertidos (os que podem ser trabalhados)."""
+        """Prospectos ativos, não convertidos e ainda em negociação (não
+        reprovados). Quem foi marcado como "não captado" sai da listagem e
+        passa a viver na Governança como Perdido, até voltar à negociação."""
         return (
             self.session.query(Prospect)
             .filter(
                 Prospect.user_id == user_id,
                 Prospect.is_active,
                 Prospect.converted_client_id.is_(None),
+                Prospect.reproved_at.is_(None),
             )
             .order_by(Prospect.name)
             .all()
@@ -86,6 +89,21 @@ class ProspectRepository:
         prospect.converted_at = datetime.now(timezone.utc)
         prospect.is_active = False
         prospect.deleted_at = datetime.now(timezone.utc)
+        self.session.commit()
+        self.session.refresh(prospect)
+        return prospect
+
+    def mark_reproved(self, prospect: Prospect) -> Prospect:
+        """Marca o prospecto como não captado (reprovado). Flag binária:
+        `reproved_at` preenchida = 1 (perdido); nula = ainda negociando."""
+        prospect.reproved_at = datetime.now(timezone.utc)
+        self.session.commit()
+        self.session.refresh(prospect)
+        return prospect
+
+    def clear_reproved(self, prospect: Prospect) -> Prospect:
+        """Desfaz a reprovação, voltando o prospecto à negociação."""
+        prospect.reproved_at = None
         self.session.commit()
         self.session.refresh(prospect)
         return prospect
