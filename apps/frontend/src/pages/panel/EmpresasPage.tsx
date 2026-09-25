@@ -4,7 +4,7 @@ import { MaskedCNPJ, MaskedPhone } from '../../components/ui/MaskedInput';
 import { maskCNPJ, maskPhone, maskCEP, onlyNumbers } from '../../lib/formatters';
 import { lookupCnpj, lookupCep } from '../../lib/brasilApi';
 import { useTasks } from '../../api/hooks/useTasks';
-import { Link, Unlink, FileText } from 'lucide-react';
+import { Link, Unlink, FileText, AlertTriangle } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Users, UserPlus, Trash2, Check, Send, Clock, Plus, X } from 'lucide-react';
 import {
@@ -654,6 +654,12 @@ export const EmpresasPage: React.FC = () => {
                         <div className="text-[12px] text-muted-foreground">
                           {tmpl.activity_count} atividades • {tmpl.recurrence === 'once' ? 'Uma só vez' : tmpl.recurrence === 'daily' ? 'Diário' : tmpl.recurrence === 'weekly' ? 'Semanal' : tmpl.recurrence === 'monthly' ? 'Mensal' : tmpl.recurrence === 'yearly' ? 'Anual' : tmpl.recurrence}
                         </div>
+                        {tmpl.activity_count === 0 && (
+                          <div className="mt-1 flex items-center gap-1.5 rounded-md bg-amber-500/10 px-2 py-1 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                            <AlertTriangle size={11} className="shrink-0" />
+                            Sem atividades — vincular não gera tarefas
+                          </div>
+                        )}
                       </div>
                       {isLinked ? (
                         <Button

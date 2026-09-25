@@ -156,26 +156,28 @@ class AssignmentService:
             _make(deadline, deadline.strftime("%Y-%m-%d"))
 
         elif tmpl.recurrence == "weekly":
-            # Weekly: remaining marked weekdays of the current week.
-            # Past weekdays (before today) are ignored — scheduler regenerates
-            # the full following week.
+            # Weekly: gera apenas os dias marcados que AINDA restam na SEMANA
+            # ATUAL (de hoje até domingo). Dias passados são ignorados.
+            # Se nenhum dia marcado resta na semana, nada é gerado agora —
+            # o scheduler (rocketry) cuida das semanas seguintes.
             if tmpl.weekday_mask:
                 marked_days = {
                     int(d.strip()) - 1
                     for d in tmpl.weekday_mask.split(",")
                     if d.strip()
                 }
-                # Encontra o primeiro dia válido (hoje ou próximo)
+                # Busca o primeiro dia marcado dentro da semana atual (hoje..domingo)
+                days_left_in_week = 6 - now.weekday()
                 start = None
-                for offset in range(7):
+                for offset in range(days_left_in_week + 1):
                     candidate = now + timedelta(days=offset)
                     if candidate.weekday() in marked_days:
                         start = candidate
                         break
 
                 if start is not None:
-                    days_until_sunday = 6 - start.weekday()
-                    for offset in range(days_until_sunday + 1):
+                    # Gera de start até domingo — somente os dias marcados
+                    for offset in range(6 - start.weekday() + 1):
                         target = start + timedelta(days=offset)
                         if target.weekday() not in marked_days:
                             continue

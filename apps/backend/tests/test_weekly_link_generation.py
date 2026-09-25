@@ -102,6 +102,69 @@ def test_weekly_link_wednesday_generates_only_thursday(client):
     assert all(t.deadline.strftime("%Y-%m-%d") == "2026-07-16" for t in tasks)
 
 
+def test_weekly_link_friday_no_remaining_marked_day_generates_nothing(
+    client,
+):
+    """Regra 2: semanal Ter+Qui vinculada na sexta → 0 cards.
+
+    Nenhum dia marcado resta na semana atual; o rocketry (scheduler) cuida
+    da semana seguinte.
+    """
+    suf = uuid4().hex[:8]
+    email = f"weekly_fri_none_{suf}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth, name=f"Cliente {suf}")
+    tmpl_id = _create_weekly_setup(client, auth, mask="2,4")  # Ter + Qui
+
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == email).one()
+    assignment, _ = _make_assignment(cli["id"], tmpl_id, user.id)
+
+    activities = TemplateRepository(db).get_activities_by_template(UUID(tmpl_id))
+    service = AssignmentService(AssignmentRepository(db))
+
+    now = datetime(2026, 7, 17, 12, 0, 0, tzinfo=timezone.utc)  # Sexta
+    tasks = service._generate_for_activities(
+        assignment, assignment.template, activities, user.id, now=now
+    )
+    db.commit()
+
+    assert tasks == [], (
+        "Sexta sem dia marcado restante na semana → vínculo não deve gerar cards "
+        f"(veio {len(tasks)})"
+    )
+
+
+def test_weekly_link_friday_with_today_marked_generates_only_today(client):
+    """Regra 1: semanal Seg/Qua/Sex vinculada na sexta → gera SÓ sexta (hoje)."""
+    suf = uuid4().hex[:8]
+    email = f"weekly_fri_today_{suf}@cafe.com"
+    auth = get_auth_header(client, email)
+    cli = create_client(client, auth, name=f"Cliente {suf}")
+    tmpl_id = _create_weekly_setup(client, auth, mask="1,3,5")  # Seg + Qua + Sex
+
+    db = SessionLocal()
+    user = db.query(User).filter(User.email == email).one()
+    assignment, _ = _make_assignment(cli["id"], tmpl_id, user.id)
+
+    activities = TemplateRepository(db).get_activities_by_template(UUID(tmpl_id))
+    service = AssignmentService(AssignmentRepository(db))
+
+    now = datetime(2026, 7, 17, 12, 0, 0, tzinfo=timezone.utc)  # Sexta
+    tasks = service._generate_for_activities(
+        assignment, assignment.template, activities, user.id, now=now
+    )
+    db.commit()
+
+    assert len(tasks) == 2, (
+        f"Sexta (hoje marcado) deveria gerar 2 cards (1 por atividade), "
+        f"veio {len(tasks)}"
+    )
+    assert all(t.deadline.strftime("%Y-%m-%d") == "2026-07-17" for t in tasks), [
+        t.deadline.isoformat() for t in tasks
+    ]
+
+
 def test_weekly_link_deduplicates_same_period(client):
     """Segunda chamada para o mesmo período não duplica."""
     suf = uuid4().hex[:8]

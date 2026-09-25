@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Plus, Trash2, X, Pencil, Globe, Archive } from 'lucide-react';
+import { Plus, Trash2, X, Pencil, Globe, Archive, AlertTriangle } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 import {
@@ -505,8 +505,15 @@ export const RoutineDrawer: React.FC<RoutineDrawerProps> = ({ isOpen, onClose, t
 
                   {sortedActivities.length === 0 ? (
                     <div className="py-8 text-center">
-                      <p className="text-[13px] text-muted-foreground">
+                      <div className="mx-auto mb-3 flex size-10 items-center justify-center rounded-full bg-amber-500/10">
+                        <AlertTriangle size={18} className="text-amber-500" />
+                      </div>
+                      <p className="text-[13px] font-semibold text-foreground">
                         Nenhuma atividade cadastrada nesta rotina.
+                      </p>
+                      <p className="mx-auto mt-1 max-w-xs text-[12px] text-muted-foreground">
+                        Enquanto não houver ao menos uma atividade, a rotina{' '}
+                        <span className="font-semibold">não gera tarefas</span> ao ser vinculada a um cliente.
                       </p>
                     </div>
                   ) : (
