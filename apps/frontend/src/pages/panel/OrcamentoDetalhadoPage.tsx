@@ -14,7 +14,7 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
-import { MessageSquare, Link2, Copy, CheckCircle2 } from 'lucide-react';
+import { MessageSquare, Link2, Copy, CheckCircle2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface Proposal {
@@ -275,9 +275,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
             <p className="text-[13px] text-muted-foreground">
               Criado em {formatDate(proposal.created_at)}
             </p>
-            {proposal.client_decision && (
-              <ClientDecisionTag decision={proposal.client_decision} />
-            )}
+            <ClientDecisionTag decision={proposal.client_decision} />
           </div>
           {proposal.client_observation && (
             <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-[13px] text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-300">
@@ -546,12 +544,14 @@ const DECISION_TAG_STYLES: Record<ClientDecision, string> = {
   rejected: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
 };
 
-const ClientDecisionTag = ({ decision }: { decision: ClientDecision }) => (
+const ClientDecisionTag = ({ decision }: { decision?: ClientDecision | null }) => (
   <span
-    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${DECISION_TAG_STYLES[decision]}`}
+    className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[12px] font-bold ${
+      decision ? DECISION_TAG_STYLES[decision] : 'bg-muted text-muted-foreground'
+    }`}
   >
-    <CheckCircle2 size={12} />
-    {CLIENT_DECISION_LABELS[decision]}
+    {decision ? <CheckCircle2 size={12} /> : <Clock size={12} />}
+    {decision ? CLIENT_DECISION_LABELS[decision] : 'Aguardando parecer do cliente'}
   </span>
 );
 

@@ -19,12 +19,15 @@ import {
 } from '../../api/contracts';
 import { ContractFieldsModal } from './ContractFieldsModal';
 import { toast } from 'sonner';
+import { CLIENT_DECISION_LABELS, ClientDecision } from '../../api/proposals';
 
 export interface ProposalLight {
   id: string;
   client_name: string;
   prospect_id: string | null;
   created_at: string;
+  number?: number | null;
+  client_decision?: ClientDecision | null;
 }
 
 export interface NovoContratoModalProps {
@@ -82,6 +85,12 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
   const filteredProposals = prospectId
     ? proposals.filter((p) => p.prospect_id === prospectId)
     : [];
+
+  const formatProposalOption = (p: ProposalLight): string => {
+    const num = p.number != null ? String(p.number).padStart(4, '0') : 's/n';
+    const status = p.client_decision ? ` - ${CLIENT_DECISION_LABELS[p.client_decision]}` : '';
+    return `Orçamento ${num}${status}`;
+  };
 
   const handleNext = async () => {
     if (!prospectId) return;
@@ -155,7 +164,7 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
               >
                 <option value="">— Sem orçamento —</option>
                 {filteredProposals.map((p) => (
-                  <option key={p.id} value={p.id}>{p.client_name}</option>
+                  <option key={p.id} value={p.id}>{formatProposalOption(p)}</option>
                 ))}
               </select>
               {prospectId && filteredProposals.length === 0 && (

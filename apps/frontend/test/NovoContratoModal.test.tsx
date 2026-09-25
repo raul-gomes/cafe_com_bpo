@@ -24,8 +24,8 @@ const PROSPECTS = [
   { id: 'p3', name: 'Sem Orçamento Ltda' },
 ]
 const PROPOSALS = [
-  { id: 'o1', client_name: 'Alpha Consultoria', prospect_id: 'p1', created_at: '2026-01-01T00:00:00Z' },
-  { id: 'o2', client_name: 'Beta Ltda', prospect_id: 'p2', created_at: '2026-01-02T00:00:00Z' },
+  { id: 'o1', client_name: 'Alpha Consultoria', prospect_id: 'p1', created_at: '2026-01-01T00:00:00Z', number: 7, client_decision: 'approved' },
+  { id: 'o2', client_name: 'Beta Ltda', prospect_id: 'p2', created_at: '2026-01-02T00:00:00Z', number: 8, client_decision: 'changes' },
 ]
 const DESCRIPTORS = [
   { key: 'sistema_gestao', label: 'Sistema de gestão', kind: 'text', default: '', group: 'Operação' },
@@ -98,7 +98,7 @@ describe('NovoContratoModal', () => {
     })
 
     const options = Array.from(proposalSelect.querySelectorAll('option')).map((o) => o.textContent)
-    expect(options).toContain('Alpha Consultoria')
+    expect(options).toContain('Orçamento 0007 - Aprovado')
     expect(options).not.toContain('Beta Ltda')
 
     await fireEvent.change(proposalSelect, { target: { value: 'o1' } })

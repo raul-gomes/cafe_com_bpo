@@ -18,6 +18,7 @@ import { MessageSquare } from 'lucide-react';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
+import { CLIENT_DECISION_LABELS, ClientDecision } from '../../api/proposals';
 
 interface Proposal {
   id: string;
@@ -26,6 +27,7 @@ interface Proposal {
   input_payload: any;
   result_payload: any;
   created_at: string;
+  client_decision?: ClientDecision | null;
 }
 
 export const OrcamentosPage: React.FC = () => {
@@ -107,6 +109,12 @@ export const OrcamentosPage: React.FC = () => {
       month: 'short',
       year: 'numeric',
     });
+
+  const DECISION_BADGE_STYLES: Record<ClientDecision, string> = {
+    approved: 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400',
+    changes: 'bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400',
+    rejected: 'bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-400',
+  };
 
   const totalValue = proposals.reduce(
     (sum, p) => sum + safeNumber(p.result_payload?.final_price),
@@ -230,6 +238,11 @@ export const OrcamentosPage: React.FC = () => {
                         {p.number != null && (
                           <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
                             nº {String(p.number).padStart(4, '0')}
+                          </span>
+                        )}
+                        {p.client_decision && (
+                          <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${DECISION_BADGE_STYLES[p.client_decision]}`}>
+                            {CLIENT_DECISION_LABELS[p.client_decision]}
                           </span>
                         )}
                       </div>
