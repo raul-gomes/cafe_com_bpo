@@ -166,3 +166,22 @@ class ContractRepository:
         contract.is_active = False
         contract.deleted_at = datetime.now(timezone.utc)
         self.session.commit()
+
+    def delete_by_prospect(self, user_id: UUID, prospect_id: UUID) -> list[Contract]:
+        """Arquiva (soft delete) os contratos do usuário vinculados a um
+        prospecto — usado quando o prospecto é excluído."""
+        contracts = (
+            self.session.query(Contract)
+            .filter(
+                Contract.user_id == user_id,
+                Contract.prospect_id == prospect_id,
+                Contract.is_active,
+            )
+            .all()
+        )
+        now = datetime.now(timezone.utc)
+        for contract in contracts:
+            contract.is_active = False
+            contract.deleted_at = now
+        self.session.commit()
+        return contracts

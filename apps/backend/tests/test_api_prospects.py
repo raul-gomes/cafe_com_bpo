@@ -140,6 +140,132 @@ def test_archive_prospect_removes_from_list(client):
     assert resp_list.json() == []
 
 
+def test_delete_prospect_removes_linked_proposals_and_contracts(client):
+    email = f"prospect_cascade_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth, name="Cascade Target").json()
+
+    # Orçamento vinculado ao prospecto
+    resp_prop = client.post(
+        "/proposals/",
+        json={
+            "client_name": prospect["name"],
+            "input_payload": {"p": 1},
+            "result_payload": {"price": 500},
+            "prospect_id": prospect["id"],
+        },
+        headers=auth,
+    )
+    assert resp_prop.status_code == 201
+    proposal = resp_prop.json()
+
+    # Contrato vinculado ao prospecto + orçamento
+    resp_contract = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+    assert resp_contract.status_code == 201
+    contract = resp_contract.json()
+
+    # Link público do orçamento funcionando antes do delete
+    link = client.post(f"/proposals/{proposal['id']}/share-link", headers=auth).json()
+    share_hash = link["url"].rstrip("/").split("/")[-1]
+    assert client.get(f"/proposals/public/{share_hash}").status_code == 200
+
+    # Deleta o prospecto
+    resp_del = client.delete(f"/prospects/{prospect['id']}", headers=auth)
+    assert resp_del.status_code == 204
+
+    # Prospecto some da listagem
+    assert client.get("/prospects/", headers=auth).json() == []
+
+    # Orçamento some da listagem e do detalhe
+    proposals = client.get("/proposals/", headers=auth).json()
+    assert all(p["id"] != proposal["id"] for p in proposals)
+    assert client.get(f"/proposals/{proposal['id']}", headers=auth).status_code == 404
+
+    # Link público do orçamento deixa de funcionar
+    assert client.get(f"/proposals/public/{share_hash}").status_code == 404
+
+    # Contrato some da listagem e do detalhe
+    contracts = client.get("/contracts/", headers=auth).json()
+    assert all(c["id"] != contract["id"] for c in contracts)
+    assert client.get(f"/contracts/{contract['id']}", headers=auth).status_code == 404
+
+
+def test_delete_prospect_cascade_is_user_scoped(client):
+    email_a = f"prospect_casc_a_{uuid4()}@cafe.com"
+    auth_a = get_auth_header(client, email_a)
+    prospect_a = create_prospect(client, auth_a, name="De A").json()
+    proposal_a = client.post(
+        "/proposals/",
+        json={
+            "client_name": prospect_a["name"],
+            "input_payload": {"p": 1},
+            "result_payload": {"price": 500},
+            "prospect_id": prospect_a["id"],
+        },
+        headers=auth_a,
+    ).json()
+    contract_a = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect_a["id"], "proposal_id": proposal_a["id"]},
+        headers=auth_a,
+    ).json()
+
+    email_b = f"prospect_casc_b_{uuid4()}@cafe.com"
+    auth_b = get_auth_header(client, email_b)
+    prospect_b = create_prospect(client, auth_b, name="De B").json()
+    proposal_b = client.post(
+        "/proposals/",
+        json={
+            "client_name": prospect_b["name"],
+            "input_payload": {"p": 1},
+            "result_payload": {"price": 300},
+            "prospect_id": prospect_b["id"],
+        },
+        headers=auth_b,
+    ).json()
+    contract_b = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect_b["id"], "proposal_id": proposal_b["id"]},
+        headers=auth_b,
+    ).json()
+
+    # IDOR: usuário B não pode apagar o prospecto de A
+    assert (
+        client.delete(f"/prospects/{prospect_a['id']}", headers=auth_b).status_code
+        == 404
+    )
+
+    # A apaga SEU prospecto → cascade só nos dados de A
+    assert (
+        client.delete(f"/prospects/{prospect_a['id']}", headers=auth_a).status_code
+        == 204
+    )
+
+    assert (
+        client.get(f"/proposals/{proposal_a['id']}", headers=auth_a).status_code == 404
+    )
+    assert (
+        client.get(f"/contracts/{contract_a['id']}", headers=auth_a).status_code == 404
+    )
+
+    # Dados de B permanecem intactos
+    assert client.get("/prospects/", headers=auth_b).json()[0]["id"] == prospect_b["id"]
+    proposals_b = client.get("/proposals/", headers=auth_b).json()
+    assert any(p["id"] == proposal_b["id"] for p in proposals_b)
+    contracts_b = client.get("/contracts/", headers=auth_b).json()
+    assert any(c["id"] == contract_b["id"] for c in contracts_b)
+    assert (
+        client.get(f"/proposals/{proposal_b['id']}", headers=auth_b).status_code == 200
+    )
+    assert (
+        client.get(f"/contracts/{contract_b['id']}", headers=auth_b).status_code == 200
+    )
+
+
 def test_prospects_endpoints_require_authentication(client):
     assert client.post("/prospects/", json={"name": "X"}).status_code == 401
     assert client.get("/prospects/").status_code == 401

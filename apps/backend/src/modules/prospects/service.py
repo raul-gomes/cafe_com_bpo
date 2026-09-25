@@ -24,11 +24,22 @@ class ProspectService:
             raise ValueError(f"Prospect {prospect_id} not found for user {user_id}")
         return self.repository.update(prospect, prospect_data)
 
-    def delete_prospect(self, prospect_id: UUID, user_id: UUID) -> None:
+    def delete_prospect(
+        self,
+        prospect_id: UUID,
+        user_id: UUID,
+        proposal_repo,
+        contract_repo,
+    ) -> None:
+        """Arquiva (soft delete) o prospecto e oculta tudo o que está
+        vinculado a ele para este usuário: orçamentos e contratos. O link
+        público de um orçamento vinculado também deixa de valer."""
         prospect = self.repository.get_by_id(prospect_id, user_id)
         if not prospect:
             raise ValueError(f"Prospect {prospect_id} not found for user {user_id}")
         self.repository.delete(prospect)
+        proposal_repo.delete_by_prospect(user_id, prospect_id)
+        contract_repo.delete_by_prospect(user_id, prospect_id)
 
     def convert_prospect(
         self,

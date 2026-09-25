@@ -9,6 +9,8 @@ from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 from src.modules.clients.repository import ClientRepository
+from src.modules.contracts.repository import ContractRepository
+from src.modules.proposals.repository import PricingScenarioRepository
 from src.modules.prospects.repository import ProspectRepository
 from src.modules.prospects.schemas import (
     ProspectConvertResponse,
@@ -33,8 +35,22 @@ def get_client_repository(
     return ClientRepository(session)
 
 
+def get_proposal_repository(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> PricingScenarioRepository:
+    return PricingScenarioRepository(session)
+
+
+def get_contract_repository(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> ContractRepository:
+    return ContractRepository(session)
+
+
 ProspectRepoDep = Annotated[ProspectRepository, Depends(get_prospect_repository)]
 ClientRepoDep = Annotated[ClientRepository, Depends(get_client_repository)]
+ProposalRepoDep = Annotated[PricingScenarioRepository, Depends(get_proposal_repository)]
+ContractRepoDep = Annotated[ContractRepository, Depends(get_contract_repository)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
@@ -83,14 +99,21 @@ def update_prospect(
 def delete_prospect(
     prospect_id: UUID,
     repo: ProspectRepoDep,
+    proposal_repo: ProposalRepoDep,
+    contract_repo: ContractRepoDep,
     current_user: CurrentUserDep,
 ):
-    """Arquiva um prospecto (soft delete)."""
-    prospect = repo.get_by_id(prospect_id, current_user.id)
-    if not prospect:
-        raise HTTPException(status_code=404, detail="Prospecto não encontrado")
+    """Arquiva um prospecto (soft delete) e oculta do usuário os orçamentos e
+    contratos vinculados a ele — inclusive o link público de orçamentos."""
+    service = ProspectService(repo)
+    try:
+        service.delete_prospect(
+            prospect_id, current_user.id, proposal_repo, contract_repo
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail="Prospecto não encontrado") from e
 
-    repo.delete(prospect)
+    log.info(f"🗑️ Prospecto arquivado: {prospect_id} por {current_user.email}")
 
 
 @router.post("/{prospect_id}/convert", response_model=ProspectConvertResponse)

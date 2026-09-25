@@ -126,6 +126,30 @@ class PricingScenarioRepository:
             return True
         return False
 
+    def delete_by_prospect(
+        self, user_id: uuid.UUID, prospect_id: uuid.UUID
+    ) -> list[PricingScenario]:
+        """Arquiva (soft delete) os orçamentos ativos do usuário vinculados a
+        um prospecto — usado quando o prospecto é excluído (o vínculo saí de
+        vista do usuário e o link público compartilhado deixa de valer)."""
+        from datetime import datetime, timezone
+
+        scenarios = (
+            self.session.query(PricingScenario)
+            .filter(
+                PricingScenario.user_id == user_id,
+                PricingScenario.prospect_id == prospect_id,
+                PricingScenario.is_active,
+            )
+            .all()
+        )
+        now = datetime.now(timezone.utc)
+        for scenario in scenarios:
+            scenario.is_active = False
+            scenario.deleted_at = now
+        self.session.commit()
+        return scenarios
+
 
 class ProposalRepository:
     """
