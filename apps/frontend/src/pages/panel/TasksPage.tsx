@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw, Users, ChevronDown } from 'lucide-react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw, Users, ChevronDown, Building2 } from 'lucide-react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useTaskEvents } from '../../api/hooks/useTaskEvents';
@@ -23,6 +23,7 @@ import {
     DropdownMenuTrigger,
     DropdownMenuContent,
     DropdownMenuItem,
+    DropdownMenuSeparator,
 } from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/utils';
 import { toast } from 'sonner';
@@ -39,6 +40,7 @@ export const TasksPage: React.FC = () => {
     const [dateTo, setDateTo] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
     const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
+    const [clientFilter, setClientFilter] = useState<string>('');
     const [bulkLoading, setBulkLoading] = useState<Record<string, 'completing' | 'cancelling' | null>>({});
     const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask, useRunDaily, useRunMonthly, useRunWeekly, useRunYearly } = useTasks();
     useTaskEvents();
@@ -56,6 +58,18 @@ export const TasksPage: React.FC = () => {
     const runYearly = useRunYearly();
     const { data: timelineData, isLoading: timelineLoading } = useTimeline();
     const { data: conflictsData } = useConflicts();
+    // Aplica o filtro de cliente também na linha do tempo
+    const filteredTimeline = useMemo(() => {
+        if (!timelineData) return timelineData;
+        if (!clientFilter) return timelineData;
+        return {
+            ...timelineData,
+            timeline: timelineData.timeline.map(day => ({
+                ...day,
+                tasks: day.tasks.filter(t => t.client_id === clientFilter),
+            })),
+        };
+    }, [timelineData, clientFilter]);
 
     const [selectedTask, setSelectedTask] = useState<TaskResponse | null>(null);
     const [isTaskModalOpen, setTaskModalOpen] = useState(false);
@@ -251,7 +265,15 @@ export const TasksPage: React.FC = () => {
     };
 
     // Use allTasks (with team tasks merged) when toggle is on
-    const tasksList = allTasks || tasks || [];
+    const tasksList = useMemo(() => allTasks || tasks || [], [allTasks, tasks]);
+
+    // Filtro por cliente (dropdown): restringe a lista toda a um único cliente
+    const clientFilteredTasks = useMemo(() => {
+        if (!clientFilter) return tasksList;
+        return tasksList.filter(t => t.client_id === clientFilter);
+    }, [tasksList, clientFilter]);
+
+    const selectedClientName = (clients || []).find(c => c.id === clientFilter)?.name;
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -294,7 +316,7 @@ export const TasksPage: React.FC = () => {
             return null;
         };
         const p = computePeriodForMode(mode);
-        return tasksList.filter(t => {
+        return clientFilteredTasks.filter(t => {
             if (t.is_cancelled) return false;
             const taskStatus = getTaskStatus(t);
             const isFirstPhase = taskStatus === firstPhaseId;
@@ -346,11 +368,11 @@ export const TasksPage: React.FC = () => {
         }
         return 'all';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userFilter, tasksList, dateFrom, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
+    }, [userFilter, tasksList, clientFilter, dateFrom, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
 
     const filteredTasks = useMemo(() => filterTasksForMode(effectiveFilter),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [tasksList, effectiveFilter, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
+        [tasksList, clientFilter, effectiveFilter, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
 
     // Sincroniza o botão de filtro visual com o efetivo (sem causar loop)
     const prevEffective = useRef(effectiveFilter);
@@ -371,7 +393,7 @@ export const TasksPage: React.FC = () => {
         }
         return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [tasksList, firstPhaseId, lastPhaseId, phases, todayStart, todayEnd, recentlyMoved]);
+    }, [tasksList, clientFilter, firstPhaseId, lastPhaseId, phases, todayStart, todayEnd, recentlyMoved]);
 
     if (isLoading) {
         return (
@@ -515,6 +537,32 @@ export const TasksPage: React.FC = () => {
                         Equipe
                     </button>
 
+                    {/* Client filter dropdown, ao lado do switch Equipe */}
+                    <DropdownMenu>
+                        <DropdownMenuTrigger render={<button className={cn(
+                            'flex items-center gap-1 rounded-sm px-2.5 py-1 text-[12px] font-bold font-sans transition-all',
+                            clientFilter
+                                ? 'border border-primary bg-primary text-primary-foreground'
+                                : 'border border-white/10 bg-muted text-muted-foreground'
+                        )} />} aria-label="Filtrar por cliente">
+                            <Building2 size={14} />
+                            {selectedClientName || 'Clientes'}
+                            <ChevronDown size={14} />
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="start" className="w-52">
+                            <DropdownMenuItem onClick={() => setClientFilter('')}>
+                                Todos os clientes
+                            </DropdownMenuItem>
+                            <DropdownMenuSeparator />
+                            {(clients || []).map(c => (
+                                <DropdownMenuItem key={c.id} onClick={() => setClientFilter(c.id)}>
+                                    <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color || '#94a3b8' }} />
+                                    {c.name}
+                                </DropdownMenuItem>
+                            ))}
+                        </DropdownMenuContent>
+                    </DropdownMenu>
+
                     {/* Datepicker */}
                     <div className="relative">
                         <button
@@ -557,8 +605,8 @@ export const TasksPage: React.FC = () => {
                     </div>
 
                     {/* Clear all filters */}
-                    {(userFilter !== 'all' || dateFrom) && (
-                        <button onClick={() => { setUserFilter('today'); setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
+                    {(userFilter !== 'all' || dateFrom || clientFilter) && (
+                        <button onClick={() => { setUserFilter('today'); setDateFrom(''); setDateTo(''); setClientFilter(''); setShowDatePicker(false); }}
                             className="cursor-pointer border-none bg-transparent text-[10px] font-bold text-primary-strong underline underline-offset-2">
                             Limpar
                         </button>
@@ -598,7 +646,7 @@ export const TasksPage: React.FC = () => {
                     ) : view === 'timeline' ? (
                         <Card className="p-6">
                             <TaskTimeline
-                                timeline={timelineData?.timeline || []}
+                                timeline={filteredTimeline?.timeline || []}
                                 conflicts={conflictsData?.conflicts || []}
                                 clients={clients || []}
                                 isLoading={timelineLoading}
@@ -607,7 +655,7 @@ export const TasksPage: React.FC = () => {
                         </Card>
                     ) : (
                         <Card className="p-6">
-                            <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={false} />
+                            <TaskCalendar tasks={clientFilteredTasks} clients={clients || []} onEdit={handleEditTask} isMacro={false} />
                         </Card>
                     )}
                 </div>
@@ -621,7 +669,7 @@ export const TasksPage: React.FC = () => {
                                 <X size={14} />
                             </button>
                         </div>
-                        <TaskCalendar tasks={tasksList} clients={clients || []} onEdit={handleEditTask} isMacro={true} />
+                        <TaskCalendar tasks={clientFilteredTasks} clients={clients || []} onEdit={handleEditTask} isMacro={true} />
                     </Card>
                 )}
             </div>
