@@ -22,8 +22,8 @@ function toItems(
   const convs: PrivateItem[] = conversations.map((c) => ({
     kind: 'conversation',
     id: c.id,
-    title: c.project_title,
-    subtitle: `Privada com ${c.participant.name || c.participant.email}`,
+    title: c.participant.name || c.participant.email,
+    subtitle: `Projeto ${c.project_title}`,
     meta: c.last_message ? c.last_message.slice(0, 120) : 'Comece a conversa',
     at: c.last_message_at || c.created_at,
   }));
@@ -79,14 +79,6 @@ export function PrivateTopicsSection() {
 
   return (
     <div>
-      <div className="mb-5">
-        <p className="text-[13px] text-muted-foreground">
-          Tópicos privados: o tópico do seu projeto (para quem tem acesso) e as
-          conversas que você inicia com profissionais — tudo em formato de fórum,
-          sem chat.
-        </p>
-      </div>
-
       {error && (
         <div className="mb-4 rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
           {error}

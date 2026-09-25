@@ -206,6 +206,8 @@ def _project_response(
         is_owner=project.owner_id == viewer_id,
         application_count=repo.count_project_applications(project.id),
         applications_closed=bool(project.applications_closed),
+        has_applied=repo.has_user_applied(project.id, viewer_id),
+        my_application_status=repo.get_user_application_status(project.id, viewer_id),
     )
 
 
@@ -627,17 +629,24 @@ def _conversation_item(
 
 
 def _conversation_detail(
-    repo: NetworkRepository, conversation, messages
+    repo: NetworkRepository, conversation, messages, viewer_id: UUID
 ) -> ConversationDetail:
     participants = sorted(
         (UserPublic.model_validate(p.user) for p in conversation.participants),
         key=lambda u: (u.name or "").lower(),
     )
+    # Título do tópico = a PESSOA com quem se fala (nunca o nome do projeto).
+    other = next(
+        (p.user for p in conversation.participants if p.user_id != viewer_id),
+        None,
+    )
+    topic_title = (other.name or other.email) if other else None
     project_id, project_title = _conversation_project_ref(conversation)
     return ConversationDetail(
         id=conversation.id,
         project_id=project_id,
         project_title=project_title or "Projeto",
+        topic_title=topic_title,
         participants=participants,
         messages=[MessageResponse.model_validate(m) for m in messages],
         created_at=conversation.created_at,
@@ -667,7 +676,7 @@ def get_conversation(
     ):
         raise HTTPException(status_code=404, detail="Conversation not found")
     messages = repo.get_conversation_messages(conversation_id)
-    return _conversation_detail(repo, conversation, messages)
+    return _conversation_detail(repo, conversation, messages, current_user.id)
 
 
 @router.post(

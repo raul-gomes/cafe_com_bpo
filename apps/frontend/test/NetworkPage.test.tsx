@@ -127,9 +127,8 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
 
     fireEvent.click(await screen.findByRole('button', { name: /Privados/i }))
 
-    expect(
-      await screen.findByText('Automação de fluxo fiscal')
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
+    expect(screen.getByText(/Projeto Automação de fluxo fiscal/i)).toBeInTheDocument()
     expect(screen.getByText('Privada')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Criar Tópico/i })).not.toBeInTheDocument()
     expect(screen.queryByText('Como reduzir custos com BPO financeiro?')).not.toBeInTheDocument()

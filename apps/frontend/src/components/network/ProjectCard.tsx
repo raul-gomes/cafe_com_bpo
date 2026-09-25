@@ -57,6 +57,7 @@ export function ProjectCard({
   onUpdated,
 }: ProjectCardProps) {
   const isOwner = currentUserId != null && currentUserId === project.owner_id;
+  const myStatus = project.my_application_status;
   const navigate = useNavigate();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -83,7 +84,6 @@ export function ProjectCard({
   const [applicationMessage, setApplicationMessage] = useState('');
   const [applicationSending, setApplicationSending] = useState(false);
   const [applicationError, setApplicationError] = useState('');
-  const [hasApplied, setHasApplied] = useState(false);
   const [showingApplications, setShowingApplications] = useState(false);
 
   const startEdit = () => {
@@ -235,7 +235,7 @@ export function ProjectCard({
       await applyToProject(project.id, { message: applicationMessage.trim() });
       toast.success('Proposta enviada! O dono do projeto irá avaliar.');
       closeApply();
-      setHasApplied(true);
+      onUpdated?.({ ...project, has_applied: true, my_application_status: 'pending' });
     } catch {
       setApplicationError('Erro ao enviar a proposta. Tente novamente.');
     } finally {
@@ -598,11 +598,21 @@ export function ProjectCard({
           {project.applications_closed ? (
             <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
               <Lock size={13} />
-              {hasApplied
+              {myStatus
                 ? 'Sua proposta foi enviada antes do fechamento.'
                 : 'Este projeto está fechado para novas propostas.'}
             </div>
-          ) : hasApplied ? (
+          ) : myStatus === 'accepted' ? (
+            <p className="flex items-center gap-1.5 text-[12px] font-medium text-green-600">
+              <CheckCircle2 size={14} />
+              Proposta aceita — você é membro do projeto.
+            </p>
+          ) : myStatus === 'declined' ? (
+            <p className="flex items-center gap-1.5 text-[12px] font-medium text-muted-foreground">
+              <X size={14} />
+              Sua proposta não foi aceita.
+            </p>
+          ) : myStatus ? (
             <p className="text-[12px] font-medium text-primary">
               Proposta enviada — aguardando avaliação do dono.
             </p>

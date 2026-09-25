@@ -113,6 +113,8 @@ export interface ProjectResponse {
   is_owner: boolean;
   application_count: number;
   applications_closed: boolean;
+  has_applied?: boolean;
+  my_application_status?: 'pending' | 'accepted' | 'declined' | null;
 }
 
 export interface PaginatedProjects {
@@ -227,6 +229,7 @@ export interface ConversationDetail {
   id: string;
   project_id: string;
   project_title: string;
+  topic_title?: string | null;
   participants: UserPublic[];
   messages: ConversationMessage[];
   created_at: string;

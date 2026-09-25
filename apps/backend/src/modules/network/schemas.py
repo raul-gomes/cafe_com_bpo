@@ -113,6 +113,8 @@ class ProjectResponse(BaseModel):
     is_owner: bool = False
     application_count: int = 0
     applications_closed: bool = False
+    has_applied: bool = False
+    my_application_status: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -175,6 +177,7 @@ class ConversationDetail(BaseModel):
     id: UUID
     project_id: UUID
     project_title: str
+    topic_title: str | None = None
     participants: list[UserPublic]
     messages: list[MessageResponse]
     created_at: datetime

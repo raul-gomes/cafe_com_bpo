@@ -55,6 +55,8 @@ const FOREIGN_PROJECT: ProjectResponse = {
   title: 'Migração contábil',
   description: 'Migrar a contabilidade de clientes para uma nova plataforma.',
   skills: [{ id: 's3', name: 'Contabilidade', slug: 'contabilidade', is_active: true }],
+  is_group_member: false,
+  is_owner: false,
 }
 
 function renderSection() {
@@ -82,9 +84,11 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     renderSection()
 
     expect(await screen.findByText('Automação de fluxo fiscal')).toBeInTheDocument()
-    expect(screen.getByText('Migração contábil')).toBeInTheDocument()
     expect(screen.getByText('Python')).toBeInTheDocument()
     expect(screen.getByText('Excel')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Projetos da comunidade/i }))
+    expect(screen.getByText('Migração contábil')).toBeInTheDocument()
     expect(screen.getByText('Contabilidade')).toBeInTheDocument()
     expect(screen.getAllByText(/Raul Gomes/i).length).toBeGreaterThan(0)
   })
@@ -98,6 +102,24 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     expect(screen.getByRole('button', { name: /Excluir projeto Automação de fluxo fiscal/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Editar projeto Migração contábil/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Excluir projeto Migração contábil/i })).not.toBeInTheDocument()
+  })
+
+  it('separa Meus projetos dos projetos da comunidade por abas', async () => {
+    mockGetProjects.mockResolvedValue({ items: [PROJECT, FOREIGN_PROJECT], total: 2 })
+    renderSection()
+
+    const meusTab = await screen.findByRole('tab', { name: /Meus projetos/i })
+    expect(screen.getByRole('tab', { name: /Projetos da comunidade/i })).toBeInTheDocument()
+
+    expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
+    expect(screen.queryByText('Migração contábil')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('tab', { name: /Projetos da comunidade/i }))
+    expect(screen.getByText('Migração contábil')).toBeInTheDocument()
+    expect(screen.queryByText('Automação de fluxo fiscal')).not.toBeInTheDocument()
+
+    fireEvent.click(meusTab)
+    expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
   })
 
   it('salva um novo projeto com formulário e recarrega a lista', async () => {

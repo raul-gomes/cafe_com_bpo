@@ -560,6 +560,24 @@ class NetworkRepository:
         self.session.refresh(application)
         return application
 
+    def has_user_applied(self, project_id: UUID, applicant_id: UUID) -> bool:
+        return self.get_user_application_status(project_id, applicant_id) is not None
+
+    def get_user_application_status(
+        self, project_id: UUID, applicant_id: UUID
+    ) -> str | None:
+        if applicant_id is None:
+            return None
+        application = (
+            self.session.query(ProjectApplication)
+            .filter(
+                ProjectApplication.project_id == project_id,
+                ProjectApplication.applicant_id == applicant_id,
+            )
+            .first()
+        )
+        return application.status if application else None
+
     def get_application_by_id(self, application_id: UUID):
         return self.session.query(ProjectApplication).get(application_id)
 

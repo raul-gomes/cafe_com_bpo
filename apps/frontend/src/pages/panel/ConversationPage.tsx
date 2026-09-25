@@ -95,12 +95,18 @@ export const ConversationPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Lock size={16} className="text-primary" />
             <h1 className="text-[24px] font-extrabold tracking-tight text-foreground">
-              {conversation?.project_title ?? 'Conversa'}
+              {conversation?.topic_title ||
+                conversation?.project_title ||
+                'Conversa'}
             </h1>
           </div>
-          <p className="text-[13px] text-muted-foreground">
-            Tópico privado{otherNames ? ` com ${otherNames}` : ''}
-          </p>
+          {conversation && (
+            <p className="text-[13px] text-muted-foreground">
+              {conversation.topic_title && otherNames
+                ? `Tópico privado do projeto ${conversation.project_title}`
+                : `Tópico privado${otherNames ? ` com ${otherNames}` : ''}`}
+            </p>
+          )}
         </div>
       </div>
 

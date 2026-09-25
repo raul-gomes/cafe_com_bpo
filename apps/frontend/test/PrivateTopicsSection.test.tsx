@@ -57,19 +57,17 @@ describe('PrivateTopicsSection — tópicos privados', () => {
   it('lista conversas privadas e tópicos de projetos juntos', async () => {
     renderSection()
 
-    expect(
-      await screen.findByText('Automação de fluxo fiscal')
-    ).toBeInTheDocument()
+    expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
     expect(screen.getByText('Migração de plataforma contábil')).toBeInTheDocument()
     expect(screen.getByText('Privada')).toBeInTheDocument()
     expect(screen.getByText('Tópico do projeto')).toBeInTheDocument()
-    expect(screen.getByText(/Privada com Ana Souza/i)).toBeInTheDocument()
+    expect(screen.getByText('Projeto Automação de fluxo fiscal')).toBeInTheDocument()
     expect(screen.getByText(/3 participantes/i)).toBeInTheDocument()
   })
 
   it('conversa navega para /painel/conversas/:id', async () => {
     renderSection()
-    fireEvent.click(await screen.findByText('Automação de fluxo fiscal'))
+    fireEvent.click(await screen.findByText('Ana Souza'))
     expect(screen.getByTestId('location').textContent).toBe('/painel/conversas/c1')
   })
 

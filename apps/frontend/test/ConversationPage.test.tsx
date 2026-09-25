@@ -15,6 +15,7 @@ const DETAIL = {
   id: 'c1',
   project_id: 'p1',
   project_title: 'Automação de fluxo fiscal',
+  topic_title: 'Ana Souza',
   participants: [
     { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
     { id: 'u2', name: 'Ana Souza', email: 'ana@cafe.com' },
@@ -56,11 +57,16 @@ describe('ConversationPage — tópico privado', () => {
     })
   })
 
-  it('exibe o projeto, os participantes e as mensagens em formato de tópico', async () => {
+  it('exibe a pessoa, o projeto e as mensagens em formato de tópico', async () => {
     renderPage()
 
-    expect(await screen.findByText('Automação de fluxo fiscal')).toBeInTheDocument()
-    expect(screen.getByText(/Tópico privado com Raul Gomes, Ana Souza/i)).toBeInTheDocument()
+    expect((await screen.findAllByText('Ana Souza')).length).toBeGreaterThan(0)
+    expect(
+      screen.getByRole('heading', { name: 'Ana Souza' })
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText(/Tópico privado do projeto Automação de fluxo fiscal/i)
+    ).toBeInTheDocument()
     expect(screen.getByText(/em formato de fórum/i)).toBeInTheDocument()
     expect(screen.getByText('Aceito! Prazer em colaborar.')).toBeInTheDocument()
   })

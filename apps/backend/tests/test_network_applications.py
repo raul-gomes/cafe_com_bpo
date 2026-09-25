@@ -403,6 +403,97 @@ def test_non_owner_cannot_toggle_status(client):
     assert resp.status_code == 403
 
 
+def test_project_response_has_applied_flag(client):
+    owner = auth_for(client, f"owner_{uuid4()}@cafe.com")
+    get_uid(client, owner)
+    project = create_project(client, owner)
+
+    applicant = auth_for(client, f"aplic_{uuid4()}@cafe.com")
+    get_uid(client, applicant)
+
+    before = client.get(f"/network/projects/{project['id']}", headers=applicant)
+    assert before.json()["has_applied"] is False
+    assert before.json()["is_owner"] is False
+
+    client.post(
+        f"/network/projects/{project['id']}/apply",
+        json={"message": "Quero participar"},
+        headers=applicant,
+    )
+
+    after = client.get(f"/network/projects/{project['id']}", headers=applicant)
+    assert after.json()["has_applied"] is True
+
+    owner_view = client.get(f"/network/projects/{project['id']}", headers=owner)
+    assert owner_view.json()["has_applied"] is False
+
+
+def test_project_response_my_application_status(client):
+    owner = auth_for(client, f"owner_{uuid4()}@cafe.com")
+    get_uid(client, owner)
+    project = create_project(client, owner)
+
+    applicant = auth_for(client, f"aplic_{uuid4()}@cafe.com")
+    get_uid(client, applicant)
+
+    # Antes de aplicar: sem status
+    before = client.get(f"/network/projects/{project['id']}", headers=applicant)
+    assert before.json()["has_applied"] is False
+    assert before.json()["my_application_status"] is None
+
+    client.post(
+        f"/network/projects/{project['id']}/apply",
+        json={"message": "Quero participar"},
+        headers=applicant,
+    )
+    after_apply = client.get(f"/network/projects/{project['id']}", headers=applicant)
+    assert after_apply.json()["my_application_status"] == "pending"
+
+    # Dono nunca tem status de candidato
+    owner_view = client.get(f"/network/projects/{project['id']}", headers=owner)
+    assert owner_view.json()["my_application_status"] is None
+
+    # Aceite → o candidato passa a ver "accepted"
+    app_resp = client.get(
+        f"/network/projects/{project['id']}/applications",
+        headers=owner,
+    )
+    application_id = app_resp.json()[0]["id"]
+    client.post(
+        f"/network/applications/{application_id}/accept",
+        headers=owner,
+    )
+    after_accept = client.get(f"/network/projects/{project['id']}", headers=applicant)
+    assert after_accept.json()["my_application_status"] == "accepted"
+
+
+def test_project_response_my_application_status_declined(client):
+    owner = auth_for(client, f"owner_{uuid4()}@cafe.com")
+    get_uid(client, owner)
+    project = create_project(client, owner)
+
+    applicant = auth_for(client, f"aplic_{uuid4()}@cafe.com")
+    get_uid(client, applicant)
+    client.post(
+        f"/network/projects/{project['id']}/apply",
+        json={"message": "Quero participar"},
+        headers=applicant,
+    )
+
+    app_resp = client.get(
+        f"/network/projects/{project['id']}/applications",
+        headers=owner,
+    )
+    application_id = app_resp.json()[0]["id"]
+    client.post(
+        f"/network/applications/{application_id}/decline",
+        headers=owner,
+    )
+
+    after_decline = client.get(f"/network/projects/{project['id']}", headers=applicant)
+    assert after_decline.json()["my_application_status"] == "declined"
+
+
 def test_project_response_includes_application_count(client):
     owner = auth_for(client, f"owner_{uuid4()}@cafe.com")
     get_uid(client, owner)

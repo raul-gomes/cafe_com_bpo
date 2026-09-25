@@ -3,8 +3,8 @@ from uuid import uuid4
 from tests.helpers import register_user
 
 
-def auth_for(client, email):
-    payload = {"email": email, "password": "StrongPassword123!", "name": "Network User"}
+def auth_for(client, email, name="Network User"):
+    payload = {"email": email, "password": "StrongPassword123!", "name": name}
     register_user(payload=payload)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
@@ -92,6 +92,36 @@ def test_accept_creates_private_conversation(client):
     data = resp.json()
     assert data["status"] == "accepted"
     assert data["conversation_id"] == conv_id
+
+
+def test_conversation_topic_title_is_the_person_talking_to(client):
+    """O título da conversa privada mostra a PESSOA com quem se fala — não o projeto.
+
+    Do ponto de vista de cada participante, `topic_title` é o nome do outro
+    participante (o "outro" do 1:1). Decidido pelo dono do produto 2026-09-25.
+    """
+    owner = auth_for(client, f"owner_{uuid4()}@cafe.com", name="Raul Dono")
+    candidate = auth_for(client, f"cand_{uuid4()}@cafe.com", name="Ana Candidata")
+    project_id = create_project(client, owner, title="Automação de fluxo fiscal")
+
+    invite = client.post(
+        f"/network/projects/{project_id}/invites",
+        json={"invited_user_id": candidate["uid"], "message": "Bora?"},
+        headers=owner,
+    ).json()
+    conv_id = invite["conversation_id"]
+
+    detail_owner = client.get(f"/network/conversations/{conv_id}", headers=owner)
+    assert detail_owner.status_code == 200
+    body_owner = detail_owner.json()
+    assert body_owner["project_title"] == "Automação de fluxo fiscal"
+    assert body_owner["topic_title"] == "Ana Candidata"
+
+    detail_candidate = client.get(
+        f"/network/conversations/{conv_id}", headers=candidate
+    )
+    assert detail_candidate.status_code == 200
+    assert detail_candidate.json()["topic_title"] == "Raul Dono"
 
 
 def test_invite_is_idempotent_while_pending(client):

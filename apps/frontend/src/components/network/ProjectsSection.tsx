@@ -20,6 +20,7 @@ import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { Skeleton } from '../ui/skeleton';
 import { SkillInput } from '../ui/SkillInput';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
 export function ProjectsSection() {
   const { user } = useAuth();
@@ -29,6 +30,7 @@ export function ProjectsSection() {
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [error, setError] = useState('');
+  const [tab, setTab] = useState<'mine' | 'community'>('mine');
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -47,6 +49,17 @@ export function ProjectsSection() {
       const resp = await getProjects(20);
       setData(resp);
       setError('');
+      const mine = resp.items.filter(
+        (p) => p.is_owner || p.is_group_member
+      );
+      const community = resp.items.filter(
+        (p) => !p.is_owner && !p.is_group_member
+      );
+      if (mine.length === 0 && community.length > 0) {
+        setTab('community');
+      } else if (community.length === 0 && mine.length > 0) {
+        setTab('mine');
+      }
     } catch {
       setError(
         'Erro ao carregar o mural de projetos. Verifique sua conexão e tente novamente.'
@@ -161,6 +174,7 @@ export function ProjectsSection() {
           : {}),
       });
       closeForm();
+      setTab('mine');
       setError('');
       loadProjects();
     } catch {
@@ -205,13 +219,16 @@ export function ProjectsSection() {
     );
   };
 
+  const myProjects = data?.items.filter(
+    (p) => p.is_owner || p.is_group_member
+  ) ?? [];
+  const communityProjects = data?.items.filter(
+    (p) => !p.is_owner && !p.is_group_member
+  ) ?? [];
+
   return (
     <div>
       <div className="mb-5 flex items-center justify-between">
-        <p className="text-[13px] text-muted-foreground">
-          Publique os projetos que você quer desenvolver e encontre profissionais
-          de BPO compatíveis com as habilidades necessárias.
-        </p>
         <Button
           variant={showForm ? 'ghost' : 'default'}
           onClick={() => (showForm ? closeForm() : openCreate())}
@@ -429,18 +446,63 @@ export function ProjectsSection() {
           </p>
         </Card>
       ) : (
-        <div className="flex flex-col gap-3">
-          {data?.items.map((project) => (
-            <ProjectCard
-              key={project.id}
-              project={project}
-              currentUserId={user?.id}
-              onSave={handleSaveProject}
-              onDelete={handleDelete}
-              onUpdated={handleUpdated}
-            />
-          ))}
-        </div>
+        <Tabs
+          value={tab}
+          onValueChange={(value) => setTab(value as 'mine' | 'community')}
+        >
+          <TabsList variant="line" className="mb-6 w-full justify-start">
+            <TabsTrigger value="mine">
+              Meus projetos
+              {myProjects.length > 0 && ` (${myProjects.length})`}
+            </TabsTrigger>
+            <TabsTrigger value="community">
+              Projetos da comunidade
+              {communityProjects.length > 0 && ` (${communityProjects.length})`}
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="mine" className="flex flex-col gap-3">
+            {myProjects.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-[13px] text-muted-foreground">
+                  Você ainda não publicou projetos nem participa de nenhum.
+                </p>
+              </Card>
+            ) : (
+              myProjects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  currentUserId={user?.id}
+                  onSave={handleSaveProject}
+                  onDelete={handleDelete}
+                  onUpdated={handleUpdated}
+                />
+              ))
+            )}
+          </TabsContent>
+
+          <TabsContent value="community" className="flex flex-col gap-3">
+            {communityProjects.length === 0 ? (
+              <Card className="p-8 text-center">
+                <p className="text-[13px] text-muted-foreground">
+                  Nenhum projeto da comunidade por enquanto.
+                </p>
+              </Card>
+            ) : (
+              communityProjects.map((project) => (
+                <ProjectCard
+                  key={project.id}
+                  project={project}
+                  currentUserId={user?.id}
+                  onSave={handleSaveProject}
+                  onDelete={handleDelete}
+                  onUpdated={handleUpdated}
+                />
+              ))
+            )}
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

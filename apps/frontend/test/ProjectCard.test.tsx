@@ -206,6 +206,45 @@ describe('ProjectCard — enviar proposta (candidato)', () => {
     ).not.toBeInTheDocument()
   })
 
+  it('esconde o botão e mostra aviso quando o candidato já enviou a proposta', () => {
+    renderProject(
+      { ...PROJECT, owner_id: 'user-other', has_applied: true, my_application_status: 'pending' },
+      'user-aplic'
+    )
+    expect(
+      screen.queryByRole('button', { name: /Enviar proposta/i })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.getByText(/proposta enviada — aguardando avaliação/i)
+    ).toBeInTheDocument()
+  })
+
+  it('mostra a proposta aceita quando o dono aceitou', () => {
+    renderProject(
+      { ...PROJECT, owner_id: 'user-other', has_applied: true, my_application_status: 'accepted' },
+      'user-aplic'
+    )
+    expect(
+      screen.getByText(/proposta aceita/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Enviar proposta/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('mostra a proposta recusada quando o dono recusou', () => {
+    renderProject(
+      { ...PROJECT, owner_id: 'user-other', has_applied: true, my_application_status: 'declined' },
+      'user-aplic'
+    )
+    expect(
+      screen.getByText(/proposta não foi aceita/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Enviar proposta/i })
+    ).not.toBeInTheDocument()
+  })
+
   it('abre o formulário, valida e envia a proposta', async () => {
     mockApplyToProject.mockResolvedValue({ id: 'a1', status: 'pending' })
     renderProject({ ...PROJECT, owner_id: 'user-other' }, 'user-aplic')
