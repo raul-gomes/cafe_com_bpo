@@ -2,6 +2,7 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { apiClient, getApiUrl } from '../../api/client';
 import { useGeneratePDF } from '../../lib/useGeneratePDF';
+import { serviceMonthlyValue } from '../../lib/pricingEngine';
 import logoAsset from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { getClients, ClientData } from '../../api/clients';
@@ -19,6 +20,7 @@ import { toast } from 'sonner';
 interface Proposal {
   id: string;
   client_name: string;
+  number?: number | null;
   input_payload: any;
   result_payload: any;
   created_at: string;
@@ -29,6 +31,13 @@ interface Proposal {
   client_decision?: ClientDecision | null;
   client_observation?: string | null;
   client_decided_at?: string | null;
+  decision_history?: DecisionHistoryEntry[] | null;
+}
+
+interface DecisionHistoryEntry {
+  decision: ClientDecision;
+  observation?: string | null;
+  decided_at?: string | null;
 }
 
 export const OrcamentoDetalhadoPage: React.FC = () => {
@@ -108,6 +117,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
       clientName: proposal.client_name,
       clientEmail: client?.email || '',
       provider: user,
+      proposalNumber: proposal.number,
     });
 
     if (ok) {
@@ -251,9 +261,16 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
       {/* Header */}
       <div className="mb-8 mt-2 flex items-start justify-between">
         <div>
-          <h1 className="text-[28px] font-extrabold tracking-tight text-foreground">
-            {proposal.client_name}
-          </h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-[28px] font-extrabold tracking-tight text-foreground">
+              {proposal.client_name}
+            </h1>
+            {proposal.number != null && (
+              <span className="rounded-full border border-border bg-muted/50 px-3 py-1 text-[12px] font-bold text-muted-foreground">
+                Orçamento nº {String(proposal.number).padStart(4, '0')}
+              </span>
+            )}
+          </div>
           <div className="mt-1 flex flex-wrap items-center gap-2">
             <p className="text-[13px] text-muted-foreground">
               Criado em {formatDate(proposal.created_at)}
@@ -374,7 +391,9 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
 
         {/* Escopo do Serviço */}
         <Card className="p-5">
-          <h2 className="mb-4 text-[15px] font-bold text-foreground">Escopo do Serviço</h2>
+          <h2 className="mb-4 text-[15px] font-bold text-foreground">
+            Escopo do Serviço
+          </h2>
           <div className="space-y-3">
             {proposal.input_payload?.services?.map((service: any, idx: number) => {
               const serviceName = typeof service === 'object' ? service.name : service;
@@ -382,15 +401,38 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
 
               if (!isActive && typeof service === 'object') return null;
 
+              const cost =
+                result.breakdown?.service_costs?.find(
+                  (sc: any) => sc.name === serviceName,
+                )?.cost ?? 0;
+              const value = serviceMonthlyValue(cost, result);
+
               return (
-                <div key={idx} className="flex items-center gap-2 text-[14px] text-foreground">
-                  <span className="text-primary-strong">✓</span>
-                  {serviceName}
+                <div
+                  key={idx}
+                  className="flex items-center justify-between gap-3 text-[14px] text-foreground"
+                >
+                  <div className="flex min-w-0 items-center gap-2">
+                    <span className="text-primary-strong">✓</span>
+                    <span className="truncate">{serviceName}</span>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3 text-[12px]">
+                    {typeof service === 'object' && service.monthly_quantity > 0 && (
+                      <span className="rounded bg-muted px-2 py-0.5 font-semibold text-muted-foreground">
+                        {service.monthly_quantity}x/mês
+                      </span>
+                    )}
+                    <span className="font-bold text-foreground">
+                      {value > 0 ? formatPrice(value) : '—'}
+                    </span>
+                  </div>
                 </div>
               );
             })}
             {!proposal.input_payload?.services && (
-              <p className="text-[13px] text-muted-foreground">Lista de serviços não informada.</p>
+              <p className="text-[13px] text-muted-foreground">
+                Lista de serviços não informada.
+              </p>
             )}
           </div>
         </Card>
@@ -432,6 +474,7 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
 
           <ProposalShareTimeline
             sharedAt={proposal.shared_at}
+            decisionHistory={proposal.decision_history}
             decision={proposal.client_decision}
             decidedAt={proposal.client_decided_at}
           />
@@ -520,12 +563,14 @@ const DECISION_EVENT_TYPE: Record<ClientDecision, TimelineEvent['type']> = {
 
 interface ShareTimelineProps {
   sharedAt?: string | null;
+  decisionHistory?: DecisionHistoryEntry[] | null;
   decision?: ClientDecision | null;
   decidedAt?: string | null;
 }
 
 const ProposalShareTimeline: React.FC<ShareTimelineProps> = ({
   sharedAt,
+  decisionHistory,
   decision,
   decidedAt,
 }) => {
@@ -533,13 +578,22 @@ const ProposalShareTimeline: React.FC<ShareTimelineProps> = ({
   if (sharedAt) {
     events.push({ type: 'sent', label: 'Enviado ao cliente para análise', date: sharedAt });
   }
-  if (decision && decidedAt) {
+
+  const history =
+    decisionHistory && decisionHistory.length > 0
+      ? decisionHistory
+      : decision && decidedAt
+        ? [{ decision, decided_at: decidedAt }]
+        : [];
+
+  history.forEach(entry => {
     events.push({
-      type: DECISION_EVENT_TYPE[decision],
-      label: `Cliente respondeu: ${CLIENT_DECISION_LABELS[decision]}`,
-      date: decidedAt,
+      type: DECISION_EVENT_TYPE[entry.decision],
+      label: `Cliente respondeu: ${CLIENT_DECISION_LABELS[entry.decision]}`,
+      date: entry.decided_at,
     });
-  }
+  });
+
   return (
     <div>
       <DealTimeline events={events} />

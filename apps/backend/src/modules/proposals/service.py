@@ -12,12 +12,14 @@ from uuid import UUID
 
 from src.core.config import get_settings
 from src.core.email import EmailService
+from src.modules.auth.models import User
 from src.modules.proposals.repository import PricingScenarioRepository
 from src.modules.proposals.schemas import (
     ProposalCreate,
     ProposalResponse,
     ProposalUpdate,
     PublicProposalResponse,
+    PublicProviderInfo,
 )
 
 settings = get_settings()
@@ -177,6 +179,26 @@ class ProposalService:
             return False
         return expires > datetime.now(timezone.utc)
 
+    @staticmethod
+    def _build_provider(user: User) -> PublicProviderInfo:
+        """Identidade visual do BPO exposta no payload público do orçamento."""
+        return PublicProviderInfo(
+            name=user.name,
+            email=user.email,
+            company_nome_fantasia=user.company_nome_fantasia,
+            company_razao_social=user.company_razao_social,
+            company_logo_url=user.company_logo_url,
+            avatar_url=user.avatar_url,
+            company_color_code=user.company_color_code,
+            company_color_secondary=user.company_color_secondary,
+            company_commercial_phone=user.company_commercial_phone,
+            whatsapp=user.whatsapp,
+        )
+
+    def _get_provider(self, proposal) -> PublicProviderInfo | None:
+        user = self.repository.session.get(User, proposal.user_id)
+        return self._build_provider(user) if user else None
+
     def get_public_proposal(self, share_hash: str) -> PublicProposalResponse:
         """Retorna dados públicos do orçamento pelo hash (validando validade)."""
         proposal = self.repository.get_by_public_hash(share_hash)
@@ -192,6 +214,7 @@ class ProposalService:
         )
         return PublicProposalResponse(
             client_name=proposal.client_name,
+            number=proposal.number,
             input_payload=proposal.input_payload or {},
             result_payload=result_payload,
             created_at=proposal.created_at,
@@ -199,6 +222,7 @@ class ProposalService:
             client_decision=proposal.client_decision,
             client_observation=proposal.client_observation,
             client_decided_at=proposal.client_decided_at,
+            provider=self._get_provider(proposal),
         )
 
     def submit_client_decision(
@@ -218,13 +242,14 @@ class ProposalService:
         history = proposal.decision_history or []
         if not isinstance(history, list):
             history = []
-        history.append(
+        history = [
+            *history,
             {
                 "decision": decision,
                 "observation": observation or None,
                 "decided_at": now.isoformat(),
-            }
-        )
+            },
+        ]
         proposal.decision_history = history
         proposal.client_decision = decision
         proposal.client_observation = observation or None
@@ -238,6 +263,7 @@ class ProposalService:
         )
         return PublicProposalResponse(
             client_name=proposal.client_name,
+            number=proposal.number,
             input_payload=proposal.input_payload or {},
             result_payload=result_payload,
             created_at=proposal.created_at,
@@ -245,6 +271,7 @@ class ProposalService:
             client_decision=decision,
             client_observation=observation or None,
             client_decided_at=now,
+            provider=self._get_provider(proposal),
         )
 
     def send_email(

@@ -146,6 +146,39 @@ def test_negociacao_deal_has_pending_mock(client):
     assert pending["date"] is None
 
 
+def test_negociacao_timeline_shows_full_client_decision_flow(client):
+    email = f"gov_flow_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth, name="Fluxo de Aprovação").json()
+    proposal = create_proposal(client, auth, prospect).json()
+
+    link = client.post(f"/proposals/{proposal['id']}/share-link", headers=auth).json()
+    share_hash = link["url"].rsplit("/", 1)[-1]
+
+    client.post(
+        f"/proposals/public/{share_hash}/decision",
+        json={"decision": "changes", "observation": "Reduzir escopo"},
+    )
+    client.post(
+        f"/proposals/public/{share_hash}/decision",
+        json={"decision": "approved", "observation": "Fechado"},
+    )
+
+    deal = next(
+        d for d in get_deals(client, auth)["deals"] if d["id"] == prospect["id"]
+    )
+
+    assert deal["status"] == "em_negociacao"
+    types = [t["type"] for t in deal["timeline"]]
+    assert "pending" not in types
+    assert "changes" in types
+    assert "approved" in types
+    assert types.index("changes") < types.index("approved")
+
+    changes_evt = next(t for t in deal["timeline"] if t["type"] == "changes")
+    assert changes_evt["date"] is not None
+
+
 def test_proposals_list_hides_converted_linked(client):
     email = f"gov_hide_prop_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)

@@ -5,17 +5,24 @@
  * (definidas no perfil) com fallback para a paleta padrão do modelo
  * whitelabel de proposta.
  */
-import { User } from '../context/AuthContext';
-
 export const DEFAULT_PRIMARY = '#0f172a';
 export const DEFAULT_SECONDARY = '#0284c7';
+
+/** Forma mínima de provedor aceita para resolução de identidade visual. */
+export interface BrandProvider {
+  company_color_code?: string | null;
+  company_color_secondary?: string | null;
+  company_nome_fantasia?: string | null;
+  company_razao_social?: string | null;
+  name?: string | null;
+}
 
 export interface BrandColors {
   primary: string;
   secondary: string;
 }
 
-export function resolveBrandColors(provider?: User | null): BrandColors {
+export function resolveBrandColors(provider?: BrandProvider | null): BrandColors {
   return {
     primary: provider?.company_color_code || DEFAULT_PRIMARY,
     secondary: provider?.company_color_secondary || DEFAULT_SECONDARY,
@@ -36,12 +43,12 @@ export interface ProviderTitleResolution {
  * 1. nome fantasia → 2. razão social → 3. pergunta ao usuário
  *    (nome pessoal ou em branco).
  */
-export function resolveProviderTitle(provider?: User | null): ProviderTitleResolution {
+export function resolveProviderTitle(provider?: BrandProvider | null): ProviderTitleResolution {
   const fantasia = provider?.company_nome_fantasia?.trim();
   if (fantasia) return { title: fantasia, requiresChoice: false };
 
   const razao = provider?.company_razao_social?.trim();
   if (razao) return { title: razao, requiresChoice: false };
 
-  return { title: '', requiresChoice: !!provider?.name, personalName: provider?.name };
+  return { title: '', requiresChoice: !!provider?.name, personalName: provider?.name ?? undefined };
 }

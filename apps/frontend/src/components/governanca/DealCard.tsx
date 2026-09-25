@@ -70,6 +70,9 @@ export const DealCard: React.FC<DealCardProps> = ({ deal, onUnreprove }) => {
               {deal.contract?.number != null && (
                 <span className="text-[11px] text-muted-foreground">Contrato nº {String(deal.contract.number).padStart(4, '0')}</span>
               )}
+              {deal.proposal?.number != null && (
+                <span className="text-[11px] text-muted-foreground">Orçamento nº {String(deal.proposal.number).padStart(4, '0')}</span>
+              )}
             </div>
             <div className="mt-1 flex flex-wrap gap-2 text-[12px] text-muted-foreground">
               {deal.segment && <span>{deal.segment}</span>}
@@ -89,7 +92,7 @@ export const DealCard: React.FC<DealCardProps> = ({ deal, onUnreprove }) => {
       </button>
 
       {expanded && (
-        <div className="grid gap-5 border-t px-4 pb-4 pt-4 md:grid-cols-[1fr_240px]" data-testid="deal-detail">
+        <div className="flex flex-col gap-5 border-t px-4 pb-4 pt-4" data-testid="deal-detail">
           <div className="flex min-w-0 flex-col gap-4">
             <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-3">
               <InfoRow label="Segmento" value={deal.segment} />
@@ -106,57 +109,59 @@ export const DealCard: React.FC<DealCardProps> = ({ deal, onUnreprove }) => {
             {deal.description && (
               <p className="text-[13px] leading-relaxed text-muted-foreground">{deal.description}</p>
             )}
-
-            <div className="mt-auto flex flex-wrap items-center gap-2">
-              {deal.proposal && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation();
-                    setDocsModal('proposal');
-                  }}
-                  data-testid="deal-view-proposal"
-                >
-                  Ver orçamento
-                </Button>
-              )}
-              {deal.contract && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation();
-                    setDocsModal('contract');
-                  }}
-                  data-testid="deal-view-contract"
-                >
-                  Ver contrato
-                </Button>
-              )}
-              {!deal.proposal && !deal.contract && (
-                <span className="text-[12px] text-muted-foreground">Ainda sem orçamento ou contrato vinculado.</span>
-              )}
-              {deal.status === 'perdido' && onUnreprove && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={e => {
-                    e.stopPropagation();
-                    onUnreprove(deal);
-                  }}
-                  data-testid="deal-unreprove"
-                  className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-400"
-                >
-                  <RotateCcw size={14} /> Voltar à negociação
-                </Button>
-              )}
-            </div>
           </div>
 
-          <div className="min-w-0 rounded-lg bg-muted/40 p-3">
-            <p className="mb-3 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Timeline</p>
-            <DealTimeline events={deal.timeline} />
+          {deal.timeline.length > 0 && (
+            <div className="rounded-lg bg-muted/40 p-4">
+              <p className="mb-4 text-[11px] font-semibold uppercase tracking-wide text-muted-foreground">Timeline</p>
+              <DealTimeline events={deal.timeline} />
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            {deal.proposal && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation();
+                  setDocsModal('proposal');
+                }}
+                data-testid="deal-view-proposal"
+              >
+                Ver orçamento
+              </Button>
+            )}
+            {deal.contract && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation();
+                  setDocsModal('contract');
+                }}
+                data-testid="deal-view-contract"
+              >
+                Ver contrato
+              </Button>
+            )}
+            {!deal.proposal && !deal.contract && (
+              <span className="text-[12px] text-muted-foreground">Ainda sem orçamento ou contrato vinculado.</span>
+            )}
+            {deal.status === 'perdido' && onUnreprove && (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={e => {
+                  e.stopPropagation();
+                  onUnreprove(deal);
+                }}
+                data-testid="deal-unreprove"
+                className="border-red-300 text-red-600 hover:bg-red-50 hover:text-red-700 dark:border-red-500/40 dark:text-red-400 dark:hover:bg-red-500/10 dark:hover:text-red-400"
+              >
+                <RotateCcw size={14} /> Voltar à negociação
+              </Button>
+            )}
           </div>
         </div>
       )}

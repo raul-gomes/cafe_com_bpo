@@ -109,6 +109,59 @@ def test_public_get_invalid_hash_returns_404(client):
     assert resp.status_code == 404
 
 
+def test_public_get_exposes_provider_branding(client):
+    from src.core.database import SessionLocal
+    from src.modules.auth.models import User
+
+    email = f"public_brand_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+
+    # Aplica a identidade visual do BPO no perfil (nome, logo, cores, contato)
+    session = SessionLocal()
+    try:
+        user = session.query(User).filter(User.email == email).first()
+        user.name = "Raul Gomes"
+        user.company_nome_fantasia = "Consultoria BPO Sul"
+        user.company_razao_social = "Consultoria BPO Sul LTDA"
+        user.company_logo_url = "https://cdn.example.com/logo-bpo.png"
+        user.avatar_url = "https://cdn.example.com/avatar-bpo.png"
+        user.company_color_code = "#2b6cb0"
+        user.company_color_secondary = "#e2e8f0"
+        user.company_commercial_phone = "1133334444"
+        user.whatsapp = "5511933334444"
+        session.commit()
+    finally:
+        session.close()
+
+    proposal = create_proposal(client, auth)
+    link = client.post(f"/proposals/{proposal['id']}/share-link", headers=auth).json()
+    share_hash = link["url"].rsplit("/", 1)[-1]
+
+    resp = client.get(f"/proposals/public/{share_hash}")
+    assert resp.status_code == 200
+    provider = resp.json()["provider"]
+    assert provider["name"] == "Raul Gomes"
+    assert provider["email"] == email
+    assert provider["company_nome_fantasia"] == "Consultoria BPO Sul"
+    assert provider["company_razao_social"] == "Consultoria BPO Sul LTDA"
+    assert provider["company_logo_url"] == "https://cdn.example.com/logo-bpo.png"
+    assert provider["avatar_url"] == "https://cdn.example.com/avatar-bpo.png"
+    assert provider["company_color_code"] == "#2b6cb0"
+    assert provider["company_color_secondary"] == "#e2e8f0"
+    assert provider["company_commercial_phone"] == "1133334444"
+    assert provider["whatsapp"] == "5511933334444"
+
+    # A resposta do POST (decisão) também carrega a identidade do BPO
+    post_resp = client.post(
+        f"/proposals/public/{share_hash}/decision",
+        json={"decision": "approved", "observation": None},
+    )
+    assert post_resp.status_code == 200
+    assert (
+        post_resp.json()["provider"]["company_nome_fantasia"] == "Consultoria BPO Sul"
+    )
+
+
 def test_public_decision_records_approved_with_observation(client):
     email = f"decision_a_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -152,6 +205,10 @@ def test_public_decision_allows_revision_and_keeps_history(client):
     detail = client.get(f"/proposals/{proposal['id']}", headers=auth).json()
     assert detail["client_decision"] == "approved"
     assert detail["client_observation"] == "Fechado"
+    assert [d["decision"] for d in detail["decision_history"]] == [
+        "changes",
+        "approved",
+    ]
 
 
 def test_public_decision_rejected_without_observation(client):

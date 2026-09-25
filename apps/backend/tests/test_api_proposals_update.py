@@ -79,3 +79,64 @@ def test_put_proposal_prevents_unauthorized_edit(client):
 
     # Deve retornar 404 (ocultando existência) ou 403. O padrão atual é 404.
     assert resp_update.status_code == 404
+
+
+def test_proposals_get_sequential_number_per_user(client):
+    # Usuário A: orçamentos numerados 1, 2, 3 na ordem de criação
+    email_a = f"num_a_{uuid4()}@cafe.com"
+    auth_a = get_auth_header(client, email_a)
+    numbers_a = []
+    for i in range(3):
+        resp = client.post(
+            "/proposals/",
+            json={
+                "client_name": f"Empresa A {i}",
+                "input_payload": {},
+                "result_payload": {"final_price": 100 * (i + 1)},
+            },
+            headers=auth_a,
+        )
+        assert resp.status_code == 201, resp.text
+        numbers_a.append(resp.json()["number"])
+    assert numbers_a == [1, 2, 3]
+
+    # Detalhe expõe o número
+    first_id = client.get("/proposals/", headers=auth_a).json()[0]["id"]
+    detail = client.get(f"/proposals/{first_id}", headers=auth_a)
+    assert detail.status_code == 200
+    assert detail.json()["number"] in numbers_a
+
+    # Usuário B: sequência independente (recomeça em 1)
+    email_b = f"num_b_{uuid4()}@cafe.com"
+    auth_b = get_auth_header(client, email_b)
+    resp_b = client.post(
+        "/proposals/",
+        json={"client_name": "Empresa B", "input_payload": {}, "result_payload": {}},
+        headers=auth_b,
+    )
+    assert resp_b.status_code == 201, resp_b.text
+    assert resp_b.json()["number"] == 1
+
+
+def test_public_proposal_exposes_number(client):
+    from uuid import uuid4 as _uid
+
+    email = f"num_pub_{_uid()}@cafe.com"
+    auth = get_auth_header(client, email)
+    resp = client.post(
+        "/proposals/",
+        json={
+            "client_name": "Empresa do Teste",
+            "input_payload": {"services": [{"name": "BPO Financeiro", "active": True}]},
+            "result_payload": {"final_price": 1000},
+        },
+        headers=auth,
+    )
+    link = client.post(
+        f"/proposals/{resp.json()['id']}/share-link", headers=auth
+    ).json()
+    share_hash = link["url"].rsplit("/", 1)[-1]
+
+    pub = client.get(f"/proposals/public/{share_hash}")
+    assert pub.status_code == 200
+    assert pub.json()["number"] == resp.json()["number"]

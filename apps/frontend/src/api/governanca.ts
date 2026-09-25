@@ -3,6 +3,7 @@ import { apiClient } from './client';
 export interface DealProposal {
   id: string;
   client_name?: string | null;
+  number?: number | null;
   final_price?: number | null;
   created_at?: string;
 }

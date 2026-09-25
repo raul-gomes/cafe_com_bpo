@@ -23,6 +23,7 @@ interface GeneratePDFOptions {
   clientName?: string;
   clientEmail?: string;
   provider?: User | null;
+  proposalNumber?: number | null;
 }
 
 interface UseGeneratePDFReturn {
@@ -41,7 +42,7 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
     setError(null);
 
     const renderAndDownload = async (logoUrl: string): Promise<boolean> => {
-      const { form, pricing, clientName = 'Cliente', clientEmail = '', provider = null } = opts;
+      const { form, pricing, clientName = 'Cliente', clientEmail = '', provider = null, proposalNumber = null } = opts;
 
       // Regra do título: fantasia → razão social → diálogo (nome pessoal ou branco)
       const resolution = resolveProviderTitle(provider);
@@ -67,6 +68,7 @@ export function useGeneratePDF(): UseGeneratePDFReturn {
         clientEmail,
         provider,
         providerDisplayName,
+        proposalNumber,
         generatedAt: new Date().toLocaleDateString('pt-BR', {
           day: '2-digit',
           month: 'long',

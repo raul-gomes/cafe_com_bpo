@@ -7,6 +7,7 @@ import PublicProposalPage from '../src/pages/PublicProposalPage'
 
 const mockPublicProposal = vi.hoisted(() => ({
   client_name: 'Empresa do Cliente',
+  number: 42,
   input_payload: {
     operation: {
       total_cost: 1000,
@@ -21,12 +22,32 @@ const mockPublicProposal = vi.hoisted(() => ({
       { id: 1, active: true, name: 'BPO Financeiro', type: 'time', minutes_per_execution: 60, monthly_quantity: 80 },
     ],
   },
-  result_payload: { final_price: 5000 },
+  result_payload: {
+    final_price: 5000,
+    breakdown: {
+      total_service_cost: 100,
+      service_costs: [
+        { name: 'BPO Financeiro', type: 'time', cost: 100, monthly_quantity: 80 },
+      ],
+    },
+  },
   created_at: '2026-08-16T00:00:00.000Z',
   expires_at: '2026-08-17T00:00:00.000Z',
   client_decision: null as string | null,
   client_observation: null as string | null,
   client_decided_at: null as string | null,
+  provider: {
+    name: 'Raul Gomes',
+    email: 'contato@bpocsul.com.br',
+    company_nome_fantasia: 'Consultoria BPO Sul',
+    company_razao_social: 'Consultoria BPO Sul LTDA',
+    company_logo_url: 'https://cdn.example.com/logo-bpo.png',
+    avatar_url: 'https://cdn.example.com/avatar-bpo.png',
+    company_color_code: '#2b6cb0',
+    company_color_secondary: '#e2e8f0',
+    company_commercial_phone: '1133334444',
+    whatsapp: '5511933334444',
+  },
 }))
 
 vi.mock('../src/api/client', async () => {
@@ -92,7 +113,41 @@ describe('PublicProposalPage', () => {
     renderPage()
 
     await screen.findByRole('heading', { name: /Seu orçamento está pronto/i })
-    expect(screen.getByText(/Revise os detalhes abaixo/i)).toBeInTheDocument()
+    expect(screen.getByText(/Revise os detalhes e informe seu parecer/i)).toBeInTheDocument()
+  })
+
+  it('renders orçamento number and per-service monthly value', async () => {
+    renderPage()
+
+    await screen.findByRole('heading', { name: /Seu orçamento está pronto/i })
+
+    expect(screen.getByText('Nº do Orçamento')).toBeInTheDocument()
+    expect(screen.getByText('0042')).toBeInTheDocument()
+    expect(screen.getByText('Valor Mensal')).toBeInTheDocument()
+    expect(screen.getAllByText('R$ 5.000,00').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders BPO branding: logo, brand colors and provider identity', async () => {
+    renderPage()
+
+    await screen.findByRole('heading', { name: /Seu orçamento está pronto/i })
+
+    // Logo do BPO (não o padrão do Café com BPO)
+    const logo = screen.getByAltText('Logo da empresa') as HTMLImageElement
+    expect(logo.src).toContain('logo-bpo.png')
+
+    // Cores da identidade visual aplicadas no container da proposta
+    const container = document.querySelector(
+      '.proposal-container-v2',
+    ) as HTMLElement
+    expect(container.style.getPropertyValue('--cor-1')).toBe('#2b6cb0')
+    expect(container.style.getPropertyValue('--cor-2')).toBe('#e2e8f0')
+
+    // Nome do provedor (fantasia) no cabeçalho/meta e contato no rodapé
+    expect(screen.getAllByText(/Consultoria BPO Sul/i).length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText(/contato@bpocsul.com.br/i).length).toBeGreaterThanOrEqual(1)
+    const phones = screen.getAllByText(/\(11\) 3333-4444/)
+    expect(phones.length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows invalid link state when proposal cannot be fetched', async () => {

@@ -13,8 +13,22 @@ export interface ShareLinkResponse {
   expires_at: string;
 }
 
+export interface PublicProposalProvider {
+  name?: string | null;
+  email?: string | null;
+  company_nome_fantasia?: string | null;
+  company_razao_social?: string | null;
+  company_logo_url?: string | null;
+  avatar_url?: string | null;
+  company_color_code?: string | null;
+  company_color_secondary?: string | null;
+  company_commercial_phone?: string | null;
+  whatsapp?: string | null;
+}
+
 export interface PublicProposal {
   client_name: string;
+  number?: number | null;
   input_payload: any;
   result_payload: any;
   created_at: string;
@@ -22,6 +36,7 @@ export interface PublicProposal {
   client_decision: ClientDecision | null;
   client_observation: string | null;
   client_decided_at: string | null;
+  provider?: PublicProposalProvider | null;
 }
 
 export const generateShareLink = async (proposalId: string): Promise<ShareLinkResponse> => {

@@ -128,3 +128,18 @@ export function calculatePricing(
     },
   };
 }
+
+/**
+ * Proporciona o valor mensal final de um serviço dentro do orçamento.
+ * O preço final (com margem, impostos e desconto) é alocado entre os
+ * serviços na proporção do custo de cada um — a soma dos valores por
+ * item equivale ao total da mensalidade exibida no orçamento.
+ */
+export function serviceMonthlyValue(
+  cost: number,
+  pricing: PricingResult,
+): number {
+  const totalCost = pricing.breakdown?.total_service_cost || 0;
+  if (!totalCost) return 0;
+  return (cost * pricing.final_price) / totalCost;
+}

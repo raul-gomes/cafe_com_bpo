@@ -21,6 +21,7 @@ import { formatBRL } from '../../lib/formatters';
 interface ProposalDetail {
   id: string;
   client_name: string;
+  number?: number | null;
   input_payload: any;
   result_payload: any;
   created_at: string;
@@ -103,7 +104,7 @@ export const DealDocsModal: React.FC<DealDocsModalProps> = ({ deal, kind, onClos
 
   const title =
     kind === 'proposal'
-      ? `Orçamento - ${proposal?.client_name ?? deal.name}`
+      ? `Orçamento${proposal?.number != null ? ` nº ${String(proposal.number).padStart(4, '0')}` : ''} - ${proposal?.client_name ?? deal.name}`
       : `Contrato nº ${deal.contract?.number != null ? String(deal.contract.number).padStart(4, '0') : '—'}`;
 
   return (

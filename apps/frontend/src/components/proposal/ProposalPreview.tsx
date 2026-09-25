@@ -1,11 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import logoAsset from '../../assets/logo.png';
 import { PricingFormData } from '../../schemas/pricing';
-import { PricingResult } from '../../lib/pricingEngine';
+import { PricingResult, serviceMonthlyValue } from '../../lib/pricingEngine';
 import { resolveBrandColors, resolveProviderTitle } from '../../lib/brandColors';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ProposalDownloadGate } from './ProposalDownloadGate';
 import { useAuth } from '../../context/AuthContext';
+import { PublicProposalProvider } from '../../api/proposals';
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 const fmt = (v: number) =>
@@ -30,6 +31,10 @@ interface ProposalPreviewProps {
   clientName: string;
   generatedAt: string;
   hideDownload?: boolean;
+  /** Número sequencial do orçamento (ex.: 0001). */
+  proposalNumber?: number | null;
+  /** Identidade do BPO vinda do payload público (preview sem login). */
+  provider?: PublicProposalProvider | null;
 }
 
 // ─── Componente ───────────────────────────────────────────────────────────────
@@ -39,17 +44,22 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
   clientName,
   generatedAt,
   hideDownload,
+  proposalNumber,
+  provider,
 }) => {
   const { user } = useAuth();
-  const { primary, secondary } = resolveBrandColors(user);
+  const brandProvider = provider ?? user;
+  const { primary, secondary } = resolveBrandColors(brandProvider);
   const askConfirm = useConfirm();
 
-  // Regra do título: fantasia → razão social → diálogo (nome pessoal ou branco)
-  const resolution = resolveProviderTitle(user);
+  // Regra do título: fantasia → razão social → nome pessoal.
+  // No contexto público (provider) o diálogo de escolha é suprimido.
+  const resolution = resolveProviderTitle(brandProvider);
   const [personalChoiceMade, setPersonalChoiceMade] = useState(false);
   const [usePersonalName, setUsePersonalName] = useState(false);
 
   useEffect(() => {
+    if (provider) return;
     if (!resolution.requiresChoice || personalChoiceMade) return;
     let active = true;
     askConfirm({
@@ -68,21 +78,32 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
     return () => {
       active = false;
     };
-  }, [askConfirm, resolution.requiresChoice, resolution.personalName, personalChoiceMade]);
+  }, [askConfirm, provider, resolution.requiresChoice, resolution.personalName, personalChoiceMade]);
 
-  const displayTitle = resolution.requiresChoice
-    ? (personalChoiceMade && usePersonalName ? resolution.personalName || '' : '')
-    : resolution.title;
+  const displayTitle = provider
+    ? resolution.title || resolution.personalName || ''
+    : resolution.requiresChoice
+      ? (personalChoiceMade && usePersonalName ? resolution.personalName || '' : '')
+      : resolution.title;
 
   // Informações do prestador (BPO)
-  const providerName = user?.name || '';
-  const providerEmail = user?.email || '';
+  const providerName = brandProvider?.name || '';
+  const providerEmail = brandProvider?.email || '';
   const providerPhoneRaw =
-    user?.company_commercial_phone || user?.whatsapp || '';
+    brandProvider?.company_commercial_phone || brandProvider?.whatsapp || '';
   const providerPhone = providerPhoneRaw ? fmtPhone(providerPhoneRaw) : '';
-  const logoUrl = user?.company_logo_url || user?.avatar_url || logoAsset;
+  const logoUrl = brandProvider?.company_logo_url || brandProvider?.avatar_url || logoAsset;
 
   const activeServices = form.services.filter(s => s.active);
+
+  const costByName = new Map<string, number>(
+    (pricing.breakdown?.service_costs ?? []).map(sc => [sc.name, sc.cost]),
+  );
+  const monthlyValue = (name: string): number => {
+    const cost = costByName.get(name);
+    if (cost === undefined) return 0;
+    return serviceMonthlyValue(cost, pricing);
+  };
 
   return (
     <div
@@ -124,6 +145,12 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
               <div className="prop-meta-label">Validade da Proposta</div>
               <div className="prop-meta-value">15 dias</div>
             </div>
+            <div className="prop-meta-card">
+              <div className="prop-meta-label">Nº do Orçamento</div>
+              <div className="prop-meta-value">
+                {proposalNumber != null ? String(proposalNumber).padStart(4, '0') : '—'}
+              </div>
+            </div>
           </div>
 
           {/* 1. ESCOPO */}
@@ -137,20 +164,27 @@ export const ProposalPreview: React.FC<ProposalPreviewProps> = ({
             <thead>
               <tr>
                 <th>Serviço Executado</th>
-                <th style={{ textAlign: 'center', width: 130 }}>Frequência Mensal</th>
+                <th style={{ textAlign: 'center', width: 120 }}>Frequência Mensal</th>
+                <th style={{ textAlign: 'right', width: 120 }}>Valor Mensal</th>
               </tr>
             </thead>
             <tbody>
-              {activeServices.map((service, i) => (
-                <tr key={i}>
-                  <td>{service.name}</td>
-                  <td style={{ textAlign: 'center' }}>
-                    <span className="prop-tag-freq">
-                      {service.monthly_quantity > 0 ? `${service.monthly_quantity}x` : '—'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
+              {activeServices.map((service, i) => {
+                const value = monthlyValue(service.name);
+                return (
+                  <tr key={i}>
+                    <td>{service.name}</td>
+                    <td style={{ textAlign: 'center' }}>
+                      <span className="prop-tag-freq">
+                        {service.monthly_quantity > 0 ? `${service.monthly_quantity}x` : '—'}
+                      </span>
+                    </td>
+                    <td style={{ textAlign: 'right', fontWeight: 600 }}>
+                      {value > 0 ? fmt(value) : '—'}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 

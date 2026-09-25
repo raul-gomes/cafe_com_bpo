@@ -8,6 +8,7 @@ import { renderWithProviders } from './test-utils'
 const mockProposal = vi.hoisted(() => ({
   id: 'prop-1',
   client_name: 'Empresa Exemplo',
+  number: 7,
   input_payload: {
     operation: {
       total_cost: 1000,
@@ -15,7 +16,7 @@ const mockProposal = vi.hoisted(() => ({
       hours_per_month: 160,
     },
     desired_profit_margin: 0.5,
-    services: [{ name: 'Emissão de NF automática', active: true }],
+    services: [{ name: 'Emissão de NF automática', active: true, monthly_quantity: 1 }],
   },
   result_payload: {
     final_price: 5000,
@@ -24,6 +25,9 @@ const mockProposal = vi.hoisted(() => ({
       total_service_cost: 2000,
       profit_amount: 1500,
       tax_amount: 1500,
+      service_costs: [
+        { name: 'Emissão de NF automática', type: 'time', cost: 800, monthly_quantity: 1 },
+      ],
     },
   },
   created_at: '2026-08-16T00:00:00.000Z',
@@ -129,6 +133,18 @@ describe('OrcamentoDetalhadoPage', () => {
     })
   })
 
+  it('shows sequential number and per-service value in the scope', async () => {
+    renderPage()
+
+    await screen.findByRole('heading', { name: 'Empresa Exemplo' })
+
+    expect(screen.getByText(/Orçamento nº 0007/i)).toBeInTheDocument()
+    expect(
+      screen.getByRole('heading', { name: /Escopo do Serviço/i })
+    ).toBeInTheDocument()
+    expect(screen.getAllByText('R$ 2.000,00').length).toBeGreaterThanOrEqual(1)
+  })
+
   it('shows toast when client has no registered email', async () => {
     mockGetClients.mockResolvedValue([
       { id: 'client-1', name: 'Empresa Exemplo', phone: '5511988887777' },
@@ -180,6 +196,21 @@ describe('OrcamentoDetalhadoPage', () => {
     expect(screen.getByText(/Enviado ao cliente para análise/)).toBeInTheDocument()
     expect(screen.getByText(/Cliente respondeu: Aprovado/)).toBeInTheDocument()
     expect(screen.getByText(/Enviado 1 vez\(es\)/)).toBeInTheDocument()
+  })
+
+  it('shows the full decision history in the timeline (changes → approved)', async () => {
+    (mockProposal as any).decision_history = [
+      { decision: 'changes', observation: 'Reduzir escopo', decided_at: '2026-08-17T00:30:00.000Z' },
+      { decision: 'approved', observation: 'Fechado', decided_at: '2026-08-17T01:00:00.000Z' },
+    ]
+    renderPage()
+
+    await screen.findByRole('heading', { name: 'Empresa Exemplo' })
+
+    expect(screen.getByText(/Cliente respondeu: Com alterações/)).toBeInTheDocument()
+    expect(screen.getByText(/Cliente respondeu: Aprovado/)).toBeInTheDocument()
+
+    delete (mockProposal as any).decision_history
   })
 
   it('generates a share link when clicking copy', async () => {

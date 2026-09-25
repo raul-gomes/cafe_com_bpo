@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import and_, or_
+from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
 from src.modules.prospects.models import Prospect
@@ -17,6 +17,18 @@ class PricingScenarioRepository:
     def __init__(self, session: Session):
         self.session = session
 
+    def next_proposal_number(self, user_id: uuid.UUID) -> int:
+        """Próximo número sequencial do orçamento para o usuário (por BPO)."""
+        last = (
+            self.session.query(func.max(PricingScenario.number))
+            .filter(
+                PricingScenario.user_id == user_id,
+                PricingScenario.number.isnot(None),
+            )
+            .scalar()
+        )
+        return int(last or 0) + 1
+
     def create_scenario(
         self,
         user_id: uuid.UUID,
@@ -31,6 +43,7 @@ class PricingScenarioRepository:
             input_payload=input_payload,
             result_payload=result_payload,
             prospect_id=prospect_id,
+            number=self.next_proposal_number(user_id),
         )
         self.session.add(scenario)
         self.session.flush()
@@ -150,6 +163,7 @@ class ProposalRepository:
             client_name=data.client_name,
             input_payload=data.input_payload,
             result_payload=data.result_payload,
+            number=self.next_proposal_number(user_id),
         )
         self.session.add(scenario)
         self.session.flush()

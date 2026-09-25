@@ -59,6 +59,8 @@ class PricingScenario(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     client_name = Column(String(255), nullable=False)
+    # Número sequencial do orçamento por BPO (usuário) — ex.: 0001
+    number = Column(Integer, nullable=True)
     client_id = Column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="SET NULL"), nullable=True
     )

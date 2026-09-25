@@ -81,20 +81,20 @@ export const DealTimeline: React.FC<DealTimelineProps> = ({ events }) => {
   if (!events.length) return null;
 
   return (
-    <ol className="flex flex-col gap-0">
+    <ol className="relative flex items-start gap-2 overflow-x-auto pb-1" data-testid="deal-timeline">
+      <span aria-hidden className="absolute left-0 right-0 top-3 h-px bg-border" />
       {events.map((event, index) => {
         const meta = EVENT_META[event.type] || EVENT_META.created;
-        const isLast = index === events.length - 1;
         return (
-          <li key={`${event.type}-${index}`} className="relative flex gap-3 pb-5 last:pb-0">
-            {!isLast && (
-              <span aria-hidden className="absolute left-[11px] top-6 h-[calc(100%-16px)] w-px bg-border" />
-            )}
+          <li
+            key={`${event.type}-${index}`}
+            className="flex min-w-[150px] flex-1 flex-col items-center gap-2 px-3 text-center"
+          >
             <span className={cn('z-10 flex size-6 shrink-0 items-center justify-center rounded-full', meta.ring)}>
               {meta.icon}
             </span>
-            <div className="flex-1 pt-0.5">
-              <p className="text-[13px] font-medium text-foreground">{event.label}</p>
+            <div className="flex flex-col gap-0.5">
+              <p className="text-[13px] font-medium leading-snug text-foreground">{event.label}</p>
               <p className="text-[12px] text-muted-foreground">
                 {event.date ? formatDate(event.date) : event.mock ? 'Aguardando decisão do prospecto' : ''}
               </p>

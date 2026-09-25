@@ -101,81 +101,85 @@ export const PublicProposalPage: React.FC = () => {
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
-      <div className="mx-auto max-w-[1024px] px-5 py-10">
-        {/* Painel de parecer */}
-        <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-sm">
-          <h2 className="text-[18px] font-bold text-foreground">
-            Seu orçamento está pronto!
-          </h2>
-          <p className="mt-1 text-[13px] text-muted-foreground">
-            Revise os detalhes abaixo e informe seu parecer para{' '}
-            <span className="font-semibold text-foreground">{proposal.client_name}</span>.
-          </p>
+      <div className="mx-auto max-w-[1200px] px-5 py-10">
+        <div className="grid gap-8 lg:grid-cols-[320px_minmax(0,1fr)]">
+          {/* Painel de parecer (sidebar) */}
+          <aside className="h-fit rounded-2xl border border-border bg-card p-6 shadow-sm lg:sticky lg:top-6">
+            <h2 className="text-[18px] font-bold text-foreground">
+              Seu orçamento está pronto!
+            </h2>
+            <p className="mt-1 text-[13px] text-muted-foreground">
+              Revise os detalhes e informe seu parecer para{' '}
+              <span className="font-semibold text-foreground">{proposal.client_name}</span>.
+            </p>
 
-          {submitted && proposal.client_decision ? (
-            <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
-              <p className="text-[14px] font-bold text-emerald-700 dark:text-emerald-400">
-                Parecer registrado: {CLIENT_DECISION_LABELS[proposal.client_decision]}
-              </p>
-              {proposal.client_observation && (
-                <p className="mt-1 text-[13px] text-emerald-800 dark:text-emerald-300">
-                  Observação: {proposal.client_observation}
+            {submitted && proposal.client_decision ? (
+              <div className="mt-4 rounded-xl border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-500/30 dark:bg-emerald-500/10">
+                <p className="text-[14px] font-bold text-emerald-700 dark:text-emerald-400">
+                  Parecer registrado: {CLIENT_DECISION_LABELS[proposal.client_decision]}
                 </p>
-              )}
-              <Button variant="outline" size="sm" className="mt-3" onClick={handleChangeDecision}>
-                Alterar meu parecer
-              </Button>
-            </div>
-          ) : (
-            <div className="mt-4 space-y-4">
-              <div className="flex flex-col gap-2 sm:flex-row sm:gap-3">
-                {DECISION_OPTIONS.map(option => (
-                  <button
-                    key={option.value}
-                    type="button"
-                    onClick={() => setDecision(option.value)}
-                    aria-pressed={decision === option.value}
-                    className={`flex-1 rounded-xl border px-4 py-3 text-[14px] font-semibold transition-colors ${
-                      decision === option.value
-                        ? 'border-primary bg-primary/10 text-primary-strong'
-                        : 'border-border bg-background text-foreground hover:border-primary/50'
-                    }`}
-                  >
-                    {option.label}
-                  </button>
-                ))}
-              </div>
-
-              <textarea
-                value={observation}
-                onChange={e => setObservation(e.target.value)}
-                placeholder="Observações (opcional) — ex.: solicitar alteração de escopo, valores, prazo..."
-                maxLength={2000}
-                aria-label="Observação sobre o orçamento"
-                className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[13px] text-foreground outline-none transition-colors focus:border-primary"
-                rows={3}
-              />
-
-              <div className="flex items-center justify-between gap-3">
-                <span className="text-[12px] text-muted-foreground">
-                  O link expira em 24 horas a partir do envio.
-                </span>
-                <Button onClick={handleSubmit} disabled={!decision || submitting}>
-                  {submitting ? 'Enviando...' : 'Enviar parecer'}
+                {proposal.client_observation && (
+                  <p className="mt-1 text-[13px] text-emerald-800 dark:text-emerald-300">
+                    Observação: {proposal.client_observation}
+                  </p>
+                )}
+                <Button variant="outline" size="sm" className="mt-3" onClick={handleChangeDecision}>
+                  Alterar meu parecer
                 </Button>
               </div>
-            </div>
-          )}
-        </div>
+            ) : (
+              <div className="mt-4 space-y-4">
+                <div className="flex flex-col gap-2">
+                  {DECISION_OPTIONS.map(option => (
+                    <button
+                      key={option.value}
+                      type="button"
+                      onClick={() => setDecision(option.value)}
+                      aria-pressed={decision === option.value}
+                      className={`rounded-xl border px-4 py-3 text-[14px] font-semibold transition-colors ${
+                        decision === option.value
+                          ? 'border-primary bg-primary/10 text-primary-strong'
+                          : 'border-border bg-background text-foreground hover:border-primary/50'
+                      }`}
+                    >
+                      {option.label}
+                    </button>
+                  ))}
+                </div>
 
-        {/* Proposta renderizada */}
-        <ProposalPreview
-          form={proposal.input_payload as PricingFormData}
-          pricing={proposal.result_payload as PricingResult}
-          clientName={proposal.client_name}
-          generatedAt={generatedAt}
-          hideDownload
-        />
+                <textarea
+                  value={observation}
+                  onChange={e => setObservation(e.target.value)}
+                  placeholder="Observações (opcional) — ex.: solicitar alteração de escopo, valores, prazo..."
+                  maxLength={2000}
+                  aria-label="Observação sobre o orçamento"
+                  className="w-full rounded-xl border border-border bg-background px-4 py-3 text-[13px] text-foreground outline-none transition-colors focus:border-primary"
+                  rows={3}
+                />
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-[12px] text-muted-foreground">
+                    O link expira em 24 horas a partir do envio.
+                  </span>
+                  <Button onClick={handleSubmit} disabled={!decision || submitting}>
+                    {submitting ? 'Enviando...' : 'Enviar parecer'}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </aside>
+
+          {/* Proposta renderizada */}
+          <ProposalPreview
+            form={proposal.input_payload as PricingFormData}
+            pricing={proposal.result_payload as PricingResult}
+            clientName={proposal.client_name}
+            generatedAt={generatedAt}
+            proposalNumber={proposal.number}
+            provider={proposal.provider}
+            hideDownload
+          />
+        </div>
       </div>
     </div>
   );

@@ -317,6 +317,10 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > (DateTime), `shared_count` (Integer default 0), `client_decision` (String 20 —
 > approved/changes/rejected), `client_observation` (Text), `client_decided_at`
 > (DateTime), `decision_history` (Text — JSON com histórico de decisões).
+>
+> **Migração `665aa53ac89e` (número sequencial)**:
+> `number` (Integer, nullable — sequência de 1..n por usuário/BPO, calculada em
+> `proposals/repository.py:next_proposal_number`).
 | Direção | Quem |
 |---------|------|
 | R | `proposals/repository.py`, `dashboard/service.py`, `dashboard/router.py` |
@@ -529,7 +533,7 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 |--------|-------------------|----------|
 | `auth` | users, user_files, password_reset_tokens | `repository.py`, `service.py`, `router.py` |
 | `clients` | clients, teams (get_or_create), tasks (cascade), pricing_scenarios (cascade) | `repository.py`, `router.py` |
-| `proposals` | pricing_scenarios (inclui prospect_id, public_hash, decision_history) | `repository.py`, `router.py`, `service.py` |
+| `proposals` | pricing_scenarios (inclui prospect_id, public_hash, decision_history, number) | `repository.py`, `router.py`, `service.py` |
 | `prospects` | prospects, clients (conversão via service) | `repository.py`, `router.py`, `service.py` |
 | `contracts` | contract_templates, contracts, prospects, pricing_scenarios (leitura p/ placeholders), clients (conversão) | `repository.py`, `router.py`, `service.py` |
 | `task_manager` | tasks, task_phases, task_attachments, routine_types, activity_templates, template_activities, client_template_assignments, client_slas | `task/repository.py`, `templates/repository.py`, `assignments/repository.py`, `sla/repository.py`, `routine_types/repository.py`, `attachments/repository.py`, `scheduler.py` |

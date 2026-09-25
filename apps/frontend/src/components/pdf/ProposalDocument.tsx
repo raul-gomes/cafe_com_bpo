@@ -8,7 +8,7 @@ import {
   Document, Page, View, Text, Image, StyleSheet,
 } from '@react-pdf/renderer';
 import { PricingFormData } from '../../schemas/pricing';
-import { PricingResult } from '../../lib/pricingEngine';
+import { PricingResult, serviceMonthlyValue } from '../../lib/pricingEngine';
 import { resolveBrandColors, resolveProviderTitle } from '../../lib/brandColors';
 import { User } from '../../context/AuthContext';
 
@@ -50,6 +50,8 @@ interface ProposalDocumentProps {
   /** Título resolvido (fantasia → razão social → escolha do usuário). */
   providerDisplayName?: string;
   generatedAt?: string;
+  /** Número sequencial do orçamento (ex.: 0001). */
+  proposalNumber?: number | null;
 }
 
 export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
@@ -61,10 +63,20 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
   provider,
   providerDisplayName,
   generatedAt,
+  proposalNumber,
 }) => {
   const activeServices = form.services.filter(s => s.active);
   const dateStr = generatedAt ?? new Date().toLocaleDateString('pt-BR');
   const { primary, secondary } = resolveBrandColors(provider);
+
+  const costByName = new Map<string, number>(
+    (pricing.breakdown?.service_costs ?? []).map(sc => [sc.name, sc.cost]),
+  );
+  const monthlyValue = (name: string): number => {
+    const cost = costByName.get(name);
+    if (cost === undefined) return 0;
+    return serviceMonthlyValue(cost, pricing);
+  };
 
   // Título: fantasia → razão social → escolha (nome pessoal ou em branco)
   const displayTitle =
@@ -243,6 +255,16 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
       fontFamily: 'Helvetica-Bold',
       color: C.greyMid,
     },
+    featureHeadVal: {
+      flex: 1.6,
+      fontSize: 8.5,
+      fontFamily: 'Helvetica-Bold',
+      textTransform: 'uppercase',
+      letterSpacing: 0.5,
+      color: C.body,
+      textAlign: 'right',
+    },
+    featureVal: { flex: 1.6, fontSize: 9.5, color: C.body, textAlign: 'right' },
 
     // ── Investimento ──
     pricingTable: {
@@ -398,6 +420,12 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
               <Text style={s.metaLabel}>Validade da Proposta</Text>
               <Text style={s.metaValue}>15 dias</Text>
             </View>
+            <View style={s.metaCard}>
+              <Text style={s.metaLabel}>Nº do Orçamento</Text>
+              <Text style={s.metaValue}>
+                {proposalNumber != null ? String(proposalNumber).padStart(4, '0') : '—'}
+              </Text>
+            </View>
           </View>
 
           {/* 1. ESCOPO */}
@@ -411,9 +439,11 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
             <View style={s.featureHead}>
               <Text style={s.featureHeadService}>Serviço Executado</Text>
               <Text style={s.featureHeadFreq}>Frequência Mensal</Text>
+              <Text style={s.featureHeadVal}>Valor Mensal</Text>
             </View>
             {activeServices.map((service, i) => {
               const isLast = i === activeServices.length - 1;
+              const value = monthlyValue(service.name);
               return (
                 <View
                   key={i}
@@ -431,6 +461,7 @@ export const ProposalDocument: React.FC<ProposalDocumentProps> = ({
                       </Text>
                     </View>
                   </View>
+                  <Text style={s.featureVal}>{value > 0 ? fmt(value) : '—'}</Text>
                 </View>
               );
             })}

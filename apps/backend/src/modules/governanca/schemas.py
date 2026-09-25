@@ -7,6 +7,7 @@ from pydantic import BaseModel
 class DealProposal(BaseModel):
     id: UUID
     client_name: str | None = None
+    number: int | None = None
     final_price: float | None = None
     created_at: datetime | None = None
 

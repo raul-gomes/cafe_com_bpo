@@ -22,6 +22,7 @@ import { cn } from '../../lib/utils';
 interface Proposal {
   id: string;
   client_name: string;
+  number?: number | null;
   input_payload: any;
   result_payload: any;
   created_at: string;
@@ -224,7 +225,14 @@ export const OrcamentosPage: React.FC = () => {
                 >
                   <div className="flex items-center justify-between">
                     <div className="flex-1">
-                      <div className="text-[15px] font-bold text-foreground">{p.client_name}</div>
+                      <div className="flex items-center gap-2">
+                        <div className="text-[15px] font-bold text-foreground">{p.client_name}</div>
+                        {p.number != null && (
+                          <span className="rounded bg-muted px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground">
+                            nº {String(p.number).padStart(4, '0')}
+                          </span>
+                        )}
+                      </div>
                       <div className="mt-0.5 flex items-center gap-2 text-[12px] text-muted-foreground">
                         <span>{formatDate(p.created_at)}</span>
                         <span className="opacity-30">|</span>
