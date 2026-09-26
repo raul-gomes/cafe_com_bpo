@@ -125,7 +125,14 @@ def test_html_sanitization(client):
     auth = get_auth_header(client, f"xss_{uuid4()}@cafe.com")
     malicious_payload = {
         "title": "Hack post",
-        "message": "<p>Safe</p><script>alert('hack')</script><img src='x' onerror='alert()'>",
+        "message": (
+            "<p>Safe</p><script>alert('hack')</script>"
+            "<img src='x' onerror='alert()'>"
+            "<img src=x onload=alert(1)>"
+            "<a href='javascript:alert(1)'>clique</a>"
+            "<svg onload=alert(1)></svg>"
+            "<p onclick='alert(1)'>Olá</p>"
+        ),
         "tags": [],
     }
 
@@ -134,4 +141,66 @@ def test_html_sanitization(client):
     safe_msg = resp.json()["message"]
     assert "<script>" not in safe_msg
     assert "onerror" not in safe_msg
+    assert "onload" not in safe_msg
+    assert "onclick" not in safe_msg
+    assert "javascript:" not in safe_msg
+    assert "<svg" not in safe_msg
     assert "<p>Safe</p>" in safe_msg
+    # Texto do link/estilo preservado mesmo com o protocolo removido
+    assert "clique" in safe_msg
+
+
+def test_legacy_stored_xss_neutralized_on_read(client):
+    """Conteúdo já armazenado antes da fix (sanitização fraca) é neutralizado
+    na leitura — defesa em profundidade para os sinks de dangerouslySetInnerHTML."""
+    from src.core.database import SessionLocal
+    from src.modules.auth.repository import UserRepository
+    from src.modules.network.repository import NetworkRepository
+    from src.modules.network.schemas import CommentCreate, PostCreate
+    from tests.helpers import create_test_user
+
+    email = f"legacy_{uuid4()}@cafe.com"
+    create_test_user(email)
+    login = client.post(
+        "/auth/login",
+        data={"username": email, "password": "StrongPassword123!"},
+    )
+    assert login.status_code == 200, login.text
+    auth = {"Authorization": f"Bearer {login.json()['access_token']}"}
+
+    session = SessionLocal()
+    try:
+        user_id = UserRepository(session).get_user_by_email(email).id
+        post = NetworkRepository(session).create_post(
+            user_id, PostCreate(title="Legado", message="legacy", tags=[])
+        )
+        # Simula payload armazenado cru (pré-fix): referencia os sinks frontend
+        post.message = (
+            "<img src=x onload=alert(1)><svg onload=alert(1)>"
+            "<p>Legacy ok</p><a href='javascript:alert(1)'>x</a>"
+        )
+        session.commit()
+        post_id = str(post.id)
+
+        comment = NetworkRepository(session).create_comment(
+            post.id, user_id, CommentCreate(message="comentario")
+        )
+        comment.message = "<img src=x onerror=alert(1)><b>Legacy comment</b>"
+        session.commit()
+        comment_id = str(comment.id)
+    finally:
+        session.close()
+
+    resp = client.get(f"/network/posts/{post_id}", headers=auth)
+    assert resp.status_code == 200
+    msg = resp.json()["message"]
+    assert "onload" not in msg
+    assert "javascript:" not in msg
+    assert "<svg" not in msg
+    assert "<p>Legacy ok</p>" in msg
+
+    comments = client.get(f"/network/posts/{post_id}/comments", headers=auth)
+    assert comments.status_code == 200
+    safe_comment = next(c for c in comments.json() if c["id"] == comment_id)
+    assert "onerror" not in safe_comment["message"]
+    assert "<b>Legacy comment</b>" in safe_comment["message"]

@@ -4,7 +4,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
 
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, HTTPException, Query, Request, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -189,6 +189,40 @@ def get_current_user(
     token: Annotated[str, Depends(oauth2_scheme)],
     session: Annotated[Session, Depends(get_db_session)],
 ) -> UserResponse:
+    try:
+        payload = TokenService.decode_access_token(token)
+        user_id = payload.get("sub")
+        if user_id is None:
+            raise ValueError()
+    except ValueError:
+        raise HTTPException(status_code=401, detail="Token inválido")
+
+    repo = UserRepository(session)
+    user = repo.get_user_by_id(uuid.UUID(user_id))
+    if user is None:
+        raise HTTPException(status_code=401, detail="Usuário não encontrado")
+
+    return UserResponse.from_user(user)
+
+
+def get_current_user_for_sse(
+    request: Request,
+    session: Annotated[Session, Depends(get_db_session)],
+    token: Annotated[str | None, Query()] = None,
+) -> UserResponse:
+    """Autenticação para endpoints SSE.
+
+    O EventSource do browser não permite headers customizados, então o access
+    token (que fica em memória no frontend) é enviado via query string
+    ``?token=``. O header Authorization continua aceito como alternativa
+    (curl/tests). Sem token → 401 antes de abrir o stream.
+    """
+    auth = request.headers.get("Authorization")
+    if not token and auth and auth.startswith("Bearer "):
+        token = auth[7:]
+    if not token:
+        raise HTTPException(status_code=401, detail="Token ausente")
+
     try:
         payload = TokenService.decode_access_token(token)
         user_id = payload.get("sub")

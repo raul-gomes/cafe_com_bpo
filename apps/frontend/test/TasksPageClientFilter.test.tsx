@@ -100,6 +100,7 @@ vi.mock('../src/api/client', () => ({
     }),
   },
   getApiUrl: () => 'http://localhost:8000',
+  tokenStorage: { getToken: () => 'test-token' },
 }))
 
 const { TasksPage } = await import('../src/pages/panel/TasksPage')

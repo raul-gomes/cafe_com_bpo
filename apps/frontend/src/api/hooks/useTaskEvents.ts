@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { getApiUrl } from '../client';
+import { getApiUrl, tokenStorage } from '../client';
 
 /**
  * Hook that connects to the SSE endpoint for real-time updates.
@@ -17,7 +17,10 @@ export const useTaskEvents = () => {
 
   useEffect(() => {
     const baseUrl = getApiUrl();
-    const url = `${baseUrl}/tasks/events`;
+    // EventSource não permite header Authorization; o access token (em memória)
+    // vai via query string. O backend exige esse token (401 sem ele).
+    const token = tokenStorage.getToken() ?? '';
+    const url = `${baseUrl}/tasks/events?token=${encodeURIComponent(token)}`;
     const es = new EventSource(url, { withCredentials: true });
 
     es.onmessage = (event) => {

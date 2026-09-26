@@ -9,7 +9,7 @@ from src.modules.auth.service import get_current_user
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.service import NotificationDispatcher
 
-from .repository import NetworkRepository
+from .repository import NetworkRepository, sanitize_html
 from .schemas import (
     CommentCreate,
     CommentResponse,
@@ -41,6 +41,24 @@ from .schemas import (
 router = APIRouter(prefix="/network", tags=["Network"])
 
 
+def _safe_post_data(post) -> dict:
+    """Serializa um post re-sanitizando a mensagem (defesa em profundidade).
+
+    O frontend renderiza `message` via dangerouslySetInnerHTML; re-sanitizar
+    na leitura garante que conteúdo legado armazenado antes da fix ou
+    qualquer bypass futuro nunca chegue cru ao cliente.
+    """
+    data = PostResponse.model_validate(post).model_dump()
+    data["message"] = sanitize_html(data["message"])
+    return data
+
+
+def _safe_comment_data(comment) -> dict:
+    data = CommentResponse.model_validate(comment).model_dump()
+    data["message"] = sanitize_html(data["message"])
+    return data
+
+
 @router.post("/posts", response_model=PostResponse, status_code=status.HTTP_201_CREATED)
 def create_post(
     post_data: PostCreate,
@@ -60,7 +78,8 @@ def get_posts(
 ):
     repo = NetworkRepository(db)
     items, total = repo.get_posts(limit, offset)
-    return {"items": items, "total": total}
+    safe_items = [_safe_post_data(p) for p in items]
+    return {"items": safe_items, "total": total}
 
 
 @router.get("/posts/{post_id}", response_model=PostResponse)
@@ -73,7 +92,7 @@ def get_post(
     post = repo.get_post_by_id(post_id)
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
-    return post
+    return _safe_post_data(post)
 
 
 @router.delete("/posts/{post_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -127,7 +146,7 @@ def get_post_comments(
     db: Session = Depends(get_db_session),
 ):
     repo = NetworkRepository(db)
-    return repo.get_comments(post_id)
+    return [_safe_comment_data(c) for c in repo.get_comments(post_id)]
 
 
 # ── Skills ──────────────────────────────────────────────

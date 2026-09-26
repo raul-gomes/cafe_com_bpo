@@ -21,3 +21,4 @@ langchain-core>=0.3.0
 slowapi>=0.1.9
 rocketry-fix==2.5.1.2.dev0
 resend[async]>=2.35.0
+bleach>=6.0.0

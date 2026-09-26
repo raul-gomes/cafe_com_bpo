@@ -96,6 +96,7 @@ vi.mock('../src/api/client', () => ({
     get: vi.fn().mockResolvedValue({ data: [] }),
   },
   getApiUrl: () => 'http://localhost:8000',
+  tokenStorage: { getToken: () => 'test-token' },
 }))
 
 // Need to import after mocks

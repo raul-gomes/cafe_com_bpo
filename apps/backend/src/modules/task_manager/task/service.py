@@ -8,10 +8,15 @@ client timeline, and email sending.
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
+from sqlalchemy.orm import Session
+
 from src.core.config import get_settings
 from src.core.logger import log
+from src.modules.auth.schemas import UserResponse
+from src.modules.clients.models import Client
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationCreate
+from src.modules.team.repository import TeamRepository
 
 from ..attachments.repository import AttachmentRepository
 from ..models import get_done_phase
@@ -624,3 +629,88 @@ class TaskService:
         except Exception as e:
             log.error(f"❌ Falha ao enviar email: {e}")
             return False
+
+
+def _client_id_for_invitation(session: Session, invitation_id: UUID) -> UUID | None:
+    team_repo = TeamRepository(session)
+    if invitation_id is None:
+        return None
+    invitation = team_repo.get_invitation_by_id(invitation_id)
+    if invitation is None:
+        return None
+    return team_repo.get_client_id_by_team_id(invitation.team_id)
+
+
+def _as_uuid(value) -> UUID | None:
+    try:
+        return UUID(value)
+    except (TypeError, ValueError, AttributeError):
+        return None
+
+
+def _owns_client(session: Session, client_id: UUID, user_id: UUID) -> bool:
+    client = session.query(Client).filter(Client.id == client_id).first()
+    if client is None:
+        return False
+    return client.user_id == user_id
+
+
+def event_relevant_for_user(
+    session: Session,
+    current_user: UserResponse,
+    channel: str,
+    data: dict,
+) -> bool:
+    """Decide se um evento SSE deve ser entregue ao usuário conectado.
+
+    Só eventos de clients que o usuário é dono (de todos) ou de times em que
+    participa são relevantes. Eventos alheios são descartados no gerador SSE —
+    a proteção cross-tenant fica no servidor, não no client.
+    """
+    if not isinstance(data, dict):
+        return False
+
+    team_repo = TeamRepository(session)
+
+    if channel == "task_updates":
+        client_id = _as_uuid(data.get("client_id"))
+        template_id = _as_uuid(data.get("template_id"))
+        if client_id is None:
+            return False
+        if _owns_client(session, client_id, current_user.id):
+            return True
+        if template_id is None:
+            return False
+        granted = [
+            t.id for t in team_repo.get_routines_for_member(client_id, current_user.id)
+        ]
+        return template_id in granted
+
+    if channel == "team_updates":
+        event_type = data.get("type")
+        if event_type == "routine_changed":
+            client_id = _client_id_for_invitation(
+                session, _as_uuid(data.get("invitation_id"))
+            )
+        else:
+            team_id = _as_uuid(data.get("team_id"))
+            client_id = team_repo.get_client_id_by_team_id(team_id) if team_id else None
+
+        if client_id is None:
+            return False
+        if _owns_client(session, client_id, current_user.id):
+            return True
+
+        if event_type == "invitation_changed":
+            invited = (data.get("invited_email") or "").strip().lower()
+            if invited and invited == current_user.email.strip().lower():
+                # O convidado precisa ver sua própria mudança de convite
+                return True
+        elif event_type == "member_changed":
+            if str(data.get("user_id")) == str(current_user.id):
+                # O próprio membro precisa ver a mudança na própria conta
+                return True
+
+        return team_repo.is_team_member(client_id, current_user.id)
+
+    return False

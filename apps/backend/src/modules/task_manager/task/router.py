@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db_session
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
-from src.modules.auth.service import get_current_user
+from src.modules.auth.service import get_current_user, get_current_user_for_sse
 from src.modules.notifications.repository import NotificationRepository
 
 from ..models import get_done_phase
@@ -142,7 +142,9 @@ def get_tasks(
                 if m.user_id != current_user.id
             ]
             for uid in user_ids:
-                for t in repo.get_by_user(uid, today_filter=today, overdue_filter=overdue):
+                for t in repo.get_by_user(
+                    uid, today_filter=today, overdue_filter=overdue
+                ):
                     if str(t.client_id) == str(cid) and t.id not in seen:
                         seen.add(t.id)
                         all_tasks.append(t)
@@ -381,8 +383,18 @@ def send_task_email(
 
 
 @router.get("/events")
-async def task_events(request: Request):
+async def task_events(
+    request: Request,
+    current_user: Annotated[UserResponse, Depends(get_current_user_for_sse)],
+    session: Annotated[Session, Depends(get_db_session)],
+):
     """Server-Sent Events endpoint for real-time updates.
+
+    Autenticado (token no header ou ``?token=`` — EventSource não envia
+    headers). Cada evento é filtrado por participação do usuário antes de ser
+    entregue: task_updates só para donos do client / membros com a rotina
+    concedida; team_updates só para o dono do client, o próprio membro ou o
+    convidado envolvido.
 
     Handles two event channels:
     - task_updates: card phase changes → boards update card positions
@@ -390,6 +402,7 @@ async def task_events(request: Request):
       reflect added/removed/revoked/deactivated routines
     """
     from ..broadcast import manager
+    from ..task.service import event_relevant_for_user
 
     client_id, q = manager.subscribe()
 
@@ -411,6 +424,19 @@ async def task_events(request: Request):
                     )
                     if payload == SHUTDOWN_EVENT:
                         break
+                    try:
+                        wrapped = json.loads(payload)
+                        if not event_relevant_for_user(
+                            session,
+                            current_user,
+                            wrapped.get("channel", ""),
+                            wrapped.get("data"),
+                        ):
+                            # Evento de outro tenant/usuário → descarta
+                            continue
+                    except Exception as exc:
+                        log.debug(f"SSE event descartado: {exc!r}")
+                        continue
                     yield f"data: {payload}\n\n"
                 except Exception:
                     # Send heartbeat every 30s to keep connection alive

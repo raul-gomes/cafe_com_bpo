@@ -3,6 +3,7 @@ import unicodedata
 from datetime import datetime, timezone
 from uuid import UUID
 
+import bleach
 from sqlalchemy import desc, func
 from sqlalchemy.orm import Session
 
@@ -35,14 +36,51 @@ from .schemas import (
     ProjectUpdate,
 )
 
+# Allowlist de tags/atributos aceitos no fórum (bleach). Qualquer tag/atributo
+# fora da lista é removido, junto com atributos style (vetor de CSS injection)
+# e links com protocolos perigosos (javascript:, data:, vbscript:).
+BLEACH_ALLOWED_TAGS = {
+    "p",
+    "br",
+    "b",
+    "strong",
+    "i",
+    "em",
+    "u",
+    "s",
+    "mark",
+    "small",
+    "sub",
+    "sup",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "blockquote",
+    "pre",
+    "code",
+    "ul",
+    "ol",
+    "li",
+    "a",
+    "span",
+    "hr",
+}
+BLEACH_ALLOWED_ATTRS = {"a": ["href", "title", "rel"]}
+BLEACH_ALLOWED_PROTOCOLS = {"http", "https", "mailto"}
+
 
 def sanitize_html(html_str: str) -> str:
-    # A basic sanitizer to remove <script> tags and onerror handlers for the XSS test.
-    # In production, a library like bleach should be used.
-    cleaned = re.sub(r"(?i)<script.*?>.*?</script>", "", html_str, flags=re.DOTALL)
-    cleaned = re.sub(r"(?i)<script.*?>", "", cleaned)
-    cleaned = re.sub(r"(?i)onerror=", "data-err=", cleaned)
-    return cleaned
+    if not html_str:
+        return html_str
+    return bleach.clean(
+        html_str,
+        tags=BLEACH_ALLOWED_TAGS,
+        attributes=BLEACH_ALLOWED_ATTRS,
+        protocols=BLEACH_ALLOWED_PROTOCOLS,
+        strip=True,
+    )
 
 
 def slugify(text: str) -> str:
