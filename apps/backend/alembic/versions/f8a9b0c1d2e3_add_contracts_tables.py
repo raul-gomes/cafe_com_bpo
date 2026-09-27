@@ -68,9 +68,7 @@ def upgrade() -> None:
             "is_active", sa.Boolean(), server_default=sa.text("true"), nullable=False
         ),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(
-            ["prospect_id"], ["prospects.id"], ondelete="SET NULL"
-        ),
+        sa.ForeignKeyConstraint(["prospect_id"], ["prospects.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(
             ["proposal_id"], ["pricing_scenarios.id"], ondelete="SET NULL"
         ),

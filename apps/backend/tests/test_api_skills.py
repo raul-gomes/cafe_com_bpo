@@ -15,7 +15,9 @@ def get_auth_header(client, email):
 
 def test_update_biografia_via_profile(client):
     auth = get_auth_header(client, f"bio_{uuid4()}@cafe.com")
-    resp = client.patch("/auth/me", json={"biografia": "BPO financeiro há 10 anos."}, headers=auth)
+    resp = client.patch(
+        "/auth/me", json={"biografia": "BPO financeiro há 10 anos."}, headers=auth
+    )
     assert resp.status_code == 200
     assert resp.json()["biografia"] == "BPO financeiro há 10 anos."
 
@@ -45,7 +47,9 @@ def test_search_skills_by_query(client):
 
 def test_add_skill_to_profile_success(client):
     auth = get_auth_header(client, f"add_{uuid4()}@cafe.com")
-    resp = client.post("/network/me/skills", json={"name": "Contabilidade"}, headers=auth)
+    resp = client.post(
+        "/network/me/skills", json={"name": "Contabilidade"}, headers=auth
+    )
     assert resp.status_code == 201
     data = resp.json()
     assert data["name"] == "Contabilidade"

@@ -126,7 +126,9 @@ def test_only_creator_can_edit_the_master_general(client):
     # outro admin (não criador): excluir remove apenas a cópia dele (204),
     # o mestre continua a existir
     assert (
-        client.delete(f"/tasks/templates/{general['id']}", headers=other_adm).status_code
+        client.delete(
+            f"/tasks/templates/{general['id']}", headers=other_adm
+        ).status_code
         == 204
     )
     assert (

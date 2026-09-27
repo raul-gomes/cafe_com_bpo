@@ -310,9 +310,9 @@ def test_conversation_exists_before_accept_and_accept_grants_project_topic(clien
         assert len(convs.json()) == 1
         assert convs.json()[0]["id"] == invite["conversation_id"]
 
-    group_id = client.get(
-        f"/network/projects/{project_id}", headers=owner
-    ).json()["group_id"]
+    group_id = client.get(f"/network/projects/{project_id}", headers=owner).json()[
+        "group_id"
+    ]
     assert (
         client.get(f"/network/groups/{group_id}", headers=candidate).status_code == 404
     )
@@ -360,8 +360,9 @@ def test_declined_invite_keeps_private_topic_working(client):
     conv_id = invite["conversation_id"]
 
     assert (
-        client.post(f"/network/invites/{invite['id']}/decline", headers=candidate)
-        .json()["status"]
+        client.post(
+            f"/network/invites/{invite['id']}/decline", headers=candidate
+        ).json()["status"]
         == "declined"
     )
 

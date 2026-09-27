@@ -231,9 +231,7 @@ class TemplateService:
             activities=[],
         )
 
-    def _resolve_for_write(
-        self, template_id: UUID, user_id: UUID
-    ) -> ActivityTemplate:
+    def _resolve_for_write(self, template_id: UUID, user_id: UUID) -> ActivityTemplate:
         """Resolve o template para uma operação de escrita.
 
         Se for uma rotina geral de outro usuário, cria (ou reutiliza) a cópia

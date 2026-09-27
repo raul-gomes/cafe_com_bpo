@@ -6,40 +6,40 @@ Create Date: 2026-08-28 02:19:26.207035
 
 """
 
-from typing import Sequence, Union
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 
+from alembic import op
 
 # revision identifiers, used by Alembic.
-revision: str = '47e89dc0e8a7'
-down_revision: Union[str, Sequence[str], None] = '3e5a1b2c9d4f'
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+revision: str = "47e89dc0e8a7"
+down_revision: str | Sequence[str] | None = "3e5a1b2c9d4f"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
     """Upgrade schema."""
     op.add_column(
-        'activity_templates',
-        sa.Column('parent_template_id', sa.UUID(), nullable=True),
+        "activity_templates",
+        sa.Column("parent_template_id", sa.UUID(), nullable=True),
     )
     op.create_foreign_key(
-        'fk_activity_templates_parent_template_id',
-        'activity_templates',
-        'activity_templates',
-        ['parent_template_id'],
-        ['id'],
-        ondelete='SET NULL',
+        "fk_activity_templates_parent_template_id",
+        "activity_templates",
+        "activity_templates",
+        ["parent_template_id"],
+        ["id"],
+        ondelete="SET NULL",
     )
 
 
 def downgrade() -> None:
     """Downgrade schema."""
     op.drop_constraint(
-        'fk_activity_templates_parent_template_id',
-        'activity_templates',
-        type_='foreignkey',
+        "fk_activity_templates_parent_template_id",
+        "activity_templates",
+        type_="foreignkey",
     )
-    op.drop_column('activity_templates', 'parent_template_id')
+    op.drop_column("activity_templates", "parent_template_id")

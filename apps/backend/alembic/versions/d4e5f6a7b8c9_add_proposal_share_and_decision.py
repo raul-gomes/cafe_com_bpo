@@ -9,6 +9,7 @@ Create Date: 2026-09-24 12:00:00.000000
 from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 # revision identifiers, used by Alembic.
@@ -34,9 +35,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "pricing_scenarios",
-        sa.Column(
-            "shared_count", sa.Integer(), server_default="0", nullable=False
-        ),
+        sa.Column("shared_count", sa.Integer(), server_default="0", nullable=False),
     )
     op.add_column(
         "pricing_scenarios",
