@@ -99,9 +99,66 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 
 ## Code Style
 
-- **Backend**: Ruff for lint + format. No separate formatter config found — uses Ruff defaults.
+- **Backend**: Ruff for lint + format, configured in `apps/backend/ruff.toml` (line-length 88 + explicit `ignore` list — read it before adding any `# noqa`).
 - **Frontend**: ESLint (TypeScript + React recommended) with `react-refresh` plugin. `@typescript-eslint/no-explicit-any` is turned off.
-- **Commits**: Conventional commits (feat:, fix:, chore:, etc.)
+- **Commits**: Conventional commits (feat:, fix:, chore:, etc.), one concern per commit.
+
+## Mandatory Practices (Security, Quality, Testing)
+
+These rules are **not optional**. Each one exists because breaking it already caused a real problem in this repo (a security finding, a red CI, or a cascade of flaky tests). Read them **before** writing code, and treat a violation as a defect to fix before committing.
+
+### 1. Security — never introduce a new vulnerability
+
+- **Never trust input.** Anything coming from a client is untrusted: body, query, path, headers, multipart, SSE payloads, and any DB column previously written by a user.
+  - Rich/HTML content (forum posts, comments, descriptions) MUST pass through the bleach allowlist in `src/modules/network/repository.py` before being persisted. Plain text MUST NOT be assembled into HTML/JS by string concatenation.
+  - Frontend: never use `dangerouslySetInnerHTML`, `innerHTML`, `eval`, `new Function` or `document.write` with data from the API — render text nodes.
+  - Validate at the boundary: Pydantic schemas (backend) + Zod v4 (frontend). Never assume the client validated anything.
+- **Authorization belongs in the service/repository layer.** Every read/write touching member, team or tenant data MUST verify ownership/role/permission there — not only in the router, and never based on a client-sent `user_id`, `role` or `is_admin`. A missing check is a vulnerability, not a TODO.
+- **Never leak secrets or internals.** No tokens, passwords, API keys, `JWT_SECRET`, OAuth credentials, third-party personal data or internal ids in logs, error responses, SSE/websocket messages, or the repository. Never commit `.env` or credentials. API errors return a safe message; details go to the log.
+- **No SQL built by string formatting.** Use SQLAlchemy expressions/ORM or bound parameters. Interpolate identifiers only behind a strict allowlist.
+- **Uploads**: validate content type and size server-side, never trust the client filename (path traversal), store outside any web-served root.
+- **Never weaken a control to make something work**: do not disable auth, CORS, rate limiting (`slowapi`), SSE origin checks, or `MODE`-based security. Env fallbacks must default to the **secure** value and fail loudly on invalid input — never silently more permissive (a settings fallback that reset `MODE` is what caused a suite-wide 429 cascade).
+- **New runtime dependency** → add to `apps/backend/requirements.txt` (test-only → `requirements-dev.txt`) **in the same commit**, and prove it with `docker compose build api` + an import check in the container. An import missing from requirements is a broken deploy.
+- **Security-sensitive changes** (auth, permissions, input rendering, SSE payloads, crypto, file handling) require a regression test that fails without the fix.
+
+### 2. Code quality — CI green is part of "done"
+
+- Before every commit, run the CI order for the area you touched:
+  - Backend: `ruff check .` → `ruff format --check .` → `pytest`
+  - Frontend: `npm run lint` → `npm run typecheck` → `npm run test`
+- **Zero lint errors, zero format diff, zero warnings** is the only acceptable state — and never add new debt. Fix pre-existing violations in the files you touch rather than widening ignores.
+- **Autofix loops**: re-run after each `--fix`; a rule conversion (e.g. `Union` → `|`) makes import sorting (I001) fire on the *next* pass. Iterate until the tool reports 0 remaining.
+- Never silence lint with `# noqa`, `# type: ignore`, or a wider `ignore` list without an explicit, documented reason.
+- **No debug leftovers**: no `print()`, `breakpoint()`, committed probe fixtures, `.only`, `xdescribe`/`skipif` hacks, or temporary files. Grep your own diff before committing.
+- No commented-out code, no `except Exception: pass`, no silent fallbacks. Log with context or re-raise. Type-hint public functions, services and schemas.
+- Commit only the files belonging to the change; never commit generated junk or root-owned files.
+
+### 3. Tests must be deterministic and isolated
+
+- **TDD always**: write the failing test first, watch it fail for the right reason, then implement.
+- **Determinism**: no test may depend on wall-clock time, the current weekday, randomness, set/dict ordering, machine locale, or real network. Freeze the clock through helpers in `tests/helpers.py` instead of relying on `datetime.now()`; when a rule is calendar-dependent, pin it (e.g. a fixed Monday). Never use `time.sleep` to synchronize.
+- **Isolation**: any fixture that mutates global state (env vars, `settings` cache, DB session, current user) must be **function-scoped** and restore the previous state on teardown (`settings.cache_clear()`). A session-scoped fixture that pops an env var leaks into every later test and produces silent cascades — this exact bug made the entire suite fail with 429s after the integration folder ran.
+- **No background threads in tests**: schedulers, workers and listeners must be skipped in `mode=test` (see the guard in `src/main.py`). A test that needs a manual trigger calls the explicit endpoint, never a live loop.
+- **One regression test per bug fix**: reproduce the failure in isolation, add the test, confirm it fails without the fix, fix, confirm it passes.
+- Before declaring done: run the **full** suite, not only the file you touched.
+
+### 4. Environment hygiene (container, migrations, docs)
+
+- **Never write into the repo from inside the container as root** — bind-mounted dirs (`src/`, `tests/`, `alembic/`) would become root-owned and break the host developer. Fix a copy under `/tmp` in the container and apply a unified patch on the host with `git apply`.
+- The production image intentionally has no pytest/ruff; after a rebuild, reinstall `requirements-dev.txt` in the dev container before running checks.
+- Migrations: generate with `alembic revision --autogenerate`, then `alembic upgrade head`. Lint fixes on historical migrations must be annotation/whitespace-only — never change the behavior of an already-applied migration.
+- Keep the catalogs in sync: `lineage.md` (schema), `docs/tree_files.md` (files/functions), `docs/regras_negocio.md` (business rules — ask the product owner first), `docs/architecture.md` (patterns), and the design-system route (new components).
+
+## Definition of Done
+
+- [ ] Test written first, fails without the fix; full suite green
+- [ ] `ruff check .` + `ruff format --check .` clean (backend) / `npm run lint` + `npm run typecheck` clean (frontend)
+- [ ] No untrusted input reaches HTML/JS; authorization checked in the service layer; no secret in code, logs or payloads
+- [ ] New dependencies declared in requirements and validated with an image build
+- [ ] No debug leftovers, no commented-out code, no lint-silencing hacks
+- [ ] `lineage.md` / `docs/tree_files.md` / `docs/regras_negocio.md` / `docs/architecture.md` updated when applicable
+- [ ] Business rules untouched, or explicitly confirmed with the product owner
+- [ ] Conventional commit, containing only the files of that change
 
 ## Key Reference Files
 
