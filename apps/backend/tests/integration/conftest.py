@@ -1,25 +1,43 @@
 """Conftest para testes de integração.
 
-Limpa o cache de settings e configura o ambiente para usar credenciais reais.
-NÃO usa banco de dados — testa apenas provider e storage service diretamente.
+Força MODE != test (providers reais, sem NoopProvider) durante os testes de
+integração e RESTAURA o ambiente ao final da sessão. Sem esse restore, o cache
+de settings do conftest raiz fica envenenado com mode != "test", o limiter de
+login volta a ativo e todos os testes seguintes da sessão estouram em 429
+(cascata de falhas).
 """
 
 import os
 
-# Limpar variáveis que o conftest raiz pode ter setado ANTES de qualquer import
-_original_mode = os.environ.get("MODE")
-_original_db = os.environ.get("DATABASE_URL")
+import pytest
 
-# Forçar MODE != test para que os providers não sejam substituídos por NoopProvider
-if os.environ.get("MODE") == "test":
-    del os.environ["MODE"]
-
-from src.core.config import get_settings  # noqa: E402
+from src.core.config import get_settings
 
 
-def pytest_runtest_setup(item):
-    """Limpa cache de settings antes de cada teste de integração."""
+@pytest.fixture(autouse=True)
+def _real_providers_environ():
+    """Aplica MODE != test apenas DENTRO de cada teste de integração.
+
+    Escopo por-teste (não session): um fixture de sessão num conftest de
+    subpasta só encerraria no fim da suíte inteira, deixando MODE apagado
+    (e o rate-limit de login reativo) para todos os testes seguintes da
+    sessão — cascata de 429.
+    """
+    before_mode = os.environ.get("MODE")
+    before_db = os.environ.get("DATABASE_URL")
+
+    os.environ.pop("MODE", None)  # providers reais (Resend/Cloudinary)
     get_settings.cache_clear()
-    # Garantir que MODE não é 'test'
-    if os.environ.get("MODE") == "test":
-        del os.environ["MODE"]
+
+    yield
+
+    # Restaura o ambiente para não vazar para o restante da sessão
+    if before_mode is None:
+        os.environ.pop("MODE", None)
+    else:
+        os.environ["MODE"] = before_mode
+    if before_db is None:
+        os.environ.pop("DATABASE_URL", None)
+    else:
+        os.environ["DATABASE_URL"] = before_db
+    get_settings.cache_clear()

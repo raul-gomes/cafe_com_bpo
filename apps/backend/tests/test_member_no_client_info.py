@@ -12,7 +12,7 @@ from uuid import UUID, uuid4
 
 from src.core.database import SessionLocal
 from src.modules.team.repository import TeamRepository
-from tests.helpers import register_user
+from tests.helpers import freeze_assignments_clock, register_user
 
 
 def get_auth_header(client, email, name="Membro"):
@@ -122,11 +122,12 @@ def test_member_still_sees_board_tasks(client):
     owner_auth, member_auth, cli_id, tmpl_id, _member_email = _setup(client)
 
     # Owner vincula a rotina ao cliente → tasks são geradas
-    resp = client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli_id, "template_id": tmpl_id},
-        headers=owner_auth,
-    )
+    with freeze_assignments_clock():
+        resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli_id, "template_id": tmpl_id},
+            headers=owner_auth,
+        )
     assert resp.status_code == 201, resp.text
 
     tasks = client.get("/tasks/", headers=member_auth).json()

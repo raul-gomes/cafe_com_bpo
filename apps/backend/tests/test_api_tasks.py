@@ -1,7 +1,7 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import freeze_assignments_clock, register_user
 
 
 def get_auth_header(client, email):
@@ -975,11 +975,12 @@ def test_scheduler_does_not_duplicate(client):
         json={"name": "Task Dedup", "due_day": 1},
         headers=auth,
     )
-    assign_resp = client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli["id"], "template_id": tmpl_id},
-        headers=auth,
-    )
+    with freeze_assignments_clock():
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
     assert assign_resp.status_code == 201
     assert assign_resp.json()["tasks_generated"] >= 1
 
@@ -1062,11 +1063,12 @@ def test_scheduler_weekly_mode_skips_daily_templates(client):
         json={"name": "Task Diario Wk", "due_day": 1},
         headers=auth,
     )
-    assign = client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli["id"], "template_id": tmpl_id},
-        headers=auth,
-    ).json()
+    with freeze_assignments_clock():
+        assign = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        ).json()
     assert assign["tasks_generated"] >= 1
 
     # Conclui os cards da vinculação para isolar a regra testada
@@ -1097,11 +1099,12 @@ def test_scheduler_sunday_auto_generates_monday_daily(client):
         json={"name": "Task Diario Dom", "due_day": 1},
         headers=auth,
     )
-    assign = client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli["id"], "template_id": tmpl_id},
-        headers=auth,
-    ).json()
+    with freeze_assignments_clock():
+        assign = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        ).json()
     assert assign["tasks_generated"] >= 1
 
     _complete_pending_tasks(cli["id"], tmpl_id)
@@ -1353,11 +1356,12 @@ def test_scheduler_isolation(client):
         json={"name": "Task Iso", "due_day": 1},
         headers=auth_a,
     )
-    assign_resp = client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli_a["id"], "template_id": tmpl_id},
-        headers=auth_a,
-    )
+    with freeze_assignments_clock():
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli_a["id"], "template_id": tmpl_id},
+            headers=auth_a,
+        )
     assert assign_resp.status_code == 201
     assert assign_resp.json()["tasks_generated"] >= 1
 
@@ -1459,7 +1463,12 @@ def test_routine_instance_id_dedup(client):
 def _make_template_with_activity(client, auth, name, client_id):
     tmpl = client.post(
         "/tasks/templates/",
-        json={"name": name, "process_type": "fiscal", "recurrence": "once", "due_days": 5},
+        json={
+            "name": name,
+            "process_type": "fiscal",
+            "recurrence": "once",
+            "due_days": 5,
+        },
         headers=auth,
     )
     tmpl_id = tmpl.json()["id"]
@@ -1537,7 +1546,11 @@ def test_tasks_team_only_returns_shared_client_tasks(client):
     # X cria também uma task pessoal DENTRO do cliente compartilhado
     shared_own = client.post(
         "/tasks/",
-        json={"title": "Pessoal dentro do Y", "client_id": y_cli["id"], "priority": "medium"},
+        json={
+            "title": "Pessoal dentro do Y",
+            "client_id": y_cli["id"],
+            "priority": "medium",
+        },
         headers=x_auth,
     )
     assert shared_own.status_code == 201
@@ -1548,12 +1561,18 @@ def test_tasks_team_only_returns_shared_client_tasks(client):
     overview_ids = {t["id"] for t in overview}
     assert own_task_id in overview_ids
     assert shared_own_id in overview_ids
-    assert any(t["template_id"] == y_tmpl for t in overview), "rotina liberada do Y na visão geral"
+    assert any(t["template_id"] == y_tmpl for t in overview), (
+        "rotina liberada do Y na visão geral"
+    )
 
     # team_only=true → apenas as do cliente compartilhado
     team = client.get("/tasks/?team_only=true", headers=x_auth)
     assert team.status_code == 200
     team_ids = {t["id"] for t in team.json()}
     assert own_task_id not in team_ids, "task do cliente próprio NÃO deve aparecer"
-    assert shared_own_id in team_ids, "task pessoal dentro do cliente compartilhado deve aparecer"
-    assert any(t["template_id"] == y_tmpl for t in team.json()), "rotina liberada deve aparecer"
+    assert shared_own_id in team_ids, (
+        "task pessoal dentro do cliente compartilhado deve aparecer"
+    )
+    assert any(t["template_id"] == y_tmpl for t in team.json()), (
+        "rotina liberada deve aparecer"
+    )

@@ -4,10 +4,34 @@ O endpoint público /auth/register foi removido (registro desativado):
 usuários de teste são criados diretamente no banco via UserRepository.
 """
 
+from datetime import datetime, timezone
+from unittest import mock
+
 from src.core.database import SessionLocal
 from src.core.security import PasswordService
 from src.modules.auth.models import User
 from src.modules.auth.repository import UserRepository
+from src.modules.task_manager.assignments import service as assignments_service
+
+
+def freeze_assignments_clock(weekday: datetime | None = None):
+    """Congela o relógio da geração inicial de tasks num dia útil fixo.
+
+    O `POST /tasks/client-templates/` gera os primeiros cards usando
+    `datetime.now()` real (assignments/service.py `_generate_for_activities`).
+    Rotinas "daily" só criam cards em dias úteis (`weekday() < 5`), então a
+    geração falhava nos fins de semana — o resultado variava conforme o dia em
+    que o CI rodava. Congelar numa segunda-feira (default) torna os testes
+    determinísticos independentemente da data de execução.
+    """
+    fixed = weekday or datetime(2026, 7, 20, 12, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return fixed if tz is None else fixed.astimezone(tz)
+
+    return mock.patch.object(assignments_service, "datetime", _FixedClock)
 
 
 def create_test_user(

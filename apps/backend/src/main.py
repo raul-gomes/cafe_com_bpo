@@ -59,21 +59,28 @@ async def lifespan(app: FastAPI):
         _normalize_all_phases()
     except Exception:
         log.exception("Falha na normalização inicial de fases")
-    scheduler_instance.start()
-    email_scheduler_instance.start()
+    # Em modo teste, não sobem threads de scheduler/worker/broadcast: cada
+    # teste cria um app novo (TestClient) e centenas de threads concorrentes
+    # disputam a conexão única do SQLite in-memory, causando lock/hang na
+    # suíte. Os testes desses módulos chamam as funções diretamente.
+    settings_test_mode = get_settings().mode == "test"
+    if not settings_test_mode:
+        scheduler_instance.start()
+        email_scheduler_instance.start()
     # Start SSE broadcast listener (PostgreSQL LISTEN/NOTIFY for real-time)
-    from src.core.config import get_settings
     from src.modules.task_manager.broadcast import install_shutdown_handlers
     from src.modules.task_manager.broadcast import (
         manager as broadcast_manager,
     )
 
-    broadcast_manager.start_listener(get_settings().database_url)
-    install_shutdown_handlers(broadcast_manager)
+    if not settings_test_mode:
+        broadcast_manager.start_listener(get_settings().database_url)
+        install_shutdown_handlers(broadcast_manager)
     yield
-    email_scheduler_instance.stop()
-    scheduler_instance.stop()
-    broadcast_manager.stop()
+    if not settings_test_mode:
+        email_scheduler_instance.stop()
+        scheduler_instance.stop()
+        broadcast_manager.stop()
     log.info("🛑 Aplicação encerrada.")
 
 

@@ -11,7 +11,7 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from tests.helpers import register_user
+from tests.helpers import freeze_assignments_clock, register_user
 
 
 def get_auth_header(client: TestClient, email: str) -> dict:
@@ -251,14 +251,15 @@ class TestMultiActivity:
             )
 
         # Assign generates 2 tasks (one per activity) with routine_instance_id
-        assign = client.post(
-            "/tasks/client-templates/",
-            json={
-                "client_id": cli["id"],
-                "template_id": tmpl_id,
-            },
-            headers=auth,
-        ).json()
+        with freeze_assignments_clock():
+            assign = client.post(
+                "/tasks/client-templates/",
+                json={
+                    "client_id": cli["id"],
+                    "template_id": tmpl_id,
+                },
+                headers=auth,
+            ).json()
         assert assign["tasks_generated"] == 2
 
         # Conclui os cards da vinculação para destravar o scheduler (regra §1.2)

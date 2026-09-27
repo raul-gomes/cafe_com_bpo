@@ -395,7 +395,7 @@ class TaskScheduler:
     """
 
     def __init__(self):
-        self.app: Rocketry | None = None
+        self.app: Rocketry | None = Rocketry()
         self._thread: threading.Thread | None = None
 
     def start(self) -> None:
