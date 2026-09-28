@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Briefcase, Trash2, Loader2, CheckCircle2 } from 'lucide-react';
 import {
   getProjects,
@@ -14,7 +15,11 @@ import {
 import { useAuth } from '../../context/AuthContext';
 import { useConfirm } from '../ui/ConfirmDialog';
 import { ProjectCard } from './ProjectCard';
+import { useAppNotifications } from '../../api/hooks/useAppNotifications';
+import { groupUnreadByEntity } from '../../lib/notificationIndicators';
+import type { AppNotificationResponse } from '../../schemas/notifications';
 import { Card } from '../ui/card';
+import { MemberLink } from './MemberLink';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
@@ -22,9 +27,64 @@ import { Skeleton } from '../ui/skeleton';
 import { SkillInput } from '../ui/SkillInput';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../ui/tabs';
 
+/**
+ * Novidades da aba Projetos: o que chegou e ainda não foi visto.
+ *
+ * "Proposta aceita" não tem projeto associated (a notificação aponta para a
+ * conversa criada no aceite), então é ela que concentra esse aviso — com o link
+ * direto para a conversa. As propostas novas também aparecem no card do projeto.
+ */
+function ProjectNewsFeed({
+  newProposals,
+  acceptedProposals,
+}: {
+  newProposals: AppNotificationResponse[];
+  acceptedProposals: AppNotificationResponse[];
+}) {
+  const items = [...acceptedProposals, ...newProposals];
+  if (items.length === 0) return null;
+
+  return (
+    <Card className="mb-5 border-primary/30 bg-primary/5 p-4">
+      <h3 className="mb-2 text-[14px] font-bold text-foreground">
+        Novidades ({items.length})
+      </h3>
+      <ul className="flex flex-col gap-2">
+        {items.map((item) => (
+          <li key={item.id} className="flex items-center gap-3 text-[13px]">
+            <span className="min-w-0 flex-1 truncate text-foreground">
+              {item.message}
+            </span>
+            {item.type === 'application_accepted' && item.related_entity_id && (
+              <Link
+                to={`/painel/conversas/${item.related_entity_id}`}
+                className="shrink-0 text-[12px] font-semibold text-primary hover:underline"
+              >
+                Abrir a conversa
+              </Link>
+            )}
+          </li>
+        ))}
+      </ul>
+    </Card>
+  );
+}
+
 export function ProjectsSection() {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const { useNotificationsList } = useAppNotifications();
+  const { data: unreadNotifications } = useNotificationsList(undefined, true);
+  const newProposalsByProject = groupUnreadByEntity(
+    unreadNotifications,
+    'project',
+    'project_application'
+  );
+  const acceptedProposals = groupUnreadByEntity(
+    unreadNotifications,
+    'conversation',
+    'application_accepted'
+  );
 
   const [data, setData] = useState<PaginatedProjects | null>(null);
   const [loading, setLoading] = useState(true);
@@ -330,7 +390,12 @@ export function ProjectsSection() {
                             >
                               <div className="min-w-0">
                                 <div className="text-[14px] font-semibold text-foreground">
-                                  {person.name || person.email}
+                                  <MemberLink
+                                    memberId={person.id}
+                                    name={person.name}
+                                    email={person.email}
+                                    className="font-semibold"
+                                  />
                                 </div>
                                 {person.biografia && (
                                   <p className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground">
@@ -385,7 +450,11 @@ export function ProjectsSection() {
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="text-[14px] font-semibold text-foreground">
-                            {candidate.name || candidate.email}
+                            <MemberLink
+                              memberId={candidate.id}
+                              name={candidate.name}
+                              email={candidate.email}
+                            />
                           </div>
                           <Button
                             variant="ghost"
@@ -421,6 +490,15 @@ export function ProjectsSection() {
           </form>
         </Card>
       )}
+
+      <ProjectNewsFeed
+        newProposals={
+          unreadNotifications?.filter(
+            (n) => n.type === 'project_application' && !n.is_read
+          ) ?? []
+        }
+        acceptedProposals={Object.values(acceptedProposals).flat()}
+      />
 
       {loading ? (
         <div className="flex flex-col gap-3">
@@ -477,6 +555,7 @@ export function ProjectsSection() {
                   onSave={handleSaveProject}
                   onDelete={handleDelete}
                   onUpdated={handleUpdated}
+                  newProposals={newProposalsByProject[project.id] ?? []}
                 />
               ))
             )}
@@ -498,6 +577,7 @@ export function ProjectsSection() {
                   onSave={handleSaveProject}
                   onDelete={handleDelete}
                   onUpdated={handleUpdated}
+                  newProposals={newProposalsByProject[project.id] ?? []}
                 />
               ))
             )}

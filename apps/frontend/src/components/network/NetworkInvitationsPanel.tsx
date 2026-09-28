@@ -8,6 +8,7 @@ import {
   ProjectInvitation,
 } from '../../api/network';
 import { Card } from '../ui/card';
+import { MemberLink } from './MemberLink';
 import { Button } from '../ui/button';
 
 export function NetworkInvitationsPanel() {
@@ -91,7 +92,12 @@ export function NetworkInvitationsPanel() {
             className="rounded-lg border border-border bg-background p-4"
           >
             <div className="text-[14px] font-semibold text-foreground">
-              {invite.invited_user.name || invite.invited_user.email}
+              <MemberLink
+                memberId={invite.invited_user.id}
+                name={invite.invited_user.name}
+                email={invite.invited_user.email}
+                className="font-semibold"
+              />
               <span className="font-normal text-muted-foreground"> · {invite.project_title}</span>
             </div>
             <p className="mt-1 text-[13px] leading-relaxed text-muted-foreground">

@@ -1,5 +1,6 @@
 import { ProjectGroupPost } from '../../api/network';
 import { Card } from '../ui/card';
+import { MemberLink } from './MemberLink';
 
 interface GroupPostCardProps {
   post: ProjectGroupPost;
@@ -15,7 +16,12 @@ export function GroupPostCard({ post }: GroupPostCardProps) {
         </div>
         <div className="min-w-0">
           <div className="truncate text-[14px] font-bold text-foreground">
-            {authorName}
+            <MemberLink
+              memberId={post.author.id}
+              name={post.author.name}
+              email={post.author.email}
+              className="truncate font-bold"
+            />
           </div>
           <div className="text-[12px] text-muted-foreground">
             Postado em{' '}

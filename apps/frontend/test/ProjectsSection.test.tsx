@@ -11,6 +11,7 @@ const mockUpdateProject = vi.hoisted(() => vi.fn())
 const mockDeleteProject = vi.hoisted(() => vi.fn())
 const mockSearchSkills = vi.hoisted(() => vi.fn())
 const mockSearchProfessionals = vi.hoisted(() => vi.fn())
+const mockUnreadNotifications = vi.hoisted(() => ({ current: [] as unknown[] }))
 
 vi.mock('../src/api/network', () => ({
   getProjects: mockGetProjects,
@@ -19,6 +20,13 @@ vi.mock('../src/api/network', () => ({
   deleteProject: mockDeleteProject,
   searchSkills: mockSearchSkills,
   searchProfessionals: mockSearchProfessionals,
+}))
+
+vi.mock('../src/api/hooks/useAppNotifications', () => ({
+  useAppNotifications: () => ({
+    useNotificationsList: () => ({ data: mockUnreadNotifications.current }),
+    useUnreadCount: () => ({ data: { count: mockUnreadNotifications.current.length } }),
+  }),
 }))
 
 vi.mock('../src/context/AuthContext', () => ({
@@ -77,6 +85,7 @@ describe('ProjectsSection — preview do mural de projetos', () => {
     mockUpdateProject.mockResolvedValue(PROJECT)
     mockDeleteProject.mockResolvedValue(undefined)
     mockSearchProfessionals.mockResolvedValue([])
+    mockUnreadNotifications.current = []
   })
 
   it('lista projetos com título, autoria e skills', async () => {
@@ -298,5 +307,74 @@ describe('ProjectsSection — preview do mural de projetos', () => {
       )
     ).toBeInTheDocument()
     expect(mockCreateProject).not.toHaveBeenCalled()
+  })
+})
+
+describe('ProjectsSection - link para o perfil de cada pessoa', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSearchProfessionals.mockResolvedValue([])
+  })
+
+  it('torna o dono do projeto clicavel', async () => {
+    mockGetProjects.mockResolvedValue({ items: [PROJECT], total: 1 })
+    renderSection()
+
+    const link = await screen.findByRole('link', { name: 'Raul Gomes' })
+    expect(link).toHaveAttribute('href', '/painel/membros/user-1')
+  })
+
+  describe('novidades da aba Projetos', () => {
+    beforeEach(() => {
+      mockUnreadNotifications.current = []
+    })
+
+    it('avisa que a proposta do usuario foi aceita e leva a conversa', async () => {
+      mockUnreadNotifications.current = [
+        {
+          id: 'n1',
+          type: 'application_accepted',
+          is_read: false,
+          related_entity_type: 'conversation',
+          related_entity_id: 'conv-9',
+          title: 'Você foi aceito no projeto',
+          message: 'Sua proposta foi aceita no projeto Automação de fluxo fiscal.',
+          created_at: '2026-09-27T10:00:00Z',
+        },
+      ]
+      renderSection()
+
+      expect(
+        await screen.findByText('Sua proposta foi aceita no projeto Automação de fluxo fiscal.')
+      ).toBeInTheDocument()
+      expect(
+        screen.getByRole('link', { name: /Abrir a conversa/ })
+      ).toHaveAttribute('href', '/painel/conversas/conv-9')
+    })
+
+    it('avisa que alguem se candidatou e sinaliza o projeto do dono', async () => {
+      mockUnreadNotifications.current = [
+        {
+          id: 'n2',
+          type: 'project_application',
+          is_read: false,
+          related_entity_type: 'project',
+          related_entity_id: 'p1',
+          title: 'Nova proposta para seu projeto',
+          message: 'Ana Souza se candidatou para o projeto Automação de fluxo fiscal.',
+          created_at: '2026-09-27T10:00:00Z',
+        },
+      ]
+      renderSection()
+
+      expect(await screen.findByText('1 nova proposta')).toBeInTheDocument()
+    })
+
+    it('nao mostra banner quando nao ha novidades', async () => {
+      renderSection()
+
+      expect(await screen.findByText('Automação de fluxo fiscal')).toBeInTheDocument()
+      expect(screen.queryByText(/Novidades/)).not.toBeInTheDocument()
+    })
   })
 })

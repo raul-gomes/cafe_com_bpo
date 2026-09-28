@@ -12,6 +12,8 @@ import {
 } from '../../api/network';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
+import { MemberLink } from './MemberLink';
+import { useAppNotifications } from '../../api/hooks/useAppNotifications';
 import { cn } from '../../lib/utils';
 
 const STATUS_LABEL: Record<string, string> = {
@@ -36,6 +38,8 @@ export function ProjectApplicationsPanel({
   onUpdated,
 }: ProjectApplicationsPanelProps) {
   const navigate = useNavigate();
+  const { useMarkEntityRead } = useAppNotifications();
+  const markEntityRead = useMarkEntityRead();
   const [applications, setApplications] = useState<ProjectApplication[]>([]);
   const [loading, setLoading] = useState(true);
   const [actingId, setActingId] = useState<string | null>(null);
@@ -57,6 +61,17 @@ export function ProjectApplicationsPanel({
   useEffect(() => {
     load();
   }, [load]);
+
+  // Abrir a lista de propostas é o que marca as propostas novas como vistas:
+  // o marcador do projeto e o contador da aba somem sozinhos.
+  useEffect(() => {
+    markEntityRead.mutate({
+      related_entity_type: 'project',
+      related_entity_id: project.id,
+    });
+    // Só na montagem do painel: aceitar ou recusar não deve reenviar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [project.id]);
 
   const handleAccept = async (application: ProjectApplication) => {
     setActingId(application.id);
@@ -186,7 +201,12 @@ export function ProjectApplicationsPanel({
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <div className="text-[14px] font-semibold text-foreground">
-                    {application.applicant.name || application.applicant.email}
+                    <MemberLink
+                      memberId={application.applicant.id}
+                      name={application.applicant.name}
+                      email={application.applicant.email}
+                      className="font-semibold"
+                    />
                   </div>
                   <div className="mt-0.5 text-[11px] text-muted-foreground">
                     Enviada em{' '}

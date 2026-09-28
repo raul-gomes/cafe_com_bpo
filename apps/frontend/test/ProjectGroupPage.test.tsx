@@ -115,3 +115,17 @@ describe('ProjectGroupPage — tópico do projeto', () => {
     ).toBeInTheDocument()
   })
 })
+
+describe('ProjectGroupPage - link para o perfil do autor do post', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetGroup.mockResolvedValue(GROUP)
+  })
+
+  it('torna o autor do post clicavel', async () => {
+    renderPage()
+
+    const link = await screen.findByRole('link', { name: 'Raul Gomes' })
+    expect(link).toHaveAttribute('href', '/painel/membros/user-1')
+  })
+})

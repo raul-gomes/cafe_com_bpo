@@ -14,9 +14,18 @@ const mockAcceptApplication = vi.hoisted(() => vi.fn())
 const mockDeclineApplication = vi.hoisted(() => vi.fn())
 const mockToggleProjectStatus = vi.hoisted(() => vi.fn())
 const mockToastSuccess = vi.hoisted(() => vi.fn())
+const mockMarkEntityRead = vi.hoisted(() => vi.fn())
 
 vi.mock('sonner', () => ({
   toast: { success: mockToastSuccess },
+}))
+
+vi.mock('../src/api/hooks/useAppNotifications', () => ({
+  useAppNotifications: () => ({
+    useMarkEntityRead: () => ({ mutate: mockMarkEntityRead }),
+    useNotificationsList: () => ({ data: [] }),
+    useUnreadCount: () => ({ data: { count: 0 } }),
+  }),
 }))
 
 vi.mock('../src/api/network', () => ({
@@ -423,5 +432,148 @@ describe('ProjectCard — acesso ao tópico do projeto', () => {
     expect(
       screen.queryByRole('button', { name: /Abrir o tópico do projeto/i })
     ).not.toBeInTheDocument()
+  })
+})
+
+describe('ProjectCard - link para o perfil de cada pessoa', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockSearchSkills.mockResolvedValue([])
+    mockSearchProfessionals.mockResolvedValue([])
+    mockGetProjectInvitations.mockResolvedValue([])
+  })
+
+  it('torna o dono do projeto clicavel', async () => {
+    renderCard()
+
+    const link = await screen.findByRole('link', { name: 'Raul Gomes' })
+    expect(link).toHaveAttribute('href', '/painel/membros/user-1')
+  })
+
+  it('torna o profissional encontrado na busca clicavel', async () => {
+    mockSearchProfessionals.mockResolvedValue([PERSON])
+    renderCard()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Convidar profissionais para Automação/i })
+    )
+    await addInviteSkill('Python')
+
+    const link = await screen.findByRole('link', { name: 'Ana Souza' })
+    expect(link).toHaveAttribute('href', '/painel/membros/u2')
+  })
+
+  it('torna o convidado ja convidado clicavel', async () => {
+    mockGetProjectInvitations.mockResolvedValue([
+      {
+        id: 'i1',
+        project_id: 'p1',
+        project_title: 'Automação de fluxo fiscal',
+        invited_user: { id: 'u3', name: 'Beatriz Lima', email: 'bia@cafe.com' },
+        message: 'Bora?',
+        status: 'accepted',
+        responded_at: '2026-09-08T10:00:00Z',
+        created_at: '2026-09-08T00:00:00Z',
+        conversation_id: 'c9',
+      },
+    ])
+    renderCard()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Convidar profissionais para Automação/i })
+    )
+
+    const link = await screen.findByRole('link', { name: 'Beatriz Lima' })
+    expect(link).toHaveAttribute('href', '/painel/membros/u3')
+  })
+
+  describe('sinalizacao de proposta nova', () => {
+    function renderWithNewProposals(count: number) {
+      return render(
+        <MemoryRouter>
+          <ProjectCard
+            project={PROJECT}
+            currentUserId="user-1"
+            onSave={vi.fn()}
+            onDelete={vi.fn()}
+            newProposals={Array.from({ length: count }, (_, i) => ({
+              id: `n${i}`,
+              user_id: 'user-1',
+              title: 'Nova proposta para seu projeto',
+              type: 'project_application',
+              is_read: false,
+              related_entity_type: 'project',
+              related_entity_id: 'p1',
+              message: 'Ana se candidatou para o projeto Automação de fluxo fiscal.',
+              created_at: '2026-09-27T10:00:00Z',
+            }))}
+          />
+        </MemoryRouter>
+      )
+    }
+
+    it('sinaliza quantas propostas novas chegaram', () => {
+      renderWithNewProposals(2)
+
+      expect(screen.getByText('2 novas propostas')).toBeInTheDocument()
+    })
+
+    it('sinaliza uma proposta nova no singular', () => {
+      renderWithNewProposals(1)
+
+      expect(screen.getByText('1 nova proposta')).toBeInTheDocument()
+    })
+
+    it('leva o dono ate as propostas do projeto', () => {
+      renderWithNewProposals(1)
+
+      fireEvent.click(screen.getByText('1 nova proposta'))
+
+      expect(mockGetProjectApplications).toHaveBeenCalledWith('p1')
+    })
+
+    it('nao sinaliza quando nao ha proposta nova', () => {
+      renderCard()
+
+      expect(screen.queryByText(/nova proposta/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('propostas vistas', () => {
+    it('marca as propostas do projeto como vistas ao abrir a lista', async () => {
+      render(
+        <MemoryRouter>
+          <ProjectCard
+            project={PROJECT}
+            currentUserId="user-1"
+            onSave={vi.fn()}
+            onDelete={vi.fn()}
+            newProposals={[
+              {
+                id: 'n0',
+                user_id: 'user-1',
+                title: 'Nova proposta para seu projeto',
+                type: 'project_application',
+                is_read: false,
+                related_entity_type: 'project',
+                related_entity_id: 'p1',
+                message: 'Ana se candidatou para o projeto Automação de fluxo fiscal.',
+                created_at: '2026-09-27T10:00:00Z',
+              },
+            ]}
+          />
+        </MemoryRouter>
+      )
+
+      fireEvent.click(screen.getByText('1 nova proposta'))
+
+      await waitFor(() =>
+        expect(mockGetProjectApplications).toHaveBeenCalledWith('p1')
+      )
+      expect(mockMarkEntityRead).toHaveBeenCalledWith({
+        related_entity_type: 'project',
+        related_entity_id: 'p1',
+      })
+    })
   })
 })

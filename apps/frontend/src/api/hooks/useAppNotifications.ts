@@ -15,6 +15,7 @@ export const useAppNotifications = () => {
         const { data } = await apiClient.get(`/notifications/?${params}`);
         return data;
       },
+      refetchInterval: 30000,
     });
   };
 
@@ -56,6 +57,24 @@ export const useAppNotifications = () => {
     });
   };
 
+  /** Marca como vistas as notificações de um item (conversa, tópico, projeto). */
+  const useMarkEntityRead = () => {
+    return useMutation({
+      mutationFn: async (params: {
+        related_entity_type: string;
+        related_entity_id: string;
+      }) => {
+        const { data } = await apiClient.post('/notifications/mark-read', params);
+        return data;
+      },
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: ['app-notifications'] });
+        queryClient.invalidateQueries({ queryKey: ['app-notifications-unread'] });
+        queryClient.invalidateQueries({ queryKey: ['dashboard', 'summary'] });
+      },
+    });
+  };
+
   const useDeleteNotification = () => {
     return useMutation({
       mutationFn: async (id: string) => {
@@ -73,6 +92,7 @@ export const useAppNotifications = () => {
     useUnreadCount,
     useMarkAsRead,
     useMarkAllAsRead,
+    useMarkEntityRead,
     useDeleteNotification,
   };
 };

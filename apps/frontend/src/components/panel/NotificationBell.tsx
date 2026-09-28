@@ -23,6 +23,7 @@ export const NotificationBell: React.FC = () => {
     phase_change: '🔄',
     proposal: '💰',
     post_commented: '💬',
+    profile_comment: '🗣️',
     conversation_invite: '🔐',
     project_application: '✋',
     application_accepted: '✅',
@@ -140,8 +141,10 @@ export const NotificationBell: React.FC = () => {
                         navigate(`/painel/conversas/${notif.related_entity_id}`);
                       } else if (notif.type === 'application_accepted' && notif.related_entity_id) {
                         navigate(`/painel/conversas/${notif.related_entity_id}`);
+                      } else if (notif.type === 'profile_comment' && notif.related_entity_id) {
+                        navigate(`/painel/membros/${notif.related_entity_id}`);
                       } else if (notif.type === 'project_application') {
-                        navigate('/painel/rede');
+                        navigate('/painel/forum');
                       }
                     }}
                     style={{

@@ -13,11 +13,17 @@ import { Badge } from '../../components/ui/badge';
 import { Textarea } from '../../components/ui/textarea';
 import { Skeleton } from '../../components/ui/skeleton';
 import { ThreadReplies } from '../../components/network/ThreadReplies';
+import { MemberLink } from '../../components/network/MemberLink';
+import { useAppNotifications } from '../../api/hooks/useAppNotifications';
+import { useAuth } from '../../context/AuthContext';
 
 const POLL_MS = 15000;
 
 export const ConversationPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
+  const { useMarkEntityRead } = useAppNotifications();
+  const markEntityRead = useMarkEntityRead();
+  const { user } = useAuth();
   const navigate = useNavigate();
 
   const [conversation, setConversation] = useState<ConversationDetail | null>(null);
@@ -41,6 +47,18 @@ export const ConversationPage: React.FC = () => {
   useEffect(() => {
     load();
   }, [load]);
+
+  // Abrir a conversa é o que marca as mensagens como vistas: a sinalização da
+  // lista de privados e a do botão somem sozinhas.
+  useEffect(() => {
+    if (!id) return;
+    markEntityRead.mutate({
+      related_entity_type: 'conversation',
+      related_entity_id: id,
+    });
+    // Só na entrada na conversa: recarregar a lista de mensagens não deve reenviar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -72,6 +90,11 @@ export const ConversationPage: React.FC = () => {
     .map((participant) => participant.name || participant.email)
     .join(', ');
 
+  // Conversa é 1:1 — o "outro" participante é quem não sou eu.
+  const otherParticipant = conversation?.participants.find(
+    (participant) => participant.id !== user?.id
+  );
+
   return (
     <div className="animate-[panelFadeIn_0.4s_ease-out]">
       <Breadcrumb
@@ -95,9 +118,18 @@ export const ConversationPage: React.FC = () => {
           <div className="flex items-center gap-2">
             <Lock size={16} className="text-primary" />
             <h1 className="text-[24px] font-extrabold tracking-tight text-foreground">
-              {conversation?.topic_title ||
+              {otherParticipant ? (
+                <MemberLink
+                  memberId={otherParticipant.id}
+                  name={otherParticipant.name}
+                  email={otherParticipant.email}
+                  className="text-[24px] font-extrabold tracking-tight"
+                />
+              ) : (
+                conversation?.topic_title ||
                 conversation?.project_title ||
-                'Conversa'}
+                'Conversa'
+              )}
             </h1>
           </div>
           {conversation && (
@@ -155,7 +187,12 @@ export const ConversationPage: React.FC = () => {
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         <span className="truncate text-[14px] font-bold text-foreground">
-                          {authorName}
+                          <MemberLink
+                            memberId={message.sender.id}
+                            name={message.sender.name}
+                            email={message.sender.email}
+                            className="truncate font-bold"
+                          />
                         </span>
                         {index === 0 && <Badge variant="secondary">Tópico inicial</Badge>}
                       </div>

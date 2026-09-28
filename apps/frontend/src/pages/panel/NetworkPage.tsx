@@ -3,6 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import { getPosts, createPost, PaginatedPosts } from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { NotificationBell } from '../../components/panel/NotificationBell';
+import { MemberLink } from '../../components/network/MemberLink';
+import { NewIndicator } from '../../components/network/NewIndicator';
+import { useAppNotifications } from '../../api/hooks/useAppNotifications';
+import { groupUnreadByEntity } from '../../lib/notificationIndicators';
+import type { AppNotificationResponse } from '../../schemas/notifications';
 import { ProjectsSection } from '../../components/network/ProjectsSection';
 import { NetworkInvitationsPanel } from '../../components/network/NetworkInvitationsPanel';
 import { PrivateTopicsSection } from '../../components/network/PrivateTopicsSection';
@@ -16,7 +21,21 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/ta
 type FilterType = 'all' | 'my' | 'answered';
 type ScopeType = 'public' | 'private';
 
+/** Notificação mais recente do grupo — é a que resume "o que há de novo". */
+function latestOf(
+  notifications: AppNotificationResponse[]
+): AppNotificationResponse | undefined {
+  return [...notifications].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+}
+
 export const NetworkPage: React.FC = () => {
+  const { useNotificationsList } = useAppNotifications();
+  const { data: unreadNotifications } = useNotificationsList(undefined, true);
+  const newReplies = groupUnreadByEntity(
+    unreadNotifications,
+    'discussion_post',
+    'post_commented'
+  );
   const [data, setData] = useState<PaginatedPosts | null>(null);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -94,9 +113,11 @@ export const NetworkPage: React.FC = () => {
       key={key}
       variant={activeScope === key ? 'default' : 'ghost'}
       size="sm"
+      className="gap-1.5"
       onClick={() => setActiveScope(key)}
     >
       {label}
+      <NewIndicator category={key === 'private' ? 'private' : 'public'} />
     </Button>
   );
 
@@ -128,7 +149,10 @@ export const NetworkPage: React.FC = () => {
       <Tabs defaultValue="forum">
           <TabsList variant="line" className="mb-6 w-full justify-start">
             <TabsTrigger value="forum">Fórum</TabsTrigger>
-            <TabsTrigger value="projects">Projetos</TabsTrigger>
+            <TabsTrigger value="projects" className="gap-1.5">
+              Projetos
+              <NewIndicator category="projects" />
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="forum">
@@ -270,6 +294,19 @@ export const NetworkPage: React.FC = () => {
                       >
                         <div className="flex items-start justify-between">
                           <div className="flex-1">
+                            {newReplies[post.id] && (
+                              <div className="mb-2 flex items-center gap-2">
+                                <span className="rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
+                                  {newReplies[post.id].length}{' '}
+                                  {newReplies[post.id].length === 1
+                                    ? 'nova resposta'
+                                    : 'novas respostas'}
+                                </span>
+                                <span className="truncate text-[12px] font-medium text-foreground">
+                                  {latestOf(newReplies[post.id])?.message}
+                                </span>
+                              </div>
+                            )}
                             <div className="mb-2 text-[16px] font-bold text-foreground">
                               {post.title}
                             </div>
@@ -286,7 +323,12 @@ export const NetworkPage: React.FC = () => {
                             <div className="flex items-center gap-2 text-[12px] text-muted-foreground">
                               <span>
                                 Autor:{' '}
-                                {post.author.name || post.author.email || 'Usuário'}
+                                <MemberLink
+                                  memberId={post.author.id}
+                                  name={post.author.name}
+                                  email={post.author.email}
+                                  className="text-foreground"
+                                />
                               </span>
                               <span className="opacity-30">|</span>
                               <span>

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { MessagesSquare, Lock, Inbox } from 'lucide-react';
 import {
@@ -10,22 +10,50 @@ import {
 import { Card } from '../ui/card';
 import { Badge } from '../ui/badge';
 import { Skeleton } from '../ui/skeleton';
+import { MemberLink } from './MemberLink';
+import { useAppNotifications } from '../../api/hooks/useAppNotifications';
+import { groupUnreadByEntity } from '../../lib/notificationIndicators';
+import type { AppNotificationResponse } from '../../schemas/notifications';
 
 type PrivateItem =
-  | { kind: 'conversation'; id: string; title: string; subtitle: string; meta: string; at: string }
-  | { kind: 'project'; id: string; title: string; subtitle: string; meta: string; at: string };
+  | {
+      kind: 'conversation';
+      id: string;
+      title: string;
+      memberId: string;
+      memberName: string | null;
+      memberEmail: string | null;
+      subtitle: string;
+      meta: string;
+      at: string;
+      unread?: AppNotificationResponse[];
+    }
+  | {
+      kind: 'project';
+      id: string;
+      title: string;
+      subtitle: string;
+      meta: string;
+      at: string;
+      unread?: AppNotificationResponse[];
+    };
 
 function toItems(
   conversations: ConversationListItem[],
-  groups: ProjectGroupListItem[]
+  groups: ProjectGroupListItem[],
+  unreadByConversation: Record<string, AppNotificationResponse[]>
 ): PrivateItem[] {
   const convs: PrivateItem[] = conversations.map((c) => ({
     kind: 'conversation',
     id: c.id,
     title: c.participant.name || c.participant.email,
+    memberId: c.participant.id,
+    memberName: c.participant.name,
+    memberEmail: c.participant.email,
     subtitle: `Projeto ${c.project_title}`,
     meta: c.last_message ? c.last_message.slice(0, 120) : 'Comece a conversa',
     at: c.last_message_at || c.created_at,
+    unread: unreadByConversation[c.id],
   }));
   const projects: PrivateItem[] = groups.map((g) => ({
     kind: 'project',
@@ -42,27 +70,42 @@ function toItems(
   );
 }
 
+/** Notificação mais recente do grupo — é a que resume "o que há de novo". */
+function latestOf(
+  notifications: AppNotificationResponse[]
+): AppNotificationResponse | undefined {
+  return [...notifications].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
+}
+
 export function PrivateTopicsSection() {
   const navigate = useNavigate();
+  const { useNotificationsList } = useAppNotifications();
+  const { data: unread } = useNotificationsList(undefined, true);
   const [items, setItems] = useState<PrivateItem[] | null>(null);
   const [error, setError] = useState('');
 
-  const load = async () => {
+  const load = useCallback(async () => {
     try {
       const [conversations, groups] = await Promise.all([
         getConversations(),
         getMyGroups(),
       ]);
-      setItems(toItems(conversations, groups));
+      setItems(
+        toItems(
+          conversations,
+          groups,
+          groupUnreadByEntity(unread, 'conversation', 'conversation_message')
+        )
+      );
       setError('');
     } catch {
       setError('Erro ao carregar os tópicos privados. Tente novamente.');
     }
-  };
+  }, [unread]);
 
   useEffect(() => {
     load();
-  }, []);
+  }, [load]);
 
   if (items === null && !error) {
     return (
@@ -132,7 +175,16 @@ export function PrivateTopicsSection() {
                   ) : (
                     <Lock size={16} className="shrink-0 text-primary" />
                   )}
-                  <span className="truncate">{item.title}</span>
+                  {item.kind === 'conversation' ? (
+                    <MemberLink
+                      memberId={item.memberId}
+                      name={item.memberName}
+                      email={item.memberEmail}
+                      className="truncate"
+                    />
+                  ) : (
+                    <span className="truncate">{item.title}</span>
+                  )}
                 </div>
                 <div className="mt-0.5 flex items-center gap-2 text-[12px] text-muted-foreground">
                   <span className="truncate">{item.subtitle}</span>
@@ -140,6 +192,17 @@ export function PrivateTopicsSection() {
                     {item.kind === 'project' ? 'Tópico do projeto' : 'Privada'}
                   </Badge>
                 </div>
+                {item.unread && item.unread.length > 0 && (
+                  <div className="mt-2 flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-2.5 py-2">
+                    <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
+                      {item.unread.length}{' '}
+                      {item.unread.length === 1 ? 'nova' : 'novas'}
+                    </span>
+                    <p className="line-clamp-2 text-[13px] font-medium text-foreground">
+                      {latestOf(item.unread)?.message}
+                    </p>
+                  </div>
+                )}
                 <p className="mt-1 line-clamp-1 text-[13px] text-muted-foreground">
                   {item.meta}
                 </p>

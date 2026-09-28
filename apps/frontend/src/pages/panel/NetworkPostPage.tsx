@@ -15,6 +15,8 @@ import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
 import { ThreadReplies } from '../../components/network/ThreadReplies';
+import { MemberLink } from '../../components/network/MemberLink';
+import { useAppNotifications } from '../../api/hooks/useAppNotifications';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 
@@ -22,6 +24,8 @@ export const NetworkPostPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { useMarkEntityRead } = useAppNotifications();
+  const markEntityRead = useMarkEntityRead();
 
   const [post, setPost] = useState<PostResponse | null>(null);
   const [comments, setComments] = useState<CommentResponse[]>([]);
@@ -49,6 +53,18 @@ export const NetworkPostPage: React.FC = () => {
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  // Abrir o tópico é o que marca as respostas como vistas: a sinalização do
+  // botão "Públicos" some sozinha.
+  useEffect(() => {
+    if (!id) return;
+    markEntityRead.mutate({
+      related_entity_type: 'discussion_post',
+      related_entity_id: id,
+    });
+    // Só na entrada no tópico: publicar uma resposta não deve reenviar.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [id]);
 
   const handleReply = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -157,7 +173,12 @@ export const NetworkPostPage: React.FC = () => {
           </div>
           <div>
             <div className="text-[14px] font-bold text-foreground">
-              {post.author.name || post.author.email || 'Usuário'}
+              <MemberLink
+                memberId={post.author.id}
+                name={post.author.name}
+                email={post.author.email}
+                className="font-bold"
+              />
             </div>
             <div className="text-[12px] text-muted-foreground">
               Publicado em{' '}
@@ -186,7 +207,12 @@ export const NetworkPostPage: React.FC = () => {
                 </div>
                 <div>
                   <div className="text-[13px] font-bold text-foreground">
-                    {c.author.name || 'Usuário'}
+                    <MemberLink
+                      memberId={c.author.id}
+                      name={c.author.name}
+                      email={c.author.email}
+                      className="font-bold"
+                    />
                   </div>
                   <div className="text-[11px] text-muted-foreground">
                     {new Date(c.created_at).toLocaleDateString('pt-BR')} às{' '}

@@ -1,4 +1,4 @@
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
 import { ConversationPage } from '../src/pages/panel/ConversationPage'
@@ -6,9 +6,23 @@ import { ConversationPage } from '../src/pages/panel/ConversationPage'
 const mockGetConversation = vi.hoisted(() => vi.fn())
 const mockSendMessage = vi.hoisted(() => vi.fn())
 
+vi.mock('../src/context/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'user-1', name: 'Raul Gomes' } }),
+}))
+
 vi.mock('../src/api/network', () => ({
   getConversation: mockGetConversation,
   sendMessage: mockSendMessage,
+}))
+
+const mockMarkEntityRead = vi.hoisted(() => vi.fn())
+
+vi.mock('../src/api/hooks/useAppNotifications', () => ({
+  useAppNotifications: () => ({
+    useMarkEntityRead: () => ({ mutate: mockMarkEntityRead }),
+    useNotificationsList: () => ({ data: [] }),
+    useUnreadCount: () => ({ data: { count: 0 } }),
+  }),
 }))
 
 const DETAIL = {
@@ -38,6 +52,7 @@ function renderPage() {
     <MemoryRouter initialEntries={['/painel/conversas/c1']}>
       <Routes>
         <Route path="/painel/conversas/:id" element={<ConversationPage />} />
+        <Route path="/painel/membros/:userId" element={<div>perfil</div>} />
       </Routes>
     </MemoryRouter>
   )
@@ -101,5 +116,50 @@ describe('ConversationPage — tópico privado', () => {
     fireEvent.click(screen.getByRole('button', { name: /Publicar resposta/i }))
 
     expect(await screen.findByText(/Erro ao enviar a mensagem/i)).toBeInTheDocument()
+  })
+})
+
+describe('ConversationPage - link para o perfil do membro', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetConversation.mockResolvedValue({
+      ...DETAIL,
+      messages: [
+        ...DETAIL.messages,
+        {
+          id: 'm2',
+          conversation_id: 'c1',
+          sender_id: 'user-1',
+          sender: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+          body: 'Perfeito, vamos começar!',
+          created_at: '2026-09-08T13:00:00Z',
+        },
+      ],
+    })
+  })
+
+  it('torna o titulo da conversa (pessoa com quem se fala) clicavel', async () => {
+    renderPage()
+
+    const heading = await screen.findByRole('heading', { name: 'Ana Souza' })
+    const link = within(heading).getByRole('link', { name: 'Ana Souza' })
+    expect(link).toHaveAttribute('href', '/painel/membros/u2')
+  })
+
+  it('torna o autor de cada mensagem clicavel', async () => {
+    renderPage()
+
+    const link = await screen.findByRole('link', { name: 'Raul Gomes' })
+    expect(link).toHaveAttribute('href', '/painel/membros/user-1')
+  })
+
+  it('marca como vistas as notificacoes da conversa ao abrir', async () => {
+    renderPage()
+
+    await waitFor(() => expect(mockGetConversation).toHaveBeenCalledWith('c1'))
+    expect(mockMarkEntityRead).toHaveBeenCalledWith({
+      related_entity_type: 'conversation',
+      related_entity_id: 'c1',
+    })
   })
 })

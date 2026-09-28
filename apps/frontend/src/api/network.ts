@@ -389,3 +389,68 @@ export const toggleProjectStatus = async (
   const { data } = await apiClient.patch(`/network/projects/${projectId}/status`);
   return data;
 };
+
+export interface MemberProfile {
+  id: string;
+  name: string | null;
+  avatar_url: string | null;
+  biografia: string | null;
+  company_name: string | null;
+  company_segment: string | null;
+  company_city: string | null;
+  company_state: string | null;
+  created_at: string;
+  skills: Skill[];
+  comments_count: number;
+  is_owner: boolean;
+  can_comment: boolean;
+}
+
+export interface ProfileCommentAuthor {
+  id: string;
+  name: string | null;
+  avatar_url: string | null;
+}
+
+export interface ProfileComment {
+  id: string;
+  user_id: string;
+  author_id: string;
+  author: ProfileCommentAuthor;
+  message: string;
+  created_at: string;
+  can_delete: boolean;
+}
+
+export interface PaginatedProfileComments {
+  items: ProfileComment[];
+  total: number;
+}
+
+export const getMemberProfile = async (userId: string): Promise<MemberProfile> => {
+  const { data } = await apiClient.get(`/network/members/${userId}`);
+  return data;
+};
+
+export const getProfileComments = async (
+  userId: string,
+  limit = 50,
+  offset = 0
+): Promise<PaginatedProfileComments> => {
+  const { data } = await apiClient.get(`/network/members/${userId}/comments`, {
+    params: { limit, offset },
+  });
+  return data;
+};
+
+export const createProfileComment = async (
+  userId: string,
+  message: string
+): Promise<ProfileComment> => {
+  const { data } = await apiClient.post(`/network/members/${userId}/comments`, { message });
+  return data;
+};
+
+export const deleteProfileComment = async (commentId: string): Promise<void> => {
+  await apiClient.delete(`/network/profile-comments/${commentId}`);
+};

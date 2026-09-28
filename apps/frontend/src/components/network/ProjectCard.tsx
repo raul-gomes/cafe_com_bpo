@@ -24,12 +24,14 @@ import {
   ProjectUpdatePayload,
 } from '../../api/network';
 import { Card } from '../ui/card';
+import { MemberLink } from './MemberLink';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Textarea } from '../ui/textarea';
 import { SkillInput } from '../ui/SkillInput';
 import { Badge } from '../ui/badge';
 import { ProjectApplicationsPanel } from './ProjectApplicationsPanel';
+import type { AppNotificationResponse } from '../../schemas/notifications';
 import { cn } from '../../lib/utils';
 
 interface ProjectCardProps {
@@ -41,6 +43,8 @@ interface ProjectCardProps {
   ) => Promise<void>;
   onDelete: (project: ProjectResponse) => void;
   onUpdated?: (project: ProjectResponse) => void;
+  /** Propostas novas ainda não vistas pelo dono (notificações não lidas). */
+  newProposals?: AppNotificationResponse[];
 }
 
 const STATUS_LABEL: Record<string, string> = {
@@ -55,6 +59,7 @@ export function ProjectCard({
   onSave,
   onDelete,
   onUpdated,
+  newProposals = [],
 }: ProjectCardProps) {
   const isOwner = currentUserId != null && currentUserId === project.owner_id;
   const myStatus = project.my_application_status;
@@ -336,8 +341,13 @@ export function ProjectCard({
             {project.title}
           </div>
           <div className="mb-3 flex flex-wrap items-center gap-2 text-[12px] text-muted-foreground">
-            <span>
-              Por: {project.owner.name || project.owner.email || 'Usuário'}
+            <span className="flex flex-wrap items-center gap-1">
+              Por:{' '}
+              <MemberLink
+                memberId={project.owner.id}
+                name={project.owner.name}
+                email={project.owner.email}
+              />
             </span>
             <span className="opacity-30">|</span>
             <span>{new Date(project.created_at).toLocaleDateString('pt-BR')}</span>
@@ -472,7 +482,12 @@ export function ProjectCard({
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <div className="text-[14px] font-semibold text-foreground">
-                            {person.name || person.email}
+                            <MemberLink
+                              memberId={person.id}
+                              name={person.name}
+                              email={person.email}
+                              className="font-semibold"
+                            />
                           </div>
                           {person.biografia && (
                             <p className="mt-0.5 line-clamp-2 text-[12px] text-muted-foreground">
@@ -571,9 +586,12 @@ export function ProjectCard({
                   >
                     <span className="flex min-w-0 items-center gap-1.5">
                       <CheckCircle2 size={14} className="shrink-0 text-primary" />
-                      <span className="truncate">
-                        {invite.invited_user.name || invite.invited_user.email}
-                      </span>
+                      <MemberLink
+                        memberId={invite.invited_user.id}
+                        name={invite.invited_user.name}
+                        email={invite.invited_user.email}
+                        className="truncate"
+                      />
                     </span>
                     <Badge variant="secondary" className="shrink-0">
                       {STATUS_LABEL[invite.status]}
@@ -584,6 +602,22 @@ export function ProjectCard({
             </div>
           )}
         </div>
+      )}
+
+      {isOwner && newProposals.length > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowingApplications(true)}
+          className="mt-3 flex w-full items-center gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2 text-left transition-colors hover:bg-primary/10"
+        >
+          <span className="shrink-0 rounded-full bg-primary px-2 py-0.5 text-[11px] font-bold text-white">
+            {newProposals.length}{' '}
+            {newProposals.length === 1 ? 'nova proposta' : 'novas propostas'}
+          </span>
+          <span className="truncate text-[13px] font-medium text-foreground">
+            {newProposals[0].message}
+          </span>
+        </button>
       )}
 
       {isOwner && showingApplications && (

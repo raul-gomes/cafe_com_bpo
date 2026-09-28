@@ -88,3 +88,12 @@ describe('NetworkInvitationsPanel — convites recebidos', () => {
     )
   })
 })
+
+describe('NetworkInvitationsPanel - link para o perfil de quem convidou', () => {
+  it('torna o nome do remetente do convite clicavel', async () => {
+    renderPanel()
+
+    const link = await screen.findByRole('link', { name: 'membro@cafe.com' })
+    expect(link).toHaveAttribute('href', '/painel/membros/ua')
+  })
+})

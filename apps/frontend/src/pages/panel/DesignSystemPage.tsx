@@ -122,6 +122,9 @@ import { ContractSectionsEditor } from '../../components/contracts/ContractSecti
 import { ContractDocument } from '../../components/contracts/ContractDocument'
 import { DealCard } from '../../components/governanca/DealCard'
 import { DealTimeline } from '../../components/governanca/DealTimeline'
+import { MemberProfileView } from '../../components/network/MemberProfileView'
+import { MemberLink } from '../../components/network/MemberLink'
+import { NewIndicator } from '../../components/network/NewIndicator'
 import type { Deal } from '../../api/governanca'
 
 import './DesignSystemPage.css'
@@ -135,6 +138,7 @@ const sections = [
   { id: 'contratos', icon: '📄', label: 'Contratos' },
   { id: 'governanca', icon: '📈', label: 'Governança' },
   { id: 'navigation', icon: '🧭', label: 'Navegação' },
+  { id: 'comunidade', icon: '👥', label: 'Comunidade' },
   { id: 'modes', icon: '🎨', label: 'Modos' },
 ]
 
@@ -184,6 +188,58 @@ const ComponentCard = ({
       </details>
     </div>
   </div>
+)
+
+// ─── Demo data: Perfil do membro ───────────────────────────────────────
+const DEMO_MEMBER_PROFILE = {
+  id: 'user-demo',
+  name: 'Marina Souza',
+  avatar_url: null,
+  biografia:
+    'BPO financeiro para clinicas medicas ha 6 anos. Specialist em fechamento mensal e rotinas de contas a pagar.',
+  company_name: 'Marina Souza Contabilidade',
+  company_segment: 'Contabilidade',
+  company_city: 'Belo Horizonte',
+  company_state: 'MG',
+  created_at: '2026-03-10T12:00:00Z',
+  skills: [
+    { id: 's1', name: 'Contabilidade', slug: 'contabilidade', is_active: true },
+    { id: 's2', name: 'BPO Financeiro', slug: 'bpo-financeiro', is_active: true },
+    { id: 's3', name: 'Rotinas Fiscais', slug: 'rotinas-fiscais', is_active: true },
+  ],
+  comments_count: 2,
+  is_owner: false,
+  can_comment: true,
+}
+
+const DEMO_MEMBER_COMMENTS = [
+  {
+    id: 'c1',
+    user_id: 'user-demo',
+    author_id: 'user-2',
+    author: { id: 'user-2', name: 'Bruno Lima', avatar_url: null },
+    message:
+      'Entreguei tres clientes para a Marina e o resultado do fechamento mensal foi excelente.',
+    created_at: '2026-09-20T14:00:00Z',
+    can_delete: false,
+  },
+  {
+    id: 'c2',
+    user_id: 'user-demo',
+    author_id: 'user-3',
+    author: { id: 'user-3', name: 'Ana Souza', avatar_url: null },
+    message: 'Muito serio e pontual nos entregas.',
+    created_at: '2026-09-21T09:00:00Z',
+    can_delete: true,
+  },
+]
+
+const MemberProfileDemo = () => (
+  <MemberProfileView
+    profile={DEMO_MEMBER_PROFILE}
+    comments={DEMO_MEMBER_COMMENTS}
+    currentUserId="user-2"
+  />
 )
 
 // ─── Demo data: Governança ──────────────────────────────────────────────
@@ -1392,7 +1448,79 @@ import type { Deal } from '../../api/governanca'
         </ComponentCard>
       </Section>
 
-      {/* ═══════════ 7. MODOS ═══════════ */}
+      {/* ═══════════ 7. COMUNIDADE ═══════════ */}
+      <Section id="comunidade" icon="👥" title="Comunidade">
+        <ComponentCard
+          name="NewIndicator"
+          description="Contador de novidades de uma área da Comunidade (Privados, Públicos, Projetos). Uma notificação não lida = um item sinalizado; o número some sozinho quando o usuário abre o item, porque o backend marca a notificação como lida. Some com 0 e mostra '99+' acima de 99."
+          howToUse={`import { NewIndicator } from '../../components/network/NewIndicator'
+
+<NewIndicator category="private" />   // botão Privados
+<NewIndicator category="public" />    // botão Públicos
+<NewIndicator category="projects" />  // aba Projetos
+
+// props: category ('private' | 'public' | 'projects' | 'profile'), className`}
+        >
+          <div className="ds-col gap-3 text-[14px] text-foreground">
+            <p className="flex items-center gap-2">
+              Privados <NewIndicator category="private" />
+            </p>
+            <p className="flex items-center gap-2">
+              Públicos <NewIndicator category="public" />
+            </p>
+            <p className="flex items-center gap-2">
+              Projetos <NewIndicator category="projects" />
+            </p>
+          </div>
+        </ComponentCard>
+
+        <ComponentCard
+          name="MemberLink"
+          description="Nome de qualquer pessoa da Comunidade sempre clicável para o perfil (/painel/membros/:userId). Sem stopPropagation de quebra de card: em cards clicáveis o clique no nome abre o perfil, não o card. Sem memberId, degrada para texto puro."
+          howToUse={`import { MemberLink } from '../../components/network/MemberLink'
+
+<MemberLink memberId={post.author.id} name={post.author.name} email={post.author.email} />
+
+// props: memberId (obrigatório p/ link), name, email, fallback='Usuário',
+//        className, stopPropagation=true`}
+        >
+          <div className="ds-col gap-2 text-[14px] text-foreground">
+            <p>
+              Postado por{' '}
+              <MemberLink memberId="user-demo" name="Marina Souza" />
+            </p>
+            <p>
+              Convite de{' '}
+              <MemberLink memberId="user-2" name="Bruno Lima" />
+            </p>
+            <p>
+              Sem id (degrada para texto):{' '}
+              <MemberLink memberId={null} name="Convite pendente" />
+            </p>
+          </div>
+        </ComponentCard>
+
+        <ComponentCard
+          name="MemberProfilePage"
+          description="Perfil público interno do membro: avatar, nome, empresa própria, bio, skills e comentários sobre o trabalho. Nunca exibe e-mail, telefone, CPF ou CNPJ."
+          howToUse={`// Rota protegida (lazy) em src/router.tsx
+{ path: 'membros/:userId', element: <SuspenseWrapper><MemberProfilePage /></SuspenseWrapper> }
+
+// Nome do autor clicável no fórum:
+<Link to={\`/painel/membros/\${post.author.id}\`} onClick={e => e.stopPropagation()}>
+  {post.author.name}
+</Link>
+
+// Notificações abrem o perfil (NotificationBell):
+notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_entity_id}\`)`}
+        >
+          <div className="ds-col gap-3">
+            <MemberProfileDemo />
+          </div>
+        </ComponentCard>
+      </Section>
+
+      {/* ═══════════ 8. MODOS ═══════════ */}
       <Section id="modes" icon="🎨" title="Modos de Trabalho">
         <ComponentCard
           name="Modos"

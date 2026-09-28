@@ -1,4 +1,4 @@
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -13,6 +13,7 @@ const mockDeleteProject = vi.hoisted(() => vi.fn())
 const mockSearchSkills = vi.hoisted(() => vi.fn())
 const mockGetConversations = vi.hoisted(() => vi.fn())
 const mockGetMyGroups = vi.hoisted(() => vi.fn())
+const mockUnreadNotifications = vi.hoisted(() => ({ current: [] as unknown[] }))
 
 vi.mock('../src/api/network', () => ({
   getPosts: mockGetPosts,
@@ -26,8 +27,8 @@ vi.mock('../src/api/network', () => ({
 
 vi.mock('../src/api/hooks/useAppNotifications', () => ({
   useAppNotifications: () => ({
-    useUnreadCount: () => ({ data: { count: 0 } }),
-    useNotificationsList: () => ({ data: [] }),
+    useUnreadCount: () => ({ data: { count: mockUnreadNotifications.current.length } }),
+    useNotificationsList: () => ({ data: mockUnreadNotifications.current }),
     useMarkAsRead: () => ({ mutate: vi.fn() }),
     useMarkAllAsRead: () => ({ mutate: vi.fn() }),
     useDeleteNotification: () => ({ mutate: vi.fn() }),
@@ -132,5 +133,131 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
     expect(screen.getByText('Privada')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Criar Tópico/i })).not.toBeInTheDocument()
     expect(screen.queryByText('Como reduzir custos com BPO financeiro?')).not.toBeInTheDocument()
+  })
+})
+describe('NetworkPage - link do autor para o perfil do membro', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetPosts.mockReset()
+    mockGetProjects.mockReset()
+    mockGetConversations.mockReset()
+    mockGetMyGroups.mockReset()
+  })
+
+  it('torna o nome do autor clicavel para o perfil do membro', async () => {
+    mockGetPosts.mockResolvedValue({ items: [POST], total: 1 })
+    mockGetProjects.mockResolvedValue({ items: [], total: 0 })
+    renderPage()
+
+    const authorLink = await screen.findByRole('link', { name: 'Raul Gomes' })
+    expect(authorLink).toHaveAttribute('href', '/painel/membros/user-1')
+  })
+
+  it('o clique no autor nao navega para o topico do card', async () => {
+    mockGetPosts.mockResolvedValue({ items: [POST], total: 1 })
+    mockGetProjects.mockResolvedValue({ items: [], total: 0 })
+    renderPage()
+
+    const authorLink = await screen.findByRole('link', { name: 'Raul Gomes' })
+    fireEvent.click(authorLink)
+
+    expect(mockGetPosts).toHaveBeenCalledTimes(1)
+  })
+
+  describe('sinalizacao de novidades', () => {
+    beforeEach(() => {
+      mockUnreadNotifications.current = []
+    })
+
+    it('conta mensagem nova no botao Privados', async () => {
+      mockUnreadNotifications.current = [
+        { id: 'n1', type: 'conversation_message', is_read: false, created_at: '2026-09-27T10:00:00Z' },
+        { id: 'n2', type: 'conversation_invite', is_read: false, created_at: '2026-09-27T11:00:00Z' },
+      ]
+
+      renderPage()
+
+      await waitFor(() => expect(mockGetPosts).toHaveBeenCalled())
+      const privateBtn = screen.getByRole('button', { name: /Privados/ })
+      expect(within(privateBtn).getByLabelText('2 novidades')).toBeInTheDocument()
+    })
+
+    it('conta resposta nova no botao Publicos', async () => {
+      mockUnreadNotifications.current = [
+        { id: 'n3', type: 'post_commented', is_read: false, created_at: '2026-09-27T10:00:00Z' },
+      ]
+
+      renderPage()
+
+      await waitFor(() => expect(mockGetPosts).toHaveBeenCalled())
+      const publicBtn = screen.getByRole('button', { name: /Públicos/ })
+      expect(within(publicBtn).getByLabelText('1 novidade')).toBeInTheDocument()
+    })
+
+    it('conta proposta e proposta aceita na aba Projetos', async () => {
+      mockUnreadNotifications.current = [
+        { id: 'n4', type: 'project_application', is_read: false, created_at: '2026-09-27T10:00:00Z' },
+        { id: 'n5', type: 'application_accepted', is_read: false, created_at: '2026-09-27T11:00:00Z' },
+      ]
+
+      renderPage()
+
+      await waitFor(() => expect(mockGetPosts).toHaveBeenCalled())
+      const projectsTab = screen.getByRole('tab', { name: /Projetos/ })
+      expect(within(projectsTab).getByLabelText('2 novidades')).toBeInTheDocument()
+    })
+
+    it('nao mostra contador quando nao ha nada novo', async () => {
+      renderPage()
+
+      await waitFor(() => expect(mockGetPosts).toHaveBeenCalled())
+      expect(screen.queryByLabelText(/novidade/)).not.toBeInTheDocument()
+    })
+  })
+
+  describe('sinalizacao de resposta nova', () => {
+    beforeEach(() => {
+      mockUnreadNotifications.current = []
+    })
+
+    it('marca o meu topico que recebeu resposta', async () => {
+      mockGetPosts.mockResolvedValue({ items: [POST], total: 1 })
+      mockUnreadNotifications.current = [
+        {
+          id: 'n1',
+          type: 'post_commented',
+          is_read: false,
+          related_entity_type: 'discussion_post',
+          related_entity_id: 'post-1',
+          message: 'voce usou qual biblioteca?',
+          created_at: '2026-09-27T10:00:00Z',
+        },
+      ]
+
+      renderPage()
+
+      expect(await screen.findByText('1 nova resposta')).toBeInTheDocument()
+      expect(screen.getByText('voce usou qual biblioteca?')).toBeInTheDocument()
+    })
+
+    it('nao marca topico de outra pessoa', async () => {
+      mockGetPosts.mockResolvedValue({ items: [POST], total: 1 })
+      mockUnreadNotifications.current = [
+        {
+          id: 'n1',
+          type: 'post_commented',
+          is_read: false,
+          related_entity_type: 'discussion_post',
+          related_entity_id: 'post-2',
+          message: 'comentario em outro topico',
+          created_at: '2026-09-27T10:00:00Z',
+        },
+      ]
+
+      renderPage()
+
+      await screen.findByText('Como reduzir custos com BPO financeiro?')
+      expect(screen.queryByText(/nova resposta/)).not.toBeInTheDocument()
+    })
   })
 })
