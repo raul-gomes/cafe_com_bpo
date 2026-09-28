@@ -58,6 +58,8 @@ export async function buildRouter() {
   const { TemplateListPage } = await import('./pages/panel/TemplateListPage')
   const { TemplateDetailPage } = await import('./pages/panel/TemplateDetailPage')
   const { UnderConstructionPanelPage } = await import('./pages/panel/UnderConstructionPanelPage')
+  const { ProjetosPage } = await import('./pages/panel/ProjetosPage')
+  const { ProjetoDetalhePage } = await import('./pages/panel/ProjetoDetalhePage')
 
   return createBrowserRouter([
     {
@@ -210,7 +212,11 @@ export async function buildRouter() {
             },
             {
               path: 'projetos',
-              element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper>,
+              element: <SuspenseWrapper><ProjetosPage /></SuspenseWrapper>,
+            },
+            {
+              path: 'projetos/:id',
+              element: <SuspenseWrapper><ProjetoDetalhePage /></SuspenseWrapper>,
             },
             {
               path: 'design-system',

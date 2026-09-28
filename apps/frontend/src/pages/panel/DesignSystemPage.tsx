@@ -14,6 +14,10 @@ import {
 } from '../../components/ui/select'
 import { Checkbox } from '../../components/ui/checkbox'
 import { Carousel } from '../../components/dashboard/Carousel'
+import { ContactsTable } from '../../components/contacts/ContactsTable'
+import { ContactFormDialog } from '../../components/contacts/ContactFormDialog'
+import { SearchInput } from '../../components/ui/SearchInput'
+import type { ContactResponse } from '../../api/contacts'
 import { Switch } from '../../components/ui/switch'
 import {
   InputGroup,
@@ -115,7 +119,12 @@ import {
 import { Separator } from '../../components/ui/separator'
 import { SkillInput } from '../../components/ui/SkillInput'
 import { ProjectCard } from '../../components/network/ProjectCard'
-import { ProjectApplicationsPanel } from '../../components/network/ProjectApplicationsPanel'
+import { ProjectApplicationsPanel } from '../../components/projetos/ProjectApplicationsPanel'
+import { ProjetosCard } from '../../components/projetos/ProjetosCard'
+import { ProjetoIndicadores } from '../../components/projetos/ProjetoIndicadores'
+import { ProjetoFormDialog } from '../../components/projetos/ProjetoFormDialog'
+import { ProjetoEquipePanel } from '../../components/projetos/ProjetoEquipePanel'
+import { ProjetoTopicoPanel } from '../../components/projetos/ProjetoTopicoPanel'
 import { GroupPostCard } from '../../components/network/GroupPostCard'
 import { ThreadReplies } from '../../components/network/ThreadReplies'
 import { ContractSectionsEditor } from '../../components/contracts/ContractSectionsEditor'
@@ -136,6 +145,7 @@ const sections = [
   { id: 'feedback', icon: '💬', label: 'Feedback' },
   { id: 'overlay', icon: '📦', label: 'Sobreposições' },
   { id: 'contratos', icon: '📄', label: 'Contratos' },
+  { id: 'contatos', icon: '📇', label: 'Contatos' },
   { id: 'governanca', icon: '📈', label: 'Governança' },
   { id: 'navigation', icon: '🧭', label: 'Navegação' },
   { id: 'comunidade', icon: '👥', label: 'Comunidade' },
@@ -234,6 +244,57 @@ const DEMO_MEMBER_COMMENTS = [
   },
 ]
 
+const CONTATOS_DEMO: ContactResponse[] = [
+  {
+    id: 'p-1',
+    nome: 'Marina Reis',
+    telefone: '11988771234',
+    email: 'marina@alfa.com.br',
+    empresa: 'Contabilidade Alfa',
+    origem: 'cliente',
+    tem_pessoa: true,
+    client_id: 'cl-1',
+    prospect_id: 'p-1',
+    updated_at: '2026-09-28T12:00:00',
+  },
+  {
+    id: 'p-2',
+    nome: 'Nina Prospecto',
+    telefone: '2132221111',
+    email: 'nina@aberto.com.br',
+    empresa: 'Lead Aberto Ltda',
+    origem: 'prospecto',
+    tem_pessoa: true,
+    client_id: null,
+    prospect_id: 'p-2',
+    updated_at: '2026-09-28T12:00:00',
+  },
+  {
+    id: 'c-2',
+    nome: 'João Batista',
+    telefone: '21998761122',
+    email: 'joao@empresa.com.br',
+    empresa: 'Empresa Beta',
+    origem: 'livre',
+    tem_pessoa: true,
+    client_id: null,
+    prospect_id: null,
+    updated_at: '2026-09-28T12:00:00',
+  },
+  {
+    id: 'cl-3',
+    nome: 'Pedro Alencar',
+    telefone: null,
+    email: null,
+    empresa: 'Pedro Alencar ME',
+    origem: 'cliente',
+    tem_pessoa: false,
+    client_id: 'cl-3',
+    prospect_id: null,
+    updated_at: '2026-09-28T12:00:00',
+  },
+]
+
 const MemberProfileDemo = () => (
   <MemberProfileView
     profile={DEMO_MEMBER_PROFILE}
@@ -310,6 +371,9 @@ const DEMO_GOVERNANCA: Deal[] = [
 export default function DesignSystemPage() {
   const [sheetOpen, setSheetOpen] = useState(false)
   const [dialogOpen, setDialogOpen] = useState(false)
+  const [contatoDialogOpen, setContatoDialogOpen] = useState(false)
+  const [projetoDialogOpen, setProjetoDialogOpen] = useState(false)
+  const [searchDemo, setSearchDemo] = useState('contabilidade')
 
   // Controlled state for Checkbox examples
   const [chkTerms, setChkTerms] = useState(true)
@@ -546,6 +610,35 @@ export default function DesignSystemPage() {
           </div>
         </ComponentCard>
 
+        {/* ── SearchInput ── */}
+        <ComponentCard
+          name="SearchInput"
+          description="Campo de busca padronizado do painel: lupa dentro do input + botão de limpar · é o filtro de busca de referência das listas"
+          howToUse={`import { SearchInput } from '../../components/ui/SearchInput'
+
+<SearchInput
+  value={termo}
+  onChange={setTermo}
+  label="Buscar clientes"
+  placeholder="Buscar por nome, empresa, telefone ou e-mail"
+/>`}
+        >
+          <div className="ds-col">
+            <SearchInput
+              value={searchDemo}
+              onChange={setSearchDemo}
+              label="Buscar contatos (exemplo)"
+              placeholder="Buscar por nome, empresa, telefone ou e-mail"
+            />
+            <SearchInput
+              value=""
+              onChange={() => {}}
+              label="Buscar vazio (exemplo)"
+              placeholder="Sem termo: sem botão de limpar"
+            />
+          </div>
+        </ComponentCard>
+
         {/* ── SkillInput ── */}
         <ComponentCard
           name="SkillInput"
@@ -595,14 +688,13 @@ const [skills, setSkills] = useState<string[]>([])
         {/* ── ProjectCard ── */}
         <ComponentCard
           name="ProjectCard"
-          description="Card do mural de projetos: título, autor, descrição resumida e skills"
+          description="Card do mural de projetos no fórum: título, autor, descrição resumida e skills · vitrine sem gestão — o dono recebe o atalho para Gestão › Projetos e o resto do perfil se candidata"
           howToUse={`import { ProjectCard } from '../../components/network/ProjectCard'
 
-<ProjectCard
-  project={project}
-  currentUserId={user?.id}
-  onDelete={(p) => handleDelete(p)}
-/>`}
+<ProjectCard project={project} />
+
+// Sem currentUserId/onSave/onDelete: no fórum ninguém cria, edita nem
+// exclui projeto. Criar/editar/avaliar/arquivar é de Gestão › Projetos.`}
         >
           <div className="ds-col">
             <ProjectCard
@@ -629,8 +721,6 @@ const [skills, setSkills] = useState<string[]>([])
                 application_count: 0,
                 applications_closed: false,
               }}
-              onSave={async () => undefined}
-              onDelete={() => undefined}
             />
           </div>
         </ComponentCard>
@@ -638,8 +728,8 @@ const [skills, setSkills] = useState<string[]>([])
         {/* ── ProjectApplicationsPanel ── */}
         <ComponentCard
           name="ProjectApplicationsPanel"
-          description="Painel do dono do projeto para avaliar propostas de candidatos (aceitar/recusar, abrir/fechar para novas propostas, abrir a conversa do aceito)"
-          howToUse={`import { ProjectApplicationsPanel } from '../../components/network/ProjectApplicationsPanel'
+          description="Aba Propostas do detalhe do projeto: o dono aceita/recusa candidatos, abre/fecha novas propostas e salta para a conversa do aceito"
+          howToUse={`import { ProjectApplicationsPanel } from '../../components/projetos/ProjectApplicationsPanel'
 
 <ProjectApplicationsPanel
   project={project}
@@ -1324,6 +1414,66 @@ toast.promise(fetchData(), {
         </ComponentCard>
       </Section>
 
+      <Section id="contatos" icon="📇" title="Contatos">
+        <ComponentCard
+          name="ContactsTable"
+          description="Tabela da agenda: nome, telefone (com máscara), e-mail, empresa e origem · Cadastro próprio / Prospecto / Cliente · empresa sem pessoa mostra 'sem pessoa cadastrada' e fica somente leitura · só o contato próprio é excluível"
+          howToUse={`import { ContactsTable } from '../../components/contacts/ContactsTable'
+
+<ContactsTable
+  contacts={contatos}
+  onEdit={(c) => abrirDialogo(c)}
+  onDelete={(c) => confirmarExclusao(c)}
+/>
+
+// 'livre'     = contato do próprio cadastro (edita e exclui aqui)
+// 'prospecto' = contato do prospecto em aberto (edita no cadastro do prospecto)
+// 'cliente'   = contato do cliente (edita no cadastro do cliente)
+// tem_pessoa = false => empresa sem representante: linha somente leitura`}
+        >
+          <ContactsTable
+            contacts={CONTATOS_DEMO}
+            onEdit={() => toast.info('Editar contato')}
+            onDelete={() => toast.info('Excluir contato')}
+          />
+        </ComponentCard>
+
+        <ComponentCard
+          name="ContactFormDialog"
+          description="Diálogo de cadastro/edição · telefone com a máscara do design system (MaskedInput) · nas linhas de empresa o campo Empresa vem desabilitado, porque a empresa tem uma fonte só: o cadastro dela"
+          howToUse={`import { ContactFormDialog } from '../../components/contacts/ContactFormDialog'
+
+<ContactFormDialog
+  open={aberto}
+  contact={emEdicao}
+  onClose={() => setAberto(false)}
+  onSubmit={async (dados) => {
+    await salvar(dados)
+    setAberto(false)
+  }}
+/>
+
+// contact?.origem === 'cliente'   => PATCH /contacts/prospects/{id} (cadastro do cliente, via prospecto de origem)
+// contact?.origem === 'prospecto' => PATCH /contacts/prospects/{id} (cadastro do prospecto)
+// caso contrário                => POST/PATCH /contacts (contato do próprio cadastro)`}
+        >
+          <div className="ds-row">
+            <Button variant="secondary" onClick={() => setContatoDialogOpen(true)}>
+              Abrir formulário de contato
+            </Button>
+          </div>
+          <ContactFormDialog
+            open={contatoDialogOpen}
+            contact={CONTATOS_DEMO[0]}
+            onClose={() => setContatoDialogOpen(false)}
+            onSubmit={async (dados) => {
+              toast.success(`Salvar: ${JSON.stringify(dados)}`)
+              setContatoDialogOpen(false)
+            }}
+          />
+        </ComponentCard>
+      </Section>
+
       {/* ═══════════ CONTRATOS ═══════════ */}
       <Section id="contratos" icon="📄" title="Contratos">
         <ComponentCard
@@ -1452,12 +1602,12 @@ import type { Deal } from '../../api/governanca'
       <Section id="comunidade" icon="👥" title="Comunidade">
         <ComponentCard
           name="NewIndicator"
-          description="Contador de novidades de uma área da Comunidade (Privados, Públicos, Projetos). Uma notificação não lida = um item sinalizado; o número some sozinho quando o usuário abre o item, porque o backend marca a notificação como lida. Some com 0 e mostra '99+' acima de 99."
+          description="Contador de novidades de uma área (Privados, Públicos, Projetos). Uma notificação não lida = um item sinalizado; o número some sozinho quando o usuário abre o item, porque o backend marca a notificação como lida. Some com 0 e mostra '99+' acima de 99."
           howToUse={`import { NewIndicator } from '../../components/network/NewIndicator'
 
 <NewIndicator category="private" />   // botão Privados
 <NewIndicator category="public" />    // botão Públicos
-<NewIndicator category="projects" />  // aba Projetos
+<NewIndicator category="projects" />  // gestão de projetos (a vitrine do fórum não sinaliza)
 
 // props: category ('private' | 'public' | 'projects' | 'profile'), className`}
         >
@@ -1517,6 +1667,194 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
           <div className="ds-col gap-3">
             <MemberProfileDemo />
           </div>
+        </ComponentCard>
+      </Section>
+
+      {/* ═══════════ 8. PROJETOS ═══════════ */}
+      <Section id="projetos" icon="📁" title="Projetos">
+        <ComponentCard
+          name="ProjetoIndicadores"
+          description="Topo da gestão de projetos: quanto o usuário criou, quanto participa e quantas propostas estão paradas esperando ele"
+          howToUse={`import { ProjetoIndicadores } from '../../components/projetos/ProjetoIndicadores'
+
+<ProjetoIndicadores criados={2} participa={1} aguardando={3} />
+
+// criados  = projetos com owner_id === user.id
+// participa = projetos com grupo aceito (is_group_member)
+// aguardando = soma de application_count dos projetos que ele cria`}
+        >
+          <ProjetoIndicadores criados={2} participa={1} aguardando={3} />
+        </ComponentCard>
+
+        <ComponentCard
+          name="ProjetosCard"
+          description="Card da lista de Gestão › Projetos: dono, estado das propostas, contagem de candidatos e atalhos para o detalhe, o tópico e o arquivamento"
+          howToUse={`import { ProjetosCard } from '../../components/projetos/ProjetosCard'
+
+<ProjetosCard project={projeto} onArchive={(p) => confirmarArquivar(p)} />
+
+// O arquivamento é is_active=false, não delete: some do mural do fórum
+// (que lê a mesma tabela) e o projeto volta a aparecer se for reativado.`}
+        >
+          <ProjetosCard
+            project={{
+              id: 'demo-gestao-1',
+              owner_id: 'user-1',
+              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              title: 'Automação de fluxo fiscal',
+              description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
+              status: 'open',
+              team_size: 2,
+              remote_type: 'remote',
+              published_at: null,
+              created_at: '2026-09-08T00:00:00Z',
+              updated_at: '2026-09-10T00:00:00Z',
+              skills: [
+                { id: 's1', name: 'Python', slug: 'python', is_active: true },
+              ],
+              group_id: 'demo-group-1',
+              is_group_member: true,
+              is_owner: true,
+              application_count: 3,
+              applications_closed: false,
+            }}
+            onArchive={() => toast.info('Arquivar projeto')}
+          />
+        </ComponentCard>
+
+        <ComponentCard
+          name="ProjetoFormDialog"
+          description="Cadastro e edição de projeto: os mesmos campos para os dois casos (novo = project null). Convidar gente não mora aqui — é a aba Equipe"
+          howToUse={`import { ProjetoFormDialog } from '../../components/projetos/ProjetoFormDialog'
+
+<ProjetoFormDialog
+  open={aberto}
+  project={emEdicao}          // null = novo projeto
+  onClose={() => setAberto(false)}
+  onSubmit={async (dados) => {
+    const payload = toProjetoPayload(dados)
+    emEdicao ? await updateProject(emEdicao.id, payload) : await createProject(payload)
+    setAberto(false)
+  }}
+/>`}
+        >
+          <div className="ds-row">
+            <Button variant="secondary" onClick={() => setProjetoDialogOpen(true)}>
+              Abrir cadastro de projeto
+            </Button>
+          </div>
+          <ProjetoFormDialog
+            open={projetoDialogOpen}
+            project={null}
+            onClose={() => setProjetoDialogOpen(false)}
+            onSubmit={async (dados) => {
+              toast.success(`Salvar: ${JSON.stringify(dados)}`)
+              setProjetoDialogOpen(false)
+            }}
+          />
+        </ComponentCard>
+
+        <ComponentCard
+          name="ProjetoEquipePanel"
+          description="Aba Equipe do detalhe: quem já entrou e o convite por busca de habilidade. O convite tem mensagem personalizada e a pessoa entra no grupo só quando aceita. Só o dono convida e ninguém é removido"
+          howToUse={`import { ProjetoEquipePanel } from '../../components/projetos/ProjetoEquipePanel'
+
+<ProjetoEquipePanel
+  project={projeto}      // is_owner decide se o formulário de convite aparece
+  group={grupo}
+  onReload={() => recarregarGrupo()}
+/>
+
+// Abaixo da linha do convite: convites pendentes (aguardando/aceitou/recusou).
+// A lista de espera vem da aba Propostas, não da Equipe.`}
+        >
+          <ProjetoEquipePanel
+            project={{
+              id: 'demo-equipe-1',
+              owner_id: 'user-1',
+              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              title: 'Automação de fluxo fiscal',
+              description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
+              status: 'open',
+              team_size: 2,
+              remote_type: 'remote',
+              published_at: null,
+              created_at: '2026-09-08T00:00:00Z',
+              updated_at: '2026-09-10T00:00:00Z',
+              skills: [],
+              group_id: 'demo-group-1',
+              is_group_member: true,
+              is_owner: false,
+              application_count: 0,
+              applications_closed: false,
+            }}
+            group={{
+              id: 'demo-group-1',
+              project_id: 'demo-equipe-1',
+              project_title: 'Automação de fluxo fiscal',
+              is_member: true,
+              members: [
+                { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                { id: 'user-2', name: 'Ana Souza', email: 'ana@cafe.com' },
+              ],
+              posts: [],
+              created_at: '2026-09-08T00:00:00Z',
+            }}
+            onReload={() => undefined}
+          />
+        </ComponentCard>
+
+        <ComponentCard
+          name="ProjetoTopicoPanel"
+          description="Aba Tópico do detalhe: as cinco publicações mais recentes do fórum do projeto e o atalho para a página completa do grupo"
+          howToUse={`import { ProjetoTopicoPanel } from '../../components/projetos/ProjetoTopicoPanel'
+
+<ProjetoTopicoPanel project={projeto} group={grupo} />
+
+// O corpo do post vem como texto puro do backend (bleach no repositório),
+// então é renderizado como text node — nunca innerHTML.`}
+        >
+          <ProjetoTopicoPanel
+            project={{
+              id: 'demo-topico-1',
+              owner_id: 'user-1',
+              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              title: 'Automação de fluxo fiscal',
+              description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
+              status: 'open',
+              team_size: 2,
+              remote_type: 'remote',
+              published_at: null,
+              created_at: '2026-09-08T00:00:00Z',
+              updated_at: '2026-09-10T00:00:00Z',
+              skills: [],
+              group_id: 'demo-group-1',
+              is_group_member: true,
+              is_owner: true,
+              application_count: 0,
+              applications_closed: false,
+            }}
+            group={{
+              id: 'demo-group-1',
+              project_id: 'demo-topico-1',
+              project_title: 'Automação de fluxo fiscal',
+              is_member: true,
+              members: [
+                { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              ],
+              posts: [
+                {
+                  id: 'post-1',
+                  group_id: 'demo-group-1',
+                  author_id: 'user-2',
+                  author: { id: 'user-2', name: 'Ana Souza', email: 'ana@cafe.com' },
+                  body: 'Alinhemos o escopo do primeiro entregável do fluxo fiscal.',
+                  created_at: '2026-09-09T10:00:00Z',
+                },
+              ],
+              created_at: '2026-09-08T00:00:00Z',
+            }}
+          />
         </ComponentCard>
       </Section>
 

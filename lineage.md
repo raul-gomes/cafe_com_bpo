@@ -473,10 +473,10 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > tabelas `skills` (catálogo — `name` e `slug` únicos) e `user_skills`
 > (vínculo usuário↔skill, `UNIQUE(user_id, skill_id)`).
 
-### `projects` / `project_skills` — dono: `network` (mural de projetos)
+### `projects` / `project_skills` — dono: `network` (mural de projetos + Gestão › Projetos)
 | Direção | Quem |
 |---------|------|
-| R | `network/repository.py` (`get_projects`, `get_project_by_id`) |
+| R | `network/repository.py` (`get_projects` — vitrine do fórum, `get_my_projects` — Gestão › Projetos: dono **OU** membro do grupo, ou seja, só com convite aceito, `get_project_by_id`) |
 | W | `network/repository.py` (`create_project`, `update_project`, `delete_project` — soft delete) |
 | R | `network/repository.py` (`search_professionals` — junta `user_skills` p/ achar pessoas por skill) |
 
@@ -484,6 +484,14 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 > `team_size` — nº de pessoas buscadas, `remote_type`; sem orçamento/prazo) e
 > `project_skills` (skills do projeto, `UNIQUE(project_id, skill_id)`).
 > Remoção é soft delete (`is_active` + `deleted_at`), preservando a linha.
+
+> **Sem migration em 2026-09-28**: a Gestão › Projetos não criou tabela nova.
+> Ela passa a ler as mesmas três tabelas do mural (`projects`, `project_skills`,
+> `project_group_members`) por `get_my_projects(user_id, q)` e escreve pelas
+> rotas que já existiam (criar/editar/fechar/arquivar/aceitar/recusar/convidar).
+> A tela do fórum virou vitrine e o dono passou a ser avaliado em
+> `GET /network/projects/mine` — a separação de abas (Meus projetos / Participo) é
+> client-side, sobre `is_owner`.
 
 > ⚠️ Drift pré-existente (não relacionado a esta etapa): o banco real tem o índice
 > `ix_payments_user_id`, mas o modelo `payments` não o declara — a autogenerate

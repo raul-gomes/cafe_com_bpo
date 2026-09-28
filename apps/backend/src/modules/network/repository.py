@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 import bleach
-from sqlalchemy import desc, func
+from sqlalchemy import desc, func, or_
 from sqlalchemy.orm import Session
 
 from src.modules.auth.models import User
@@ -71,6 +71,11 @@ BLEACH_ALLOWED_TAGS = {
 }
 BLEACH_ALLOWED_ATTRS = {"a": ["href", "title", "rel"]}
 BLEACH_ALLOWED_PROTOCOLS = {"http", "https", "mailto"}
+
+
+def _like(term: str) -> str:
+    """Termo de busca com os curingas do LIKE escapados (100% não vira "tudo")."""
+    return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def sanitize_html(html_str: str) -> str:
@@ -368,10 +373,14 @@ class NetworkRepository:
     ):
         q = self.session.query(Project).filter(Project.is_active)
         if query.strip():
-            pattern = f"%{query.strip().lower()}%"
+            # curinga do LIKE escapado: digitar "%" no campo de busca do mural
+            # não pode devolver o mural inteiro
+            term = f"%{_like(query.strip())}%"
             q = q.filter(
-                func.lower(Project.title).like(pattern)
-                | func.lower(Project.description).like(pattern)
+                or_(
+                    Project.title.ilike(term, escape="\\"),
+                    Project.description.ilike(term, escape="\\"),
+                )
             )
         if status:
             q = q.filter(Project.status == status)
@@ -391,6 +400,48 @@ class NetworkRepository:
         total = q.count()
         items = q.order_by(desc(Project.created_at)).offset(offset).limit(limit).all()
         return items, total
+
+    def get_my_projects(self, user_id: UUID, query: str = "") -> list[Project]:
+        """Projetos do usuário: os que ele **criou** + os que ele **participa**.
+
+        Participar = estar na equipe do tópico (`project_group_members`), o que
+        só acontece com convite aceito (regra do mural). Convidado com convite
+        pendente ou recusado não entra. Um projeto pode ser dos dois jeitos (dono
+        que também é membro), então o filtro é um OR e cada projeto volta uma
+        linha só.
+        """
+        # subquery dos projetos em que o usuário é membro (tópico não arquivado)
+        participation = (
+            self.session.query(ProjectGroup.project_id.label("project_id"))
+            .join(ProjectGroupMember, ProjectGroupMember.group_id == ProjectGroup.id)
+            .filter(
+                ProjectGroupMember.user_id == user_id,
+                ProjectGroup.is_active,
+            )
+            .subquery()
+        )
+        q = (
+            self.session.query(Project)
+            .outerjoin(participation, participation.c.project_id == Project.id)
+            .filter(
+                Project.is_active,
+                or_(
+                    Project.owner_id == user_id,
+                    participation.c.project_id.isnot(None),
+                ),
+            )
+        )
+        if query.strip():
+            term = f"%{_like(query.strip())}%"
+            q = q.filter(
+                or_(
+                    Project.title.ilike(term, escape="\\"),
+                    Project.description.ilike(term, escape="\\"),
+                )
+            )
+        return q.order_by(
+            desc(Project.updated_at), desc(Project.created_at), desc(Project.id)
+        ).all()
 
     def get_project_by_id(self, project_id: UUID) -> Project | None:
         return (

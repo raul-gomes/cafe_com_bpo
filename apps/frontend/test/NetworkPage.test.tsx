@@ -97,7 +97,7 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
     expect(screen.queryByText(/em breve/i)).not.toBeInTheDocument()
   })
 
-  it('aba Projetos mostra o mural com o CTA de criar projeto', async () => {
+  it('aba Projetos é só a vitrine do mural, sem gestão', async () => {
     mockGetPosts.mockResolvedValue({ items: [POST], total: 1 })
     mockGetProjects.mockResolvedValue({ items: [], total: 0 })
     renderPage()
@@ -105,8 +105,8 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
     const projectsTab = await screen.findByRole('tab', { name: /Projetos/i })
     fireEvent.click(projectsTab)
 
-    expect(await screen.findByRole('button', { name: /Criar Projeto/i })).toBeInTheDocument()
-    expect(screen.getByText(/Nenhum projeto publicado/i)).toBeInTheDocument()
+    expect(await screen.findByText(/Nenhum projeto publicado/i)).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Criar Projeto/i })).not.toBeInTheDocument()
     expect(screen.queryByText('Como reduzir custos com BPO financeiro?')).not.toBeInTheDocument()
   })
 
@@ -194,7 +194,7 @@ describe('NetworkPage - link do autor para o perfil do membro', () => {
       expect(within(publicBtn).getByLabelText('1 novidade')).toBeInTheDocument()
     })
 
-    it('conta proposta e proposta aceita na aba Projetos', async () => {
+    it('nao conta proposta na aba Projetos: a vitrine nao sinaliza, a gestao que mostra', async () => {
       mockUnreadNotifications.current = [
         { id: 'n4', type: 'project_application', is_read: false, created_at: '2026-09-27T10:00:00Z' },
         { id: 'n5', type: 'application_accepted', is_read: false, created_at: '2026-09-27T11:00:00Z' },
@@ -204,7 +204,7 @@ describe('NetworkPage - link do autor para o perfil do membro', () => {
 
       await waitFor(() => expect(mockGetPosts).toHaveBeenCalled())
       const projectsTab = screen.getByRole('tab', { name: /Projetos/ })
-      expect(within(projectsTab).getByLabelText('2 novidades')).toBeInTheDocument()
+      expect(within(projectsTab).queryByLabelText(/novidade/)).not.toBeInTheDocument()
     })
 
     it('nao mostra contador quando nao ha nada novo', async () => {

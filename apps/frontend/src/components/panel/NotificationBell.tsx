@@ -144,7 +144,7 @@ export const NotificationBell: React.FC = () => {
                       } else if (notif.type === 'profile_comment' && notif.related_entity_id) {
                         navigate(`/painel/membros/${notif.related_entity_id}`);
                       } else if (notif.type === 'project_application') {
-                        navigate('/painel/forum');
+                        navigate('/painel/projetos');
                       }
                     }}
                     style={{

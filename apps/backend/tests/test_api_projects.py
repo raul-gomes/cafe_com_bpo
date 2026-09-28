@@ -86,6 +86,49 @@ def test_list_projects_with_created_by_any_user(client):
     assert "Projeto Alfa" in titles and "Projeto Beta" in titles
 
 
+def test_filter_projects_by_query_searches_title_and_description(client):
+    auth = get_auth_header(client, f"busca_{uuid4()}@cafe.com")
+    create_project(
+        client, auth, title="Reconciliação bancária", description="Aprovar lançamentos."
+    )
+    create_project(
+        client,
+        auth,
+        title="Implantação de ERP",
+        description="Revisar o plano de contas.",
+    )
+
+    by_title = client.get(
+        "/network/projects", params={"query": "reconciliação"}, headers=auth
+    )
+    assert by_title.status_code == 200, by_title.text
+    assert [p["title"] for p in by_title.json()["items"]] == ["Reconciliação bancária"]
+
+    by_description = client.get(
+        "/network/projects", params={"query": "plano de contas"}, headers=auth
+    )
+    assert [p["title"] for p in by_description.json()["items"]] == [
+        "Implantação de ERP"
+    ]
+
+
+def test_filter_projects_by_query_escapes_wildcards(client):
+    auth = get_auth_header(client, f"wildcard_{uuid4()}@cafe.com")
+    create_project(client, auth, title="Relatório 100_anual", skills=[])
+    create_project(client, auth, title="Relatório mensal", skills=[])
+
+    # "%" e "_" são curingas do LIKE: sem escape, "%" traz o mural inteiro
+    # e "_" traz qualquer título com ao menos um caractere.
+    so_percent = client.get("/network/projects", params={"query": "%"}, headers=auth)
+    assert so_percent.status_code == 200, so_percent.text
+    assert so_percent.json()["items"] == []
+
+    so_underscore = client.get("/network/projects", params={"query": "_"}, headers=auth)
+    assert [p["title"] for p in so_underscore.json()["items"]] == [
+        "Relatório 100_anual"
+    ]
+
+
 def test_filter_projects_by_skill(client):
     auth = get_auth_header(client, f"fskill_{uuid4()}@cafe.com")
     create_project(client, auth, title="Com Python")

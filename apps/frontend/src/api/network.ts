@@ -142,13 +142,25 @@ export interface ProjectUpdatePayload {
   skills?: string[];
 }
 
+/** Mural público de projetos (vitrine do fórum).
+ *  `query` busca em título e descrição no servidor — o termo em branco devolve
+ *  o mural inteiro. */
 export const getProjects = async (
   limit = 20,
-  offset = 0
+  offset = 0,
+  query = ''
 ): Promise<PaginatedProjects> => {
   const { data } = await apiClient.get('/network/projects', {
-    params: { limit, offset },
+    params: { limit, offset, query: query || undefined },
   });
+  return data;
+};
+
+/** Gestão › Projetos: o que o usuário criou + o que ele aceitou participar. */
+export const getMyProjects = async (
+  params: { q?: string } = {}
+): Promise<ProjectResponse[]> => {
+  const { data } = await apiClient.get('/network/projects/mine', { params });
   return data;
 };
 
@@ -156,6 +168,11 @@ export const createProject = async (
   payload: ProjectCreatePayload
 ): Promise<ProjectResponse> => {
   const { data } = await apiClient.post('/network/projects', payload);
+  return data;
+};
+
+export const getProject = async (projectId: string): Promise<ProjectResponse> => {
+  const { data } = await apiClient.get(`/network/projects/${projectId}`);
   return data;
 };
 

@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
@@ -296,6 +296,24 @@ def get_projects(
         "items": [_project_response(repo, p, current_user.id) for p in items],
         "total": total,
     }
+
+
+@router.get("/projects/mine", response_model=list[ProjectResponse])
+def get_my_projects(
+    q: str = Query("", max_length=120),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    """Gestão › Projetos: o que o usuário criou + o que ele aceitou participar.
+
+    Escopo implícito na consulta (dono OU membro da equipe) — o usuário do token
+    nunca escolhe o dono, então não há como ver projeto de outra pessoa.
+    """
+    repo = NetworkRepository(db)
+    return [
+        _project_response(repo, p, current_user.id)
+        for p in repo.get_my_projects(current_user.id, query=q)
+    ]
 
 
 @router.get("/projects/{project_id}", response_model=ProjectResponse)

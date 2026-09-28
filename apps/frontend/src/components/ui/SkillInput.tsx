@@ -8,6 +8,10 @@ interface SkillInputProps {
   onChange: (skills: string[]) => void;
   placeholder?: string;
   className?: string;
+  /** `id` do input, para o <Label htmlFor> apontar para o campo certo. */
+  id?: string;
+  /** Nome acessível; sem ele o input só se anuncia como "Habilidades". */
+  ariaLabel?: string;
 }
 
 export function SkillInput({
@@ -15,6 +19,8 @@ export function SkillInput({
   onChange,
   placeholder = 'Digite uma habilidade e pressione Tab ou Enter',
   className,
+  id,
+  ariaLabel,
 }: SkillInputProps) {
   const [inputValue, setInputValue] = useState('');
   const [suggestions, setSuggestions] = useState<Skill[]>([]);
@@ -203,13 +209,14 @@ export function SkillInput({
           ))}
           <input
             ref={inputRef}
+            id={id}
             type="text"
             value={inputValue}
             onChange={(e) => setInputValue(e.target.value)}
             onKeyDown={handleKeyDown}
             onBlur={handleBlur}
             placeholder={value.length === 0 ? placeholder : ''}
-            aria-label="Habilidades"
+            aria-label={ariaLabel ?? 'Habilidades'}
             className="min-w-[80px] flex-1 border-none bg-transparent py-0.5 text-sm outline-none placeholder:text-muted-foreground"
           />
           {showPlus && (

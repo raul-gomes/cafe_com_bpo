@@ -149,10 +149,7 @@ export const NetworkPage: React.FC = () => {
       <Tabs defaultValue="forum">
           <TabsList variant="line" className="mb-6 w-full justify-start">
             <TabsTrigger value="forum">Fórum</TabsTrigger>
-            <TabsTrigger value="projects" className="gap-1.5">
-              Projetos
-              <NewIndicator category="projects" />
-            </TabsTrigger>
+            <TabsTrigger value="projects">Projetos</TabsTrigger>
           </TabsList>
 
           <TabsContent value="forum">

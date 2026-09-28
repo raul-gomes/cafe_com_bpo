@@ -55,7 +55,7 @@ describe('NotificationBell — destino das notificações', () => {
     mockNotifications.current = []
   })
 
-  it('notificação de proposta em projeto abre a Comunidade (rota existente)', async () => {
+  it('notificação de proposta em projeto abre a gestão de projetos', async () => {
     mockNotifications.current = [
       {
         id: 'n1',
@@ -71,7 +71,7 @@ describe('NotificationBell — destino das notificações', () => {
 
     await openBellAndClick('Nova proposta')
 
-    expect(screen.getByTestId('location').textContent).toBe('/painel/forum')
+    expect(screen.getByTestId('location').textContent).toBe('/painel/projetos')
   })
 
   it('notificação de comentário no perfil abre o perfil do membro', async () => {

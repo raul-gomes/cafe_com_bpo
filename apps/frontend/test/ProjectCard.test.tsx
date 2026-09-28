@@ -4,43 +4,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ProjectCard } from '../src/components/network/ProjectCard'
 import { ProjectResponse } from '../src/api/network'
 
-const mockSearchSkills = vi.hoisted(() => vi.fn())
-const mockSearchProfessionals = vi.hoisted(() => vi.fn())
-const mockCreateInvitation = vi.hoisted(() => vi.fn())
-const mockGetProjectInvitations = vi.hoisted(() => vi.fn())
 const mockApplyToProject = vi.hoisted(() => vi.fn())
-const mockGetProjectApplications = vi.hoisted(() => vi.fn())
-const mockAcceptApplication = vi.hoisted(() => vi.fn())
-const mockDeclineApplication = vi.hoisted(() => vi.fn())
-const mockToggleProjectStatus = vi.hoisted(() => vi.fn())
-const mockToastSuccess = vi.hoisted(() => vi.fn())
-const mockMarkEntityRead = vi.hoisted(() => vi.fn())
 
 vi.mock('sonner', () => ({
-  toast: { success: mockToastSuccess },
+  toast: { success: vi.fn(), error: vi.fn() },
 }))
 
 vi.mock('../src/api/hooks/useAppNotifications', () => ({
   useAppNotifications: () => ({
-    useMarkEntityRead: () => ({ mutate: mockMarkEntityRead }),
+    useMarkEntityRead: () => ({ mutate: vi.fn() }),
     useNotificationsList: () => ({ data: [] }),
     useUnreadCount: () => ({ data: { count: 0 } }),
   }),
 }))
 
 vi.mock('../src/api/network', () => ({
-  searchSkills: mockSearchSkills,
-  searchProfessionals: mockSearchProfessionals,
-  createInvitation: mockCreateInvitation,
-  getProjectInvitations: mockGetProjectInvitations,
   applyToProject: mockApplyToProject,
-  getProjectApplications: mockGetProjectApplications,
-  acceptApplication: mockAcceptApplication,
-  declineApplication: mockDeclineApplication,
-  toggleProjectStatus: mockToggleProjectStatus,
 }))
 
-const PROJECT: ProjectResponse = {
+const BASE: ProjectResponse = {
   id: 'p1',
   owner_id: 'user-1',
   owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
@@ -54,526 +36,171 @@ const PROJECT: ProjectResponse = {
   updated_at: '2026-09-08T00:00:00Z',
   skills: [{ id: 's1', name: 'Python', slug: 'python', is_active: true }],
   group_id: 'g1',
-  is_group_member: true,
+  is_group_member: false,
   is_owner: false,
   application_count: 0,
   applications_closed: false,
 }
 
-const PERSON = {
-  id: 'u2',
-  name: 'Ana Souza',
-  email: 'ana@cafe.com',
-  biografia: 'BPO financeiro há 5 anos.',
-  skills: [{ id: 's1', name: 'Python', slug: 'python', is_active: true }],
-}
-
-function renderCard(currentUserId = 'user-1') {
+function renderCard(project: ProjectResponse = BASE) {
   return render(
     <MemoryRouter>
-      <ProjectCard
-        project={PROJECT}
-        currentUserId={currentUserId}
-        onSave={vi.fn()}
-        onDelete={vi.fn()}
-      />
+      <ProjectCard project={project} />
     </MemoryRouter>
   )
 }
 
-function renderProject(project: ProjectResponse, currentUserId = 'user-1') {
-  return render(
-    <MemoryRouter>
-      <ProjectCard
-        project={project}
-        currentUserId={currentUserId}
-        onSave={vi.fn()}
-        onDelete={vi.fn()}
-      />
-    </MemoryRouter>
-  )
-}
-
-async function addInviteSkill(name: string) {
-  fireEvent.change(screen.getByRole('textbox', { name: /Habilidades/i }), {
-    target: { value: name },
-  })
-  fireEvent.keyDown(screen.getByRole('textbox', { name: /Habilidades/i }), {
-    key: 'Enter',
-  })
-}
-
-describe('ProjectCard — convidar profissionais dentro do card', () => {
+describe('ProjectCard — vitrine do fórum (sem gestão)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    mockSearchSkills.mockResolvedValue([])
-    mockSearchProfessionals.mockResolvedValue([])
-    mockGetProjectInvitations.mockResolvedValue([])
+    mockApplyToProject.mockResolvedValue({
+      id: 'a1',
+      project_id: 'p1',
+      project_title: BASE.title,
+      applicant: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+      message: 'Mensagem',
+      status: 'pending',
+      responded_at: null,
+      created_at: '2026-09-19T00:00:00Z',
+      conversation_id: null,
+    })
   })
 
-  it('abre o painel de convidar e carrega os convidados', async () => {
-    mockGetProjectInvitations.mockResolvedValue([
-      {
-        id: 'i1',
-        project_id: 'p1',
-        project_title: 'Automação de fluxo fiscal',
-        invited_user: { id: 'u3', name: 'Beatriz Lima', email: 'bia@cafe.com' },
-        message: 'Bora?',
-        status: 'accepted',
-        responded_at: '2026-09-08T10:00:00Z',
-        created_at: '2026-09-08T00:00:00Z',
-        conversation_id: 'c9',
-      },
-    ])
+  it('mostra título, autoria, descrição e habilidades', () => {
     renderCard()
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /Convidar profissionais para Automação/i })
-    )
-
-    expect(screen.getByText('Convidar profissionais')).toBeInTheDocument()
-    expect(await screen.findByText('Beatriz Lima')).toBeInTheDocument()
-    expect(await screen.findByText('Aceito')).toBeInTheDocument()
+    expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
+    expect(screen.getByText('Raul Gomes')).toBeInTheDocument()
+    expect(
+      screen.getByText(/automatizar o fluxo fiscal/i)
+    ).toBeInTheDocument()
+    expect(screen.getByText('Python')).toBeInTheDocument()
   })
 
-  it('busca profissional ao vivo e envia convite com mensagem personalizada', async () => {
-    mockSearchProfessionals.mockResolvedValue([PERSON])
+  it('não tem nenhum botão de gestão: o dono é levado para Gestão › Projetos', () => {
+    renderCard({ ...BASE, is_owner: true })
+
+    expect(
+      screen.getByText(/Você criou este projeto/i)
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Editar projeto/i })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Convidar/i })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Ver propostas/i })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Excluir projeto/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('oferece enviar proposta para quem não é o dono', () => {
     renderCard()
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /Convidar profissionais para Automação/i })
-    )
-    await addInviteSkill('Python')
-
-    expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
-    expect(mockSearchProfessionals).toHaveBeenCalledWith(['Python'], 'any')
-
-    fireEvent.click(screen.getByRole('button', { name: /Selecionar/i }))
-    fireEvent.change(
-      screen.getByRole('textbox', { name: /Mensagem personalizada/i }),
-      { target: { value: 'Gostei muito do seu perfil para este projeto!' } }
-    )
-    fireEvent.click(screen.getByRole('button', { name: /Enviar convite/i }))
-
-    await waitFor(() =>
-      expect(mockCreateInvitation).toHaveBeenCalledWith('p1', {
-        invited_user_id: 'u2',
-        message: 'Gostei muito do seu perfil para este projeto!',
-      })
-    )
-  })
-
-  it('some os resultados quando todas as habilidades são removidas', async () => {
-    mockSearchProfessionals.mockResolvedValue([PERSON])
-    renderCard()
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /Convidar profissionais para Automação/i })
-    )
-    await addInviteSkill('Python')
-    expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: /Remover Python/i }))
-
-    await waitFor(() =>
-      expect(screen.queryByText('Ana Souza')).not.toBeInTheDocument()
-    )
     expect(
-      screen.queryByText(/Nenhum profissional encontrado/i)
-    ).not.toBeInTheDocument()
-  })
-
-  it('não exibe o botão de convidar para quem não é dono', () => {
-    renderCard('user-other')
-
-    expect(
-      screen.queryByRole('button', { name: /Convidar profissionais/i })
-    ).not.toBeInTheDocument()
-  })
-})
-
-describe('ProjectCard — enviar proposta (candidato)', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockSearchSkills.mockResolvedValue([])
-    mockSearchProfessionals.mockResolvedValue([])
-    mockGetProjectInvitations.mockResolvedValue([])
-    mockApplyToProject.mockResolvedValue({ id: 'a1' })
-  })
-
-  it('exibe o botão de enviar proposta para quem não é dono', () => {
-    renderProject({ ...PROJECT, owner_id: 'user-other' }, 'user-aplic')
-    expect(
-      screen.getByRole('button', { name: /Enviar proposta/i })
+      screen.getByRole('button', { name: /Enviar proposta para Automação de fluxo fiscal/i })
     ).toBeInTheDocument()
   })
 
-  it('não exibe o botão de enviar proposta para o dono', () => {
-    renderCard()
+  it('não oferece proposta para o próprio dono', () => {
+    renderCard({ ...BASE, is_owner: true })
+
     expect(
       screen.queryByRole('button', { name: /Enviar proposta/i })
     ).not.toBeInTheDocument()
   })
 
-  it('esconde o botão e mostra aviso quando o candidato já enviou a proposta', () => {
-    renderProject(
-      { ...PROJECT, owner_id: 'user-other', has_applied: true, my_application_status: 'pending' },
-      'user-aplic'
-    )
-    expect(
-      screen.queryByRole('button', { name: /Enviar proposta/i })
-    ).not.toBeInTheDocument()
-    expect(
-      screen.getByText(/proposta enviada — aguardando avaliação/i)
-    ).toBeInTheDocument()
-  })
+  it('esconde o botão e avisa quando a proposta já foi enviada', () => {
+    renderCard({ ...BASE, has_applied: true, my_application_status: 'pending' })
 
-  it('mostra a proposta aceita quando o dono aceitou', () => {
-    renderProject(
-      { ...PROJECT, owner_id: 'user-other', has_applied: true, my_application_status: 'accepted' },
-      'user-aplic'
-    )
     expect(
-      screen.getByText(/proposta aceita/i)
+      screen.getByText(/Proposta enviada/i)
     ).toBeInTheDocument()
     expect(
       screen.queryByRole('button', { name: /Enviar proposta/i })
     ).not.toBeInTheDocument()
   })
 
-  it('mostra a proposta recusada quando o dono recusou', () => {
-    renderProject(
-      { ...PROJECT, owner_id: 'user-other', has_applied: true, my_application_status: 'declined' },
-      'user-aplic'
-    )
-    expect(
-      screen.getByText(/proposta não foi aceita/i)
-    ).toBeInTheDocument()
-    expect(
-      screen.queryByRole('button', { name: /Enviar proposta/i })
-    ).not.toBeInTheDocument()
+  it('avisa quando a proposta foi aceita', () => {
+    renderCard({ ...BASE, has_applied: true, my_application_status: 'accepted' })
+
+    expect(screen.getByText(/Proposta aceita/i)).toBeInTheDocument()
   })
 
-  it('abre o formulário, valida e envia a proposta', async () => {
-    mockApplyToProject.mockResolvedValue({ id: 'a1', status: 'pending' })
-    renderProject({ ...PROJECT, owner_id: 'user-other' }, 'user-aplic')
+  it('avisa quando a proposta foi recusada', () => {
+    renderCard({ ...BASE, has_applied: true, my_application_status: 'declined' })
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /Enviar proposta/i })
-    )
-    expect(
-      screen.getByRole('textbox', { name: /Mensagem da proposta/i })
-    ).toBeInTheDocument()
-
-    fireEvent.change(
-      screen.getByRole('textbox', { name: /Mensagem da proposta/i }),
-      { target: { value: 'Tenho experiência e quero participar!' } }
-    )
-    fireEvent.click(screen.getByRole('button', { name: /^Enviar proposta$/ }))
-
-    await waitFor(() =>
-      expect(mockApplyToProject).toHaveBeenCalledWith('p1', {
-        message: 'Tenho experiência e quero participar!',
-      })
-    )
-    expect(mockToastSuccess).toHaveBeenCalledWith(
-      'Proposta enviada! O dono do projeto irá avaliar.'
-    )
+    expect(screen.getByText(/não foi aceita/i)).toBeInTheDocument()
   })
 
-  it('não envia proposta muito curta', async () => {
-    renderProject({ ...PROJECT, owner_id: 'user-other' }, 'user-aplic')
+  it('avisa quando o projeto está fechado para novas propostas', () => {
+    renderCard({ ...BASE, applications_closed: true })
 
-    fireEvent.click(
-      screen.getByRole('button', { name: /Enviar proposta/i })
-    )
-    fireEvent.change(
-      screen.getByRole('textbox', { name: /Mensagem da proposta/i }),
-      { target: { value: 'curta' } }
-    )
-    fireEvent.click(screen.getByRole('button', { name: /^Enviar proposta$/ }))
-
-    await waitFor(() =>
-      expect(
-        screen.getByText(/pelo menos 10 caracteres/i)
-      ).toBeInTheDocument()
-    )
-    expect(mockApplyToProject).not.toHaveBeenCalled()
-  })
-
-  it('renderiza aviso quando o projeto está fechado para propostas', () => {
-    renderProject(
-      { ...PROJECT, owner_id: 'user-other', applications_closed: true },
-      'user-aplic'
-    )
-    expect(
-      screen.queryByRole('button', { name: /Enviar proposta/i })
-    ).not.toBeInTheDocument()
     expect(
       screen.getByText(/fechado para novas propostas/i)
     ).toBeInTheDocument()
   })
-})
 
-describe('ProjectCard — painel de propostas do dono', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockSearchSkills.mockResolvedValue([])
-    mockSearchProfessionals.mockResolvedValue([])
-    mockGetProjectInvitations.mockResolvedValue([])
-    mockGetProjectApplications.mockResolvedValue([])
-    mockAcceptApplication.mockResolvedValue({})
-    mockDeclineApplication.mockResolvedValue({})
-    mockToggleProjectStatus.mockResolvedValue({})
-  })
-
-  it('exibe o botão de propostas para o dono com o contador', () => {
-    renderProject({ ...PROJECT, application_count: 3 })
-    expect(
-      screen.getByRole('button', { name: /Ver propostas/i })
-    ).toBeInTheDocument()
-    expect(screen.getByText('3')).toBeInTheDocument()
-  })
-
-  it('não exibe o botão de propostas para terceiros', () => {
-    renderProject(
-      { ...PROJECT, owner_id: 'user-other', application_count: 3 },
-      'user-aplic'
-    )
-    expect(
-      screen.queryByRole('button', { name: /Ver propostas/i })
-    ).not.toBeInTheDocument()
-  })
-
-  it('abre o painel e lista as propostas dos candidatos', async () => {
-    mockAcceptApplication.mockResolvedValue({
-      id: 'ap1',
-      project_id: 'p1',
-      project_title: 'Automação de fluxo fiscal',
-      applicant: { id: 'u9', name: 'Carla Dias', email: 'carla@cafe.com' },
-      message: 'Sou contadora com experiência em apuração.',
-      status: 'accepted',
-      responded_at: '2026-09-09T10:10:00Z',
-      created_at: '2026-09-09T10:00:00Z',
-      conversation_id: null,
-    })
-    mockGetProjectApplications.mockResolvedValue([
-      {
-        id: 'ap1',
-        project_id: 'p1',
-        project_title: 'Automação de fluxo fiscal',
-        applicant: { id: 'u9', name: 'Carla Dias', email: 'carla@cafe.com' },
-        message: 'Sou contadora com experiência em apuração.',
-        status: 'pending',
-        responded_at: null,
-        created_at: '2026-09-09T10:00:00Z',
-        conversation_id: null,
-      },
-    ])
+  it('envia a proposta com a mensagem escrita', async () => {
     renderCard()
 
     fireEvent.click(
-      screen.getByRole('button', { name: /Ver propostas/i })
+      screen.getByRole('button', { name: /Enviar proposta para Automação de fluxo fiscal/i })
     )
-
-    expect(await screen.findByText('Carla Dias')).toBeInTheDocument()
-    expect(screen.getByText('Pendente')).toBeInTheDocument()
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /Aceitar proposta de Carla Dias/i })
-    )
-    await waitFor(() => expect(mockAcceptApplication).toHaveBeenCalledWith('ap1'))
-  })
-
-  it('toggla o fechamento do projeto para novas propostas', async () => {
-    renderCard()
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /Ver propostas/i })
-    )
-    const toggle = await screen.findByRole('button', {
-      name: /Fechar para propostas/i,
+    fireEvent.change(screen.getByLabelText(/Por que você quer participar/i), {
+      target: { value: 'Tenho cinco anos de automação fiscal.' },
     })
-    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: /^Enviar proposta$/i }))
 
     await waitFor(() =>
-      expect(mockToggleProjectStatus).toHaveBeenCalledWith('p1')
-    )
-  })
-})
-
-describe('ProjectCard — acesso ao tópico do projeto', () => {
-  it('exibe o link do tópico do projeto para o dono', () => {
-    renderCard()
-    expect(
-      screen.getByRole('button', { name: /Abrir o tópico do projeto/i })
-    ).toBeInTheDocument()
-  })
-
-  it('exibe o link do tópico para membro convidado', () => {
-    renderProject(PROJECT, 'user-member')
-    expect(
-      screen.getByRole('button', { name: /Abrir o tópico do projeto/i })
-    ).toBeInTheDocument()
-  })
-
-  it('oculta o link quando o grupo não existe', () => {
-    renderProject({ ...PROJECT, group_id: null })
-    expect(
-      screen.queryByRole('button', { name: /Abrir o tópico do projeto/i })
-    ).not.toBeInTheDocument()
-  })
-
-  it('oculta o link para terceiros que não são membros', () => {
-    renderProject(
-      { ...PROJECT, owner_id: 'user-other', is_group_member: false },
-      'somebody-else'
-    )
-    expect(
-      screen.queryByRole('button', { name: /Abrir o tópico do projeto/i })
-    ).not.toBeInTheDocument()
-  })
-})
-
-describe('ProjectCard - link para o perfil de cada pessoa', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockSearchSkills.mockResolvedValue([])
-    mockSearchProfessionals.mockResolvedValue([])
-    mockGetProjectInvitations.mockResolvedValue([])
-  })
-
-  it('torna o dono do projeto clicavel', async () => {
-    renderCard()
-
-    const link = await screen.findByRole('link', { name: 'Raul Gomes' })
-    expect(link).toHaveAttribute('href', '/painel/membros/user-1')
-  })
-
-  it('torna o profissional encontrado na busca clicavel', async () => {
-    mockSearchProfessionals.mockResolvedValue([PERSON])
-    renderCard()
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /Convidar profissionais para Automação/i })
-    )
-    await addInviteSkill('Python')
-
-    const link = await screen.findByRole('link', { name: 'Ana Souza' })
-    expect(link).toHaveAttribute('href', '/painel/membros/u2')
-  })
-
-  it('torna o convidado ja convidado clicavel', async () => {
-    mockGetProjectInvitations.mockResolvedValue([
-      {
-        id: 'i1',
-        project_id: 'p1',
-        project_title: 'Automação de fluxo fiscal',
-        invited_user: { id: 'u3', name: 'Beatriz Lima', email: 'bia@cafe.com' },
-        message: 'Bora?',
-        status: 'accepted',
-        responded_at: '2026-09-08T10:00:00Z',
-        created_at: '2026-09-08T00:00:00Z',
-        conversation_id: 'c9',
-      },
-    ])
-    renderCard()
-
-    fireEvent.click(
-      screen.getByRole('button', { name: /Convidar profissionais para Automação/i })
-    )
-
-    const link = await screen.findByRole('link', { name: 'Beatriz Lima' })
-    expect(link).toHaveAttribute('href', '/painel/membros/u3')
-  })
-
-  describe('sinalizacao de proposta nova', () => {
-    function renderWithNewProposals(count: number) {
-      return render(
-        <MemoryRouter>
-          <ProjectCard
-            project={PROJECT}
-            currentUserId="user-1"
-            onSave={vi.fn()}
-            onDelete={vi.fn()}
-            newProposals={Array.from({ length: count }, (_, i) => ({
-              id: `n${i}`,
-              user_id: 'user-1',
-              title: 'Nova proposta para seu projeto',
-              type: 'project_application',
-              is_read: false,
-              related_entity_type: 'project',
-              related_entity_id: 'p1',
-              message: 'Ana se candidatou para o projeto Automação de fluxo fiscal.',
-              created_at: '2026-09-27T10:00:00Z',
-            }))}
-          />
-        </MemoryRouter>
-      )
-    }
-
-    it('sinaliza quantas propostas novas chegaram', () => {
-      renderWithNewProposals(2)
-
-      expect(screen.getByText('2 novas propostas')).toBeInTheDocument()
-    })
-
-    it('sinaliza uma proposta nova no singular', () => {
-      renderWithNewProposals(1)
-
-      expect(screen.getByText('1 nova proposta')).toBeInTheDocument()
-    })
-
-    it('leva o dono ate as propostas do projeto', () => {
-      renderWithNewProposals(1)
-
-      fireEvent.click(screen.getByText('1 nova proposta'))
-
-      expect(mockGetProjectApplications).toHaveBeenCalledWith('p1')
-    })
-
-    it('nao sinaliza quando nao ha proposta nova', () => {
-      renderCard()
-
-      expect(screen.queryByText(/nova proposta/)).not.toBeInTheDocument()
-    })
-  })
-
-  describe('propostas vistas', () => {
-    it('marca as propostas do projeto como vistas ao abrir a lista', async () => {
-      render(
-        <MemoryRouter>
-          <ProjectCard
-            project={PROJECT}
-            currentUserId="user-1"
-            onSave={vi.fn()}
-            onDelete={vi.fn()}
-            newProposals={[
-              {
-                id: 'n0',
-                user_id: 'user-1',
-                title: 'Nova proposta para seu projeto',
-                type: 'project_application',
-                is_read: false,
-                related_entity_type: 'project',
-                related_entity_id: 'p1',
-                message: 'Ana se candidatou para o projeto Automação de fluxo fiscal.',
-                created_at: '2026-09-27T10:00:00Z',
-              },
-            ]}
-          />
-        </MemoryRouter>
-      )
-
-      fireEvent.click(screen.getByText('1 nova proposta'))
-
-      await waitFor(() =>
-        expect(mockGetProjectApplications).toHaveBeenCalledWith('p1')
-      )
-      expect(mockMarkEntityRead).toHaveBeenCalledWith({
-        related_entity_type: 'project',
-        related_entity_id: 'p1',
+      expect(mockApplyToProject).toHaveBeenCalledWith('p1', {
+        message: 'Tenho cinco anos de automação fiscal.',
       })
+    )
+  })
+
+  it('não envia proposta curta', async () => {
+    renderCard()
+
+    fireEvent.click(
+      screen.getByRole('button', { name: /Enviar proposta para Automação de fluxo fiscal/i })
+    )
+    fireEvent.change(screen.getByLabelText(/Por que você quer participar/i), {
+      target: { value: 'oi' },
     })
+    fireEvent.click(screen.getByRole('button', { name: /^Enviar proposta$/i }))
+
+    expect(
+      await screen.findByText(/pelo menos 10 caracteres/i)
+    ).toBeInTheDocument()
+    expect(mockApplyToProject).not.toHaveBeenCalled()
+  })
+
+  it('mostra o link do tópico para quem é membro', () => {
+    renderCard({ ...BASE, is_group_member: true })
+
+    expect(
+      screen.getByRole('button', { name: /Ver tópico do projeto/i })
+    ).toBeInTheDocument()
+  })
+
+  it('esconde o link do tópico para quem não participa', () => {
+    renderCard()
+
+    expect(
+      screen.queryByRole('button', { name: /Ver tópico do projeto/i })
+    ).not.toBeInTheDocument()
+  })
+
+  it('torna o dono do projeto clicável para o perfil dele', () => {
+    renderCard()
+
+    expect(screen.getByRole('link', { name: 'Raul Gomes' })).toHaveAttribute(
+      'href',
+      '/painel/membros/user-1'
+    )
   })
 })

@@ -12,7 +12,7 @@ import {
 } from '../../api/network';
 import { Button } from '../ui/button';
 import { Badge } from '../ui/badge';
-import { MemberLink } from './MemberLink';
+import { MemberLink } from '../network/MemberLink';
 import { useAppNotifications } from '../../api/hooks/useAppNotifications';
 import { cn } from '../../lib/utils';
 

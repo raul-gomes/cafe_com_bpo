@@ -1,42 +1,21 @@
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
 import { ProjectsSection } from '../src/components/network/ProjectsSection'
 import { ProjectResponse } from '../src/api/network'
 
 const mockGetProjects = vi.hoisted(() => vi.fn())
-const mockCreateProject = vi.hoisted(() => vi.fn())
-const mockUpdateProject = vi.hoisted(() => vi.fn())
-const mockDeleteProject = vi.hoisted(() => vi.fn())
-const mockSearchSkills = vi.hoisted(() => vi.fn())
-const mockSearchProfessionals = vi.hoisted(() => vi.fn())
-const mockUnreadNotifications = vi.hoisted(() => ({ current: [] as unknown[] }))
+const mockApplyToProject = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/api/network', () => ({
   getProjects: mockGetProjects,
-  createProject: mockCreateProject,
-  updateProject: mockUpdateProject,
-  deleteProject: mockDeleteProject,
-  searchSkills: mockSearchSkills,
-  searchProfessionals: mockSearchProfessionals,
-}))
-
-vi.mock('../src/api/hooks/useAppNotifications', () => ({
-  useAppNotifications: () => ({
-    useNotificationsList: () => ({ data: mockUnreadNotifications.current }),
-    useUnreadCount: () => ({ data: { count: mockUnreadNotifications.current.length } }),
-  }),
-}))
-
-vi.mock('../src/context/AuthContext', () => ({
-  useAuth: () => ({ user: { id: 'user-1' } }),
+  applyToProject: mockApplyToProject,
 }))
 
 const PROJECT: ProjectResponse = {
   id: 'p1',
-  owner_id: 'user-1',
-  owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+  owner_id: 'user-2',
+  owner: { id: 'user-2', name: 'Raul Gomes', email: 'raul@cafe.com' },
   title: 'Automação de fluxo fiscal',
   description: 'Projeto para automatizar o fluxo fiscal dos clientes do escritório.',
   status: 'open',
@@ -45,336 +24,176 @@ const PROJECT: ProjectResponse = {
   published_at: '2026-09-08T00:00:00Z',
   created_at: '2026-09-08T00:00:00Z',
   updated_at: '2026-09-08T00:00:00Z',
-  skills: [
-    { id: 's1', name: 'Python', slug: 'python', is_active: true },
-    { id: 's2', name: 'Excel', slug: 'excel', is_active: true },
-  ],
+  skills: [{ id: 's1', name: 'Python', slug: 'python', is_active: true }],
   group_id: 'g1',
-  is_group_member: true,
+  is_group_member: false,
   is_owner: false,
   application_count: 0,
   applications_closed: false,
 }
 
-const FOREIGN_PROJECT: ProjectResponse = {
+const MY_PROJECT: ProjectResponse = {
   ...PROJECT,
   id: 'p2',
-  owner_id: 'user-2',
+  owner_id: 'user-1',
+  owner: { id: 'user-1', name: 'Ana Souza', email: 'ana@cafe.com' },
   title: 'Migração contábil',
-  description: 'Migrar a contabilidade de clientes para uma nova plataforma.',
-  skills: [{ id: 's3', name: 'Contabilidade', slug: 'contabilidade', is_active: true }],
-  is_group_member: false,
-  is_owner: false,
+  is_owner: true,
 }
 
 function renderSection() {
   return render(
     <MemoryRouter>
-      <ConfirmProvider>
-        <ProjectsSection />
-      </ConfirmProvider>
+      <ProjectsSection />
     </MemoryRouter>
   )
 }
 
-describe('ProjectsSection — preview do mural de projetos', () => {
+describe('ProjectsSection — vitrine do fórum', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockGetProjects.mockResolvedValue({ items: [PROJECT], total: 1 })
-    mockCreateProject.mockResolvedValue(PROJECT)
-    mockUpdateProject.mockResolvedValue(PROJECT)
-    mockDeleteProject.mockResolvedValue(undefined)
-    mockSearchProfessionals.mockResolvedValue([])
-    mockUnreadNotifications.current = []
   })
 
-  it('lista projetos com título, autoria e skills', async () => {
-    mockGetProjects.mockResolvedValue({ items: [PROJECT, FOREIGN_PROJECT], total: 2 })
+  it('lista os projetos publicados pela comunidade', async () => {
     renderSection()
-
-    expect(await screen.findByText('Automação de fluxo fiscal')).toBeInTheDocument()
-    expect(screen.getByText('Python')).toBeInTheDocument()
-    expect(screen.getByText('Excel')).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('tab', { name: /Projetos da comunidade/i }))
-    expect(screen.getByText('Migração contábil')).toBeInTheDocument()
-    expect(screen.getByText('Contabilidade')).toBeInTheDocument()
-    expect(screen.getAllByText(/Raul Gomes/i).length).toBeGreaterThan(0)
-  })
-
-  it('mostra botões editar e excluir apenas para o dono do projeto', async () => {
-    mockGetProjects.mockResolvedValue({ items: [PROJECT, FOREIGN_PROJECT], total: 2 })
-    renderSection()
-
-    expect(await screen.findByText('Automação de fluxo fiscal')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Editar projeto Automação de fluxo fiscal/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Excluir projeto Automação de fluxo fiscal/i })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Editar projeto Migração contábil/i })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Excluir projeto Migração contábil/i })).not.toBeInTheDocument()
-  })
-
-  it('separa Meus projetos dos projetos da comunidade por abas', async () => {
-    mockGetProjects.mockResolvedValue({ items: [PROJECT, FOREIGN_PROJECT], total: 2 })
-    renderSection()
-
-    const meusTab = await screen.findByRole('tab', { name: /Meus projetos/i })
-    expect(screen.getByRole('tab', { name: /Projetos da comunidade/i })).toBeInTheDocument()
-
-    expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
-    expect(screen.queryByText('Migração contábil')).not.toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('tab', { name: /Projetos da comunidade/i }))
-    expect(screen.getByText('Migração contábil')).toBeInTheDocument()
-    expect(screen.queryByText('Automação de fluxo fiscal')).not.toBeInTheDocument()
-
-    fireEvent.click(meusTab)
-    expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
-  })
-
-  it('salva um novo projeto com formulário e recarrega a lista', async () => {
-    renderSection()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
-    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
-      target: { value: 'Boa governança contábil' },
-    })
-    fireEvent.change(screen.getByLabelText(/Descrição do projeto/i), {
-      target: { value: 'Organizar os processos contábeis dos clientes.' },
-    })
-
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
-
-    await waitFor(() =>
-      expect(mockCreateProject).toHaveBeenCalledWith({
-        title: 'Boa governança contábil',
-        description: 'Organizar os processos contábeis dos clientes.',
-        skills: [],
-      })
-    )
-    expect(mockGetProjects).toHaveBeenCalledTimes(2)
-  })
-
-  it('edita um projeto do dono: expande o próprio card, pré-preenche e salva', async () => {
-    renderSection()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Editar projeto Automação de fluxo fiscal/i }))
-
-    expect(screen.queryByText('Novo Projeto')).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Cancelar/i })).toBeInTheDocument()
-    expect(screen.getByLabelText(/Título do projeto/i)).toHaveValue('Automação de fluxo fiscal')
-    expect(screen.getByLabelText(/Descrição do projeto/i)).toHaveValue(
-      'Projeto para automatizar o fluxo fiscal dos clientes do escritório.'
-    )
-
-    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
-      target: { value: 'Automação fiscal 2.0' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
-
-    await waitFor(() =>
-      expect(mockUpdateProject).toHaveBeenCalledWith('p1', {
-        title: 'Automação fiscal 2.0',
-        description: 'Projeto para automatizar o fluxo fiscal dos clientes do escritório.',
-        skills: ['Python', 'Excel'],
-      })
-    )
-    expect(mockCreateProject).not.toHaveBeenCalled()
-    expect(mockGetProjects).toHaveBeenCalledTimes(2)
-  })
-
-  it('cancela a edição inline sem salvar alterações', async () => {
-    renderSection()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Editar projeto Automação de fluxo fiscal/i }))
-    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
-      target: { value: 'Mudança descartada' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /Cancelar/i }))
-
-    expect(mockUpdateProject).not.toHaveBeenCalled()
-    expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Cancelar/i })).not.toBeInTheDocument()
-  })
-
-  it('valida descrição muito curta (mínimo 10 caracteres)', async () => {
-    renderSection()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
-    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
-      target: { value: 'Título válido' },
-    })
-    fireEvent.change(screen.getByLabelText(/Descrição do projeto/i), {
-      target: { value: 'curto' },
-    })
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
-
-    expect(await screen.findByText(/pelo menos 10 caracteres/i)).toBeInTheDocument()
-    expect(mockCreateProject).not.toHaveBeenCalled()
-  })
-
-  it('valida título e descrição obrigatórios no formulário', async () => {
-    renderSection()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
-
-    expect(await screen.findByText(/Preencha título e descrição/i)).toBeInTheDocument()
-    expect(mockCreateProject).not.toHaveBeenCalled()
-  })
-
-  it('cria o projeto já convidando profissionais selecionados', async () => {
-    mockSearchProfessionals.mockResolvedValue([
-      {
-        id: 'u2',
-        name: 'Ana Souza',
-        email: 'ana@cafe.com',
-        biografia: 'BPO financeiro há 5 anos.',
-        skills: [{ id: 's1', name: 'Python', slug: 'python', is_active: true }],
-      },
-    ])
-    renderSection()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
-    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
-      target: { value: 'Boa governança contábil' },
-    })
-    fireEvent.change(screen.getByLabelText(/Descrição do projeto/i), {
-      target: { value: 'Organizar os processos contábeis dos clientes.' },
-    })
-
-    const skillsInput = screen.getByRole('textbox', { name: /Habilidades/i })
-    fireEvent.change(skillsInput, { target: { value: 'Python' } })
-    fireEvent.keyDown(skillsInput, { key: 'Enter' })
-
-    expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Adicionar/i }))
-
-    await screen.findByText(/Profissionais selecionados \(1\)/i)
-    fireEvent.change(
-      screen.getByRole('textbox', { name: /Mensagem para Ana Souza/i }),
-      { target: { value: 'Topa uma parceria no BPO?' } }
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
-
-    await waitFor(() =>
-      expect(mockCreateProject).toHaveBeenCalledWith({
-        title: 'Boa governança contábil',
-        description: 'Organizar os processos contábeis dos clientes.',
-        skills: ['Python'],
-        invites: [
-          {
-            invited_user_id: 'u2',
-            message: 'Topa uma parceria no BPO?',
-          },
-        ],
-      })
-    )
-    expect(mockGetProjects).toHaveBeenCalledTimes(2)
-  })
-
-  it('exige mensagem personalizada para cada profissional selecionado', async () => {
-    mockSearchProfessionals.mockResolvedValue([
-      {
-        id: 'u2',
-        name: 'Ana Souza',
-        email: 'ana@cafe.com',
-        biografia: 'BPO financeiro há 5 anos.',
-        skills: [{ id: 's1', name: 'Python', slug: 'python', is_active: true }],
-      },
-    ])
-    renderSection()
-
-    fireEvent.click(await screen.findByRole('button', { name: /Criar Projeto/i }))
-    fireEvent.change(screen.getByLabelText(/Título do projeto/i), {
-      target: { value: 'Boa governança contábil' },
-    })
-    fireEvent.change(screen.getByLabelText(/Descrição do projeto/i), {
-      target: { value: 'Organizar os processos contábeis dos clientes.' },
-    })
-    const skillsInput = screen.getByRole('textbox', { name: /Habilidades/i })
-    fireEvent.change(skillsInput, { target: { value: 'Python' } })
-    fireEvent.keyDown(skillsInput, { key: 'Enter' })
-
-    expect(await screen.findByText('Ana Souza')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: /Adicionar/i }))
-
-    fireEvent.click(screen.getByRole('button', { name: /Salvar Projeto/i }))
 
     expect(
-      await screen.findByText(
-        /Preencha a mensagem personalizada de cada profissional selecionado/i
-      )
+      await screen.findByText('Automação de fluxo fiscal')
     ).toBeInTheDocument()
-    expect(mockCreateProject).not.toHaveBeenCalled()
-  })
-})
-
-describe('ProjectsSection - link para o perfil de cada pessoa', () => {
-  beforeEach(() => {
-    vi.clearAllMocks()
-    mockSearchProfessionals.mockResolvedValue([])
+    expect(mockGetProjects).toHaveBeenCalledWith(20, 0, '')
   })
 
-  it('torna o dono do projeto clicavel', async () => {
-    mockGetProjects.mockResolvedValue({ items: [PROJECT], total: 1 })
+  it('mostra tanto projetos próprios quanto de terceiros em uma lista única', async () => {
+    mockGetProjects.mockResolvedValue({
+      items: [PROJECT, MY_PROJECT],
+      total: 2,
+    })
     renderSection()
 
-    const link = await screen.findByRole('link', { name: 'Raul Gomes' })
-    expect(link).toHaveAttribute('href', '/painel/membros/user-1')
+    expect(await screen.findByText('Automação de fluxo fiscal')).toBeInTheDocument()
+    expect(screen.getByText('Migração contábil')).toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Meus projetos/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('tab', { name: /Projetos da comunidade/i })).not.toBeInTheDocument()
   })
 
-  describe('novidades da aba Projetos', () => {
-    beforeEach(() => {
-      mockUnreadNotifications.current = []
-    })
+  it('não tem botão de criar projeto: a gestão vive em Gestão › Projetos', async () => {
+    renderSection()
 
-    it('avisa que a proposta do usuario foi aceita e leva a conversa', async () => {
-      mockUnreadNotifications.current = [
-        {
-          id: 'n1',
-          type: 'application_accepted',
-          is_read: false,
-          related_entity_type: 'conversation',
-          related_entity_id: 'conv-9',
-          title: 'Você foi aceito no projeto',
-          message: 'Sua proposta foi aceita no projeto Automação de fluxo fiscal.',
-          created_at: '2026-09-27T10:00:00Z',
-        },
-      ]
+    expect(
+      await screen.findByText('Automação de fluxo fiscal')
+    ).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: /Criar Projeto/i })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText(/Novo Projeto/i)).not.toBeInTheDocument()
+  })
+
+  it('não tem mais o bloco de Novidades, que foi para Gestão › Projetos', async () => {
+    renderSection()
+
+    expect(
+      await screen.findByText('Automação de fluxo fiscal')
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/^Novidades/i)).not.toBeInTheDocument()
+  })
+
+  it('mostra estado vazio com o caminho para criar em Gestão › Projetos', async () => {
+    mockGetProjects.mockResolvedValue({ items: [], total: 0 })
+    renderSection()
+
+    expect(await screen.findByText(/Nenhum projeto publicado/i)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Criar projeto em Gestão/i })).toHaveAttribute(
+      'href',
+      '/painel/projetos'
+    )
+  })
+
+  it('busca por titulo com debounce de 300ms (uma request por busca, nao uma por tecla)', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
       renderSection()
+      expect(mockGetProjects).toHaveBeenCalledTimes(1)
 
-      expect(
-        await screen.findByText('Sua proposta foi aceita no projeto Automação de fluxo fiscal.')
-      ).toBeInTheDocument()
-      expect(
-        screen.getByRole('link', { name: /Abrir a conversa/ })
-      ).toHaveAttribute('href', '/painel/conversas/conv-9')
-    })
+      const campo = screen.getByRole('searchbox', { name: /buscar projeto/i })
+      fireEvent.change(campo, { target: { value: 'auto' } })
+      fireEvent.change(campo, { target: { value: 'automa' } })
+      fireEvent.change(campo, { target: { value: 'automação' } })
+      await vi.advanceTimersByTimeAsync(300)
 
-    it('avisa que alguem se candidatou e sinaliza o projeto do dono', async () => {
-      mockUnreadNotifications.current = [
-        {
-          id: 'n2',
-          type: 'project_application',
-          is_read: false,
-          related_entity_type: 'project',
-          related_entity_id: 'p1',
-          title: 'Nova proposta para seu projeto',
-          message: 'Ana Souza se candidatou para o projeto Automação de fluxo fiscal.',
-          created_at: '2026-09-27T10:00:00Z',
-        },
-      ]
+      expect(mockGetProjects).toHaveBeenCalledTimes(2)
+      expect(mockGetProjects).toHaveBeenLastCalledWith(20, 0, 'automação')
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('descarta a resposta antiga quando a busca termina depois', async () => {
+    vi.useFakeTimers({ shouldAdvanceTime: true })
+    try {
+      let resolverAntigo: (v: unknown) => void = () => undefined
+      mockGetProjects.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolverAntigo = resolve
+          })
+      )
       renderSection()
+      const campo = screen.getByRole('searchbox', { name: /buscar projeto/i })
+      fireEvent.change(campo, { target: { value: 'fis' } })
+      await vi.advanceTimersByTimeAsync(300)
 
-      expect(await screen.findByText('1 nova proposta')).toBeInTheDocument()
-    })
-
-    it('nao mostra banner quando nao ha novidades', async () => {
-      renderSection()
-
+      mockGetProjects.mockResolvedValue({ items: [PROJECT], total: 1 })
+      fireEvent.change(campo, { target: { value: 'fiscal' } })
+      await vi.advanceTimersByTimeAsync(300)
       expect(await screen.findByText('Automação de fluxo fiscal')).toBeInTheDocument()
-      expect(screen.queryByText(/Novidades/)).not.toBeInTheDocument()
-    })
+
+      // a resposta velha chega depois e não pode sobrescrever a busca nova
+      resolverAntigo({ items: [], total: 0 })
+      await vi.advanceTimersByTimeAsync(0)
+      expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('limpar a busca volta a listar tudo', async () => {
+    renderSection()
+    const campo = await screen.findByRole('searchbox', { name: /buscar projeto/i })
+    fireEvent.change(campo, { target: { value: 'fiscal' } })
+    await waitFor(() => expect(mockGetProjects).toHaveBeenLastCalledWith(20, 0, 'fiscal'))
+
+    fireEvent.click(screen.getByRole('button', { name: /limpar busca/i }))
+    expect(campo).toHaveValue('')
+    await waitFor(() => expect(mockGetProjects).toHaveBeenLastCalledWith(20, 0, ''))
+  })
+
+  it('distingue mural vazio de busca sem resultado', async () => {
+    renderSection()
+    const campo = await screen.findByRole('searchbox', { name: /buscar projeto/i })
+    mockGetProjects.mockResolvedValue({ items: [], total: 0 })
+    fireEvent.change(campo, { target: { value: 'inexistente' } })
+
+    expect(
+      await screen.findByText(/Nenhum projeto encontrado/i)
+    ).toBeInTheDocument()
+  })
+
+  it('avisa quando o mural não carrega', async () => {
+    mockGetProjects.mockRejectedValue(new Error('boom'))
+    renderSection()
+
+    expect(
+      await screen.findByText(/Erro ao carregar o mural de projetos/i)
+    ).toBeInTheDocument()
+  })
+
+  it('tira o esqueleto quando a carga termina', async () => {
+    renderSection()
+
+    await waitFor(() =>
+      expect(screen.getByText('Automação de fluxo fiscal')).toBeInTheDocument()
+    )
+    expect(document.querySelectorAll('.animate-pulse').length).toBe(0)
   })
 })
