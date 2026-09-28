@@ -16,7 +16,13 @@ from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 
 from .repository import NotificationRepository
-from .schemas import NotificationCreate, NotificationResponse, UnreadCountResponse
+from .schemas import (
+    MarkEntityReadRequest,
+    MarkEntityReadResponse,
+    NotificationCreate,
+    NotificationResponse,
+    UnreadCountResponse,
+)
 from .service import NotificationService
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
@@ -77,6 +83,21 @@ def mark_as_read(notif_id: UUID, service: ServiceDep, current_user: CurrentUserD
         return service.mark_as_read(notif_id, current_user.id)
     except ValueError:
         raise HTTPException(status_code=404, detail="Notificação não encontrada")
+
+
+@router.post("/mark-read", response_model=MarkEntityReadResponse)
+def mark_entity_read(
+    payload: MarkEntityReadRequest, service: ServiceDep, current_user: CurrentUserDep
+):
+    """Marca como vistas as notificações de um item (conversa, tópico, projeto).
+
+    É o que faz a sinalização sumir quando o usuário abre a conversa/tópico que
+    acabou de ser sinalizado. Só toca nas notificações do próprio usuário.
+    """
+    marked = service.mark_entity_as_read(
+        current_user.id, payload.related_entity_type, payload.related_entity_id
+    )
+    return {"marked": marked}
 
 
 @router.post("/mark-all-read")

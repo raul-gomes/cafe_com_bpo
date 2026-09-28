@@ -9,6 +9,7 @@ from src.modules.auth.service import get_current_user
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.service import NotificationDispatcher
 
+from .models import ProfileComment
 from .repository import NetworkRepository, sanitize_html
 from .schemas import (
     CommentCreate,
@@ -17,13 +18,18 @@ from .schemas import (
     ConversationListItem,
     GroupPostCreate,
     GroupPostResponse,
+    MemberProfileResponse,
+    MemberPublic,
     MessageCreate,
     MessageResponse,
     PaginatedPosts,
+    PaginatedProfileComments,
     PaginatedProjects,
     PostCreate,
     PostResponse,
     ProfessionalMatch,
+    ProfileCommentCreate,
+    ProfileCommentResponse,
     ProjectApplicationCreate,
     ProjectApplicationResponse,
     ProjectCreate,
@@ -805,3 +811,127 @@ def create_group_post(
             raise HTTPException(status_code=403, detail=str(e))
         raise HTTPException(status_code=404, detail=str(e))
     return _group_post_response(post)
+
+
+# ── Perfil do membro e comentários sobre o trabalho ────────────
+def _avatar_url(user: User) -> str | None:
+    """Avatar resolvido igual ao `UserResponse.from_user` (legado ou upload)."""
+    if user.avatar_file:
+        return user.avatar_file.read_url
+    return user.avatar_url
+
+
+def _member_public(user: User) -> MemberPublic:
+    return MemberPublic(id=user.id, name=user.name, avatar_url=_avatar_url(user))
+
+
+def _member_profile_response(
+    repo: NetworkRepository, user: User, viewer_id: UUID
+) -> MemberProfileResponse:
+    """Perfil SEM contato (e-mail/telefone/WhatsApp/CPF/CNPJ/role)."""
+    skills = repo.get_user_skills(user.id)
+    return MemberProfileResponse(
+        id=user.id,
+        name=user.name,
+        avatar_url=_avatar_url(user),
+        biografia=user.biografia,
+        company_name=repo.get_member_company_name(user),
+        company_segment=user.company_segment,
+        company_city=user.company_city,
+        company_state=user.company_state,
+        created_at=user.created_at,
+        skills=sorted(
+            (SkillResponse.model_validate(s) for s in skills), key=lambda s: s.name
+        ),
+        comments_count=repo.count_active_profile_comments(user.id),
+        is_owner=user.id == viewer_id,
+        can_comment=user.id != viewer_id,
+    )
+
+
+def _profile_comment_response(
+    comment: ProfileComment, viewer_id: UUID
+) -> ProfileCommentResponse:
+    return ProfileCommentResponse(
+        id=comment.id,
+        user_id=comment.user_id,
+        author_id=comment.author_id,
+        author=_member_public(comment.author),
+        message=comment.message,
+        created_at=comment.created_at,
+        can_delete=viewer_id in (comment.author_id, comment.user_id),
+    )
+
+
+@router.get("/members/{user_id}", response_model=MemberProfileResponse)
+def get_member_profile(
+    user_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        user = repo.get_member_profile(user_id)
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return _member_profile_response(repo, user, current_user.id)
+
+
+@router.get("/members/{user_id}/comments", response_model=PaginatedProfileComments)
+def get_member_comments(
+    user_id: UUID,
+    limit: int = 50,
+    offset: int = 0,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        items, total = repo.list_profile_comments(
+            user_id, limit=min(max(limit, 1), 100), offset=max(offset, 0)
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    return PaginatedProfileComments(
+        items=[_profile_comment_response(c, current_user.id) for c in items],
+        total=total,
+    )
+
+
+@router.post(
+    "/members/{user_id}/comments",
+    response_model=ProfileCommentResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_profile_comment(
+    user_id: UUID,
+    comment_data: ProfileCommentCreate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        comment = repo.create_profile_comment(user_id, current_user.id, comment_data)
+    except ValueError as e:
+        message = str(e)
+        if message.startswith("You cannot comment on your own profile"):
+            raise HTTPException(status_code=400, detail=message)
+        if message.startswith("Comment cannot be empty"):
+            raise HTTPException(status_code=400, detail=message)
+        raise HTTPException(status_code=404, detail=message)
+    return _profile_comment_response(comment, current_user.id)
+
+
+@router.delete("/profile-comments/{comment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_profile_comment(
+    comment_id: UUID,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session),
+):
+    repo = NetworkRepository(db)
+    try:
+        repo.delete_profile_comment(comment_id, current_user.id)
+    except ValueError as e:
+        if "Action Denied" in str(e):
+            raise HTTPException(status_code=403, detail=str(e))
+        raise HTTPException(status_code=404, detail=str(e))

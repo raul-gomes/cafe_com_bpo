@@ -129,6 +129,14 @@ class NotificationService:
             raise ValueError(f"Notification {notif_id} not found for user {user_id}")
         return self.repository.mark_as_read(notif)
 
+    def mark_entity_as_read(
+        self, user_id: UUID, related_entity_type: str, related_entity_id: UUID
+    ) -> int:
+        """Mark the unread notifications of one entity (e.g. a conversation) as read."""
+        return self.repository.mark_entity_as_read(
+            user_id, related_entity_type, related_entity_id
+        )
+
     def mark_all_as_read(self, user_id: UUID) -> int:
         """Mark all notifications as read."""
         return self.repository.mark_all_as_read(user_id)

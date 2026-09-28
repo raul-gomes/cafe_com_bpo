@@ -9,7 +9,8 @@ Alembic. Todos os modelos vivem em `apps/backend/src/modules/{modulo}/models.py`
 O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 
 **Snapshot do banco real (`docker compose exec db psql -U postgres -d cafe_bpo`):**
-30 tabelas aplicadas, 49 foreign keys. 3 modelos **não migrados** (ver seção
+43 tabelas aplicadas, 73 foreign keys (recontado em 2026-09-27, com
+`profile_comments`). 3 modelos **não migrados** (ver seção
 "Tabelas de modelo sem tabela no banco").
 
 ---
@@ -26,7 +27,7 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 | `proposals` | `pricing_scenarios` (dono ativo) | Orçamentos (calculadora) |
 | `task_manager` | `tasks`, `task_phases`, `task_attachments`, `routine_types`, `activity_templates`, `template_activities`, `client_template_assignments`, `client_slas`, `user_template_archives` | Gestão de tarefas BPO (kanban, rotinas, SLA) |
 | `team` | `teams`, `team_members`, `team_invitations`, `invitation_routines`, `roles` | Times/convites por cliente |
-| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills`, `projects`, `project_skills`, `project_invitations`, `project_applications`, `conversations`, `conversation_participants`, `conversation_messages` | Fórum da comunidade + catálogo de habilidades + mural de projetos + convites e propostas de candidatos + conversas privadas (DM) |
+| `network` | `discussion_posts`, `discussion_comments`, `skills`, `user_skills`, `projects`, `project_skills`, `project_invitations`, `project_applications`, `conversations`, `conversation_participants`, `conversation_messages`, `profile_comments` | Fórum da comunidade + catálogo de habilidades + mural de projetos + convites e propostas de candidatos + conversas privadas (DM) + comentários sobre o trabalho de cada membro (perfil)|
 | `notifications` | `app_notifications` | Notificações in-app (sininho + feed do fórum) |
 | `emails` | `email_deliveries` | Fila transacional de e-mails (worker) |
 | `gallery` | `gallery_items`, `common_gallery_items` | Galeria de arquivos pessoal/comunitária |
@@ -399,12 +400,15 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 
 ### `app_notifications` — dono: `notifications`
 > Sistema único de notificação in-app (sininho + feed de atividades do fórum).
-> Tipos: `task_assigned`, `task_deadline`, `task_overdue`, `phase_change`, `post_commented`, `email_sent`.
+> Tipos: `task_assigned`, `task_deadline`, `task_overdue`, `phase_change`, `post_commented`, `email_sent`,
+> `conversation_invite`, `conversation_message`, `project_application`, `application_accepted`, `profile_comment`.
+> Fonte única da verdade da sinalização da Comunidade (`is_read` + `related_entity_type`/`related_entity_id`).
+> Índice `ix_app_notifications_user_read(user_id, is_read)` (rev `d8e9f0a1b2c3`, 2026-09-27) — sustenta as contagens de não lidas.
 | Direção | Quem |
 |---------|------|
-| R/W | `notifications/repository.py` (sininho: list, unread, count, read, delete) |
+| R/W | `notifications/repository.py` (sininho: list, unread, count, read, mark por entidade, delete) |
 | R | `dashboard/router.py` (feed "Atividade Recente") |
-| W | `network/repository.py` (dispatch `post_commented` via `NotificationDispatcher`) |
+| W | `network/repository.py` (dispatch `post_commented`, `conversation_message`, `project_application`, `application_accepted`, `profile_comment`) |
 
 ### `discussion_posts` / `discussion_comments` — dono: `network`
 | Direção | Quem |
@@ -419,6 +423,26 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | W | `network/repository.py` (`create_skill`, `add_user_skill`, `remove_user_skill`) |
 | R | `auth/router.py`/`auth/service.py` — `users.biografia` (perfil) |
 | W | `auth/repository.py` — `users.biografia` via `PATCH /auth/me` |
+
+### `profile_comments` — dono: `network` (criada em 2026-09-27, rev `c7d8e9f0a1b2`)
+| Coluna | Tipo | Observação |
+|--------|------|------------|
+| `id` | UUID PK | |
+| `user_id` | UUID FK → `users.id` | dono do perfil (destinatário do comentário) |
+| `author_id` | UUID FK → `users.id` | quem escreveu (≠ `user_id`, bloqueado com 400) |
+| `message` | Text | **texto simples, sem HTML** (frontend renderiza como text node) |
+| `created_at` / `updated_at` | timestamptz | |
+| `is_active` / `deleted_at` | bool / timestamptz | soft delete (autor do comentário ou dono do perfil) |
+
+Índice `ix_profile_comments_user_active (user_id, is_active)`.
+
+| Direção | Quem |
+|---------|------|
+| R/W | `network/repository.py` (`create_profile_comment`, `list_profile_comments`, `delete_profile_comment`, `count_active_profile_comments`) |
+| R | `network/router.py` (`GET /network/members/{id}`, `GET|POST /network/members/{id}/comments`, `DELETE /network/profile-comments/{id}`) |
+| R | `users` (perfil: nome, avatar, biografia, `company_*` — sem contato) |
+| W | `notifications` via `NotificationDispatcher` (tipo `profile_comment`) |
+
 
 > **Migração `a5f6a7b8c9d0`**: adiciona `users.biografia` (TEXT, nullable) e cria as
 > tabelas `skills` (catálogo — `name` e `slug` únicos) e `user_skills`

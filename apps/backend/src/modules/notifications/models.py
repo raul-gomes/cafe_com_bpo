@@ -6,7 +6,7 @@ In-app notification system with decoupled dispatcher architecture.
 
 import uuid
 
-from sqlalchemy import UUID, Boolean, Column, DateTime, ForeignKey, String, func
+from sqlalchemy import UUID, Boolean, Column, DateTime, ForeignKey, Index, String, func
 from sqlalchemy.orm import relationship
 
 from src.core.database import Base
@@ -43,6 +43,9 @@ class AppNotification(Base):
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
     read_at = Column(DateTime(timezone=True), nullable=True)
+
+    # Toda a sinalização de "há coisa nova" conta as não lidas deste usuário.
+    __table_args__ = (Index("ix_app_notifications_user_read", "user_id", "is_read"),)
 
     user = relationship("User", back_populates="notifications", foreign_keys=[user_id])
     triggered_by_user = relationship("User", foreign_keys=[triggered_by_user_id])

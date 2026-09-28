@@ -7,6 +7,7 @@ from sqlalchemy import (
     Column,
     DateTime,
     ForeignKey,
+    Index,
     Integer,
     SmallInteger,
     String,
@@ -377,3 +378,37 @@ class DiscussionComment(Base):
 
     post = relationship("DiscussionPost", back_populates="comments")
     author = relationship("User")
+
+
+class ProfileComment(Base):
+    """Comentário de um membro sobre o trabalho de outro membro da Comunidade.
+
+    Texto simples (sem HTML): o frontend renderiza como text node. Exclusão é
+    lógica (`is_active`/`deleted_at`) e permitida ao autor do comentário e ao
+    dono do perfil.
+    """
+
+    __tablename__ = "profile_comments"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    author_id = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    message = Column(Text, nullable=False)
+    created_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        nullable=False,
+        default=lambda: datetime.now(timezone.utc),
+        onupdate=lambda: datetime.now(timezone.utc),
+    )
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+
+    user = relationship("User", foreign_keys=[user_id])
+    author = relationship("User", foreign_keys=[author_id])
+
+    __table_args__ = (Index("ix_profile_comments_user_active", "user_id", "is_active"),)

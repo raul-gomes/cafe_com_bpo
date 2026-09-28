@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class UserPublic(BaseModel):
@@ -233,3 +233,65 @@ class ProjectApplicationResponse(BaseModel):
     conversation_id: UUID | None = None
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MemberPublic(BaseModel):
+    """Membro exposto nas páginas da Comunidade — sem e-mail nem contato."""
+
+    id: UUID
+    name: str | None = None
+    avatar_url: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class MemberProfileResponse(BaseModel):
+    """Página do membro: apresentação, habilidades, empresa e comentários.
+
+    Deliberadamente SEM e-mail/telefone/WhatsApp/CPF/CNPJ/endereço/role
+    (decisão do dono do produto em 2026-09-27): o contato permanece no
+    perfil privado. `company_*` é a empresa do próprio BPO do membro.
+    """
+
+    id: UUID
+    name: str | None = None
+    avatar_url: str | None = None
+    biografia: str | None = None
+    company_name: str | None = None
+    company_segment: str | None = None
+    company_city: str | None = None
+    company_state: str | None = None
+    created_at: datetime
+    skills: list[SkillResponse] = []
+    comments_count: int = 0
+    is_owner: bool = False
+    can_comment: bool = False
+
+
+class ProfileCommentCreate(BaseModel):
+    message: str = Field(..., min_length=1, max_length=2000)
+
+    @field_validator("message")
+    @classmethod
+    def _strip_message(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("O comentário não pode ficar vazio.")
+        return stripped
+
+
+class ProfileCommentResponse(BaseModel):
+    id: UUID
+    user_id: UUID
+    author_id: UUID
+    author: MemberPublic
+    message: str
+    created_at: datetime
+    can_delete: bool = False
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class PaginatedProfileComments(BaseModel):
+    items: list[ProfileCommentResponse]
+    total: int

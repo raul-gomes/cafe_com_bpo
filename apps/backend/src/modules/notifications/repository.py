@@ -76,6 +76,33 @@ class NotificationRepository:
         self.session.commit()
         return len(unread)
 
+    def mark_entity_as_read(
+        self, user_id: UUID, related_entity_type: str, related_entity_id: UUID
+    ) -> int:
+        """Mark every unread notification of one entity as read. Returns count.
+
+        Usado quando o usuário abre o item sinalizado (a conversa, o tópico, o
+        projeto): some a sinalização daquele item, sem tocar nas outras.
+        """
+        unread = (
+            self.session.query(AppNotification)
+            .filter(
+                AppNotification.user_id == user_id,
+                AppNotification.is_read == False,
+                AppNotification.related_entity_type == related_entity_type,
+                AppNotification.related_entity_id == related_entity_id,
+            )
+            .all()
+        )
+        if not unread:
+            return 0
+        now = datetime.now(timezone.utc)
+        for n in unread:
+            n.is_read = True
+            n.read_at = now
+        self.session.commit()
+        return len(unread)
+
     def delete(self, notif: AppNotification) -> None:
         """Delete a notification."""
         self.session.delete(notif)

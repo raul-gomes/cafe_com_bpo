@@ -15,6 +15,7 @@ from .models import (
     ConversationParticipant,
     DiscussionComment,
     DiscussionPost,
+    ProfileComment,
     Project,
     ProjectApplication,
     ProjectGroup,
@@ -30,6 +31,7 @@ from .schemas import (
     GroupPostCreate,
     MessageCreate,
     PostCreate,
+    ProfileCommentCreate,
     ProjectApplicationCreate,
     ProjectCreate,
     ProjectInviteCreate,
@@ -81,6 +83,26 @@ def sanitize_html(html_str: str) -> str:
         protocols=BLEACH_ALLOWED_PROTOCOLS,
         strip=True,
     )
+
+
+def plain_text(html_str: str) -> str:
+    """Texto puro de um conteúdo rico.
+
+    Notificações são texto simples (aparecem no sino e nas sinalizações da
+    Comunidade), então nunca devem carregar o HTML do comentário.
+    """
+    if not html_str:
+        return ""
+    return bleach.clean(html_str, tags=set(), attributes={}, strip=True).strip()
+
+
+def snippet(text: str, limit: int = 160) -> str:
+    """Texto curto para notificações, sem cortar no meio de uma palavra."""
+    text = " ".join(text.split())
+    if len(text) <= limit:
+        return text
+    cut = text[:limit].rsplit(" ", 1)[0]
+    return f"{cut}…"
 
 
 def slugify(text: str) -> str:
@@ -165,7 +187,7 @@ class NetworkRepository:
             NotificationDispatcher(NotificationRepository(self.session)).dispatch(
                 user_id=post.author_id,
                 title="Novo comentário no seu tópico",
-                message=comment.message[:100],
+                message=snippet(plain_text(comment.message)),
                 notif_type="post_commented",
                 related_entity_type="discussion_post",
                 related_entity_id=post_id,
@@ -593,7 +615,7 @@ class NetworkRepository:
         self.session.add(application)
         self.session.flush()
 
-        self._dispatch_application_notification(project)
+        self._dispatch_application_notification(project, application)
         self.session.commit()
         self.session.refresh(application)
         return application
@@ -724,18 +746,23 @@ class NetworkRepository:
         self.session.flush()
         return conversation
 
-    def _dispatch_application_notification(self, project: Project) -> None:
+    def _dispatch_application_notification(
+        self, project: Project, application: ProjectApplication
+    ) -> None:
         from src.modules.notifications.repository import NotificationRepository
         from src.modules.notifications.service import NotificationDispatcher
 
         self.session.flush()
+        applicant = self.get_user_by_id(application.applicant_id)
+        applicant_name = applicant.name if applicant else "Um candidato"
         NotificationDispatcher(NotificationRepository(self.session)).dispatch(
             user_id=project.owner_id,
             title="Nova proposta para seu projeto",
-            message=f"{project.title} recebeu uma nova proposta de candidato.",
+            message=f"{applicant_name} se candidatou para o projeto {project.title}.",
             notif_type="project_application",
             related_entity_type="project",
             related_entity_id=project.id,
+            triggered_by_user_id=application.applicant_id,
         )
 
     def _dispatch_application_accepted_notification(
@@ -954,6 +981,144 @@ class NetworkRepository:
             body=sanitize_html(data.body).strip(),
         )
         self.session.add(message)
+        self.session.flush()
+        self._dispatch_new_message_notification(conversation, message)
         self.session.commit()
         self.session.refresh(message)
         return message
+
+    def _dispatch_new_message_notification(
+        self, conversation: Conversation, message: ConversationMessage
+    ) -> None:
+        """Sinaliza a mensagem nova para os OUTROS participantes da conversa.
+
+        O remetente não é notificado. As mensagens que abrem um convite ou uma
+        proposta aceita são criadas fora de `send_message` e já têm notificação
+        própria (`conversation_invite` / `application_accepted`), então aqui não
+        há duplicidade.
+        """
+        recipients = [
+            participant.user_id
+            for participant in self.session.query(ConversationParticipant)
+            .filter(
+                ConversationParticipant.conversation_id == conversation.id,
+                ConversationParticipant.user_id != message.sender_id,
+            )
+            .all()
+        ]
+        if not recipients:
+            return
+
+        sender = self.get_user_by_id(message.sender_id)
+        sender_name = sender.name if sender else "Alguém"
+        from src.modules.notifications.repository import NotificationRepository
+        from src.modules.notifications.service import NotificationDispatcher
+
+        dispatcher = NotificationDispatcher(NotificationRepository(self.session))
+        for user_id in recipients:
+            dispatcher.dispatch(
+                user_id=user_id,
+                title=f"Nova mensagem de {sender_name}"[:255],
+                message=snippet(plain_text(message.body)),
+                notif_type="conversation_message",
+                related_entity_type="conversation",
+                related_entity_id=conversation.id,
+                triggered_by_user_id=message.sender_id,
+            )
+
+    # ── Perfil do membro e comentários sobre o trabalho ──
+    def get_user_by_id(self, user_id: UUID) -> User | None:
+        return self.session.query(User).filter(User.id == user_id).first()
+
+    def get_member_profile(self, user_id: UUID) -> User:
+        """Perfil do membro ou ValueError('User not found') — 404 no router."""
+        user = self.get_user_by_id(user_id)
+        if not user:
+            raise ValueError("User not found")
+        return user
+
+    def get_member_company_name(self, user: User) -> str | None:
+        """Nome da empresa do próprio BPO: fantasia -> razão social -> legado."""
+        return user.company_nome_fantasia or user.company_razao_social or user.company
+
+    def count_active_profile_comments(self, user_id: UUID) -> int:
+        return (
+            self.session.query(func.count(ProfileComment.id))
+            .filter(ProfileComment.user_id == user_id, ProfileComment.is_active)
+            .scalar()
+            or 0
+        )
+
+    def create_profile_comment(
+        self, user_id: UUID, author_id: UUID, data: ProfileCommentCreate
+    ) -> ProfileComment:
+        """Comenta no perfil de outro membro (texto simples, publica na hora)."""
+        self.get_member_profile(user_id)
+        if user_id == author_id:
+            raise ValueError("You cannot comment on your own profile.")
+        message = data.message.strip()
+        if not message:
+            raise ValueError("Comment cannot be empty")
+        comment = ProfileComment(
+            user_id=user_id,
+            author_id=author_id,
+            message=message,
+        )
+        self.session.add(comment)
+        self.session.commit()
+        self.session.refresh(comment)
+        self._dispatch_profile_comment_notification(comment)
+        return comment
+
+    def list_profile_comments(
+        self, user_id: UUID, limit: int = 50, offset: int = 0
+    ) -> tuple[list[ProfileComment], int]:
+        self.get_member_profile(user_id)
+        base = self.session.query(ProfileComment).filter(
+            ProfileComment.user_id == user_id, ProfileComment.is_active
+        )
+        total = base.count()
+        items = (
+            base.order_by(ProfileComment.created_at.desc(), ProfileComment.id.desc())
+            .limit(limit)
+            .offset(offset)
+            .all()
+        )
+        return items, total
+
+    def get_profile_comment_by_id(self, comment_id: UUID) -> ProfileComment | None:
+        return (
+            self.session.query(ProfileComment)
+            .filter(ProfileComment.id == comment_id, ProfileComment.is_active)
+            .first()
+        )
+
+    def delete_profile_comment(self, comment_id: UUID, actor_id: UUID) -> None:
+        """Soft delete: só o autor do comentário ou o dono do perfil."""
+        comment = self.get_profile_comment_by_id(comment_id)
+        if not comment:
+            raise ValueError("Comment not found")
+        if actor_id not in (comment.author_id, comment.user_id):
+            raise ValueError(
+                "Action Denied: You can only delete your own comment "
+                "or comments on your own profile."
+            )
+        comment.is_active = False
+        comment.deleted_at = datetime.now(timezone.utc)
+        self.session.commit()
+
+    def _dispatch_profile_comment_notification(self, comment: ProfileComment) -> None:
+        from src.modules.notifications.repository import NotificationRepository
+        from src.modules.notifications.service import NotificationDispatcher
+
+        self.session.flush()
+        author_name = comment.author.name if comment.author else "Um membro"
+        NotificationDispatcher(NotificationRepository(self.session)).dispatch(
+            user_id=comment.user_id,
+            title="Comentário sobre o seu trabalho",
+            message=f"{author_name} comentou no seu perfil na Comunidade.",
+            notif_type="profile_comment",
+            related_entity_type="member_profile",
+            related_entity_id=comment.user_id,
+            triggered_by_user_id=comment.author_id,
+        )

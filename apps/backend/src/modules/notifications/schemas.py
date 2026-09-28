@@ -7,7 +7,7 @@ Pydantic schemas for notification API.
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class NotificationCreate(BaseModel):
@@ -21,6 +21,19 @@ class NotificationCreate(BaseModel):
 
 class NotificationUpdate(BaseModel):
     is_read: bool | None = None
+
+
+class MarkEntityReadRequest(BaseModel):
+    """Marca como vistas as notificações de um item específico (conversa, tópico…)."""
+
+    related_entity_type: str = Field(
+        ..., min_length=1, max_length=50, description="conversation, discussion_post…"
+    )
+    related_entity_id: UUID
+
+
+class MarkEntityReadResponse(BaseModel):
+    marked: int
 
 
 class NotificationResponse(BaseModel):
