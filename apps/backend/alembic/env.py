@@ -7,6 +7,11 @@ from src.core.config import get_settings
 from src.core.database import Base
 from src.modules.auth.models import User  # noqa: F401
 from src.modules.clients.models import Client  # noqa: F401
+from src.modules.contacts.models import Contact  # noqa: F401
+from src.modules.contracts.models import (  # noqa: F401
+    Contract,
+    ContractTemplate,
+)
 from src.modules.emails.models import EmailDelivery  # noqa: F401
 from src.modules.gallery.models import CommonGalleryItem  # noqa: F401
 from src.modules.network.models import (  # noqa: F401

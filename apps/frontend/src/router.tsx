@@ -48,6 +48,7 @@ export async function buildRouter() {
   const { ProjectGroupPage } = await import('./pages/panel/ProjectGroupPage')
   const { TasksPage } = await import('./pages/panel/TasksPage')
   const { EmpresasPage } = await import('./pages/panel/EmpresasPage')
+  const { ContatosPage } = await import('./pages/panel/ContatosPage')
   const { ProspectosPage } = await import('./pages/panel/ProspectosPage')
   const { GovernancaPage } = await import('./pages/panel/GovernancaPage')
   const { ContratosPage } = await import('./pages/panel/ContratosPage')
@@ -201,7 +202,7 @@ export async function buildRouter() {
             },
             {
               path: 'contatos',
-              element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper>,
+              element: <SuspenseWrapper><ContatosPage /></SuspenseWrapper>,
             },
             {
               path: 'gestao-equipes',

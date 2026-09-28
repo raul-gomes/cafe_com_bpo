@@ -9,8 +9,8 @@ Alembic. Todos os modelos vivem em `apps/backend/src/modules/{modulo}/models.py`
 O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 
 **Snapshot do banco real (`docker compose exec db psql -U postgres -d cafe_bpo`):**
-43 tabelas aplicadas, 73 foreign keys (recontado em 2026-09-27, com
-`profile_comments`). 3 modelos **não migrados** (ver seção
+44 tabelas aplicadas, 74 foreign keys (recontado em 2026-09-28, com
+`contacts`). 3 modelos **não migrados** (ver seção
 "Tabelas de modelo sem tabela no banco").
 
 ---
@@ -21,6 +21,7 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 |--------|-----------------------------|-------|
 | `auth` | `users` (inclui `asaas_customer_id`), `user_files`, `password_reset_tokens` | Identidade, perfil, senha, avatares |
 | `clients` | `clients` | Portfólio de clientes do usuário ("Empresas") |
+| `contacts` | `contacts` | Agenda de contatos do usuário (contatos livres; o contato do prospecto/cliente é o representante em `prospects`, sem cópia) |
 | `prospects` | `prospects` | Leads com dados cadastrais; convertible em Cliente |
 | `contracts` | `contract_templates`, `contracts` | Modelo padrão de contrato (único por usuário) + contratos gerados/finalizados |
 | `payments` | `payments` | Cobranças via Asaas |
@@ -45,6 +46,7 @@ erDiagram
     users ||--o{ user_files : "user_id / avatar_file_id"
     users ||--o{ password_reset_tokens : "user_id"
     users ||--o{ clients : "user_id"
+    users ||--o{ contacts : "user_id"
     users ||--o{ prospects : "user_id"
     users ||--o{ pricing_scenarios : "user_id"
     users ||--o{ tasks : "user_id"
@@ -271,6 +273,29 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | R/W | `prospects/router.py` (CRUD + soft-delete + `reprove`/`unreprove`) |
 | R/W | `prospects/service.py` (`convert_prospect` — cria `clients` e marca conversão; fonte única da regra) |
 | W | `proposals/repository.py`/`router.py` (referência `propect_id` em orçamentos) |
+
+### `contacts` — dono: `contacts`
+> Contato **livre** que o BPO cadastrou: `nome`, `telefone` (só dígitos),
+> `email`, `empresa` (texto livre, opcional) e soft delete (`is_active`,
+> `deleted_at`). Índice `ix_contacts_user_active(user_id, is_active)`.
+> **Migração `09d0d0d7300b`**.
+> **O contato de empresa NÃO tem linha aqui**: `GET /contacts/` monta essas linhas
+> na consulta, em três origens — `livre` (esta tabela), `prospecto`
+> (`prospects.representante_nome/telefone/email`, `converted_client_id` nulo) e
+> `cliente` (join `prospects.converted_client_id → clients.id` para o
+> representante do prospecto de origem **ou** o próprio `clients` no cliente
+> criado direto). `is_active` **não** filtra: prospecto/cliente arquivado
+> continua na agenda. Sem `representante_nome`, a linha cai para o
+> telefone/e-mail da própria empresa e vem com `tem_pessoa=false` (somente
+> leitura). Editar a linha de empresa grava no prospecto de origem
+> (`PATCH /contacts/prospects/{prospect_id}`), então a fonte é única — a empresa
+> não é editável por esse caminho.
+| Direção | Quem |
+|---------|------|
+| R | `contacts/repository.py`, `contacts/router.py` |
+| R | `contacts/repository.py:list_prospect_contacts()` / `list_direct_clients()` — leem `prospects` + `clients` (sem escrita) |
+| R/W | `contacts/service.py` (autorização por `user_id`; CRUD do contato livre) |
+| W | `contacts/repository.py:update_source_contact()` — escreve `prospects.representante_*` |
 
 ### `governanca` — agregação (sem tabela)
 > Módulo de agregação (como o dashboard): `GET /governanca/deals` une prospectos
