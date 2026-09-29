@@ -53,6 +53,7 @@ def test_calculate_total_service_cost_from_multiple_services():
     )
     svc2 = ServiceItem(
         name="Task 2",
+        type="fixed",
         minutes_per_execution=Decimal(0),
         monthly_quantity=1,
         fixed_value=Decimal("100.00"),
