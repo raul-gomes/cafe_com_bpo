@@ -15,7 +15,7 @@ Community platform for Brazilian financial BPO operators. Public site + pricing 
 | Dev server | `npm run dev` (port 3000, defined in `.env` CORS) |
 | Typecheck | `npm run typecheck` (strict mode, noUnusedLocals/Parameters on) |
 | Lint | `npm run lint` (zero warnings allowed) |
-| Test | `npm run test` (Vitest, jsdom, globals on) |
+| Test | `npm run test` (Vitest watch) — para rodar uma vez, como o CI faz: `npx vitest run` |
 | Build | `npm run build` (typecheck + build) |
 
 ### Backend (`apps/backend/`)
@@ -25,7 +25,8 @@ Community platform for Brazilian financial BPO operators. Public site + pricing 
 | Dev server | `uvicorn src.main:create_app --factory --host 0.0.0.0 --port 8000` |
 | Lint | `ruff check .` |
 | Format | `ruff format .` |
-| Test | `pytest` (uses SQLite in-memory via conftest patching) |
+| Test | `pytest` (uses SQLite in-memory via conftest patching; **não** roda `tests/integration/`) |
+| Test (integração) | `pytest -m integration` (chama APIs reais; exige credenciais no `.env`) |
 | Migration (create) | `alembic revision --autogenerate -m "description"` |
 | Migration (apply) | `alembic upgrade head` |
 
@@ -51,7 +52,7 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 - **Static avatar serving**: `storage/avatars/` is mounted at `/avatars` in `main.py`.
 - **SSE real-time**: `task_manager/broadcast.py` (`BroadcastManager` singleton) uses PostgreSQL LISTEN/NOTIFY to push task phase changes and team management changes to connected clients via `GET /tasks/events`. Triggers: `trg_notify_task_update` (task_updates), `trg_notify_invitation_routines`/`trg_notify_team_members`/`trg_notify_team_invitations` (team_updates). In SQLite (tests), the listener is skipped. Nginx requires `proxy_buffering off` for SSE.
 - **Always**: Code using TDD method.
-- **Always**: Update `lineage.md` in in root directory whenever the database structure changes.
+- **Always**: Update `docs/lineage.md` whenever the database structure changes (local-only, not versioned).
 - **Always**: Update `docs/tree_files.md` whenever you create, rename, move or delete a file/function — it is the catalog of every file with its functions and purpose.
 - **Always**: Business rules in `docs/regras_negocio.md` MUST NOT be violated by any implementation. Before changing anything that touches a documented business rule, ALWAYS ask the product owner if the rule is still correct. Update that file whenever a business rule is created or changes.
 
@@ -77,8 +78,10 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 
 ## Testing Notes
 
-- **Backend**: `pytest` from `apps/backend/`. Tests use an in-memory SQLite DB auto-created in `conftest.py`. No external services needed for unit/integration tests.
-- **Frontend**: `npm run test` from `apps/frontend/`. Vitest with jsdom. Test setup at `test/setup.ts`.
+- **Backend**: `pytest` from `apps/backend/`. Tests use an in-memory SQLite DB auto-created in `conftest.py`. The default run is hermetic: `addopts = -m "not integration"` in `pytest.ini` deselects `tests/integration/`.
+- **Integration tests**: files under `tests/integration/` carry `pytestmark = pytest.mark.integration` and only run with `pytest -m integration` (real Cloudinary/Resend, credentials in `.env`). The default suite must never touch the network — with dummy credentials the provider rejects the call and CI goes red.
+- **Frontend**: `npm run test` from `apps/frontend/` (Vitest **watch**); the CI-equivalent single run is `npx vitest run`. Vitest with jsdom, setup at `test/setup.ts`.
+- **Package installs**: always `npm ci` (CI and `apps/frontend/Dockerfile`), never `npm install --legacy-peer-deps`/`--force`.
 - **CI env vars for backend tests**: `DATABASE_URL=sqlite:///:memory:`, `JWT_SECRET=test-secret-key-at-least-32-chars-long`, `MODE=test`, dummy OAuth creds.
 
 ## Adding Features
@@ -147,16 +150,26 @@ These rules are **not optional**. Each one exists because breaking it already ca
 - **Never write into the repo from inside the container as root** — bind-mounted dirs (`src/`, `tests/`, `alembic/`) would become root-owned and break the host developer. Fix a copy under `/tmp` in the container and apply a unified patch on the host with `git apply`.
 - The production image intentionally has no pytest/ruff; after a rebuild, reinstall `requirements-dev.txt` in the dev container before running checks.
 - Migrations: generate with `alembic revision --autogenerate`, then `alembic upgrade head`. Lint fixes on historical migrations must be annotation/whitespace-only — never change the behavior of an already-applied migration.
-- Keep the catalogs in sync: `lineage.md` (schema), `docs/tree_files.md` (files/functions), `docs/regras_negocio.md` (business rules — ask the product owner first), `docs/architecture.md` (patterns), and the design-system route (new components).
+- Keep the catalogs in sync: `docs/lineage.md` (schema), `docs/tree_files.md` (files/functions), `docs/regras_negocio.md` (business rules — ask the product owner first), `docs/architecture.md` (patterns), and the design-system route (new components).
+
+### 5. Dependencies and CI configuration
+
+- **Integration tests are opt-in.** Anything that calls a real external service (Cloudinary, Resend, …) MUST be marked `pytest.mark.integration` and live under `tests/integration/`. The default `pytest` run excludes the marker; only `pytest -m integration` with real credentials runs them. A fix here is still a change: write a regression test (e.g. `tests/test_pytest_config.py` fails without `addopts = -m "not integration"`).
+- **`npm ci` is the single install path.** CI, `apps/frontend/Dockerfile` and local verification all install with `npm ci` against the committed lockfile. Never use `npm install --legacy-peer-deps`, `--force` or `--omit=peer` to make a tree install — resolve the conflict in `package.json`/lockfile. Masking it in the Dockerfile is what hid a Storybook 10 × Vitest 1 peer conflict and kept CI red for days.
+- **Version the dependency tree together.** A Storybook addon, ESLint plugin or test tool added must be compatible with the pinned majors (`vitest`, `vite`, `react`, `eslint`). If a tool is unused (no story with `play`, tests run by plain `vitest`), remove it instead of force-resolving.
+- **New/updated frontend dependency** → update `package.json` **and** `package-lock.json` in the same commit, prove `npm ci` resolves, and run `docker compose build web`. Using a Node built-in in TS requires declaring `@types/node`.
+- **CI/config fixes need a regression test too** (e.g. `test/DependencyResolution.test.ts` runs `npm ci --dry-run --offline` with a cold cache and fails if the lock is unresolvable). Reproduce the exact CI step locally before declaring done.
 
 ## Definition of Done
 
 - [ ] Test written first, fails without the fix; full suite green
 - [ ] `ruff check .` + `ruff format --check .` clean (backend) / `npm run lint` + `npm run typecheck` clean (frontend)
 - [ ] No untrusted input reaches HTML/JS; authorization checked in the service layer; no secret in code, logs or payloads
+- [ ] Integration tests marked `integration` and excluded from the default suite; no test hits the network
+- [ ] Dependencies installed with `npm ci` (no `--legacy-peer-deps`), `package.json` + lockfile in sync, validated with `docker compose build web` / `build api`
 - [ ] New dependencies declared in requirements and validated with an image build
 - [ ] No debug leftovers, no commented-out code, no lint-silencing hacks
-- [ ] `lineage.md` / `docs/tree_files.md` / `docs/regras_negocio.md` / `docs/architecture.md` updated when applicable
+- [ ] `docs/lineage.md` / `docs/tree_files.md` / `docs/regras_negocio.md` / `docs/architecture.md` updated when applicable
 - [ ] Business rules untouched, or explicitly confirmed with the product owner
 - [ ] Conventional commit, containing only the files of that change
 
@@ -169,4 +182,4 @@ These rules are **not optional**. Each one exists because breaking it already ca
 - `docker-compose.yml` — Service definitions and env vars
 - `.github/workflows/main.yml` — CI/CD pipeline
 - `apps/backend/entrypoint.sh` — Docker startup: `alembic upgrade head` then uvicorn
-- `ìneage.md` - all tables from Database
+- `docs/lineage.md` — All database tables (local-only, not versioned)
