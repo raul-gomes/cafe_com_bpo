@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import pricing_input_for_total, register_user
 
 
 def get_auth_header(client, email):
@@ -18,29 +18,32 @@ def test_put_proposal_updates_existing_record(client):
     auth = get_auth_header(client, email)
 
     # 1. Cria uma proposta
-    create_payload = {
-        "client_name": "Antigo Nome",
-        "input_payload": {"original": True},
-        "result_payload": {"price": 100},
-    }
-    resp_create = client.post("/proposals/", json=create_payload, headers=auth)
+    resp_create = client.post(
+        "/proposals/",
+        json={
+            "client_name": "Antigo Nome",
+            "input_payload": pricing_input_for_total(100.0),
+        },
+        headers=auth,
+    )
     proposal_id = resp_create.json()["id"]
+    assert resp_create.json()["result_payload"]["final_price"] == 100.0
 
-    # 2. Tenta atualizar (Deve falhar com 405 ou 404 por enquanto pois a rota não existe)
-    update_payload = {
-        "client_name": "Novo Nome",
-        "input_payload": {"original": False},
-        "result_payload": {"price": 200},
-    }
+    # 2. Atualiza com outro total — o preço persistido é o recalculado, não o enviado
     resp_update = client.put(
-        f"/proposals/{proposal_id}", json=update_payload, headers=auth
+        f"/proposals/{proposal_id}",
+        json={
+            "client_name": "Novo Nome",
+            "input_payload": pricing_input_for_total(200.0),
+            "result_payload": {"final_price": 1.0},
+        },
+        headers=auth,
     )
 
-    # RED Phase verification
     assert resp_update.status_code == 200
     data = resp_update.json()
     assert data["client_name"] == "Novo Nome"
-    assert data["input_payload"] == {"original": False}
+    assert data["result_payload"]["final_price"] == 200.0
 
 
 def test_put_proposal_returns_404_for_non_existent(client):
@@ -50,7 +53,7 @@ def test_put_proposal_returns_404_for_non_existent(client):
 
     response = client.put(
         f"/proposals/{random_id}",
-        json={"client_name": "X", "input_payload": {}, "result_payload": {}},
+        json={"client_name": "X", "input_payload": pricing_input_for_total(100.0)},
         headers=auth,
     )
     assert response.status_code == 404
@@ -62,7 +65,7 @@ def test_put_proposal_prevents_unauthorized_edit(client):
     auth_a = get_auth_header(client, email_a)
     resp_create = client.post(
         "/proposals/",
-        json={"client_name": "A", "input_payload": {}, "result_payload": {}},
+        json={"client_name": "A", "input_payload": pricing_input_for_total(100.0)},
         headers=auth_a,
     )
     proposal_id = resp_create.json()["id"]
@@ -73,7 +76,7 @@ def test_put_proposal_prevents_unauthorized_edit(client):
 
     resp_update = client.put(
         f"/proposals/{proposal_id}",
-        json={"client_name": "Hacked", "input_payload": {}, "result_payload": {}},
+        json={"client_name": "Hacked", "input_payload": pricing_input_for_total(200.0)},
         headers=auth_b,
     )
 
@@ -91,8 +94,7 @@ def test_proposals_get_sequential_number_per_user(client):
             "/proposals/",
             json={
                 "client_name": f"Empresa A {i}",
-                "input_payload": {},
-                "result_payload": {"final_price": 100 * (i + 1)},
+                "input_payload": pricing_input_for_total(100.0 * (i + 1)),
             },
             headers=auth_a,
         )
@@ -111,7 +113,10 @@ def test_proposals_get_sequential_number_per_user(client):
     auth_b = get_auth_header(client, email_b)
     resp_b = client.post(
         "/proposals/",
-        json={"client_name": "Empresa B", "input_payload": {}, "result_payload": {}},
+        json={
+            "client_name": "Empresa B",
+            "input_payload": pricing_input_for_total(50.0),
+        },
         headers=auth_b,
     )
     assert resp_b.status_code == 201, resp_b.text
@@ -127,11 +132,11 @@ def test_public_proposal_exposes_number(client):
         "/proposals/",
         json={
             "client_name": "Empresa do Teste",
-            "input_payload": {"services": [{"name": "BPO Financeiro", "active": True}]},
-            "result_payload": {"final_price": 1000},
+            "input_payload": pricing_input_for_total(1000.0),
         },
         headers=auth,
     )
+    assert resp.status_code == 201, resp.text
     link = client.post(
         f"/proposals/{resp.json()['id']}/share-link", headers=auth
     ).json()

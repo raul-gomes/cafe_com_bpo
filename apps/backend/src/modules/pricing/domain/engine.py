@@ -249,9 +249,7 @@ class PricingCalculator:
         """
         combined_rate = (tax_rate + commission_rate) / Decimal(100)
         if combined_rate >= Decimal(1):
-            raise ValueError(
-                "A soma de imposto e comissão deve ser menor que 100%."
-            )
+            raise ValueError("A soma de imposto e comissão deve ser menor que 100%.")
         final_price_with_tax = price_before_tax / (Decimal(1) - combined_rate)
         return final_price_with_tax - price_before_tax
 
@@ -275,10 +273,7 @@ class PricingCalculator:
         if term_discount < ZERO:
             raise ValueError("O desconto de prazo não pode ser negativo.")
         discount_amount = price_before_discount * term_discount
-        final_price = price_before_discount - discount_amount
-        if final_price < ZERO:
-            final_price = ZERO
-        return discount_amount, final_price
+        return discount_amount, max(price_before_discount - discount_amount, ZERO)
 
     @staticmethod
     def calculate_final_price(pricing_input: PricingInput) -> PricingResult:

@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import pricing_input_for_total, register_user
 
 
 def get_auth_header(client, email):
@@ -20,8 +20,7 @@ def test_user_cannot_access_other_users_proposal(client):
 
     prop_payload = {
         "client_name": "Empresa do A",
-        "input_payload": {"test": "data"},
-        "result_payload": {"final_price": 1000},
+        "input_payload": pricing_input_for_total(1000.0),
     }
     resp_create = client.post("/proposals/", json=prop_payload, headers=auth_a)
     proposal_id = resp_create.json()["id"]
@@ -49,8 +48,7 @@ def test_proposals_list_is_strictly_filtered_by_owner(client):
             "/proposals/",
             json={
                 "client_name": f"Prop {i}",
-                "input_payload": {},
-                "result_payload": {},
+                "input_payload": pricing_input_for_total(100.0),
             },
             headers=auth_a,
         )
@@ -60,7 +58,7 @@ def test_proposals_list_is_strictly_filtered_by_owner(client):
     auth_b = get_auth_header(client, email_b)
     client.post(
         "/proposals/",
-        json={"client_name": "Prop B", "input_payload": {}, "result_payload": {}},
+        json={"client_name": "Prop B", "input_payload": pricing_input_for_total(100.0)},
         headers=auth_b,
     )
 

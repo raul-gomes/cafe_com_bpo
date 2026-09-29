@@ -17,7 +17,7 @@ from .schemas import (
     PublicProposalResponse,
     ShareLinkResponse,
 )
-from .service import ProposalService, ProposalShareError
+from .service import ProposalNotFoundError, ProposalService, ProposalShareError
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
@@ -74,24 +74,18 @@ def submit_public_decision(
 
 @router.post("/", response_model=ProposalResponse, status_code=201)
 def create_proposal(
-    proposal: ProposalCreate, repo: RepoDep, current_user: CurrentUserDep
+    proposal: ProposalCreate, service: ServiceDep, current_user: CurrentUserDep
 ):
     try:
-        new_scenario = repo.create_scenario(
-            user_id=current_user.id,
-            client_name=proposal.client_name,
-            input_payload=proposal.input_payload,
-            result_payload=proposal.result_payload,
-            prospect_id=proposal.prospect_id,
-        )
-        repo.session.commit()
-        repo.session.refresh(new_scenario)
+        new_scenario = service.create_proposal(proposal, current_user.id)
+        service.repository.session.commit()
+        service.repository.session.refresh(new_scenario)
         log.info(
             f"📄 Proposta salva: '{proposal.client_name}' | ID: {new_scenario.id} | Usuário: {current_user.email}"
         )
         return new_scenario
     except Exception as e:
-        repo.session.rollback()
+        service.repository.session.rollback()
         log.exception(f"❌ Erro ao salvar proposta para {current_user.email}")
         raise HTTPException(
             status_code=400, detail="Não foi possível salvar o orçamento."
@@ -126,34 +120,29 @@ def get_proposal(proposal_id: str, repo: RepoDep, current_user: CurrentUserDep):
 def update_proposal(
     proposal_id: str,
     proposal: ProposalCreate,
-    repo: RepoDep,
+    service: ServiceDep,
     current_user: CurrentUserDep,
 ):
     try:
-        updated = repo.update_scenario(
-            user_id=current_user.id,
-            scenario_id=uuid.UUID(proposal_id),
-            client_name=proposal.client_name,
-            input_payload=proposal.input_payload,
-            result_payload=proposal.result_payload,
-            prospect_id=proposal.prospect_id,
+        updated = service.update_proposal(
+            uuid.UUID(proposal_id), current_user.id, proposal
         )
-        if not updated:
-            log.warning(
-                f"⚠️ Tentativa de atualização de proposta inexistente ou IDOR: {proposal_id} por {current_user.email}"
-            )
-            raise HTTPException(status_code=404, detail="Proposta não encontrada")
-
-        repo.session.commit()
-        repo.session.refresh(updated)
+        service.repository.session.commit()
+        service.repository.session.refresh(updated)
         log.info(
             f"📝 Proposta atualizada: '{proposal.client_name}' | ID: {proposal_id} | Usuário: {current_user.email}"
         )
         return updated
+    except ProposalNotFoundError as e:
+        service.repository.session.rollback()
+        log.warning(
+            f"⚠️ Tentativa de atualização de proposta inexistente ou IDOR: {proposal_id} por {current_user.email}"
+        )
+        raise HTTPException(status_code=404, detail="Proposta não encontrada") from e
     except HTTPException:
         raise
     except Exception as e:
-        repo.session.rollback()
+        service.repository.session.rollback()
         log.exception(f"❌ Erro ao atualizar proposta {proposal_id}")
         raise HTTPException(
             status_code=400, detail="Não foi possível atualizar o orçamento."

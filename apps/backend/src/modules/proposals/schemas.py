@@ -6,10 +6,20 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProposalCreate(BaseModel):
+    """Corpo de escrita do orçamento.
+
+    O preço não vem do cliente: `result_payload` é recalculado pelo servidor a
+    partir de `input_payload`. O campo é aceito só por compatibilidade com
+    clientes antigos e seu conteúdo é descartado.
+    """
+
     client_name: str
     input_payload: dict
-    result_payload: dict
     prospect_id: UUID | None = None
+    result_payload: dict | None = Field(
+        default=None,
+        description="Ignorado — o preço é recalculado pelo servidor.",
+    )
 
 
 class ProposalResponse(BaseModel):
@@ -34,8 +44,11 @@ class ProposalResponse(BaseModel):
 class ProposalUpdate(BaseModel):
     client_name: str | None = None
     input_payload: dict | None = None
-    result_payload: dict | None = None
     prospect_id: UUID | None = None
+    result_payload: dict | None = Field(
+        default=None,
+        description="Ignorado — o preço é recalculado pelo servidor.",
+    )
 
 
 class ShareLinkResponse(BaseModel):

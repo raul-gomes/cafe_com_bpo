@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import pricing_input_for_total, register_user
 
 
 def get_auth_header(client, email):
@@ -31,17 +31,10 @@ def create_proposal(client, auth, prospect, final_price=2500.0):
     payload = {
         "client_name": prospect["name"],
         "input_payload": {
-            "operation": {
-                "people_count": 3,
-                "hours_per_month": 160,
-                "total_cost": 15000,
-            },
-            "desired_profit_margin": 0.5,
-            "term_discount": 0.1,
+            **pricing_input_for_total(final_price),
             "complexity": "Média",
             "revenue": 50000,
         },
-        "result_payload": {"final_price": final_price},
         "prospect_id": prospect["id"],
     }
     return client.post("/proposals/", json=payload, headers=auth)

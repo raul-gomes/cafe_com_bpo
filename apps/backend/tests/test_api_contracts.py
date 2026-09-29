@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from src.modules.contracts.default_template import DEFAULT_TEMPLATE_SECTIONS
 from src.modules.contracts.fields import SERVICO_RECORRENTE
-from tests.helpers import register_user
+from tests.helpers import pricing_input_for_service_cost, register_user
 
 SERVICO_KEY = SERVICO_RECORRENTE
 
@@ -34,25 +34,27 @@ def _create_prospect(client, auth, name="Empresa Contrato"):
     return client.post("/prospects/", json=payload, headers=auth)
 
 
-def _create_proposal(client, auth, prospect, final_price=1250.0):
+def _create_proposal(
+    client,
+    auth,
+    prospect,
+    service_cost=1000.0,
+    margin=0.5,
+    term_discount=0.1,
+):
+    """Orçamento de R$ 1.000,00 de serviço, R$ 500,00 de margem e 10% de prazo.
+
+    O preço é calculado pelo servidor, então o teste declara o custo do serviço
+    e o mark-up, nunca o resultado: R$ 1.000,00 → R$ 1.500,00 → R$ 1.350,00.
+    """
     payload = {
         "client_name": prospect["name"],
         "input_payload": {
-            "operation": {
-                "people_count": 3,
-                "hours_per_month": 160,
-                "total_cost": 15000,
-            },
-            "desired_profit_margin": 0.5,
-            "term_discount": 0.1,
+            **pricing_input_for_service_cost(
+                service_cost, margin=margin, term_discount=term_discount
+            ),
             "complexity": "Média",
             "revenue": 50000,
-        },
-        "result_payload": {
-            "final_price": final_price,
-            "price_before_discount": 1388.89,
-            "discount_amount": 138.89,
-            "breakdown": {"total_service_cost": 833.33},
         },
         "prospect_id": prospect["id"],
     }
@@ -155,8 +157,8 @@ def test_generate_substitutes_prospect_and_proposal_data(client):
     assert "12345678000199" in part1
 
     part2 = contract["sections"][1]["content"]
-    assert "R$ 1.250,00" in part2
-    assert "R$ 833,33" in part2
+    assert "R$ 1.350,00" in part2
+    assert "R$ 1.000,00" in part2
     assert "10%" in part2
 
 
@@ -175,7 +177,7 @@ def test_generate_default_model_replaces_contractada_tokens(client):
         headers=auth,
     )
     prospect = _create_prospect(client, auth).json()
-    proposal = _create_proposal(client, auth, prospect, final_price=1250.0).json()
+    proposal = _create_proposal(client, auth, prospect).json()
 
     resp = client.post(
         "/contracts/generate",
@@ -199,8 +201,8 @@ def test_generate_default_model_replaces_contractada_tokens(client):
     valores = next(s for s in sections if s["title"].startswith("CLÁUSULA SÉTIMA"))[
         "content"
     ]
-    assert "R$ 1.250,00" in valores
-    assert "mil e duzentos e cinquenta reais" in valores
+    assert "R$ 1.350,00" in valores
+    assert "mil e trezentos e cinquenta reais" in valores
 
     comunicacoes = next(
         s for s in sections if s["title"].startswith("CLÁUSULA DÉCIMA PRIMEIRA")
@@ -220,7 +222,9 @@ def test_generate_renders_contracted_services_table(client):
                 "operation": {
                     "people_count": 3,
                     "hours_per_month": 160,
-                    "total_cost": 15000,
+                    "total_cost": 14400,
+                    "tax_rate": 0,
+                    "commission_rate": 0,
                 },
                 "desired_profit_margin": 0.5,
                 "term_discount": 0.1,
@@ -248,16 +252,6 @@ def test_generate_renders_contracted_services_table(client):
                     },
                 ],
             },
-            "result_payload": {
-                "final_price": 1250.0,
-                "price_before_discount": 1388.89,
-                "discount_amount": 138.89,
-                "breakdown": {
-                    "cost_per_minute": 0.5,
-                    "service_costs": [300.0, 75.0, 1500.0],
-                    "total_service_cost": 375.0,
-                },
-            },
             "prospect_id": prospect["id"],
         },
         headers=auth,
@@ -274,8 +268,8 @@ def test_generate_renders_contracted_services_table(client):
         s for s in resp.json()["sections"] if s["title"].startswith("ANEXO I")
     )["content"]
     assert "| SERVIÇO | FREQUÊNCIA | VALOR |" in anexo
-    assert "| Implantação e Treinamento | 10x/mês | R$ 1.000,00 |" in anexo
-    assert "| Controle de contas pagar e a receber | 5x/mês | R$ 250,00 |" in anexo
+    assert "| Implantação e Treinamento | 10x/mês | R$ 405,00 |" in anexo
+    assert "| Controle de contas pagar e a receber | 5x/mês | R$ 101,25 |" in anexo
     assert "| ITEM | LIMITE MENSAL |" in anexo
     assert "| Implantação e Treinamento | 10 |" in anexo
     assert "| Controle de contas pagar e a receber | 5 |" in anexo
@@ -837,7 +831,7 @@ def test_preview_resolves_tokens_with_current_data(client):
     email = f"prev_{uuid4()}@cafe.com"
     auth = _auth_header(client, email)
     prospect = _create_prospect(client, auth, name="Empresa Visualizar").json()
-    proposal = _create_proposal(client, auth, prospect, final_price=2500.0).json()
+    proposal = _create_proposal(client, auth, prospect).json()
     contract = client.post(
         "/contracts/generate",
         json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
@@ -890,8 +884,8 @@ def test_preview_resolves_tokens_with_current_data(client):
     assert "{{contratada_representante_cpf}}" not in parte
 
     objeto = sections[1]["content"]
-    assert "R$ 2.500,00" in objeto
-    assert "dois mil e quinhentos reais" in objeto
+    assert "R$ 1.350,00" in objeto
+    assert "mil e trezentos e cinquenta reais" in objeto
 
 
 def test_preview_unknown_contract_returns_404(client):
@@ -926,7 +920,7 @@ def test_generate_composes_contratada_address_from_structured_fields(client):
         headers=auth,
     )
     prospect = _create_prospect(client, auth).json()
-    proposal = _create_proposal(client, auth, prospect, final_price=1250.0).json()
+    proposal = _create_proposal(client, auth, prospect).json()
 
     resp = client.post(
         "/contracts/generate",
@@ -956,7 +950,7 @@ def test_generate_contratada_address_falls_back_to_company_address(client):
         headers=auth,
     )
     prospect = _create_prospect(client, auth).json()
-    proposal = _create_proposal(client, auth, prospect, final_price=1250.0).json()
+    proposal = _create_proposal(client, auth, prospect).json()
 
     resp = client.post(
         "/contracts/generate",
@@ -983,6 +977,8 @@ def test_generate_pulls_implantacao_from_pontual_services(client):
                     "people_count": 3,
                     "hours_per_month": 160,
                     "total_cost": 15000,
+                    "tax_rate": 0,
+                    "commission_rate": 0,
                 },
                 "desired_profit_margin": 0.5,
                 "term_discount": 0.1,
@@ -1009,10 +1005,6 @@ def test_generate_pulls_implantacao_from_pontual_services(client):
                         "active": True,
                     },
                 ],
-            },
-            "result_payload": {
-                "final_price": 1250.0,
-                "breakdown": {"total_service_cost": 833.33},
             },
             "prospect_id": prospect["id"],
         },
@@ -1053,6 +1045,8 @@ def test_generate_omits_implantacao_without_pontual_services(client):
                     "people_count": 3,
                     "hours_per_month": 160,
                     "total_cost": 15000,
+                    "tax_rate": 0,
+                    "commission_rate": 0,
                 },
                 "desired_profit_margin": 0.5,
                 "term_discount": 0.1,
@@ -1065,10 +1059,6 @@ def test_generate_omits_implantacao_without_pontual_services(client):
                         "active": True,
                     },
                 ],
-            },
-            "result_payload": {
-                "final_price": 1250.0,
-                "breakdown": {"total_service_cost": 833.33},
             },
             "prospect_id": prospect["id"],
         },

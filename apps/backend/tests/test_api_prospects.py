@@ -1,7 +1,7 @@
 import uuid
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import pricing_input_for_total, register_user
 
 
 def get_auth_header(client, email):
@@ -150,8 +150,7 @@ def test_delete_prospect_removes_linked_proposals_and_contracts(client):
         "/proposals/",
         json={
             "client_name": prospect["name"],
-            "input_payload": {"p": 1},
-            "result_payload": {"price": 500},
+            "input_payload": pricing_input_for_total(500.0),
             "prospect_id": prospect["id"],
         },
         headers=auth,
@@ -202,8 +201,7 @@ def test_delete_prospect_cascade_is_user_scoped(client):
         "/proposals/",
         json={
             "client_name": prospect_a["name"],
-            "input_payload": {"p": 1},
-            "result_payload": {"price": 500},
+            "input_payload": pricing_input_for_total(500.0),
             "prospect_id": prospect_a["id"],
         },
         headers=auth_a,
@@ -221,8 +219,7 @@ def test_delete_prospect_cascade_is_user_scoped(client):
         "/proposals/",
         json={
             "client_name": prospect_b["name"],
-            "input_payload": {"p": 1},
-            "result_payload": {"price": 300},
+            "input_payload": pricing_input_for_total(300.0),
             "prospect_id": prospect_b["id"],
         },
         headers=auth_b,
@@ -411,8 +408,7 @@ def test_proposal_can_reference_prospect(client):
         "/proposals/",
         json={
             "client_name": prospect["name"],
-            "input_payload": {"prospecto": True},
-            "result_payload": {"price": 500},
+            "input_payload": pricing_input_for_total(500.0),
             "prospect_id": prospect["id"],
         },
         headers=auth,

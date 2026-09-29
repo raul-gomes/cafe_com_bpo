@@ -13,7 +13,7 @@ Testa TODOS os endpoints da aplicação para garantir que:
 
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import pricing_input_for_total, register_user
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -224,7 +224,7 @@ class TestClients:
 
 class TestProposals:
     def test_create_proposal(self, client):
-        """Proposal requires input_payload and result_payload (not title/status)."""
+        """Proposal exige input_payload; o preço é calculado pelo servidor."""
         email = f"prop_{_unique()}@cafe.com"
         auth = _register_and_login(client, email)["headers"]
         resp = client.post(
@@ -232,22 +232,14 @@ class TestProposals:
             headers=auth,
             json={
                 "client_name": "Cliente XYZ",
-                "input_payload": {
-                    "employees": 10,
-                    "invoices": 500,
-                    "services": ["BPF", "Conciliação"],
-                },
-                "result_payload": {
-                    "monthly_cost": 15000.0,
-                    "annual_savings": 50000.0,
-                    "roi": 45.5,
-                },
+                "input_payload": pricing_input_for_total(15000.0),
             },
         )
         assert resp.status_code == 201, f"Create proposal failed: {resp.text}"
         data = resp.json()
         assert data["client_name"] == "Cliente XYZ"
         assert "id" in data
+        assert data["result_payload"]["final_price"] == 15000.0
 
     def test_list_proposals(self, client):
         email = f"proplist_{_unique()}@cafe.com"
@@ -258,8 +250,7 @@ class TestProposals:
             headers=auth,
             json={
                 "client_name": "Test",
-                "input_payload": {},
-                "result_payload": {},
+                "input_payload": pricing_input_for_total(100.0),
             },
         )
         resp = client.get("/proposals/", headers=auth)
@@ -274,8 +265,7 @@ class TestProposals:
             headers=auth,
             json={
                 "client_name": "GetTest",
-                "input_payload": {},
-                "result_payload": {},
+                "input_payload": pricing_input_for_total(100.0),
             },
         ).json()["id"]
         resp = client.get(f"/proposals/{pid}", headers=auth)
@@ -296,8 +286,7 @@ class TestProposals:
             headers=auth,
             json={
                 "client_name": "OldName",
-                "input_payload": {},
-                "result_payload": {},
+                "input_payload": pricing_input_for_total(100.0),
             },
         ).json()["id"]
         resp = client.put(
@@ -305,8 +294,7 @@ class TestProposals:
             headers=auth,
             json={
                 "client_name": "NewName",
-                "input_payload": {},
-                "result_payload": {},
+                "input_payload": pricing_input_for_total(200.0),
             },
         )
         assert resp.status_code == 200
@@ -320,8 +308,7 @@ class TestProposals:
             headers=auth,
             json={
                 "client_name": "DelMe",
-                "input_payload": {},
-                "result_payload": {},
+                "input_payload": pricing_input_for_total(100.0),
             },
         ).json()["id"]
         resp = client.delete(f"/proposals/{pid}", headers=auth)
@@ -338,8 +325,7 @@ class TestProposals:
             headers=auth_a,
             json={
                 "client_name": "Secreta",
-                "input_payload": {},
-                "result_payload": {},
+                "input_payload": pricing_input_for_total(100.0),
             },
         ).json()["id"]
         # User B tries to access

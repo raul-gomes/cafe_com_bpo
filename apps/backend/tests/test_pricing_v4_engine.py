@@ -28,9 +28,9 @@ from src.modules.pricing.domain.engine import (
 def build_operation(tax_rate="0", commission_rate="0"):
     """Operação com números redondos: 9600 / (2*160) = 30 por hora = 0,5 por minuto."""
     return OperationContext(
-        total_cost=Decimal("9600"),
+        total_cost=Decimal(9600),
         people_count=2,
-        hours_per_month=Decimal("160"),
+        hours_per_month=Decimal(160),
         tax_rate=Decimal(tax_rate),
         commission_rate=Decimal(commission_rate),
     )
@@ -71,7 +71,7 @@ def fixed_service(value="100", quantity=1, **extra):
 
 def test_cost_per_minute_is_derived_from_operation():
     result = calculate([time_service(minutes="10", quantity=5)])
-    assert result.breakdown.cost_per_hour == Decimal("30")
+    assert result.breakdown.cost_per_hour == Decimal(30)
     assert result.breakdown.cost_per_minute == Decimal("0.5")
 
 
@@ -141,9 +141,7 @@ def test_commission_enters_the_same_markup_denominator_as_tax():
 
 def test_markup_fails_loudly_when_tax_plus_commission_reaches_one_hundred():
     with pytest.raises(ValueError):
-        calculate(
-            [time_service()], tax_rate="95", commission_rate="10"
-        )
+        calculate([time_service()], tax_rate="95", commission_rate="10")
 
 
 # ── Etapa 5: desconto de prazo ──────────────────────────────────────────────
@@ -164,9 +162,7 @@ def test_term_discount_reduces_the_final_price():
 
 
 def test_term_discount_never_produces_a_negative_price():
-    result = calculate(
-        [time_service()], tax_rate="0", term_discount="1.5"
-    )
+    result = calculate([time_service()], tax_rate="0", term_discount="1.5")
     assert result.final_price == Decimal("0.00")
 
 
