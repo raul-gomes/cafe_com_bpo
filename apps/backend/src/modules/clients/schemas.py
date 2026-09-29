@@ -51,9 +51,15 @@ class ClientUpdate(ClientBase):
 
 
 class ClientResponse(ClientBase):
+    """Cliente do usuário, lido da `companies` (facade).
+
+    Sem `role`: a resposta saía com `role="owner"` fixo em toda linha, o que
+    não distinguia nada — o endpoint já devolve só as empresas do próprio
+    usuário, e o acesso de um membro da equipe é outro endpoint.
+    """
+
     id: UUID
     user_id: UUID
-    role: str = "owner"  # "owner" | "member"
     created_at: datetime
     updated_at: datetime
 

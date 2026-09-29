@@ -216,3 +216,25 @@ def test_going_back_to_negotiation_clears_the_company_flag(db_session, user_id):
 
     db_session.refresh(company)
     assert company.reproved_at is None
+
+
+def test_every_active_client_has_a_company(db_session, user_id):
+    """Premissa da leitura: `GET /clients/` sai de `companies`, então um
+    cliente sem empresa sumiria da listagem sem erro nenhum. Este teste é o
+    alarme dessa deriva — cliente criado por qualquer caminho que não passe
+    pelos listeners aparece aqui."""
+    from src.modules.clients.models import Client
+    from src.modules.companies.models import Company
+
+    _client(db_session, user_id)
+    _prospect(db_session, user_id, name="Lead Aberto")
+
+    sem_empresa = (
+        db_session.query(Client)
+        .filter(Client.is_active)
+        .outerjoin(Company, Client.id == Company.id)
+        .filter(Company.id.is_(None))
+        .count()
+    )
+
+    assert sem_empresa == 0
