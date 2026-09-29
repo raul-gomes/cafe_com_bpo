@@ -3,7 +3,7 @@ import uuid
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
-from src.modules.prospects.models import Prospect
+from src.modules.companies.models import Company
 
 from .models import PricingScenario
 from .schemas import ProposalCreate, ProposalUpdate
@@ -50,23 +50,31 @@ class PricingScenarioRepository:
         return scenario
 
     def list_scenarios_by_user(self, user_id: uuid.UUID) -> list[PricingScenario]:
-        """Orçamentos ativos do usuário, **exceto** os vinculados a um
-        prospecto já conquistado (convertido) ou não captado (reprovado) —
-        esses saem da lista de orçamentos e passam a viver na Governança."""
+        """Orçamentos ativos do usuário, **exceto** os vinculados a uma empresa
+        já conquistada (convertida) ou não captada (reprovada) — esses saem da
+        lista de orçamentos e passam a viver na Governança.
+
+        O filtro lê o ciclo de vida de `companies`, não o de `prospects`: a
+        empresa é o dono do negócio e a pairagem prospecto/cliente colapsa
+        nela, então é o único lugar que responde "este negócio ainda está em
+        negociação?" depois que o par vira uma linha só. A empresa inexistente
+        (orçamento com nome livre, sem cadastro) entra sempre.
+        """
         return (
             self.session.query(PricingScenario)
-            .outerjoin(Prospect, PricingScenario.prospect_id == Prospect.id)
+            .outerjoin(Company, PricingScenario.company_id == Company.id)
             .filter(
                 PricingScenario.user_id == user_id,
                 PricingScenario.is_active,
                 or_(
-                    Prospect.id.is_(None),
+                    Company.id.is_(None),
                     and_(
-                        Prospect.converted_client_id.is_(None),
-                        Prospect.reproved_at.is_(None),
+                        Company.converted_at.is_(None),
+                        Company.reproved_at.is_(None),
                     ),
                 ),
             )
+            .order_by(PricingScenario.created_at.desc())
             .all()
         )
 

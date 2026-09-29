@@ -27,6 +27,7 @@ class ProposalResponse(BaseModel):
     client_name: str
     number: int | None = None
     prospect_id: UUID | None = None
+    company_id: UUID | None = None
     input_payload: dict
     result_payload: dict
     created_at: datetime

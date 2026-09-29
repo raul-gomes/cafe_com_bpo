@@ -7,6 +7,27 @@ from .models import Prospect
 from .schemas import ProspectCreate, ProspectUpdate
 
 
+def _mirror_lifecycle(prospect: Prospect, *, reproved_at: datetime | None) -> None:
+    """Espelha a classificação do negócio na `Company`.
+
+    A partir do cutover da leitura a listagem filtra por `companies`, então a
+    flag precisa existir nos dois lados. Prospecto de empresa já convertida
+    não tem linha própria: quem guarda o estado é a empresa do cliente, e é lá
+    que o filtro vai olhar.
+    """
+    from src.modules.companies.models import Company
+    from src.modules.prospects.models import Prospect as ProspectModel
+
+    company_id = (
+        prospect.converted_client_id
+        if isinstance(prospect, ProspectModel) and prospect.converted_client_id
+        else prospect.id
+    )
+    company = prospect._sa_instance_state.session.get(Company, company_id)
+    if company is not None:
+        company.reproved_at = reproved_at
+
+
 class ProspectRepository:
     def __init__(self, session: Session):
         self.session = session
@@ -107,7 +128,9 @@ class ProspectRepository:
     def mark_reproved(self, prospect: Prospect) -> Prospect:
         """Marca o prospecto como não captado (reprovado). Flag binária:
         `reproved_at` preenchida = 1 (perdido); nula = ainda negociando."""
-        prospect.reproved_at = datetime.now(timezone.utc)
+        reproved_at = datetime.now(timezone.utc)
+        prospect.reproved_at = reproved_at
+        _mirror_lifecycle(prospect, reproved_at=reproved_at)
         self.session.commit()
         self.session.refresh(prospect)
         return prospect
@@ -115,6 +138,7 @@ class ProspectRepository:
     def clear_reproved(self, prospect: Prospect) -> Prospect:
         """Desfaz a reprovação, voltando o prospecto à negociação."""
         prospect.reproved_at = None
+        _mirror_lifecycle(prospect, reproved_at=None)
         self.session.commit()
         self.session.refresh(prospect)
         return prospect

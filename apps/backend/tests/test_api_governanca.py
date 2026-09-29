@@ -188,6 +188,26 @@ def test_proposals_list_hides_converted_linked(client):
     assert detail.status_code == 200
 
 
+def test_proposals_list_hides_reproved_linked(client):
+    """Negócio não captado sai da listagem de orçamentos, igual ao convertido —
+    os dois continuam acessíveis pelo detalhe, que é como a Governança mostra."""
+    email = f"gov_hide_repr_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth).json()
+    proposal = create_proposal(client, auth, prospect).json()
+
+    assert any(
+        p["id"] == proposal["id"]
+        for p in client.get("/proposals/", headers=auth).json()
+    )
+
+    client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
+
+    listed = client.get("/proposals/", headers=auth).json()
+    assert all(p["id"] != proposal["id"] for p in listed)
+    assert client.get(f"/proposals/{proposal['id']}", headers=auth).status_code == 200
+
+
 def test_contracts_list_hides_finalized(client):
     email = f"gov_hide_ctr_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)

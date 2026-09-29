@@ -176,3 +176,43 @@ def test_converting_a_prospect_moves_its_children_to_the_client_company(
     # As colunas legadas continuam intactas: elas valem até R4.
     assert db_session.get(PricingScenario, scenario.id).prospect_id == prospect.id
     assert prospect.converted_at is not None
+
+
+def test_reproving_a_prospect_marks_its_company_as_lost(db_session, user_id):
+    """A classificação do negócio vive na empresa depois do cutover da leitura.
+
+    `mark_reproved` precisa marcar a `Company`: se só a flag legada mudasse, o
+    filtro de listagem — que vai ler de `companies` — continuaria mostrando o
+    orçamento de um negócio não captado, contra a regra "negócios captados somem
+    das listagens normais"."""
+    from src.modules.companies.models import Company
+    from src.modules.prospects.repository import ProspectRepository
+
+    _client(db_session, user_id)
+    prospect = _prospect(db_session, user_id, name="Lead Aberto")
+    company = db_session.get(Company, prospect.id)
+
+    ProspectRepository(db_session).mark_reproved(prospect)
+
+    db_session.refresh(company)
+    assert company.reproved_at is not None
+
+
+def test_going_back_to_negotiation_clears_the_company_flag(db_session, user_id):
+    """Reprovar é uma flag binária e tem volta: o botão "Voltar à negociação"
+    precisa devolver a empresa à negociação, senão o negócio continua invisível
+    para sempre."""
+    from src.modules.companies.models import Company
+    from src.modules.prospects.repository import ProspectRepository
+
+    prospect = _prospect(db_session, user_id, name="Lead Aberto")
+    repository = ProspectRepository(db_session)
+    repository.mark_reproved(prospect)
+    company = db_session.get(Company, prospect.id)
+    db_session.refresh(company)
+    assert company.reproved_at is not None
+
+    repository.clear_reproved(prospect)
+
+    db_session.refresh(company)
+    assert company.reproved_at is None
