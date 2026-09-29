@@ -5,7 +5,7 @@ from uuid import UUID
 from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
-from src.modules.prospects.models import Prospect
+from src.modules.companies.models import Company
 
 from .default_template import (
     DEFAULT_TEMPLATE_SECTIONS,
@@ -60,19 +60,24 @@ class ContractRepository:
 
     def list_contracts(self, user_id: UUID) -> list[Contract]:
         """Contratos em rascunho. Os finalizados saem da listagem e passam
-        a ser visualizados pela Governança. Contratos vinculados a um
-        prospecto não captado (reprovado) também saem até o prospecto
-        voltar à negociação."""
+        a ser visualizados pela Governança. Contratos vinculados a uma empresa
+        não captada (reprovada) também saem até o negócio voltar à negociação.
+
+        O filtro de "não captado" lê `companies.reproved_at` — o estado do
+        negócio mora na empresa, e o par prospecto/cliente colapsa nela. Já o
+        convertido não entra aqui: quem some por conversão é o contrato
+        finalizado, e a Governança mostra os dois pelo detalhe.
+        """
         return (
             self.session.query(Contract)
-            .outerjoin(Prospect, Contract.prospect_id == Prospect.id)
+            .outerjoin(Company, Contract.company_id == Company.id)
             .filter(
                 Contract.user_id == user_id,
                 Contract.is_active,
                 Contract.status != Contract.STATUS_FINALIZED,
                 or_(
-                    Prospect.id.is_(None),
-                    Prospect.reproved_at.is_(None),
+                    Company.id.is_(None),
+                    Company.reproved_at.is_(None),
                 ),
             )
             .order_by(Contract.created_at.desc())

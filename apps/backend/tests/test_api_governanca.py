@@ -208,6 +208,28 @@ def test_proposals_list_hides_reproved_linked(client):
     assert client.get(f"/proposals/{proposal['id']}", headers=auth).status_code == 200
 
 
+def test_contracts_list_hides_reproved_linked(client):
+    """Contrato de negócio não captado sai da listagem, como o orçamento.
+
+    Diferente do orçamento, aqui o convertido não é o filtro: quem some por
+    conversão é o contrato finalizado, e o reprovado some em qualquer status."""
+    email = f"gov_hide_ctr_repr_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(client, auth).json()
+    contract = generate_contract(client, auth, prospect).json()
+
+    assert any(
+        c["id"] == contract["id"]
+        for c in client.get("/contracts/", headers=auth).json()
+    )
+
+    client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
+
+    listed = client.get("/contracts/", headers=auth).json()
+    assert all(c["id"] != contract["id"] for c in listed)
+    assert client.get(f"/contracts/{contract['id']}", headers=auth).status_code == 200
+
+
 def test_contracts_list_hides_finalized(client):
     email = f"gov_hide_ctr_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)

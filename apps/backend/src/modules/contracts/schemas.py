@@ -40,6 +40,7 @@ class ContractResponse(BaseModel):
     id: UUID
     number: int | None = None
     prospect_id: UUID | None = None
+    company_id: UUID | None = None
     proposal_id: UUID | None = None
     client_name: str
     sections: list[ContractSection]
