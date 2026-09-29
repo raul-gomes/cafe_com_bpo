@@ -17,7 +17,12 @@ from .schemas import (
     PublicProposalResponse,
     ShareLinkResponse,
 )
-from .service import ProposalNotFoundError, ProposalService, ProposalShareError
+from .service import (
+    ProposalNotFoundError,
+    ProposalPricingError,
+    ProposalService,
+    ProposalShareError,
+)
 
 router = APIRouter(prefix="/proposals", tags=["proposals"])
 
@@ -84,6 +89,13 @@ def create_proposal(
             f"📄 Proposta salva: '{proposal.client_name}' | ID: {new_scenario.id} | Usuário: {current_user.email}"
         )
         return new_scenario
+    except ProposalPricingError as e:
+        service.repository.session.rollback()
+        log.warning(
+            f"⚠️ Precificação recusada ao salvar orçamento de "
+            f"'{proposal.client_name}' por {current_user.email}: {e}"
+        )
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except Exception as e:
         service.repository.session.rollback()
         log.exception(f"❌ Erro ao salvar proposta para {current_user.email}")
@@ -133,6 +145,13 @@ def update_proposal(
             f"📝 Proposta atualizada: '{proposal.client_name}' | ID: {proposal_id} | Usuário: {current_user.email}"
         )
         return updated
+    except ProposalPricingError as e:
+        service.repository.session.rollback()
+        log.warning(
+            f"⚠️ Precificação recusada ao atualizar orçamento {proposal_id} por "
+            f"{current_user.email}: {e}"
+        )
+        raise HTTPException(status_code=400, detail=str(e)) from e
     except ProposalNotFoundError as e:
         service.repository.session.rollback()
         log.warning(

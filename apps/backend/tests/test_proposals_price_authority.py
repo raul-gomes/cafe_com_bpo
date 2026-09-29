@@ -93,6 +93,40 @@ def test_create_rejects_markup_that_reaches_one_hundred_percent(client):
     )
 
     assert resp.status_code == 400
+    # A recusa diz o que houve: mensagem fixa da regra, sem ecoar a entrada.
+    assert "imposto e comissão" in resp.json()["detail"]
+
+
+def test_create_rejects_legacy_input_payload_with_an_actionable_message(client):
+    """Orçamento salvo antes da v4 volta a explicar como corrigir."""
+    auth = auth_header(client, unique_email("preco"))
+    resp = client.post(
+        "/proposals/",
+        json=valid_proposal_payload(
+            input_payload={"employees": 10, "services": ["BPF", "Conciliação"]}
+        ),
+        headers=auth,
+    )
+
+    assert resp.status_code == 400
+    assert "metodologia atual" in resp.json()["detail"]
+
+
+def test_update_rejects_legacy_input_payload_with_an_actionable_message(client):
+    """Editar um orçamento antigo não devolve erro genérico de banco."""
+    auth = auth_header(client, unique_email("preco"))
+    created = client.post(
+        "/proposals/", json=valid_proposal_payload(), headers=auth
+    ).json()
+
+    resp = client.put(
+        f"/proposals/{created['id']}",
+        json=valid_proposal_payload(input_payload={"employees": 10}),
+        headers=auth,
+    )
+
+    assert resp.status_code == 400
+    assert "metodologia atual" in resp.json()["detail"]
 
 
 def test_update_recalculates_and_ignores_tampered_result_payload(client):

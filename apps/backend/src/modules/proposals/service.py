@@ -122,7 +122,8 @@ class ProposalService:
             request = PricingCalculateRequest.model_validate(input_payload)
         except ValidationError as exc:
             raise ProposalPricingError(
-                "O orçamento não tem dados de precificação válidos."
+                "Os dados de precificação enviados não descrevem uma simulação "
+                "válida. Refaça o orçamento com a metodologia atual."
             ) from exc
 
         try:
