@@ -2,12 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { PricingCalculatorLayout } from '../../components/pricing/PricingCalculatorLayout';
 import { apiClient } from '../../api/client';
-import { calculatePricing } from '../../lib/pricingEngine';
 import { PricingFormData } from '../../schemas/pricing';
 import { getProspects, ProspectData } from '../../api/prospects';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Skeleton } from '../../components/ui/skeleton';
 import { toast } from 'sonner';
+
+const formatBRL = (value: number) =>
+  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 
 export const OrcamentoNovoPage: React.FC = () => {
   const { id } = useParams();
@@ -61,28 +63,25 @@ export const OrcamentoNovoPage: React.FC = () => {
   const handleSave = async (formData: PricingFormData, name: string) => {
     try {
       setSaving(true);
-      
-      const result = calculatePricing(
-        formData.operation,
-        formData.services,
-        formData.desired_profit_margin,
-        formData.term_discount
-      );
 
       const payload: Record<string, unknown> = {
         client_name: name,
-        input_payload: formData,
-        result_payload: result
+        input_payload: formData
       };
       if (prospectId) payload.prospect_id = prospectId;
 
-      if (id) {
-        await apiClient.put(`/proposals/${id}`, payload);
-      } else {
-        await apiClient.post('/proposals/', payload);
-      }
+      const resp = id
+        ? await apiClient.put(`/proposals/${id}`, payload)
+        : await apiClient.post('/proposals/', payload);
 
-      toast.success('Orçamento salvo com sucesso!');
+      // O preço gravado é o do servidor: o total do navegador é só rascunho.
+      const savedTotal = Number(resp.data?.result_payload?.final_price);
+      const total = Number.isFinite(savedTotal) ? formatBRL(savedTotal) : null;
+      toast.success(
+        total
+          ? `Orçamento salvo com sucesso! Total: ${total}`
+          : 'Orçamento salvo com sucesso!'
+      );
     } catch (err) {
       console.error('Erro ao salvar:', err);
       toast.error('Erro ao salvar orçamento. Tente novamente.');

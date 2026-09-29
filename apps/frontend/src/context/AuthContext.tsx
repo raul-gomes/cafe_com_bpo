@@ -169,15 +169,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       const saved = JSON.parse(raw);
-      if (saved.form && saved.pricing) {
-        const response = await apiClient.post<{ id: string }>('/proposals/', {
-          client_name: saved.clientName || 'Cliente',
-          input_payload: saved.form,
-          result_payload: saved.pricing,
-        });
-        
+      if (saved.form) {
+        // Sem `result_payload`: o preço é calculado pelo servidor. O `pricing`
+        // do rascunho é descartado e o total autoritativo volta na resposta.
+        const response = await apiClient.post<{ id: string; result_payload?: any }>(
+          '/proposals/',
+          {
+            client_name: saved.clientName || 'Cliente',
+            input_payload: saved.form,
+          }
+        );
+
         sessionStorage.removeItem(SESSION_KEY);
-        
+
         return response.data.id;
       }
     } catch (e) {
