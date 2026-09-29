@@ -35,9 +35,15 @@ class ContactRepository:
     # ── contatos livres ──
 
     def list_free(self, user_id: UUID, search: str | None = None) -> list[Contact]:
+        # "Livre" = contato sem empresa. O que tem `company_id` é a pessoa de uma
+        # empresa e aparece na listagem como prospecto/cliente — sem este filtro
+        # a mesma pessoa saía duas vezes, uma como livre e outra como empresa.
+        # Contato livre com `empresa` preenchida (texto) continua livre: é o
+        # caso de quem anota a empresa no papel, sem cadastro.
         query = self.session.query(Contact).filter(
             Contact.user_id == user_id,
             Contact.is_active,
+            Contact.company_id.is_(None),
         )
         search_filter = _search_filter(
             search, Contact.nome, Contact.empresa, Contact.email, Contact.telefone

@@ -17,6 +17,7 @@ from src.core.rate_limit import limiter
 from src.modules.auth.router import router as auth_router
 from src.modules.calendar.router import router as calendar_router
 from src.modules.clients.router import router as clients_router
+from src.modules.companies import sync as _companies_sync  # noqa: F401  (escrita dupla)
 from src.modules.companies.models import (
     Company,  # noqa: F401  (tabela sem rota até a Fase 3)
 )

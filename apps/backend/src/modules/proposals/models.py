@@ -69,6 +69,14 @@ class PricingScenario(Base):
         ForeignKey("prospects.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # R2: dono único da linha. Aceita prospecto e cliente, então a FK é só por
+    # `id` (sem `type`) — quem exige cliente estrito é quem usa FK composta.
+    # `client_id`/`prospect_id` seguem valendo até R4.
+    company_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     input_payload = Column(JSONText(), nullable=False)
     result_payload = Column(JSONText(), nullable=False)
     created_at = Column(

@@ -3,9 +3,11 @@ import uuid
 from sqlalchemy import (
     UUID,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
     String,
     func,
 )
@@ -42,6 +44,17 @@ class Team(Base):
     """
 
     __tablename__ = "teams"
+    __table_args__ = (
+        # "Só cliente tem equipe/rotina/SLA/tarefa" garantida pelo banco: a FK
+        # composta só casa com companies.type = 'client'.
+        CheckConstraint("company_type = 'client'", name="ck_teams_company_type"),
+        ForeignKeyConstraint(
+            ["company_id", "company_type"],
+            ["companies.id", "companies.type"],
+            name="fk_teams_company",
+            ondelete="CASCADE",
+        ),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(
@@ -50,6 +63,13 @@ class Team(Base):
         unique=True,
         nullable=False,
         index=True,
+    )
+    # Escrita dupla: `client_id` continua valendo até a release de limpeza, e
+    # é daqui que a leitura passa a sair. Nullable nesta fase — vira NOT NULL
+    # em R3, depois que o backfill for conferido linha a linha.
+    company_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    company_type = Column(
+        String(20), nullable=False, server_default="client", default="client"
     )
     owner_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False

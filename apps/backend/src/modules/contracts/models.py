@@ -95,6 +95,13 @@ class Contract(Base):
         ForeignKey("prospects.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # R2: dono único da linha (mesma regra do orçamento — contrato nasce de um
+    # prospecto e vira cliente sem perder o vínculo).
+    company_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="SET NULL"),
+        nullable=True,
+    )
     proposal_id = Column(
         UUID(as_uuid=True),
         ForeignKey("pricing_scenarios.id", ondelete="SET NULL"),

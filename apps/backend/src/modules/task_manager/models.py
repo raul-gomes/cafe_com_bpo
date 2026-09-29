@@ -5,10 +5,12 @@ from sqlalchemy import (
     JSON,
     UUID,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -67,6 +69,17 @@ class Task(Base):
     """
 
     __tablename__ = "tasks"
+    __table_args__ = (
+        # "Só cliente tem equipe/rotina/SLA/tarefa" garantida pelo banco: a FK
+        # composta só casa com companies.type = 'client'.
+        CheckConstraint("company_type = 'client'", name="ck_tasks_company_type"),
+        ForeignKeyConstraint(
+            ["company_id", "company_type"],
+            ["companies.id", "companies.type"],
+            name="fk_tasks_company",
+            ondelete="CASCADE",
+        ),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(
@@ -74,6 +87,13 @@ class Task(Base):
     )
     client_id = Column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    # Escrita dupla: `client_id` continua valendo até a release de limpeza, e
+    # é daqui que a leitura passa a sair. Nullable nesta fase — vira NOT NULL
+    # em R3, depois que o backfill for conferido linha a linha.
+    company_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    company_type = Column(
+        String(20), nullable=False, server_default="client", default="client"
     )
 
     title = Column(String(255), nullable=False)
@@ -319,10 +339,28 @@ class ClientTemplateAssignment(Base):
     """
 
     __tablename__ = "client_template_assignments"
+    __table_args__ = (
+        # "Só cliente tem equipe/rotina/SLA/tarefa" garantida pelo banco: a FK
+        # composta só casa com companies.type = 'client'.
+        CheckConstraint(
+            "company_type = 'client'",
+            name="ck_client_template_assignments_company_type",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "company_type"],
+            ["companies.id", "companies.type"],
+            name="fk_client_template_assignments_company",
+            ondelete="CASCADE",
+        ),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    company_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    company_type = Column(
+        String(20), nullable=False, server_default="client", default="client"
     )
     template_id = Column(
         UUID(as_uuid=True),
@@ -356,10 +394,25 @@ class ClientSLA(Base):
     """
 
     __tablename__ = "client_slas"
+    __table_args__ = (
+        # "Só cliente tem equipe/rotina/SLA/tarefa" garantida pelo banco: a FK
+        # composta só casa com companies.type = 'client'.
+        CheckConstraint("company_type = 'client'", name="ck_client_slas_company_type"),
+        ForeignKeyConstraint(
+            ["company_id", "company_type"],
+            ["companies.id", "companies.type"],
+            name="fk_client_slas_company",
+            ondelete="CASCADE",
+        ),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    company_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    company_type = Column(
+        String(20), nullable=False, server_default="client", default="client"
     )
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False

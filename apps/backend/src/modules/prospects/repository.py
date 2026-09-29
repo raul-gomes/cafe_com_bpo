@@ -85,10 +85,21 @@ class ProspectRepository:
         self.session.commit()
 
     def mark_converted(self, prospect: Prospect, client_id: UUID) -> Prospect:
+        from src.modules.clients.models import Client
+        from src.modules.companies.sync import collapse_prospect_into_client
+
+        converted_at = datetime.now(timezone.utc)
         prospect.converted_client_id = client_id
-        prospect.converted_at = datetime.now(timezone.utc)
+        prospect.converted_at = converted_at
         prospect.is_active = False
-        prospect.deleted_at = datetime.now(timezone.utc)
+        prospect.deleted_at = converted_at
+        # R2: o par vira uma empresa só. Os filhos (orçamentos, contratos) que
+        # nasceram apontados para o prospecto acompanham a conversão — sem
+        # isso, o contrato ficaria órfão no instante em que a empresa vira
+        # cliente, que é justamente quando ele passa a valer.
+        client = self.session.get(Client, client_id)
+        if client is not None:
+            collapse_prospect_into_client(self.session, prospect, client, converted_at)
         self.session.commit()
         self.session.refresh(prospect)
         return prospect

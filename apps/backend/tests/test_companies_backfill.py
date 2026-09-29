@@ -25,6 +25,33 @@ from src.modules.prospects.models import Prospect
 
 
 @pytest.fixture
+def sem_espelho_de_empresa():
+    """Desliga o espelho `Client/Prospect -> Company` durante o teste.
+
+    A migration roda num processo que **não** importa `src.main`, então os
+    listeners de escrita dupla não existem lá — as tabelas legadas chegam
+    vazias de `companies`. Sem este desligar, o listener criaria a empresa
+    antes do backfill e o teste estaria medindo o caminho errado.
+    """
+    from sqlalchemy import event
+
+    from src.modules.clients.models import Client
+    from src.modules.companies import sync
+    from src.modules.prospects.models import Prospect
+
+    removed = []
+    for model, fn in (
+        (Client, sync._client_becomes_company),
+        (Prospect, sync._prospect_becomes_company),
+    ):
+        event.remove(model, "before_insert", fn)
+        removed.append((model, fn))
+    yield
+    for model, fn in removed:
+        event.listen(model, "before_insert", fn)
+
+
+@pytest.fixture
 def user_id(db_session) -> UUID:
     user = UserRepository(db_session).create_user(
         email=f"companies_{uuid4()}@cafe.com",
@@ -64,7 +91,9 @@ def _company(db_session, company_id: UUID) -> Company:
     return db_session.get(Company, company_id)
 
 
-def test_client_becomes_company_with_same_id(db_session, user_id):
+def test_client_becomes_company_with_same_id(
+    db_session, user_id, sem_espelho_de_empresa
+):
     client_id = _client(db_session, user_id, "Castellum Financial")
 
     report = backfill_companies(db_session)
@@ -80,7 +109,9 @@ def test_client_becomes_company_with_same_id(db_session, user_id):
     assert company.state == "SP"
 
 
-def test_open_prospect_becomes_prospect_company(db_session, user_id):
+def test_open_prospect_becomes_prospect_company(
+    db_session, user_id, sem_espelho_de_empresa
+):
     prospect_id = _prospect(db_session, user_id, "Fort Atacadista", segment="varejo")
 
     backfill_companies(db_session)
@@ -91,7 +122,9 @@ def test_open_prospect_becomes_prospect_company(db_session, user_id):
     assert company.converted_at is None
 
 
-def test_converted_pair_collapses_into_the_client_company(db_session, user_id):
+def test_converted_pair_collapses_into_the_client_company(
+    db_session, user_id, sem_espelho_de_empresa
+):
     client_id = _client(db_session, user_id, "Castellum Financial")
     prospect_id = _prospect(
         db_session,
@@ -119,7 +152,9 @@ def test_converted_pair_collapses_into_the_client_company(db_session, user_id):
     assert company.converted_at is not None
 
 
-def test_representante_becomes_a_contact_linked_to_the_company(db_session, user_id):
+def test_representante_becomes_a_contact_linked_to_the_company(
+    db_session, user_id, sem_espelho_de_empresa
+):
     prospect_id = _prospect(
         db_session,
         user_id,
@@ -144,7 +179,9 @@ def test_representante_becomes_a_contact_linked_to_the_company(db_session, user_
     assert _company(db_session, prospect_id).primary_contact_id == contact.id
 
 
-def test_prospect_without_representante_has_no_primary_contact(db_session, user_id):
+def test_prospect_without_representante_has_no_primary_contact(
+    db_session, user_id, sem_espelho_de_empresa
+):
     prospect_id = _prospect(db_session, user_id, "Sem Contato")
 
     backfill_companies(db_session)
@@ -153,7 +190,7 @@ def test_prospect_without_representante_has_no_primary_contact(db_session, user_
     assert db_session.query(Contact).count() == 0
 
 
-def test_is_idempotent(db_session, user_id):
+def test_is_idempotent(db_session, user_id, sem_espelho_de_empresa):
     client_id = _client(db_session, user_id, "Castellum Financial")
     prospect_id = _prospect(
         db_session, user_id, "Aberto", representante_nome="Joao Lima"
@@ -171,7 +208,9 @@ def test_is_idempotent(db_session, user_id):
     assert _company(db_session, prospect_id) is not None
 
 
-def test_dangling_conversion_keeps_the_prospect_as_a_company(db_session, user_id):
+def test_dangling_conversion_keeps_the_prospect_as_a_company(
+    db_session, user_id, sem_espelho_de_empresa
+):
     """`converted_client_id` apontando para um cliente que não existe não pode
     fazer a empresa sumir: ela vira prospect e o caso entra no relatório."""
     missing_client_id = uuid4()
@@ -189,7 +228,9 @@ def test_dangling_conversion_keeps_the_prospect_as_a_company(db_session, user_id
     assert _company(db_session, prospect_id).type == "prospect"
 
 
-def test_soft_deleted_rows_are_carried_over(db_session, user_id):
+def test_soft_deleted_rows_are_carried_over(
+    db_session, user_id, sem_espelho_de_empresa
+):
     client = Client(user_id=user_id, name="Arquivada", is_active=False)
     client.deleted_at = datetime(2026, 9, 1, 10, 0, tzinfo=UTC)
     db_session.add(client)

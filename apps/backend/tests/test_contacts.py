@@ -505,3 +505,17 @@ def test_listing_can_filter_by_origin(client):
     assert [r["nome"] for r in livres] == ["Zilda Livre"]
     assert [r["nome"] for r in clientes] == ["Marina Reis"]
     assert [r["nome"] for r in prospectos] == ["Nina Prospecto"]
+
+
+def test_contact_of_a_company_is_not_listed_as_free(client):
+    """O representante de uma empresa é a pessoa **da empresa**: ele aparece na
+    listagem como prospecto/cliente. Se também saísse como livre, a mesma
+    pessoa apareceria duas vezes."""
+    auth = auth_for(client)
+    make_client_contact(client, auth)
+
+    livres = list_contacts(client, auth, origem="livre")
+    clientes = list_contacts(client, auth, origem="cliente")
+
+    assert [r["nome"] for r in livres] == []
+    assert [r["nome"] for r in clientes] == ["Marina Reis"]
