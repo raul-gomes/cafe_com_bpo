@@ -37,6 +37,17 @@ class Contact(Base):
     email = Column(String(255), nullable=True)
     empresa = Column(String(255), nullable=True)
 
+    # Vínculo com a empresa (1:N). Vem do `prospects.representante_*` hoje e
+    # passa a ser a única fonte de pessoa: N contatos por empresa, um deles
+    # apontado por `companies.primary_contact_id`.
+    company_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="CASCADE"),
+        nullable=True,
+    )
+    cpf = Column(String(20), nullable=True)
+    cargo = Column(String(100), nullable=True)
+
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
