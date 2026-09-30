@@ -11,6 +11,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.core.config import get_settings
+from src.core.deadline import days_remaining
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.clients.models import Client
@@ -314,10 +315,11 @@ class TaskService:
         for cid, tasks in overdue_by_client.items():
             client = client_repo.get_by_id(UUID(cid), user_id)
             client_name = client.name if client else "Cliente"
+            # Dias de calendario, nao fracao de instante: `.days` de um
+            # timedelta trunca em direcao a zero e reportava "0d em atraso" para
+            # tarefas atrasadas ha poucas horas.
             total_days = sum(
-                (datetime.now(timezone.utc) - t.deadline).days
-                for t in tasks
-                if t.deadline
+                -(days_remaining(t.deadline) or 0) for t in tasks if t.deadline
             )
             overdue_alerts.append(
                 SLAAlert(
@@ -475,7 +477,6 @@ class TaskService:
             if done_phase and str(task.phase_id) == str(done_phase.id):
                 is_done = True
 
-        now = datetime.now(timezone.utc)
         deadline = task.deadline
 
         # Find matching SLA
@@ -491,18 +492,19 @@ class TaskService:
         sla_limit = sla_config.sla_days
         warning_at = sla_limit * sla_config.warning_threshold
 
-        # Calculate days used
-        if is_done:
-            days_used = 0  # completed, no issue
-        else:
-            days_remaining = (deadline - now).total_seconds() / 86400
-            days_used = sla_limit - days_remaining
-
         if is_done:
             return "on_time", 0, sla_limit
-        elif days_remaining < 0:
-            return "overdue", abs(days_remaining), sla_limit
-        elif days_remaining <= (sla_limit - warning_at):
+
+        # Mesma regra da lista de tarefas: dias de calendario no fuso de negocio.
+        # A conta anterior (`instante / 86400`) dava fracionario e marcava como
+        # atrasada qualquer coisa que vence hoje antes do horario atual — o selo
+        # e a lista discordavam na mesma tela.
+        days_left = days_remaining(deadline) or 0
+        days_used = sla_limit - days_left
+
+        if days_left < 0:
+            return "overdue", abs(days_left), sla_limit
+        elif days_left <= (sla_limit - warning_at):
             return "warning", days_used, sla_limit
         else:
             return "on_time", days_used, sla_limit

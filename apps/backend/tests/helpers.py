@@ -13,6 +13,8 @@ from src.core.security import PasswordService
 from src.modules.auth.models import User
 from src.modules.auth.repository import UserRepository
 from src.modules.task_manager.assignments import service as assignments_service
+from src.modules.task_manager.task import repository as task_repository
+from src.modules.task_manager.task import service as task_service
 
 TEST_PASSWORD = "StrongPassword123!"
 
@@ -148,6 +150,28 @@ def freeze_deadline_clock(fixed: datetime | None = None):
             return moment if tz is None else moment.astimezone(tz)
 
     return mock.patch("src.core.deadline.datetime", _FixedClock)
+
+
+def freeze_sla_clock(fixed: datetime | None = None):
+    """Congela o relógio do SLA, na regra de prazo e no serviço de tarefas.
+
+    O SLA lia o prazo com o próprio relógio (`datetime.now()`), então os testes
+    precisam fixar os dois lados da mesma vez: a regra de calendário
+    (`src/core.deadline`) e o serviço. Fixar só um deixa a asserção depender do
+    relógio real.
+    """
+    moment = fixed or datetime(2026, 7, 20, 15, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment if tz is None else moment.astimezone(tz)
+
+    return (
+        mock.patch.multiple("src.core.deadline", datetime=_FixedClock),
+        mock.patch.multiple(task_service, datetime=_FixedClock),
+        mock.patch.multiple(task_repository, datetime=_FixedClock),
+    )
 
 
 def create_test_user(
