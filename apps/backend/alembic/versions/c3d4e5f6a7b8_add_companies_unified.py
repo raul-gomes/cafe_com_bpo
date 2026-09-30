@@ -79,8 +79,16 @@ def upgrade() -> None:
         batch.add_column(sa.Column("company_id", sa.UUID(), nullable=True))
         batch.add_column(sa.Column("cpf", sa.String(length=20), nullable=True))
         batch.add_column(sa.Column("cargo", sa.String(length=100), nullable=True))
+        # Regra §16: nada de hard delete. NO ACTION explícito (o mesmo motivo e o
+        # mesmo formato da R2): um FK sem `ondelete` vira `NO ACTION` no banco,
+        # mas o autogenerate passa a propor `DROP CONSTRAINT` + recriação de uma
+        # constraint que já existe.
         batch.create_foreign_key(
-            "fk_contacts_company_id", "companies", ["company_id"], ["id"]
+            "fk_contacts_company_id",
+            "companies",
+            ["company_id"],
+            ["id"],
+            ondelete="NO ACTION",
         )
 
     # `companies` -> `contacts` fica por último: as duas se referenciam e o

@@ -78,7 +78,7 @@ class Task(Base):
             ["company_id", "company_type"],
             ["companies.id", "companies.type"],
             name="fk_tasks_company",
-            ondelete="CASCADE",
+            ondelete="NO ACTION",
         ),
     )
 
@@ -366,7 +366,7 @@ class ClientTemplateAssignment(Base):
             ["company_id", "company_type"],
             ["companies.id", "companies.type"],
             name="fk_client_template_assignments_company",
-            ondelete="CASCADE",
+            ondelete="NO ACTION",
         ),
     )
 
@@ -418,7 +418,7 @@ class ClientSLA(Base):
             ["company_id", "company_type"],
             ["companies.id", "companies.type"],
             name="fk_client_slas_company",
-            ondelete="CASCADE",
+            ondelete="NO ACTION",
         ),
     )
 

@@ -52,7 +52,7 @@ class Team(Base):
             ["company_id", "company_type"],
             ["companies.id", "companies.type"],
             name="fk_teams_company",
-            ondelete="CASCADE",
+            ondelete="NO ACTION",
         ),
     )
 

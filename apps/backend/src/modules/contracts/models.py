@@ -97,9 +97,12 @@ class Contract(Base):
     )
     # R2: dono único da linha (mesma regra do orçamento — contrato nasce de um
     # prospecto e vira cliente sem perder o vínculo).
+    # Regra §16: nada de hard delete — o banco recusa o `DELETE` e a
+    # desativação é cascata de `is_active = false` (o contrato continua no banco
+    # para o histórico).
     company_id = Column(
         UUID(as_uuid=True),
-        ForeignKey("companies.id", ondelete="SET NULL"),
+        ForeignKey("companies.id", ondelete="NO ACTION"),
         nullable=True,
     )
     proposal_id = Column(

@@ -35,6 +35,13 @@ log = logging.getLogger("alembic.runtime.migration")
 CLIENT_ONLY_TABLES = ("tasks", "teams", "client_slas", "client_template_assignments")
 ANY_TYPE_TABLES = ("pricing_scenarios", "contracts")
 
+# Regra §16: nada de hard delete. Nenhuma FK para `companies` apaga a linha
+# filha — o banco recusa o `DELETE` (NO ACTION) e a desativação é feita pela
+# aplicação, em cascata de `is_active = false`, preservando o histórico.
+# `ondelete` explícito (e não o default) para o autogenerate não propor
+# `DROP CONSTRAINT` + recriação de uma constraint que já existe como está.
+FK_ONDELETE = "NO ACTION"
+
 
 def upgrade() -> None:
     for table in CLIENT_ONLY_TABLES:
@@ -57,7 +64,7 @@ def upgrade() -> None:
             "companies",
             ["company_id", "company_type"],
             ["id", "type"],
-            ondelete="CASCADE",
+            ondelete=FK_ONDELETE,
         )
         if table != "teams":
             op.create_index(f"ix_{table}_company_id", table, ["company_id"])
@@ -69,7 +76,12 @@ def upgrade() -> None:
     for table in ANY_TYPE_TABLES:
         op.add_column(table, sa.Column("company_id", sa.UUID(), nullable=True))
         op.create_foreign_key(
-            f"fk_{table}_company_id", table, "companies", ["company_id"], ["id"]
+            f"fk_{table}_company_id",
+            table,
+            "companies",
+            ["company_id"],
+            ["id"],
+            ondelete=FK_ONDELETE,
         )
         op.create_index(f"ix_{table}_company_id", table, ["company_id"])
 
@@ -87,9 +99,15 @@ def downgrade() -> None:
         op.drop_constraint(f"fk_{table}_company_id", table, type_="foreignkey")
         op.drop_column(table, "company_id")
 
+    # `ix_teams_company_id` é o índice ÚNICO do time (1:1 com a empresa), criado
+    # fora do laço porque `teams` não recebe índice simples. Ele é derrubado aqui
+    # e **não** dentro do laço abaixo: um segundo `drop_index` do mesmo nome
+    # levanta `index ... does not exist` e aborta o downgrade no meio, deixando
+    # `company_type`/`company_id` em `teams` e o banco num estado misto.
     op.drop_index("ix_teams_company_id", table_name="teams")
     for table in CLIENT_ONLY_TABLES:
-        op.drop_index(f"ix_{table}_company_id", table_name=table)
+        if table != "teams":
+            op.drop_index(f"ix_{table}_company_id", table_name=table)
         op.drop_constraint(f"fk_{table}_company", table, type_="foreignkey")
         op.drop_check_constraint(f"ck_{table}_company_type", table)
         op.drop_column(table, "company_type")
