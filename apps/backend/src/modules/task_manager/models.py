@@ -387,7 +387,12 @@ class ClientTemplateAssignment(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     start_date = Column(DateTime(timezone=True), nullable=True)  # quando começa a gerar
-    is_active = Column(Boolean, server_default="true", nullable=False)
+    # `default=True` junto do `server_default`: sem o default do lado Python a
+    # linha nasce com o literal do servidor, e a cascata (§16) — que filtra por
+    # `is_active is true` — não encontra a linha em SQLite.
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    # Regra §16: a rotina é desativada junto com a empresa (e quando).
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
     last_generated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -433,6 +438,9 @@ class ClientSLA(Base):
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    # Regra §16: SLA também é desativado em cascata, nunca apagado.
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
     process_type = Column(String(50), nullable=False)
     sla_days = Column(Integer, nullable=False, default=5)  # dias corridos
     warning_threshold = Column(

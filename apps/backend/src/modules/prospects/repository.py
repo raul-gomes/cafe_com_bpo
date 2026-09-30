@@ -3,6 +3,8 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.modules.companies.deactivation import deactivate_company
+
 from .models import Prospect
 from .schemas import ProspectCreate, ProspectUpdate
 
@@ -186,6 +188,15 @@ class ProspectRepository:
         return prospect
 
     def delete(self, prospect: Prospect) -> None:
+        """Deactivates the prospect and every row that belongs to its company.
+
+        Rule §16 (product owner, 2026-09-30): nothing is hard deleted — the
+        prospect and its whole tree (contact, tasks, proposals, contracts) go to
+        `is_active = false` with the same `deleted_at`. The cascade is by
+        `company_id`, in `companies.deactivation`, the same implementation the
+        client archive uses.
+        """
+        deactivate_company(self.session, prospect.id)
         prospect.is_active = False
         prospect.deleted_at = datetime.now(timezone.utc)
         self.session.commit()

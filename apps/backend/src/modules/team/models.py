@@ -76,6 +76,10 @@ class Team(Base):
     # em R3, depois que o backfill for conferido linha a linha. A unicidade vem
     # do índice `ix_teams_company_id` declarado em `__table_args__`.
     company_id = Column(UUID(as_uuid=True), nullable=True)
+    # Regra §16: o time é desativado junto com a empresa (e quando) — nunca
+    # apagado, para o histórico de quem operava a empresa continuar legível.
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
     company_type = Column(
         String(20), nullable=False, server_default="client", default="client"
     )
