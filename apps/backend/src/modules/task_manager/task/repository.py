@@ -4,6 +4,8 @@ from uuid import UUID
 from sqlalchemy import or_, update
 from sqlalchemy.orm import Session, joinedload
 
+from src.core.deadline import business_day_bounds
+
 from ..models import Task, TaskPhase
 from ..schemas import TaskCreate, TaskPhaseUpdate, TaskUpdate
 
@@ -75,17 +77,16 @@ class TaskRepository:
             query = query.filter(Task.process_type == process_type_filter)
 
         if today_filter:
-            now = datetime.now(timezone.utc)
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            day_end = day_start + timedelta(days=1)
+            # Dia de negócio (03:00 UTC em São Paulo), não meia-noite UTC:
+            # é o mesmo dia que o usuário vê e o mesmo que `is_overdue` mede.
+            day_start, day_end = business_day_bounds(datetime.now(timezone.utc))
             query = query.filter(
                 Task.deadline >= day_start,
                 Task.deadline < day_end,
             )
 
         if overdue_filter:
-            now = datetime.now(timezone.utc)
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_start, _ = business_day_bounds(datetime.now(timezone.utc))
             query = query.filter(
                 Task.deadline < day_start,
                 Task.completed_at.is_(None),
@@ -114,16 +115,15 @@ class TaskRepository:
             .filter(Task.is_active, cond)
         )
         if today_filter:
-            now = datetime.now(timezone.utc)
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            day_end = day_start + timedelta(days=1)
+            # Dia de negócio (03:00 UTC em São Paulo), não meia-noite UTC:
+            # é o mesmo dia que o usuário vê e o mesmo que `is_overdue` mede.
+            day_start, day_end = business_day_bounds(datetime.now(timezone.utc))
             query = query.filter(
                 Task.deadline >= day_start,
                 Task.deadline < day_end,
             )
         if overdue_filter:
-            now = datetime.now(timezone.utc)
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_start, _ = business_day_bounds(datetime.now(timezone.utc))
             query = query.filter(
                 Task.deadline < day_start,
                 Task.completed_at.is_(None),

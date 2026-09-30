@@ -54,6 +54,11 @@ class TaskResponse(TaskBase):
     assignee_name: str | None = None
     client_name: str | None = None
     client_color: str | None = None
+    # Estado derivado no servidor (read-to-render): a regra de prazo é de
+    # calendário e o front a re-derivava em `deadline.ts` — mesma tarefa, dois
+    # vereditos conforme a tela.
+    days_remaining: int | None = None
+    is_overdue: bool = False
     created_at: datetime
     updated_at: datetime
     cancelled_at: datetime | None = None

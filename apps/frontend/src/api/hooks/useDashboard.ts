@@ -13,11 +13,9 @@ export interface ActivityResponse {
     message_snippet?: string;
 }
 
-export interface UrgentTaskItem extends TaskResponse {
-    client_name?: string;
-    days_remaining?: number | null;
-    is_overdue?: boolean;
-}
+/** Tarefa do resumo do painel. Mesmo payload de `TaskResponse`: o endpoint
+ *  entrega os mesmos campos, então a extensão viraria campos repetidos. */
+export type UrgentTaskItem = TaskResponse;
 
 export interface PendingInvitation {
     invitation_id: string;

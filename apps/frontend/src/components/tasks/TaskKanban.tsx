@@ -3,7 +3,6 @@ import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
 import { TaskCard } from './TaskCard';
 import { cn } from '../../lib/utils';
-import { daysOverdue, isDeadlineOverdue } from '../../lib/deadline';
 
 type Props = {
   tasks: TaskResponse[];
@@ -26,10 +25,10 @@ const isTaskOverdueFn = (task: TaskResponse, doneColumnId: string, inProgressCol
   if (status === doneColumnId) return false;
   // Tasks em andamento ficam "on hold": nunca são marcadas como atrasadas
   if (inProgressColumnIds.has(status)) return false;
-  return isDeadlineOverdue(task.deadline);
+  return task.is_overdue;
 };
 
-const getOverdueDaysFn = (task: TaskResponse): number => daysOverdue(task.deadline);
+const getOverdueDaysFn = (task: TaskResponse): number => task.days_remaining ? -task.days_remaining : 0;
 
 const sortTasksByUrgency = (tasksToSort: TaskResponse[], doneColumnId: string, inProgressColumnIds: Set<string>, getTaskStatus: (t: TaskResponse) => string): TaskResponse[] => {
   const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };

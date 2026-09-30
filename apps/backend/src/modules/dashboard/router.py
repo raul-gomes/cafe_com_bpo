@@ -6,6 +6,7 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
+from src.core.deadline import days_remaining, is_overdue
 from src.modules.auth.models import User
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
@@ -25,20 +26,6 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 SessionDep = Annotated[Session, Depends(get_db_session)]
-
-try:  # pragma: no cover - depende da presença de tzdata na imagem
-    from zoneinfo import ZoneInfo
-
-    _BUSINESS_TZ = ZoneInfo("America/Sao_Paulo")
-except Exception:
-    _BUSINESS_TZ = timezone(timedelta(hours=-3))
-
-
-def _deadline_business_date(deadline: datetime):
-    """Data de calendário do prazo no fuso de negócio."""
-    if deadline.tzinfo is None:
-        deadline = deadline.replace(tzinfo=timezone.utc)
-    return deadline.astimezone(_BUSINESS_TZ).date()
 
 
 @router.get("/summary", response_model=DashboardSummary)
@@ -65,21 +52,11 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
         .all()
     )
 
-    def _compute_days_remaining(deadline: datetime | None) -> int | None:
-        """Dias de calendário até o prazo (fuso America/Sao_Paulo).
-
-        O prazo é uma DATA de negócio: vence hoje => 0, ontem => -1.
-        """
-        if deadline is None:
-            return None
-        deadline_date = _deadline_business_date(deadline)
-        today = datetime.now(_BUSINESS_TZ).date()
-        return (deadline_date - today).days
-
-    def _is_overdue(deadline: datetime | None) -> bool:
-        if deadline is None:
-            return False
-        return (_compute_days_remaining(deadline) or 0) < 0
+    # Fonte única da regra de prazo (`src/core/deadline.py`): a mesma que a
+    # lista de tarefas e o front usam, para a mesma tarefa não ter três
+    # vereditos diferentes.
+    _compute_days_remaining = days_remaining
+    _is_overdue = is_overdue
 
     urgent_tasks = [
         UrgentTaskResponse(

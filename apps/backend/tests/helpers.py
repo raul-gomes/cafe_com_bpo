@@ -131,6 +131,25 @@ def freeze_assignments_clock(weekday: datetime | None = None):
     return mock.patch.object(assignments_service, "datetime", _FixedClock)
 
 
+def freeze_deadline_clock(fixed: datetime | None = None):
+    """Congela o relógio da regra de prazo (`src/core/deadline`).
+
+    `is_overdue`/`days_remaining` leem "hoje" no fuso de negócio. Sem congelar,
+    um teste que monta prazo de ontem/hoje/amanhã passaria quase sempre e
+    falharia na noite em que a suíte cruzasse a meia-noite de São Paulo — o tipo
+    de flake que só aparece no CI. Segunda-feira fixa, como no gerador de
+    cards.
+    """
+    moment = fixed or datetime(2026, 7, 20, 15, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment if tz is None else moment.astimezone(tz)
+
+    return mock.patch("src.core.deadline.datetime", _FixedClock)
+
+
 def create_test_user(
     email: str,
     password: str = "StrongPassword123!",

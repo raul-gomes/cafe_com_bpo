@@ -24,12 +24,8 @@ import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
 import { cn } from '../../lib/utils';
 
-/* ── Dashboard-specific task fields (from summary endpoint) ── */
-interface DashboardTask extends TaskResponse {
-  client_name?: string;
-  is_overdue?: boolean;
-  days_remaining?: number | null;
-}
+/* ── Tarefa do resumo do dashboard: mesmo payload de `TaskResponse` ── */
+type DashboardTask = TaskResponse;
 
 export const DashboardPage: React.FC = () => {
   const { useDashboardSummary } = useDashboard();

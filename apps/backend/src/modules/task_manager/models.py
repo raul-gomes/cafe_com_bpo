@@ -20,6 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from src.core.database import Base
+from src.core.deadline import days_remaining, is_overdue
 
 DEFAULT_PHASES = [
     {"name": "a fazer", "color": "#6b7280", "order": 0, "is_done": False},
@@ -113,6 +114,21 @@ class Task(Base):
     process_type = Column(String(50), nullable=True)
 
     deadline = Column(DateTime(timezone=True), nullable=True)
+
+    @property
+    def days_remaining(self) -> int | None:
+        """Dias de calendário até o prazo (regra única em `src/core/deadline`)."""
+        return days_remaining(self.deadline)
+
+    @property
+    def is_overdue(self) -> bool:
+        """Prazo **já passou** — "vence hoje" ainda não está atrasado.
+
+        Vive no model (e não no service) porque a resposta é montada por
+        `from_attributes`: assim lista, detalhe e dashboard falam do mesmo
+        jeito sem cada rota remembering de preencher o campo.
+        """
+        return is_overdue(self.deadline)
 
     # Scheduling
     time_estimate_minutes = Column(Integer, nullable=True)

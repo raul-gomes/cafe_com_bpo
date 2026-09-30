@@ -1576,3 +1576,60 @@ def test_tasks_team_only_returns_shared_client_tasks(client):
     assert any(t["template_id"] == y_tmpl for t in team.json()), (
         "rotina liberada deve aparecer"
     )
+
+
+def test_task_list_says_whether_it_is_overdue(client):
+    """O estado derivado vem do servidor, no payload.
+
+    A regra de prazo é de calendário e o front a re-derivava em `deadline.ts`.
+    Com o campo no payload, a mesma tarefa não pode receber dois vereditos
+    conforme a tela — e o teste fixa o dia, porque a resposta muda todo dia."""
+    from datetime import timedelta
+
+    from tests.helpers import freeze_deadline_clock
+
+    with freeze_deadline_clock():
+        email = f"overdue_{uuid4()}@cafe.com"
+        auth = get_auth_header(client, email)
+        client_id = create_client(client, auth, name="Empresa Prazo")["id"]
+
+        def criar(titulo, dias):
+            prazo = datetime(2026, 7, 20, 12, 0, tzinfo=timezone.utc) + timedelta(
+                days=dias
+            )
+            resp = client.post(
+                "/tasks/",
+                json={
+                    "title": titulo,
+                    "client_id": client_id,
+                    "deadline": prazo.isoformat(),
+                    "priority": "high",
+                },
+                headers=auth,
+            )
+            assert resp.status_code == 201, resp.text
+            return resp.json()
+
+        ontem = criar("Venceu ontem", -1)
+        hoje = criar("Vence hoje", 0)
+        amanha = criar("Vence amanhã", 1)
+        sem_prazo = criar("Sem prazo", 0)
+        sem_prazo = client.put(
+            f"/tasks/{sem_prazo['id']}",
+            json={"title": "Sem prazo", "client_id": client_id, "deadline": None},
+            headers=auth,
+        ).json()
+
+        por_id = {t["id"]: t for t in client.get("/tasks/", headers=auth).json()}
+
+        assert por_id[ontem["id"]]["is_overdue"] is True
+        assert por_id[ontem["id"]]["days_remaining"] == -1
+
+        assert por_id[hoje["id"]]["is_overdue"] is False
+        assert por_id[hoje["id"]]["days_remaining"] == 0
+
+        assert por_id[amanha["id"]]["is_overdue"] is False
+        assert por_id[amanha["id"]]["days_remaining"] == 1
+
+        assert por_id[sem_prazo["id"]]["is_overdue"] is False
+        assert por_id[sem_prazo["id"]]["days_remaining"] is None

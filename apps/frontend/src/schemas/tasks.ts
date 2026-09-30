@@ -17,10 +17,16 @@ export interface TaskResponse {
   moved_by?: string;
   moved_by_name?: string;
   assignee_name?: string;
+  client_name?: string;
+  client_color?: string;
   cancelled_at?: string;
   is_cancelled: boolean;
   completed_at?: string;
   deleted_at?: string;
+  /** Estado derivado no servidor (regra de calendário em `src/core/deadline`).
+   *  O front não re-deriva: mesma tarefa, mesmo veredito em qualquer tela. */
+  is_overdue: boolean;
+  days_remaining?: number | null;
   created_at: string;
   updated_at: string;
 }
