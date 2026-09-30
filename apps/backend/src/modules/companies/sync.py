@@ -20,7 +20,7 @@ import logging
 import uuid
 from datetime import datetime
 
-from sqlalchemy import event, select
+from sqlalchemy import event, select, update
 from sqlalchemy.orm import Session, object_session
 
 from src.modules.clients.models import Client
@@ -30,6 +30,7 @@ from src.modules.companies.models import (
     COMPANY_TYPE_PROSPECT,
     Company,
 )
+from src.modules.contacts.models import Contact
 from src.modules.contracts.models import Contract
 from src.modules.proposals.models import PricingScenario
 from src.modules.prospects.models import Prospect
@@ -127,14 +128,37 @@ def collapse_prospect_into_client(
             .values(company_id=client.id)
         )
 
+    # O contato do representante nasce apontado para a empresa do *prospecto*, e
+    # a conversão apaga essa empresa. Sem mover antes, a conversão quebra na FK
+    # (`NO ACTION` -> ForeignKeyViolation, e prospecto com representante não
+    # converte); trocar a FK para `CASCADE` não resolveria, porque apagaria o
+    # representante — que é justamente o dado que a empresa cliente herda.
+    session.execute(
+        update(Contact)
+        .where(Contact.company_id == prospect.id)
+        .values(company_id=client.id)
+    )
+
     company = session.get(Company, client.id)
     if company is not None:
         if company.converted_at is None:
             company.converted_at = converted_at
-        if company.primary_contact_id is None and prospect.representante_nome:
-            contact = _contact_from_representante(session, prospect, company)
-            if contact is not None:
-                company.primary_contact_id = contact.id
+        if company.primary_contact_id is None:
+            # A empresa cliente pode ter vários contatos: nenhum é descartado, e
+            # a ordem fixa deixa a escolha estável entre execuções.
+            herdado = session.scalars(
+                select(Contact)
+                .where(Contact.company_id == client.id)
+                .order_by(Contact.created_at, Contact.id)
+                .limit(1)
+            ).first()
+            if herdado is not None:
+                company.primary_contact_id = herdado.id
+            elif prospect.representante_nome:
+                # Prospecto sem contato ainda: ele nasce do representante.
+                contato = _contact_from_representante(session, prospect, company)
+                if contato is not None:
+                    company.primary_contact_id = contato.id
 
     prospect_company = session.get(Company, prospect.id)
     if prospect_company is not None:

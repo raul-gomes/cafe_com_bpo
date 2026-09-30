@@ -238,3 +238,85 @@ def test_every_active_client_has_a_company(db_session, user_id):
     )
 
     assert sem_empresa == 0
+
+
+def test_converting_a_prospect_keeps_its_contact(db_session, user_id):
+    """O contato do representante sobrevive à conversão, ligado à empresa que sobra.
+
+    O contato nasce apontado para a empresa do *prospecto* (é o backfill que o
+    cria). A conversão apaga essa empresa, e a FK de `contacts.company_id` é
+    `NO ACTION`: sem mover o contato antes, a conversão inteira falha com
+    `ForeignKeyViolation` — ou seja, prospecto com representante não converte.
+    Trocar a FK para `CASCADE` não resolveria: apagaria o contato junto com a
+    empresa, e o representante é justamente o dado que a empresa cliente herda.
+    """
+    from datetime import UTC, datetime
+
+    from src.modules.companies.sync import collapse_prospect_into_client
+    from src.modules.contacts.models import Contact
+
+    prospect = _prospect(db_session, user_id, name="Lead com representante")
+    prospect.representante_nome = "Maria Rep"
+    prospect.representante_cpf = "12345678901"
+    db_session.commit()
+    prospect_company = db_session.get(Company, prospect.id)
+    contact = Contact(
+        user_id=user_id,
+        company_id=prospect_company.id,
+        nome="Maria Rep",
+        cpf="12345678901",
+    )
+    db_session.add(contact)
+    db_session.commit()
+    client = _client(db_session, user_id)
+
+    collapse_prospect_into_client(
+        db_session, prospect, client, datetime(2026, 9, 29, 12, 0, tzinfo=UTC)
+    )
+    db_session.commit()
+
+    assert db_session.get(Company, prospect.id) is None
+    assert db_session.get(Contact, contact.id) is not None, "contato foi apagado"
+    assert db_session.get(Contact, contact.id).company_id == client.id
+    assert db_session.get(Company, client.id).primary_contact_id == contact.id, (
+        "a empresa cliente deveria herdar o contato como principal"
+    )
+
+
+def test_converting_a_prospect_keeps_both_contacts(db_session, user_id):
+    """Se a empresa cliente já tem contato principal, os dois coexistem.
+
+    Escolha: a empresa cliente pode ter vários contatos. Sobrescrever o contato
+    do prospecto pelo da cliente perderia o representante; descartar o do
+    prospecto perderia o que o BPO cadastrou. Nenhum dos dois se perde.
+    """
+    from datetime import UTC, datetime
+
+    from src.modules.companies.sync import collapse_prospect_into_client
+    from src.modules.contacts.models import Contact
+
+    prospect = _prospect(db_session, user_id, name="Lead")
+    prospect.representante_nome = "Maria Rep"
+    db_session.commit()
+    client = _client(db_session, user_id)
+    contact_do_prospect = Contact(
+        user_id=user_id, company_id=prospect.id, nome="Maria Rep"
+    )
+    contact_do_cliente = Contact(
+        user_id=user_id, company_id=client.id, nome="Joao da Cliente"
+    )
+    db_session.add_all([contact_do_prospect, contact_do_cliente])
+    db_session.commit()
+    client_company = db_session.get(Company, client.id)
+    client_company.primary_contact_id = contact_do_cliente.id
+    db_session.commit()
+
+    collapse_prospect_into_client(
+        db_session, prospect, client, datetime(2026, 9, 29, 12, 0, tzinfo=UTC)
+    )
+    db_session.commit()
+
+    empresa = db_session.get(Company, client.id)
+    assert empresa.primary_contact_id == contact_do_cliente.id, "não pode sobrescrever"
+    assert db_session.get(Contact, contact_do_prospect.id).company_id == client.id
+    assert db_session.get(Contact, contact_do_cliente.id).company_id == client.id
