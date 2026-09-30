@@ -345,9 +345,11 @@ def test_contact_of_another_user_prospect_is_invisible(client):
 def test_update_prospect_contact_writes_to_the_prospect(client):
     auth = auth_for(client)
     prospect_id = make_prospect(client, auth, empresa="Lead Aberto", nome="Nina Old")
+    contact_id = primary_contact_of(prospect_id)
+    assert contact_id is not None
 
     resp = client.patch(
-        f"/contacts/prospects/{prospect_id}",
+        f"/contacts/{contact_id}",
         json={"nome": "Nina Nova", "telefone": "(21) 99999-0000"},
         headers=auth,
     )
@@ -367,9 +369,12 @@ def test_update_prospect_contact_writes_to_the_prospect(client):
 def test_update_client_contact_writes_to_the_source_prospect(client):
     auth = auth_for(client)
     prospect_id, client_id = make_client_contact(client, auth)
+    # convertido: a empresa é o cliente, então o contato vive nela
+    contact_id = primary_contact_of(client_id)
+    assert contact_id is not None
 
     resp = client.patch(
-        f"/contacts/prospects/{prospect_id}",
+        f"/contacts/{contact_id}",
         json={"nome": "Marina R. Costa", "telefone": "11912345678"},
         headers=auth,
     )
@@ -393,10 +398,11 @@ def test_update_client_contact_writes_to_the_source_prospect(client):
 
 def test_update_contact_never_renames_the_company(client):
     auth = auth_for(client)
-    prospect_id, _ = make_client_contact(client, auth)
+    _, client_id = make_client_contact(client, auth)
+    contact_id = primary_contact_of(client_id)
 
     resp = client.patch(
-        f"/contacts/prospects/{prospect_id}",
+        f"/contacts/{contact_id}",
         json={"nome": "Marina Reis", "empresa": "Nome Inventado"},
         headers=auth,
     )
@@ -408,12 +414,14 @@ def test_update_contact_never_renames_the_company(client):
 def test_update_prospect_contact_of_another_user_returns_404(client):
     owner = auth_for(client, "Dono do Lead")
     intruder = auth_for(client, "Outro Bpo")
-    prospect_id, _ = make_client_contact(client, owner)
+    _, client_id = make_client_contact(client, owner)
+    contact_id = primary_contact_of(client_id)
+    assert contact_id is not None
 
     # controle positivo: o dono consegue editar (a rota existe e o dono tem acesso)
     assert (
         client.patch(
-            f"/contacts/prospects/{prospect_id}",
+            f"/contacts/{contact_id}",
             json={"nome": "Editada pelo dono"},
             headers=owner,
         ).status_code
@@ -421,7 +429,7 @@ def test_update_prospect_contact_of_another_user_returns_404(client):
     )
 
     resp = client.patch(
-        f"/contacts/prospects/{prospect_id}",
+        f"/contacts/{contact_id}",
         json={"nome": "Invadido"},
         headers=intruder,
     )
@@ -429,21 +437,30 @@ def test_update_prospect_contact_of_another_user_returns_404(client):
     assert resp.status_code == 404
 
 
-def test_update_company_without_representative_returns_404(client):
-    """Sem pessoa cadastrada não há o que editar por aqui."""
+def test_company_without_person_is_not_editable_in_the_agenda(client):
+    """Regra §13: a linha sem pessoa tem o id da EMPRESA — não é um contato.
+
+    Como o `id` da linha de uma empresa sem representante é o id da empresa
+    (não existe contato), o `PATCH /contacts/{id}` responde 404: não há contato
+    para editar ali. A pessoa é cadastrada no cadastro da empresa.
+    """
     auth = auth_for(client)
     prospect_id = make_prospect(
         client, auth, empresa="Lead Sem Pessoa", representante=None
     )
 
-    assert (
-        client.patch(
-            f"/contacts/prospects/{prospect_id}",
-            json={"nome": "Não existe"},
-            headers=auth,
-        ).status_code
-        == 404
+    linha = next(
+        r for r in list_contacts(client, auth) if r["empresa"] == "Lead Sem Pessoa"
     )
+    assert linha["tem_pessoa"] is False
+    assert linha["id"] == str(prospect_id)
+
+    resp = client.patch(
+        f"/contacts/{linha['id']}",
+        json={"nome": "Não existe"},
+        headers=auth,
+    )
+    assert resp.status_code == 404
 
 
 # ── busca ──
@@ -519,3 +536,159 @@ def test_contact_of_a_company_is_not_listed_as_free(client):
 
     assert [r["nome"] for r in livres] == []
     assert [r["nome"] for r in clientes] == ["Marina Reis"]
+
+
+# --- o representante é um contato da empresa (Fase 4) -------------------------
+#
+# Antes, o representante vivia em `prospects.representante_*` e a agenda
+# remontava a linha na leitura. Agora `contacts` é a fonte: o cadastro do
+# prospecto nasce o contato, e a agenda lê o contato. A propriedade que importa
+# continua valendo — corrigir o telefone na agenda corrige em todo lugar — e é
+# isso que os testes abaixo travam.
+
+
+def primary_contact_of(company_id):
+    """Contato principal da empresa (o representante), lido direto do banco."""
+    from src.core.database import SessionLocal
+    from src.modules.companies.models import Company
+
+    session = SessionLocal()
+    try:
+        company = session.get(Company, UUID(company_id))
+        return None if company is None else company.primary_contact_id
+    finally:
+        session.close()
+
+
+def contact_by_id(contact_id):
+    from src.core.database import SessionLocal
+    from src.modules.contacts.models import Contact
+
+    session = SessionLocal()
+    try:
+        return session.get(Contact, UUID(str(contact_id)))
+    finally:
+        session.close()
+
+
+def test_representante_vira_contato_da_empresa(client):
+    auth = auth_for(client)
+    prospect_id = make_prospect(client, auth, empresa="Lead Aberto")
+
+    contact_id = primary_contact_of(prospect_id)
+    assert contact_id is not None, "cadastrar o representante não criou o contato"
+    contact = contact_by_id(contact_id)
+    assert contact.nome == "Lead Ainda Não é Cliente"
+    assert contact.company_id == UUID(prospect_id)
+
+
+def test_agenda_mostra_a_pessoa_com_o_id_do_contato(client):
+    """A linha da pessoa é o contato, então editar usa `PATCH /contacts/{id}`."""
+    auth = auth_for(client)
+    prospect_id = make_prospect(client, auth, empresa="Lead Aberto", nome="Nina P")
+    contact_id = primary_contact_of(prospect_id)
+
+    rows = list_contacts(client, auth)
+    linha = next(r for r in rows if r["empresa"] == "Lead Aberto")
+    assert linha["origem"] == "prospecto"
+    assert linha["tem_pessoa"] is True
+    assert linha["id"] == str(contact_id)
+
+
+def test_editar_na_agenda_corrige_o_cadastro_do_prospecto(client):
+    """A propriedade que a fonte única promete: corrigir uma vez, vale em todo lugar.
+
+    O telefone é conferido no cadastro do prospecto, que é a outra tela que
+    mostra o mesmo dado. Se divergirem, o usuário corrige e a correção não pega.
+    """
+    auth = auth_for(client)
+    prospect_id = make_prospect(client, auth, empresa="Lead Aberto", nome="Nina Old")
+    contact_id = primary_contact_of(prospect_id)
+
+    resp = client.patch(
+        f"/contacts/{contact_id}",
+        json={"nome": "Nina Nova", "telefone": "(21) 99999-0000"},
+        headers=auth,
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["nome"] == "Nina Nova"
+    assert resp.json()["telefone"] == "21999990000"
+    assert resp.json()["empresa"] == "Lead Aberto"
+    source = read_prospect(prospect_id)
+    assert source.representante_nome == "Nina Nova"
+    assert source.representante_telefone == "21999990000"
+
+
+def test_atualizar_representante_no_cadastro_atualiza_o_contato(client):
+    """O caminho inverso também: corrigir no cadastro corrige a agenda."""
+    auth = auth_for(client)
+    prospect_id = make_prospect(client, auth, empresa="Lead Aberto", nome="Nina Antiga")
+    contact_id = primary_contact_of(prospect_id)
+
+    resp = client.put(
+        f"/prospects/{prospect_id}",
+        json={"name": "Lead Aberto", "representante_nome": "Nina Nova"},
+        headers=auth,
+    )
+    assert resp.status_code == 200, resp.text
+
+    assert contact_by_id(contact_id).nome == "Nina Nova"
+    linha = next(
+        r for r in list_contacts(client, auth) if r["empresa"] == "Lead Aberto"
+    )
+    assert linha["nome"] == "Nina Nova"
+
+
+def test_empresa_sem_representante_continua_na_agenda_sem_pessoa(client):
+    """Regra §13: empresa sem representante nomeado aparece com o contato dela,
+    somente leitura. A fonte do representante virou o contato, mas a linha da
+    empresa sem contato continua existindo — senão ela sumiria da agenda."""
+    auth = auth_for(client)
+    prospect_id = make_prospect(
+        client, auth, empresa="Sem Pessoa Ltda", representante=None
+    )
+
+    linha = next(
+        r for r in list_contacts(client, auth) if r["empresa"] == "Sem Pessoa Ltda"
+    )
+    assert linha["tem_pessoa"] is False
+    assert linha["nome"] == "Sem Pessoa Ltda"
+    assert linha["telefone"] == "2132221111"
+    assert linha["email"] == "lead@aberto.com.br"
+    assert primary_contact_of(prospect_id) is None
+
+
+def test_contato_removido_some_da_agenda(client):
+    """Contato de empresa removido (soft delete) some; a empresa continua, sem
+    pessoa — que é o mesmo desenho de quem nunca cadastrou representante."""
+    auth = auth_for(client)
+    prospect_id = make_prospect(client, auth, empresa="Lead Aberto", nome="Nina")
+    contact_id = primary_contact_of(prospect_id)
+
+    assert client.delete(f"/contacts/{contact_id}", headers=auth).status_code in (
+        200,
+        204,
+    )
+
+    linha = next(
+        r for r in list_contacts(client, auth) if r["empresa"] == "Lead Aberto"
+    )
+    assert linha["tem_pessoa"] is False
+    assert linha["nome"] == "Lead Aberto"
+
+
+def test_empresa_arquivada_com_contato_continua_na_agenda(client):
+    """Regra §13: arquivar é operação de CRM, não de agenda."""
+    auth = auth_for(client)
+    prospect_id = make_prospect(client, auth, empresa="Lead Aberto", nome="Nina")
+    assert client.delete(f"/prospects/{prospect_id}", headers=auth).status_code in (
+        200,
+        204,
+    )
+
+    linha = next(
+        r for r in list_contacts(client, auth) if r["empresa"] == "Lead Aberto"
+    )
+    assert linha["tem_pessoa"] is True
+    assert linha["nome"] == "Nina"

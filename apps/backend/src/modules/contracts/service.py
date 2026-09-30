@@ -330,7 +330,9 @@ def replace_placeholders(text: str, context: dict[str, str]) -> str:
     return _substitute_tokens(text, context)
 
 
-def _build_contratante(prospect: Prospect) -> dict[str, str]:
+def _build_contratante(
+    prospect: Prospect, representante: dict | None = None
+) -> dict[str, str]:
     endereco = "".join(
         part
         for part in [
@@ -342,6 +344,16 @@ def _build_contratante(prospect: Prospect) -> dict[str, str]:
         ]
         if part
     )
+    # Fase 4: representante vem do CONTATO. Sem contato ativo, cai nas colunas
+    # legadas `prospect.representante_*` (fallback durante a expansão).
+    if representante is None:
+        representante = {
+            "nome": prospect.representante_nome,
+            "cargo": prospect.representante_cargo,
+            "cpf": prospect.representante_cpf,
+            "email": prospect.representante_email,
+            "telefone": prospect.representante_telefone,
+        }
     return {
         "contratante_razao_social": prospect.name or "",
         "contratante_cnpj": prospect.cnpj or "",
@@ -351,11 +363,11 @@ def _build_contratante(prospect: Prospect) -> dict[str, str]:
         "contratante_cep": prospect.cep or "",
         "contratante_email": prospect.email or "",
         "contratante_email_notificacoes": prospect.email or "",
-        "contratante_representante_nome": prospect.representante_nome or "",
-        "contratante_representante_cargo": prospect.representante_cargo or "",
-        "contratante_representante_cpf": prospect.representante_cpf or "",
-        "contratante_representante_email": prospect.representante_email or "",
-        "contratante_representante_telefone": prospect.representante_telefone or "",
+        "contratante_representante_nome": representante.get("nome") or "",
+        "contratante_representante_cargo": representante.get("cargo") or "",
+        "contratante_representante_cpf": representante.get("cpf") or "",
+        "contratante_representante_email": representante.get("email") or "",
+        "contratante_representante_telefone": representante.get("telefone") or "",
     }
 
 
@@ -463,10 +475,11 @@ def build_context(
     contractada: dict | None = None,
     extra: dict[str, Any] | None = None,
     contrato_numero: str = "",
+    representante: dict | None = None,
 ) -> dict[str, Any]:
     """Monta o contexto de tokens a partir do prospecto (CONTRATANTE), do
-    orçamento (PROP), da empresa do usuário (CONTRATADA) e dos campos
-    informados no modal (`extra`)."""
+    orçamento (PROP), da empresa do usuário (CONTRATADA), do representante
+    (CONTATO, Fase 4) e dos campos informados no modal (`extra`)."""
 
     extra = extra or {}
 
@@ -480,7 +493,7 @@ def build_context(
         "email": prospect.email or "",
         "segmento": prospect.segment or "",
     }
-    ctx.update(_build_contratante(prospect))
+    ctx.update(_build_contratante(prospect, representante))
     ctx.update(_build_contratada(contractada))
     ctx.update(
         {
@@ -671,7 +684,10 @@ class ContractService:
         prospect, proposal = self._load(user_id, prospect_id, proposal_id)
         from .fields import all_missing_field_descriptors
 
-        return all_missing_field_descriptors(prospect, proposal, contractada)
+        representante = self.repository.get_representative(prospect)
+        return all_missing_field_descriptors(
+            prospect, proposal, contractada, representante=representante
+        )
 
     def _next_number(self, user_id: UUID) -> int:
         return self.repository.next_contract_number(user_id)
@@ -694,6 +710,7 @@ class ContractService:
             contractada,
             extra=fields or {},
             contrato_numero=str(numero).zfill(4),
+            representante=self.repository.get_representative(prospect),
         )
         # Snapshot do template com tokens ainda sem substituir: permite
         # re-render posteriormente ao editar os dados do modal.
@@ -748,6 +765,7 @@ class ContractService:
             contractada,
             extra=contract.fields or {},
             contrato_numero=str(contract.number or "").zfill(4),
+            representante=self.repository.get_representative(prospect),
         )
         return self._substitute_sections(raw, context)
 
@@ -791,6 +809,7 @@ class ContractService:
             contractada,
             extra=merged,
             contrato_numero=str(contract.number or "").zfill(4),
+            representante=self.repository.get_representative(prospect),
         )
         sections = self._substitute_sections(raw, context)
         return self.repository.set_contract_data(

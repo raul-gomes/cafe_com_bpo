@@ -6,6 +6,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from src.modules.companies.models import Company
+from src.modules.contacts.models import Contact
 
 from .default_template import (
     DEFAULT_TEMPLATE_SECTIONS,
@@ -18,6 +19,38 @@ from .schemas import ContractSection
 class ContractRepository:
     def __init__(self, session: Session):
         self.session = session
+
+    # ── Pessoas (Fase 4: fonte única = Contact) ─────────────────
+
+    def get_representative(self, prospect) -> dict[str, str | None]:
+        """Representante da empresa para os tokens `contratante_representante_*`.
+
+        Fase 4: a fonte é o `Contact` (via `companies.primary_contact_id`).
+        Enquanto as colunas `prospect.representante_*` ainda existem, são o
+        fallback para empresas sem contato ativo (ex.: base pré-backfill).
+        """
+        if prospect is None:
+            return {}
+        company_id = prospect.converted_client_id or prospect.id
+        company = self.session.get(Company, company_id)
+        contact = None
+        if company is not None and company.primary_contact_id is not None:
+            contact = self.session.get(Contact, company.primary_contact_id)
+        if contact is not None and contact.is_active:
+            return {
+                "nome": contact.nome,
+                "cargo": contact.cargo,
+                "cpf": contact.cpf,
+                "email": contact.email,
+                "telefone": contact.telefone,
+            }
+        return {
+            "nome": prospect.representante_nome,
+            "cargo": prospect.representante_cargo,
+            "cpf": prospect.representante_cpf,
+            "email": prospect.representante_email,
+            "telefone": prospect.representante_telefone,
+        }
 
     # ── Template do usuário ─────────────────────────────────────
 

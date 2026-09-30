@@ -24,14 +24,6 @@ export interface ContactPayload {
   empresa?: string | null;
 }
 
-/** Campos da pessoa — o nome da empresa pertence ao cadastro da empresa e não
- *  é enviado aqui (evita duas fontes para o mesmo dado). */
-export interface SourceContactPayload {
-  nome: string;
-  telefone?: string | null;
-  email?: string | null;
-}
-
 export interface ListContactsParams {
   q?: string;
   origem?: OrigemContato;
@@ -56,19 +48,6 @@ export async function updateContact(
   payload: Partial<ContactPayload>
 ): Promise<ContactResponse> {
   const { data } = await apiClient.patch(`/contacts/${contactId}`, payload);
-  return data;
-}
-
-/** Corrige o contato no cadastro de origem (fonte única de verdade).
- *
- * Vale para as duas origens: o prospecto em aberto e o cliente — o
- * representante do cliente é o do prospecto que o originou, então a edição vai
- * pelo `prospect_id`. */
-export async function updateSourceContact(
-  prospectId: string,
-  payload: SourceContactPayload
-): Promise<ContactResponse> {
-  const { data } = await apiClient.patch(`/contacts/prospects/${prospectId}`, payload);
   return data;
 }
 

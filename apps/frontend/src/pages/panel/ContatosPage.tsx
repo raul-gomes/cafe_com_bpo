@@ -13,8 +13,8 @@ import {
   createContact,
   deleteContact,
   listContacts,
-  updateSourceContact,
   updateContact,
+  type ContactPayload,
   type ContactResponse,
   type OrigemContato,
 } from '../../api/contacts';
@@ -116,20 +116,21 @@ export function ContatosPage() {
     const daEmpresa =
       emEdicao?.origem === 'cliente' || emEdicao?.origem === 'prospecto';
     try {
-      if (emEdicao && daEmpresa && emEdicao.prospect_id) {
-        await updateSourceContact(emEdicao.prospect_id, {
-          nome: payload.nome,
-          telefone: payload.telefone,
-          email: payload.email,
-        });
+      if (emEdicao) {
+        // A linha da empresa É o contato (fase 4): a edição vai por `id` do
+        // contato. `empresa` só vale em contato livre — no cadastro da empresa
+        // o nome tem uma fonte só e não é enviado.
+        const daPessoa: Partial<ContactPayload> = daEmpresa
+          ? { nome: payload.nome, telefone: payload.telefone, email: payload.email }
+          : payload;
+        await updateContact(emEdicao.id, daPessoa);
         toast.success(
           emEdicao.origem === 'cliente'
-            ? 'Contato do cliente atualizado no cadastro dele.'
-            : 'Contato do prospecto atualizado no cadastro dele.'
+            ? 'Contato do cliente atualizado.'
+            : emEdicao.origem === 'prospecto'
+              ? 'Contato do prospecto atualizado.'
+              : 'Contato atualizado.'
         );
-      } else if (emEdicao) {
-        await updateContact(emEdicao.id, payload);
-        toast.success('Contato atualizado.');
       } else {
         await createContact(payload);
         toast.success('Contato salvo.');

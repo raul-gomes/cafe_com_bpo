@@ -30,7 +30,6 @@ from .schemas import (
     ContactResponse,
     ContactUpdate,
     OrigemContato,
-    SourceContactUpdate,
 )
 from .service import ContactService
 
@@ -70,30 +69,6 @@ def create_contact(
     return created
 
 
-@router.patch("/prospects/{prospect_id}", response_model=ContactResponse)
-def update_source_contact(
-    prospect_id: UUID,
-    contact_in: SourceContactUpdate,
-    service: ServiceDep,
-    current_user: CurrentUserDep,
-):
-    """Corrige o contato no cadastro de origem (prospecto ou cliente).
-
-    Rota literal antes de `/{contact_id}` de propósito: `prospects` não é um UUID
-    e o path da pessoa não deve sombrear o do cadastro.
-    """
-    try:
-        updated = service.update_source_contact(
-            prospect_id, contact_in, current_user.id
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    log.info(
-        f"📇 Contato do cadastro atualizado: {prospect_id} por {current_user.email}"
-    )
-    return updated
-
-
 @router.patch("/{contact_id}", response_model=ContactResponse)
 def update_contact(
     contact_id: UUID,
@@ -101,10 +76,18 @@ def update_contact(
     service: ServiceDep,
     current_user: CurrentUserDep,
 ):
+    """Corrige um contato pelo id — livre, ou a pessoa de uma empresa.
+
+    A pessoa da empresa vem com `id` do contato (Fase 4): é o `contacts` que
+    guarda o representante, então editar por `prospect_id` seria editar por um id
+    que não é o da linha da agenda. Empresa sem pessoa cadastrada não tem
+    contato, logo não tem id aqui — a linha dela é somente leitura.
+    """
     try:
         updated = service.update_contact(contact_id, contact_in, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    log.info(f"📇 Contato atualizado: {contact_id} por {current_user.email}")
     return updated
 
 

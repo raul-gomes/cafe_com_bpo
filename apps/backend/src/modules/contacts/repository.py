@@ -4,11 +4,11 @@ from uuid import UUID
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
-from src.modules.clients.models import Client
+from src.modules.companies.models import COMPANY_TYPE_PROSPECT, Company
 from src.modules.prospects.models import Prospect
 
 from .models import Contact
-from .schemas import ContactCreate, ContactUpdate, SourceContactUpdate
+from .schemas import ContactCreate, ContactUpdate
 
 
 def _like(term: str) -> str:
@@ -52,6 +52,63 @@ class ContactRepository:
             query = query.filter(search_filter)
         return query.all()
 
+    # ── agenda: contatos de empresa + empresas sem contato ──
+
+    def list_company_contacts(
+        self, user_id: UUID, search: str | None = None
+    ) -> list[tuple[Contact, Company]]:
+        """Contatos ligados a uma empresa: a pessoa da linha da agenda.
+
+        `contacts` é a fonte do representante (Fase 4), então a linha da pessoa
+        **é** o contato — inclusive o `id`, que é o que o `PATCH /contacts/{id}`
+        edita. Arquivar a empresa não tira o contato da agenda (regra §13:
+        arquivar é operação de CRM); o que some é o contato removido no
+        próprio cadastro, via `is_active`.
+        """
+        query = (
+            self.session.query(Contact, Company)
+            .join(Company, Company.id == Contact.company_id)
+            .filter(Contact.user_id == user_id, Contact.is_active)
+        )
+        search_filter = _search_filter(
+            search,
+            Contact.nome,
+            Contact.empresa,
+            Contact.email,
+            Contact.telefone,
+            Company.name,
+            Company.email,
+            Company.phone,
+        )
+        if search_filter is not None:
+            query = query.filter(search_filter)
+        return query.all()
+
+    def list_companies_without_contact(
+        self, user_id: UUID, search: str | None = None
+    ) -> list[Company]:
+        """Empresas sem contato ativo: a linha da própria empresa, sem pessoa.
+
+        Regra §13: empresa sem representante nomeado aparece usando nome,
+        telefone e e-mail do próprio cadastro, marcada como "sem pessoa
+        cadastrada" e somente leitura. Sem esta consulta, essas empresas
+        sumiriam da agenda ao virar `contacts` a fonte.
+        """
+        sem_contato = (
+            select(Contact.company_id)
+            .where(Contact.company_id == Company.id, Contact.is_active)
+            .exists()
+        )
+        query = self.session.query(Company).filter(
+            Company.user_id == user_id, ~sem_contato
+        )
+        search_filter = _search_filter(
+            search, Company.name, Company.email, Company.phone
+        )
+        if search_filter is not None:
+            query = query.filter(search_filter)
+        return query.all()
+
     def get_by_id(self, contact_id: UUID, user_id: UUID) -> Contact | None:
         """Contato livre do próprio usuário (escopo por `user_id`, nunca do body)."""
         return (
@@ -84,89 +141,64 @@ class ContactRepository:
         contact.deleted_at = datetime.now(timezone.utc)
         self.session.commit()
 
-    # ── contatos das empresas (fonte única: prospects.representante_* + cadastro) ──
+    # ── contatos das empresas (fonte única: Contact) ──
 
-    def list_prospect_contacts(
-        self, user_id: UUID, search: str | None = None
-    ) -> list[tuple[Prospect, Client | None]]:
-        """Contatos dos prospectos: em aberto E já convertidos em cliente.
-
-        Não filtra `is_active` de propósito — um prospecto ou cliente arquivado
-        continua na agenda (regra do dono do produto): o dado não some da lista
-        só porque o cadastro foi arquivado. O `client` pode ser None (prospecto
-        em aberto) ou o cliente correspondente (prospecto convertido); a empresa
-        que manda é sempre a do cliente quando ele existe.
-        """
-        query = (
-            self.session.query(Prospect, Client)
-            .outerjoin(Client, Client.id == Prospect.converted_client_id)
-            .filter(
-                Prospect.user_id == user_id,
-                or_(Client.id.is_(None), Client.user_id == user_id),
-            )
-        )
-        search_filter = _search_filter(
-            search,
-            Prospect.representante_nome,
-            Prospect.representante_email,
-            Prospect.representante_telefone,
-            Prospect.name,
-            Prospect.phone,
-            Prospect.email,
-            Client.name,
-            Client.phone,
-            Client.email,
-        )
-        if search_filter is not None:
-            query = query.filter(search_filter)
-        return query.all()
-
-    def list_direct_clients(
-        self, user_id: UUID, search: str | None = None
-    ) -> list[Client]:
-        """Clientes criados direto em Empresas, sem prospecto de origem.
-
-        Como `clients` não tem colunas de pessoa, a linha deles só pode trazer o
-        telefone/e-mail da empresa (`tem_pessoa=False`).
-        """
-        convertidos = select(Prospect.converted_client_id).where(
-            Prospect.converted_client_id.isnot(None)
-        )
-        query = self.session.query(Client).filter(
-            Client.user_id == user_id,
-            Client.id.notin_(convertidos),
-        )
-        search_filter = _search_filter(search, Client.name, Client.phone, Client.email)
-        if search_filter is not None:
-            query = query.filter(search_filter)
-        return query.all()
-
-    def get_source_prospect(
-        self, prospect_id: UUID, user_id: UUID
-    ) -> tuple[Prospect, Client | None] | None:
-        """Prospecto de origem + cliente (se convertido) de um contato de empresa.
-
-        Só devolve quem tem representante nomeado: empresa sem pessoa cadastrada
-        não tem o que editar por aqui. Escopo por `user_id` nos dois lados.
-        """
+    def get_company(self, company_id: UUID, user_id: UUID) -> Company | None:
+        """Empresa do contato, escopada por `user_id` (a agenda é por usuário)."""
         return (
-            self.session.query(Prospect, Client)
-            .outerjoin(Client, Client.id == Prospect.converted_client_id)
+            self.session.query(Company)
+            .filter(Company.id == company_id, Company.user_id == user_id)
+            .first()
+        )
+
+    def get_source_prospect(self, company: Company, user_id: UUID) -> Prospect | None:
+        """Prospecto que é a fonte da empresa, para espelhar a correção.
+
+        Empresa em prospecção: o próprio prospecto. Empresa convertida: o
+        prospecto que a originou — é ele que guarda `representante_*`, o cliente
+        não tem essas colunas. Cliente criado direto em Empresas não tem
+        prospecto de origem, e não precisa: para ele não existe coluna legada
+        para espelhar.
+        """
+        if company.type == COMPANY_TYPE_PROSPECT:
+            return (
+                self.session.query(Prospect)
+                .filter(Prospect.id == company.id, Prospect.user_id == user_id)
+                .first()
+            )
+        return (
+            self.session.query(Prospect)
             .filter(
-                Prospect.id == prospect_id,
+                Prospect.converted_client_id == company.id,
                 Prospect.user_id == user_id,
-                Prospect.representante_nome.isnot(None),
-                or_(Client.id.is_(None), Client.user_id == user_id),
             )
             .first()
         )
 
-    def update_source_contact(
-        self, prospect: Prospect, data: SourceContactUpdate
-    ) -> Prospect:
-        """Grava no prospecto de origem — o cadastro da empresa continua dono."""
-        for field, value in data.model_dump(exclude_unset=True).items():
-            setattr(prospect, f"representante_{field}", value)
+    def update_company_contact(
+        self, contact: Contact, company: Company, data: dict
+    ) -> Contact:
+        """Grava no contato (fonte) e espelha nas colunas legadas do prospecto.
+
+        O contato é a fonte desde a Fase 4, mas contrato, governança e exportação
+        ainda leem `prospects.representante_*`; enquanto essas colunas existirem,
+        a correção tem que chegar nas duas — senão a pessoa corrige na agenda e
+        o documento sai com o dado velho.
+
+        `empresa` é ignorado aqui de propósito: o nome da empresa pertence ao
+        cadastro da empresa (regra §13) e mudá-lo por aqui criaria duas fontes.
+        """
+        valores = {
+            campo: valor
+            for campo, valor in data.items()
+            if campo in ("nome", "email", "telefone", "cargo")
+        }
+        for campo, valor in valores.items():
+            setattr(contact, campo, valor)
+        prospect = self.get_source_prospect(company, company.user_id)
+        if prospect is not None:
+            for campo, valor in valores.items():
+                setattr(prospect, f"representante_{campo}", valor)
         self.session.commit()
-        self.session.refresh(prospect)
-        return prospect
+        self.session.refresh(contact)
+        return contact

@@ -1135,3 +1135,81 @@ def test_generate_uses_prospect_city_in_signature(client):
         s for s in resp.json()["sections"] if s["title"] == "ASSINATURAS"
     )["content"]
     assert "São Paulo, " in assinaturas
+
+
+def test_contract_contratante_representative_comes_from_the_contact(client):
+    """Fase 4: o representante do CONTRATANTE vem do CONTATO, não da coluna.
+
+    A coluna `representante_*` deixou de ser a fonte. Para provar que o contrato
+    lê o contato, a coluna é apagada de propósito (ficou velha) e o documento
+    ainda sai com o representante do contato — e o modal não pede o que o contato
+    já tem.
+    """
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.prospects.models import Prospect
+
+    email = f"f4_rep_{uuid4()}@cafe.com"
+    auth = _auth_header(client, email)
+    prospect = client.post(
+        "/prospects/",
+        json={
+            "name": "Contratante do Contato",
+            "cnpj": "12.345.678/0001-99",
+            "phone": "(11) 98888-7777",
+            "email": "contato@f4.com.br",
+            "segment": "B2B - Tecnologia & Software",
+            "representante_nome": "Nina do Contato",
+            "representante_email": "nina@contato.com.br",
+        },
+        headers=auth,
+    ).json()
+
+    # coluna legada apagada de propósito: é o contato que vale
+    session = SessionLocal()
+    try:
+        row = (
+            session.query(Prospect).filter(Prospect.id == UUID(prospect["id"])).first()
+        )
+        row.representante_nome = None
+        row.representante_email = None
+        session.commit()
+    finally:
+        session.close()
+
+    client.put(
+        "/contracts/templates",
+        json={
+            "sections": [
+                {
+                    "title": "Das Partes",
+                    "content": (
+                        "Representante: {{contratante_representante_nome}} "
+                        "({{contratante_representante_email}})"
+                    ),
+                }
+            ]
+        },
+        headers=auth,
+    )
+    proposal = _create_proposal(client, auth, prospect).json()
+
+    generate = client.post(
+        "/contracts/generate",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+    assert generate.status_code == 201, generate.text
+    content = generate.json()["sections"][0]["content"]
+    assert "Nina do Contato" in content
+    assert "nina@contato.com.br" in content
+
+    missing = client.post(
+        "/contracts/missing-fields",
+        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    )
+    keys = {f["key"] for f in missing.json()["fields"]}
+    assert "contratante_representante_nome" not in keys
+    assert "contratante_representante_email" not in keys

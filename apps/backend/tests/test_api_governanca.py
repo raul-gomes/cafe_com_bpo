@@ -248,3 +248,42 @@ def test_contracts_list_hides_finalized(client):
     detail = client.get(f"/contracts/{contract['id']}", headers=auth)
     assert detail.status_code == 200
     assert detail.json()["status"] == "finalized"
+
+
+def test_deal_contatante_representative_comes_from_the_contact(client):
+    """Fase 4: o representante do negócio vem do CONTATO, não da coluna.
+
+    Coluna `representante_*` apagada de propósito (ficou velha) — o DTO deve
+    sair com o representante do contato.
+    """
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.prospects.models import Prospect
+
+    email = f"gov_f4_rep_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(
+        client,
+        auth,
+        name="Negócio do Contato",
+        representante_nome="Pessoa do Contato",
+        representante_email="pessoa@governanca.com.br",
+    ).json()
+
+    session = SessionLocal()
+    try:
+        row = (
+            session.query(Prospect).filter(Prospect.id == UUID(prospect["id"])).first()
+        )
+        row.representante_nome = None
+        row.representante_email = None
+        session.commit()
+    finally:
+        session.close()
+
+    deal = next(
+        d for d in get_deals(client, auth)["deals"] if d["id"] == prospect["id"]
+    )
+    assert deal["representante_nome"] == "Pessoa do Contato"
+    assert deal["representante_email"] == "pessoa@governanca.com.br"

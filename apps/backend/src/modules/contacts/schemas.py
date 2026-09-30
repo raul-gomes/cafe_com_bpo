@@ -47,30 +47,21 @@ class ContactCreate(ContactBase):
 
 
 class ContactUpdate(BaseModel):
-    nome: str | None = Field(default=None, min_length=1, max_length=255)
-    telefone: str | None = Field(default=None, max_length=50)
-    email: EmailStr | None = None
-    empresa: str | None = Field(default=None, max_length=255)
+    """Edição de um contato, livre ou pessoa de uma empresa (Fase 4).
 
-    _nome = field_validator("nome")(clean_nome)
-    _empresa = field_validator("empresa")(clean_empresa)
-    _telefone = field_validator("telefone")(clean_telefone)
-
-
-class SourceContactUpdate(BaseModel):
-    """Edição do contato que pertence ao cadastro do prospecto/cliente.
-
-    Só os dados da pessoa: o nome da empresa pertence ao cadastro da empresa e
-    por isso NÃO é editável aqui (evita duas fontes para o mesmo dado). Vale
-    para as duas origens — prospecto em aberto e cliente — porque as duas
-    escrevem em `prospects.representante_*` (fonte única de verdade).
+    Uma rota só para os dois, porque o que se edita é o mesmo `contacts`. O
+    `empresa` só tem efeito em contato **livre** (é o nome anotado no papel);
+    na pessoa da empresa ele é recusado, porque ali o nome vem do cadastro.
     """
 
     nome: str | None = Field(default=None, min_length=1, max_length=255)
     telefone: str | None = Field(default=None, max_length=50)
     email: EmailStr | None = None
+    cargo: str | None = Field(default=None, max_length=100)
+    empresa: str | None = Field(default=None, max_length=255)
 
     _nome = field_validator("nome")(clean_nome)
+    _empresa = field_validator("empresa")(clean_empresa)
     _telefone = field_validator("telefone")(clean_telefone)
 
 

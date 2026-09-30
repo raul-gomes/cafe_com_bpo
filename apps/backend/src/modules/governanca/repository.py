@@ -10,6 +10,8 @@ from uuid import UUID
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
 
+from src.modules.companies.models import Company
+from src.modules.contacts.models import Contact
 from src.modules.contracts.models import Contract
 from src.modules.proposals.models import PricingScenario
 from src.modules.prospects.models import Prospect
@@ -18,6 +20,30 @@ from src.modules.prospects.models import Prospect
 class GovernancaRepository:
     def __init__(self, session: Session):
         self.session = session
+
+    def get_representative(self, prospect: Prospect) -> dict[str, str | None]:
+        """Representante do negócio — Fase 4: fonte é `Contact`, com as
+        colunas legadas `prospect.representante_*` como fallback."""
+        company_id = prospect.converted_client_id or prospect.id
+        company = self.session.get(Company, company_id)
+        contact = None
+        if company is not None and company.primary_contact_id is not None:
+            contact = self.session.get(Contact, company.primary_contact_id)
+        if contact is not None and contact.is_active:
+            return {
+                "nome": contact.nome,
+                "cargo": contact.cargo,
+                "cpf": contact.cpf,
+                "email": contact.email,
+                "telefone": contact.telefone,
+            }
+        return {
+            "nome": prospect.representante_nome,
+            "cargo": prospect.representante_cargo,
+            "cpf": prospect.representante_cpf,
+            "email": prospect.representante_email,
+            "telefone": prospect.representante_telefone,
+        }
 
     def get_prospects(self, user_id: UUID) -> list[Prospect]:
         """Prospectos do usuário que representam negócios vivos na

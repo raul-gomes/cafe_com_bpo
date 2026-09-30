@@ -8,14 +8,12 @@ import { ContactResponse } from '../src/api/contacts'
 const mockListContacts = vi.hoisted(() => vi.fn())
 const mockCreateContact = vi.hoisted(() => vi.fn())
 const mockUpdateContact = vi.hoisted(() => vi.fn())
-const mockUpdateSourceContact = vi.hoisted(() => vi.fn())
 const mockDeleteContact = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/api/contacts', () => ({
   listContacts: mockListContacts,
   createContact: mockCreateContact,
   updateContact: mockUpdateContact,
-  updateSourceContact: mockUpdateSourceContact,
   deleteContact: mockDeleteContact,
 }))
 
@@ -298,8 +296,8 @@ describe('ContatosPage', () => {
     )
   })
 
-  it('edita o contato do cliente no cadastro de origem, sem empresa', async () => {
-    mockUpdateSourceContact.mockResolvedValue({ ...DO_CLIENTE, nome: 'Marina R. Costa' })
+  it('edita o contato do cliente pelo id do contato, sem empresa', async () => {
+    mockUpdateContact.mockResolvedValue({ ...DO_CLIENTE, nome: 'Marina R. Costa' })
     await renderWith([LIVRE, DO_CLIENTE])
 
     fireEvent.click(within(row('Marina Reis')).getByRole('button', { name: /editar/i }))
@@ -309,7 +307,7 @@ describe('ContatosPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() =>
-      expect(mockUpdateSourceContact).toHaveBeenCalledWith('p9', {
+      expect(mockUpdateContact).toHaveBeenCalledWith('p9', {
         nome: 'Marina R. Costa',
         telefone: '11988771234',
         email: 'marina@alfa.com.br',
@@ -317,8 +315,8 @@ describe('ContatosPage', () => {
     )
   })
 
-  it('edita o contato do prospecto que ainda não virou cliente', async () => {
-    mockUpdateSourceContact.mockResolvedValue({ ...PROSPECTO, nome: 'Nina Nova' })
+  it('edita o contato do prospecto pelo id do contato', async () => {
+    mockUpdateContact.mockResolvedValue({ ...PROSPECTO, nome: 'Nina Nova' })
     await renderWith([PROSPECTO])
 
     fireEvent.click(within(row('Nina Prospecto')).getByRole('button', { name: /editar/i }))
@@ -328,7 +326,7 @@ describe('ContatosPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() =>
-      expect(mockUpdateSourceContact).toHaveBeenCalledWith('p10', {
+      expect(mockUpdateContact).toHaveBeenCalledWith('p10', {
         nome: 'Nina Nova',
         telefone: '2132221111',
         email: 'nina@aberto.com.br',

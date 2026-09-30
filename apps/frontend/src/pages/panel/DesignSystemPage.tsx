@@ -1453,9 +1453,8 @@ toast.promise(fetchData(), {
   }}
 />
 
-// contact?.origem === 'cliente'   => PATCH /contacts/prospects/{id} (cadastro do cliente, via prospecto de origem)
-// contact?.origem === 'prospecto' => PATCH /contacts/prospects/{id} (cadastro do prospecto)
-// caso contrário                => POST/PATCH /contacts (contato do próprio cadastro)`}
+// Fase 4: contato de empresa (origem 'cliente'/'prospecto') => PATCH /contacts/{contactId} (a pessoa é um Contact)
+// caso contrário                                            => POST/PATCH /contacts (contato do próprio cadastro)`}
         >
           <div className="ds-row">
             <Button variant="secondary" onClick={() => setContatoDialogOpen(true)}>

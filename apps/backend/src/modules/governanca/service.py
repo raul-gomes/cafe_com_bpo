@@ -54,6 +54,7 @@ class GovernancaService:
             contracts = contracts_by_prospect.get(prospect.id, [])
 
             status = self._classify(prospect)
+            rep = self.repo.get_representative(prospect)
             deal = Deal(
                 id=prospect.id,
                 name=prospect.name,
@@ -65,11 +66,11 @@ class GovernancaService:
                 email=prospect.email or None,
                 phone=prospect.phone or None,
                 description=prospect.description or None,
-                representante_nome=prospect.representante_nome or None,
-                representante_cargo=prospect.representante_cargo or None,
-                representante_email=prospect.representante_email or None,
-                representante_telefone=prospect.representante_telefone or None,
-                representante_cpf=prospect.representante_cpf or None,
+                representante_nome=rep.get("nome"),
+                representante_cargo=rep.get("cargo"),
+                representante_email=rep.get("email"),
+                representante_telefone=rep.get("telefone"),
+                representante_cpf=rep.get("cpf"),
                 status=status,
                 client_id=prospect.converted_client_id,
                 reference_date=self._reference_date(prospect, proposals, contracts),
