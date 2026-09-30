@@ -245,6 +245,36 @@ def test_upgrade_ondelete_is_no_action_everywhere(r2):
         )
 
 
+def test_teams_company_id_is_unique_in_migration_and_model(r2):
+    """Rule: one team per company, declared the same way in both places.
+
+    R2 creates `ix_teams_company_id` as UNIQUE (a team is 1:1 with a company),
+    but the model declared a plain `index=True`. The asymmetry makes the next
+    `alembic revision --autogenerate` propose dropping the unique index and
+    recreating it non-unique, silently losing the 1:1 guarantee in a migration
+    nobody reviewed as a change.
+    """
+    from src.modules.team.models import Team
+
+    module, recorder = r2
+
+    module.upgrade()
+
+    unique_calls = {
+        call[1]: call[4] for call in recorder.calls if call[0] == "create_index"
+    }
+    assert unique_calls["ix_teams_company_id"] is True
+
+    indexes = {
+        index.name: index.unique
+        for index in Team.__table__.indexes
+        if "company_id" in [c.name for c in index.columns]
+    }
+    assert indexes == {"ix_teams_company_id": True}, (
+        "the model must declare the unique index with the same name the R2 uses"
+    )
+
+
 def test_upgrade_declares_the_check_constraints_the_models_declare(r2):
     """Rule: `ck_<table>_company_type` must exist in migration and in model.
 

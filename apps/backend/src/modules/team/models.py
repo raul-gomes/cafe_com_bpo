@@ -8,6 +8,7 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     String,
     func,
 )
@@ -54,6 +55,12 @@ class Team(Base):
             name="fk_teams_company",
             ondelete="NO ACTION",
         ),
+        # O time é 1:1 com a empresa, então a unicidade se repete aqui. Declarado
+        # como índice nomeado (e não `unique=True` na coluna) porque é assim que a
+        # R2 cria: um UNIQUE INDEX chamado `ix_teams_company_id`. Se o model
+        # declarasse uma UNIQUE constraint, o autogenerate proporia trocar uma
+        # pela outra a cada revisão.
+        Index("ix_teams_company_id", "company_id", unique=True),
     )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -66,8 +73,9 @@ class Team(Base):
     )
     # Escrita dupla: `client_id` continua valendo até a release de limpeza, e
     # é daqui que a leitura passa a sair. Nullable nesta fase — vira NOT NULL
-    # em R3, depois que o backfill for conferido linha a linha.
-    company_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    # em R3, depois que o backfill for conferido linha a linha. A unicidade vem
+    # do índice `ix_teams_company_id` declarado em `__table_args__`.
+    company_id = Column(UUID(as_uuid=True), nullable=True)
     company_type = Column(
         String(20), nullable=False, server_default="client", default="client"
     )
