@@ -12,9 +12,6 @@ export interface ContactResponse {
   /** False quando a empresa não tem representante nomeado: a linha traz o
    *  telefone/e-mail do próprio cadastro e não é editável aqui. */
   tem_pessoa: boolean;
-  client_id: string | null;
-  prospect_id: string | null;
-  updated_at: string | null;
 }
 
 export interface ContactPayload {

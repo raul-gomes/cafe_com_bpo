@@ -253,9 +253,6 @@ const CONTATOS_DEMO: ContactResponse[] = [
     empresa: 'Contabilidade Alfa',
     origem: 'cliente',
     tem_pessoa: true,
-    client_id: 'cl-1',
-    prospect_id: 'p-1',
-    updated_at: '2026-09-28T12:00:00',
   },
   {
     id: 'p-2',
@@ -265,9 +262,6 @@ const CONTATOS_DEMO: ContactResponse[] = [
     empresa: 'Lead Aberto Ltda',
     origem: 'prospecto',
     tem_pessoa: true,
-    client_id: null,
-    prospect_id: 'p-2',
-    updated_at: '2026-09-28T12:00:00',
   },
   {
     id: 'c-2',
@@ -277,9 +271,6 @@ const CONTATOS_DEMO: ContactResponse[] = [
     empresa: 'Empresa Beta',
     origem: 'livre',
     tem_pessoa: true,
-    client_id: null,
-    prospect_id: null,
-    updated_at: '2026-09-28T12:00:00',
   },
   {
     id: 'cl-3',
@@ -289,9 +280,6 @@ const CONTATOS_DEMO: ContactResponse[] = [
     empresa: 'Pedro Alencar ME',
     origem: 'cliente',
     tem_pessoa: false,
-    client_id: 'cl-3',
-    prospect_id: null,
-    updated_at: '2026-09-28T12:00:00',
   },
 ]
 

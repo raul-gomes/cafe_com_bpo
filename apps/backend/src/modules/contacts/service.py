@@ -16,11 +16,8 @@ from .schemas import (
 )
 
 
-def _iso(value) -> str | None:
-    return value.isoformat() if value is not None else None
-
-
 def _to_free_response(contact: Contact) -> ContactResponse:
+    """Builds the agenda row of a **free** contact (registered by the BPO)."""
     return ContactResponse(
         id=contact.id,
         nome=contact.nome,
@@ -29,27 +26,27 @@ def _to_free_response(contact: Contact) -> ContactResponse:
         empresa=contact.empresa,
         origem="livre",
         tem_pessoa=True,
-        updated_at=_iso(contact.updated_at),
     )
 
 
-# `companies.type` é o discriminador técnico ("client"/"prospect"); a API fala
-# português. O mapeamento fica num lugar só para a agenda não ter duas vozes
-# sobre o mesmo campo.
+# `companies.type` is the technical discriminator ("client"/"prospect"); the API
+# speaks Portuguese. The mapping lives in one place so the agenda never has two
+# voices about the same field.
 ORIGEM_POR_TYPE = {COMPANY_TYPE_CLIENT: "cliente", COMPANY_TYPE_PROSPECT: "prospecto"}
 
 
-def _origem_da_empresa(company: Company) -> OrigemContato:
+def _origin_of_company(company: Company) -> OrigemContato:
+    """Maps the company type to the API origin value."""
     return ORIGEM_POR_TYPE[company.type]
 
 
 def _to_company_contact_response(contact: Contact, company: Company) -> ContactResponse:
-    """Linha da agenda de uma empresa COM pessoa cadastrada.
+    """Agenda row of a company **with** a named person.
 
-    A linha **é** o contato: `id` é o id do contato — é o que o
-    `PATCH /contacts/{id}` edita — e os dados vêm dele, não das colunas
-    `representante_*`, que a Fase 4 está esvaziando. `empresa` é o nome do
-    cadastro, que só muda no cadastro da empresa (regra §13).
+    The row **is** the contact: `id` is the contact id — what
+    `PATCH /contacts/{id}` edits — and the data comes from it, not from the
+    legacy `representante_*` columns. `empresa` is the company record name, which
+    only changes in the company record.
     """
     return ContactResponse(
         id=contact.id,
@@ -57,22 +54,18 @@ def _to_company_contact_response(contact: Contact, company: Company) -> ContactR
         telefone=contact.telefone,
         email=contact.email,
         empresa=company.name,
-        origem=_origem_da_empresa(company),
+        origem=_origin_of_company(company),
         tem_pessoa=True,
-        client_id=company.id if company.type == COMPANY_TYPE_CLIENT else None,
-        prospect_id=company.id if company.type == COMPANY_TYPE_PROSPECT else None,
-        updated_at=_iso(contact.updated_at),
     )
 
 
 def _to_company_fallback_response(company: Company) -> ContactResponse:
-    """Linha da empresa SEM contato ativo: o próprio cadastro, sem pessoa.
+    """Agenda row of a company with **no** active contact: the company itself.
 
-    Regra §13: empresa sem representante nomeado aparece na agenda com nome,
-    telefone e e-mail do cadastro, marcada como "sem pessoa cadastrada"
-    (`tem_pessoa=False`) e não editável por aqui — a pessoa é cadastrada no
-    cadastro da empresa. Vale tanto para prospecto quanto para cliente: as duas
-    são `companies`, e a linha nasce da empresa, não de `prospects`/`clients`.
+    A company without a named person shows its own name, phone and email, marked
+    as "no person registered" (`tem_pessoa=False`) and not editable here — the
+    person is registered in the company record. Holds for a prospect and for a
+    client alike: both are `companies`, and the row is born from the company.
     """
     return ContactResponse(
         id=company.id,
@@ -80,20 +73,17 @@ def _to_company_fallback_response(company: Company) -> ContactResponse:
         telefone=company.phone,
         email=company.email,
         empresa=company.name,
-        origem=_origem_da_empresa(company),
+        origem=_origin_of_company(company),
         tem_pessoa=False,
-        client_id=company.id if company.type == COMPANY_TYPE_CLIENT else None,
-        prospect_id=company.id if company.type == COMPANY_TYPE_PROSPECT else None,
-        updated_at=_iso(company.updated_at),
     )
 
 
 class ContactService:
-    """Regras da agenda de contatos.
+    """Contact agenda rules.
 
-    Toda leitura/escrita é escopada por `user_id` aqui no service (o repository
-    só recebe o id do usuário), então o router nunca decide autorização e um
-    `id` enviado pelo cliente não abre acesso a dado de outra pessoa.
+    Every read/write is scoped by `user_id` here in the service (the repository
+    only receives the user id), so the router never decides authorization and an
+    `id` sent by the client never opens access to another person's data.
     """
 
     def __init__(self, repository: ContactRepository):
@@ -105,15 +95,15 @@ class ContactService:
         search: str | None = None,
         origem: OrigemContato | None = None,
     ) -> list[ContactResponse]:
-        """Listagem única: contatos livres + uma linha por empresa do usuário.
+        """Single listing: free contacts + one row per company of the user.
 
-        A linha da empresa é o `Contact` — a pessoa, com o id do contato — ou,
-        quando a empresa não tem contato ativo, a própria empresa sem pessoa.
-        Prospecto/cliente arquivado continua na lista: o filtro é `is_active` do
-        **contato**, não da empresa (regra §13).
+        A company row is the `Contact` — the person, with the contact id — or,
+        when the company has no active contact, the company itself without a
+        person. An archived prospect/client still shows: the filter is
+        `is_active` of the **contact**, not of the company (product rule §13).
 
-        A ordem é feita em Python (lower + origem) para não depender do
-        collation do banco e ser determinística entre Postgres e SQLite.
+        Ordering happens in Python (lower + origin) so it does not depend on the
+        database collation and stays deterministic between Postgres and SQLite.
         """
         rows: list[ContactResponse] = []
         if origem in (None, "livre"):
@@ -139,22 +129,21 @@ class ContactService:
     def create_contact(
         self, contact_in: ContactCreate, user_id: UUID
     ) -> ContactResponse:
+        """Creates a free contact for the user and returns its agenda row."""
         return _to_free_response(self.repository.create(contact_in, user_id))
 
     def update_contact(
         self, contact_id: UUID, contact_in: ContactUpdate, user_id: UUID
     ) -> ContactResponse:
-        """Corrige um contato pelo seu id: livre, ou a pessoa de uma empresa.
+        """Fixes a contact by its id: a free one, or the person of a company.
 
-        Pessoa de empresa: o contato é a fonte (Fase 4), então a correção vem
-        nele e sai espelhada nas colunas `representante_*` do prospecto de
-        origem, que os consumidores legados ainda leem. Contato livre: só ele
-        mesmo. Nos dois, `empresa` é ignorado — o nome da empresa é do cadastro
-        (regra §13).
+        Company person: the contact is the source, so the fix lands there and is
+        mirrored into the source prospect's `representante_*` columns, which the
+        legacy consumers still read. Free contact: only itself. In both, `empresa`
+        is ignored — the company name belongs to the company record (rule §13).
 
-        Empresa sem pessoa cadastrada não tem contato, e por isso não tem id
-        para ser editada por aqui: a linha dela na agenda é a própria empresa e
-        fica somente leitura, como a regra manda.
+        A company without a named person has no contact, hence no id to edit
+        through here: its agenda row is the company itself and is read-only.
         """
         contact = self.repository.get_by_id(contact_id, user_id)
         if not contact:
@@ -170,6 +159,7 @@ class ContactService:
         return _to_company_contact_response(updated, company)
 
     def delete_contact(self, contact_id: UUID, user_id: UUID) -> None:
+        """Soft-deletes a contact owned by the user (404-style error otherwise)."""
         contact = self.repository.get_by_id(contact_id, user_id)
         if not contact:
             raise ValueError("Contato não encontrado")

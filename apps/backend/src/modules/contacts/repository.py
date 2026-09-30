@@ -12,15 +12,15 @@ from .schemas import ContactCreate, ContactUpdate
 
 
 def _like(term: str) -> str:
-    """Termo de busca com os curingas do LIKE escapados."""
+    """Search term with the LIKE wildcards escaped."""
     return term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
 
 
 def _search_filter(search: str | None, *columns):
-    """Busca case-insensitive que casa em QUALQUER uma das colunas (OR).
+    """Case-insensitive search matching ANY of the given columns (OR).
 
-    `None` quando não há termo, para o chamador não aplicar filtro nenhum.
-    Os curingas do LIKE são escapados: digitar 100% não vira "qualquer coisa".
+    `None` when there is no term, so the caller applies no filter at all. The
+    LIKE wildcards are escaped: typing 100% does not become "anything".
     """
     if not search or not search.strip():
         return None
@@ -32,14 +32,17 @@ class ContactRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    # ── contatos livres ──
+    # ── free contacts ──
 
     def list_free(self, user_id: UUID, search: str | None = None) -> list[Contact]:
-        # "Livre" = contato sem empresa. O que tem `company_id` é a pessoa de uma
-        # empresa e aparece na listagem como prospecto/cliente — sem este filtro
-        # a mesma pessoa saía duas vezes, uma como livre e outra como empresa.
-        # Contato livre com `empresa` preenchida (texto) continua livre: é o
-        # caso de quem anota a empresa no papel, sem cadastro.
+        """Free contacts of the user (no company attached).
+
+        "Free" = contact with no company. One with `company_id` is the person of
+        a company and shows in the listing as prospect/client — without this
+        filter the same person appeared twice, once as free and once as company.
+        A free contact with `empresa` filled in (free text) is still free: that
+        is the BPO writing a company name down without registering it.
+        """
         query = self.session.query(Contact).filter(
             Contact.user_id == user_id,
             Contact.is_active,
@@ -52,18 +55,18 @@ class ContactRepository:
             query = query.filter(search_filter)
         return query.all()
 
-    # ── agenda: contatos de empresa + empresas sem contato ──
+    # ── agenda: company contacts + companies without a contact ──
 
     def list_company_contacts(
         self, user_id: UUID, search: str | None = None
     ) -> list[tuple[Contact, Company]]:
-        """Contatos ligados a uma empresa: a pessoa da linha da agenda.
+        """Contacts attached to a company: the person of the agenda row.
 
-        `contacts` é a fonte do representante (Fase 4), então a linha da pessoa
-        **é** o contato — inclusive o `id`, que é o que o `PATCH /contacts/{id}`
-        edita. Arquivar a empresa não tira o contato da agenda (regra §13:
-        arquivar é operação de CRM); o que some é o contato removido no
-        próprio cadastro, via `is_active`.
+        `contacts` is the source of the company representative, so the person's
+        row **is** the contact — including the `id` that `PATCH /contacts/{id}`
+        edits. Archiving the company does not remove the contact from the agenda
+        (rule §13: archiving is a CRM operation); what disappears is the contact
+        removed in its own record, via `is_active`.
         """
         query = (
             self.session.query(Contact, Company)
@@ -87,12 +90,11 @@ class ContactRepository:
     def list_companies_without_contact(
         self, user_id: UUID, search: str | None = None
     ) -> list[Company]:
-        """Empresas sem contato ativo: a linha da própria empresa, sem pessoa.
+        """Companies with no active contact: the company row, without a person.
 
-        Regra §13: empresa sem representante nomeado aparece usando nome,
-        telefone e e-mail do próprio cadastro, marcada como "sem pessoa
-        cadastrada" e somente leitura. Sem esta consulta, essas empresas
-        sumiriam da agenda ao virar `contacts` a fonte.
+        A company without a named person shows its own name, phone and email,
+        marked as "no person registered" and read-only. Without this query those
+        companies would vanish from the agenda once `contacts` became the source.
         """
         sem_contato = (
             select(Contact.company_id)
@@ -110,7 +112,7 @@ class ContactRepository:
         return query.all()
 
     def get_by_id(self, contact_id: UUID, user_id: UUID) -> Contact | None:
-        """Contato livre do próprio usuário (escopo por `user_id`, nunca do body)."""
+        """Contact of the user itself (scoped by `user_id`, never by the body)."""
         return (
             self.session.query(Contact)
             .filter(
@@ -122,6 +124,7 @@ class ContactRepository:
         )
 
     def create(self, contact_in: ContactCreate, user_id: UUID) -> Contact:
+        """Inserts a free contact owned by `user_id` and returns it refreshed."""
         contact = Contact(**contact_in.model_dump(), user_id=user_id)
         self.session.add(contact)
         self.session.commit()
@@ -129,6 +132,7 @@ class ContactRepository:
         return contact
 
     def update(self, contact: Contact, contact_in: ContactUpdate) -> Contact:
+        """Applies the set fields of `contact_in` to a free contact."""
         for field, value in contact_in.model_dump(exclude_unset=True).items():
             setattr(contact, field, value)
         self.session.commit()
@@ -136,15 +140,15 @@ class ContactRepository:
         return contact
 
     def soft_delete(self, contact: Contact) -> None:
-        """Soft delete, igual a clientes e prospectos: o registro não some do banco."""
+        """Soft delete, like companies and prospects: the row stays in the database."""
         contact.is_active = False
         contact.deleted_at = datetime.now(timezone.utc)
         self.session.commit()
 
-    # ── contatos das empresas (fonte única: Contact) ──
+    # ── company contacts (single source: Contact) ──
 
     def get_company(self, company_id: UUID, user_id: UUID) -> Company | None:
-        """Empresa do contato, escopada por `user_id` (a agenda é por usuário)."""
+        """Company of the contact, scoped by `user_id` (the agenda is per user)."""
         return (
             self.session.query(Company)
             .filter(Company.id == company_id, Company.user_id == user_id)
@@ -152,13 +156,13 @@ class ContactRepository:
         )
 
     def get_source_prospect(self, company: Company, user_id: UUID) -> Prospect | None:
-        """Prospecto que é a fonte da empresa, para espelhar a correção.
+        """Prospect that is the legacy source of the company, to mirror the fix.
 
-        Empresa em prospecção: o próprio prospecto. Empresa convertida: o
-        prospecto que a originou — é ele que guarda `representante_*`, o cliente
-        não tem essas colunas. Cliente criado direto em Empresas não tem
-        prospecto de origem, e não precisa: para ele não existe coluna legada
-        para espelhar.
+        Company still being worked: the prospect itself. Converted company: the
+        prospect that originated it — it is the one holding `representante_*`,
+        the client row has no such columns. A client created directly under
+        Companies has no source prospect and needs none: there is no legacy
+        column to mirror into.
         """
         if company.type == COMPANY_TYPE_PROSPECT:
             return (
@@ -178,15 +182,15 @@ class ContactRepository:
     def update_company_contact(
         self, contact: Contact, company: Company, data: dict
     ) -> Contact:
-        """Grava no contato (fonte) e espelha nas colunas legadas do prospecto.
+        """Writes to the contact (the source) and mirrors into the legacy columns.
 
-        O contato é a fonte desde a Fase 4, mas contrato, governança e exportação
-        ainda leem `prospects.representante_*`; enquanto essas colunas existirem,
-        a correção tem que chegar nas duas — senão a pessoa corrige na agenda e
-        o documento sai com o dado velho.
+        The contact has been the source, but `prospects.representante_*` is still
+        read by the contract, the governance export and legacy consumers; while
+        those columns exist, the fix has to reach both — otherwise the person
+        corrects the phone in the agenda and the document ships the old value.
 
-        `empresa` é ignorado aqui de propósito: o nome da empresa pertence ao
-        cadastro da empresa (regra §13) e mudá-lo por aqui criaria duas fontes.
+        `empresa` is ignored on purpose: the company name belongs to the company
+        record (rule §13), and changing it here would create a second source.
         """
         valores = {
             campo: valor

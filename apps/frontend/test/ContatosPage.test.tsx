@@ -25,9 +25,6 @@ const LIVRE: ContactResponse = {
   empresa: 'Empresa Beta',
   origem: 'livre',
   tem_pessoa: true,
-  client_id: null,
-  prospect_id: null,
-  updated_at: '2026-09-28T10:00:00Z',
 }
 
 const DO_CLIENTE: ContactResponse = {
@@ -38,9 +35,6 @@ const DO_CLIENTE: ContactResponse = {
   empresa: 'Contabilidade Alfa',
   origem: 'cliente',
   tem_pessoa: true,
-  client_id: 'cl1',
-  prospect_id: 'p9',
-  updated_at: '2026-09-28T10:00:00Z',
 }
 
 const PROSPECTO: ContactResponse = {
@@ -51,9 +45,6 @@ const PROSPECTO: ContactResponse = {
   empresa: 'Lead Aberto Ltda',
   origem: 'prospecto',
   tem_pessoa: true,
-  client_id: null,
-  prospect_id: 'p10',
-  updated_at: '2026-09-28T10:00:00Z',
 }
 
 /** Empresa sem representante: a linha traz o contato da própria empresa. */
@@ -65,9 +56,6 @@ const SEM_PESSOA: ContactResponse = {
   empresa: 'Cliente Sem Pessoa',
   origem: 'cliente',
   tem_pessoa: false,
-  client_id: 'cl7',
-  prospect_id: null,
-  updated_at: '2026-09-28T10:00:00Z',
 }
 
 function renderPage() {
