@@ -16,6 +16,8 @@ from ..schemas import (
     ClientTemplateAssignmentCreate,
     ClientTemplateAssignmentResponse,
     ClientTemplateAssignmentUpdate,
+    ClientTemplateAssignResponse,
+    ClientTemplateRegenerateResponse,
 )
 from ..task.repository import TaskRepository
 from ..templates.repository import TemplateRepository
@@ -38,13 +40,29 @@ AssignmentServiceDep = Annotated[AssignmentService, Depends(get_assignment_servi
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
-@router.post("/client-templates/", status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/client-templates/",
+    status_code=status.HTTP_201_CREATED,
+    response_model=ClientTemplateAssignResponse,
+)
 def assign_template(
     assignment_in: ClientTemplateAssignmentCreate,
     service: AssignmentServiceDep,
     current_user: CurrentUserDep,
-):
-    """Vincula um template a um cliente e gera tarefas automaticamente."""
+) -> ClientTemplateAssignResponse:
+    """Links a template to a client and generates its tasks automatically.
+
+    Args:
+        assignment_in: The client and template to link.
+        service: The assignment service.
+        current_user: The caller, owner of the new link.
+
+    Returns:
+        The new link id and how many tasks it generated.
+
+    Raises:
+        HTTPException: 404 when the template does not exist.
+    """
     try:
         result = service.assign_template_to_client(assignment_in, current_user.id)
         log.info(
@@ -96,11 +114,28 @@ def update_client_assignment(
         raise HTTPException(status_code=404, detail="Vínculo não encontrado")
 
 
-@router.post("/client-templates/{assignment_id}/regenerate")
+@router.post(
+    "/client-templates/{assignment_id}/regenerate",
+    response_model=ClientTemplateRegenerateResponse,
+)
 def regenerate_client_tasks(
-    assignment_id: UUID, service: AssignmentServiceDep, current_user: CurrentUserDep
-):
-    """Regenera tarefas para o próximo período de um vínculo."""
+    assignment_id: UUID,
+    service: AssignmentServiceDep,
+    current_user: CurrentUserDep,
+) -> ClientTemplateRegenerateResponse:
+    """Regenerates the tasks of a link for the next period.
+
+    Args:
+        assignment_id: The link to regenerate.
+        service: The assignment service.
+        current_user: The caller, used to resolve a general template.
+
+    Returns:
+        How many tasks were created.
+
+    Raises:
+        HTTPException: 404 when the link or the template does not exist.
+    """
     try:
         return service.regenerate_client_tasks(assignment_id, current_user.id)
     except ValueError as e:

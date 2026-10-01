@@ -153,25 +153,19 @@ export interface ActivityTemplateListItem {
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
-  due_date?: string;
-  recurrence_end_date?: string;
   is_active: boolean;
   is_general?: boolean;
   is_archived?: boolean;
   is_overdue?: boolean;
   days_overdue?: number;
   activity_count: number;
-  parent_template_id?: string;
   routine_type_id?: string;
   routine_type_name?: string;
   routine_type_color?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface TemplateActivityResponse {
   id: string;
-  template_id: string;
   name: string;
   description?: string;
   priority: string;
@@ -179,8 +173,6 @@ export interface TemplateActivityResponse {
   due_days?: number;
   estimated_minutes?: number;
   order: number;
-  phase_id?: string;
-  created_at: string;
 }
 
 export interface ActivityTemplateResponse {
@@ -194,17 +186,12 @@ export interface ActivityTemplateResponse {
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
-  due_date?: string;
-  recurrence_end_date?: string;
   is_active: boolean;
   is_general: boolean;
   is_archived?: boolean;
-  parent_template_id?: string;
   routine_type_id?: string;
   routine_type_name?: string;
   routine_type_color?: string;
-  created_at: string;
-  updated_at: string;
   activities: TemplateActivityResponse[];
 }
 
@@ -278,11 +265,18 @@ export interface ClientTemplateAssignmentResponse {
   id: string;
   client_id: string;
   template_id: string;
-  user_id: string;
-  start_date?: string;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+}
+
+/** Resposta de vincular uma rotina a um cliente: o vínculo e as tarefas geradas. */
+export interface ClientTemplateAssignResponse {
+  assignment_id: string;
+  tasks_generated: number;
+}
+
+/** Resposta de regerar as tarefas de um vínculo: quantas foram criadas. */
+export interface ClientTemplateRegenerateResponse {
+  tasks_generated: number;
 }
 
 // ── SLA ──
@@ -368,19 +362,9 @@ export interface ClientTimelineResponse {
 export interface OverdueTemplateResponse {
   id: string;
   name: string;
-  description?: string;
-  process_type?: string;
   recurrence: string;
-  weekday_mask?: string;
-  due_month?: number;
-  due_date?: string;
-  recurrence_end_date?: string;
-  is_active: boolean;
   days_overdue: number;
   activity_count: number;
-  routine_type_id?: string;
-  routine_type_name?: string;
-  routine_type_color?: string;
 }
 
 // ── Dashboard Alerts ──

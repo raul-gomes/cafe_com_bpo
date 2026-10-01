@@ -70,8 +70,6 @@ class TestNotificationAPI:
         """Should create a notification for the authenticated user."""
         email = f"notif_user_{uuid4()}@cafe.com"
         auth = self._get_auth_header(client, email)
-        user_resp = client.get("/auth/me", headers=auth)
-        user_id = user_resp.json()["id"]
 
         resp = client.post(
             "/notifications/",

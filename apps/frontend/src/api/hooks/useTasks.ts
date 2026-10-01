@@ -7,8 +7,9 @@ import {
   ActivityTemplateListItem, ActivityTemplateResponse,
   ActivityTemplateCreate, ActivityTemplateUpdate,
   TemplateActivityCreate, TemplateActivityUpdate,
-  ClientTemplateAssignmentCreate, ClientTemplateAssignmentResponse,
-  ClientTemplateAssignmentUpdate,
+  ClientTemplateAssignResponse, ClientTemplateAssignmentCreate,
+  ClientTemplateAssignmentResponse, ClientTemplateAssignmentUpdate,
+  ClientTemplateRegenerateResponse,
   RoutineTypeResponse, RoutineTypeCreate, RoutineTypeUpdate,
   ClientSLAResponse, ClientSLACreate, ClientSLAUpdate,
   TaskAttachmentResponse,
@@ -338,7 +339,10 @@ export const useTasks = () => {
   const useAssignTemplate = () => {
     return useMutation({
       mutationFn: async (assignment: ClientTemplateAssignmentCreate) => {
-        const { data } = await apiClient.post('/tasks/client-templates/', assignment);
+        const { data } = await apiClient.post<ClientTemplateAssignResponse>(
+          '/tasks/client-templates/',
+          assignment,
+        );
         return data;
       },
       onSuccess: () => {
@@ -373,7 +377,10 @@ export const useTasks = () => {
   const useUpdateAssignment = () => {
     return useMutation({
       mutationFn: async ({ id, ...assignment }: ClientTemplateAssignmentUpdate & { id: string }) => {
-        const { data } = await apiClient.patch(`/tasks/client-templates/${id}`, assignment);
+        const { data } = await apiClient.patch<ClientTemplateAssignmentResponse>(
+          `/tasks/client-templates/${id}`,
+          assignment,
+        );
         return data;
       },
       onSuccess: () => {
@@ -386,7 +393,9 @@ export const useTasks = () => {
   const useRegenerateClientTasks = () => {
     return useMutation({
       mutationFn: async (id: string) => {
-        const { data } = await apiClient.post(`/tasks/client-templates/${id}/regenerate`);
+        const { data } = await apiClient.post<ClientTemplateRegenerateResponse>(
+          `/tasks/client-templates/${id}/regenerate`,
+        );
         return data;
       },
       onSuccess: () => {

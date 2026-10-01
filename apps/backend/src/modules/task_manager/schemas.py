@@ -207,10 +207,23 @@ class TemplateActivityUpdate(BaseModel):
     phase_id: UUID | None = None
 
 
-class TemplateActivityResponse(TemplateActivityBase):
+class TemplateActivityResponse(BaseModel):
+    """One activity of a template, as the detail page and drawer render it.
+
+    Out, because no screen reads them: `template_id` (the activities are nested
+    under the template that owns them), `due_day`/`due_days` (the activity
+    inherits the template schedule when it has none) and `phase_id` (phases
+    belong to tasks, not to the template activities) and `created_at`.
+    """
+
     id: UUID
-    template_id: UUID
-    created_at: datetime
+    name: str
+    description: str | None = None
+    priority: str
+    due_day: int | None = None
+    due_days: int | None = None
+    estimated_minutes: int | None = None
+    order: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -254,25 +267,22 @@ class ActivityTemplateUpdate(BaseModel):
     routine_type_id: UUID | None = None
 
 
-class ActivityTemplateResponse(ActivityTemplateBase):
-    id: UUID
-    user_id: UUID
-    parent_template_id: UUID | None = None
-    created_at: datetime
-    updated_at: datetime
-    activities: list[TemplateActivityResponse] = []
-    routine_type_name: str | None = None
-    routine_type_color: str | None = None
+class ActivityTemplateResponse(BaseModel):
+    """A template with its activities, as the detail page and drawer render it.
 
-    model_config = ConfigDict(from_attributes=True)
+    Carries the schedule fields (`ActivityTemplateBase`) plus the owner, since
+    the list only offers archive/delete on a personal template to its creator,
+    and the resolved routine type name and color of the badges.
 
-
-class ActivityTemplateListItem(BaseModel):
-    """List item without nested activities for performance."""
+    Out, because no screen reads them: `parent_template_id` (the fork is
+    created server-side, the UI never links back to the general template),
+    `due_date`/`recurrence_end_date` (the recurrence is described by
+    `recurrence` + `weekday_mask` + `due_day`/`due_month`/`due_days_from_start`
+    and the edit form prefills from those) and `created_at`/`updated_at`.
+    """
 
     id: UUID
     user_id: UUID
-    parent_template_id: UUID | None = None
     name: str
     description: str | None = None
     process_type: str | None = None
@@ -281,8 +291,35 @@ class ActivityTemplateListItem(BaseModel):
     due_day: int | None = None
     due_month: int | None = None
     due_days_from_start: int | None = None
-    due_date: datetime | None = None
-    recurrence_end_date: datetime | None = None
+    is_active: bool = True
+    is_general: bool = False
+    is_archived: bool = False
+    routine_type_id: UUID | None = None
+    routine_type_name: str | None = None
+    routine_type_color: str | None = None
+    activities: list[TemplateActivityResponse] = []
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ActivityTemplateListItem(BaseModel):
+    """One row of the template list, without the nested activities.
+
+    `ActivityTemplateResponse` plus the three values the list computes on its
+    own — `is_overdue`, `days_overdue` and `activity_count` — which the overdue
+    filter, the badge and the sort by urgency read.
+    """
+
+    id: UUID
+    user_id: UUID
+    name: str
+    description: str | None = None
+    process_type: str | None = None
+    recurrence: str
+    weekday_mask: str | None = None
+    due_day: int | None = None
+    due_month: int | None = None
+    due_days_from_start: int | None = None
     is_active: bool
     is_general: bool = False
     is_archived: bool = False
@@ -292,30 +329,23 @@ class ActivityTemplateListItem(BaseModel):
     routine_type_id: UUID | None = None
     routine_type_name: str | None = None
     routine_type_color: str | None = None
-    created_at: datetime
-    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class OverdueTemplateResponse(BaseModel):
-    """Overdue template info for dashboard alerts."""
+    """One overdue template, as the dashboard alert renders it.
+
+    The alert only shows the name, the recurrence label, how many activities the
+    template has and how many days late it is, plus the id it navigates with.
+    Everything else the full template DTO carries is dead weight here.
+    """
 
     id: UUID
     name: str
-    description: str | None = None
-    process_type: str | None = None
     recurrence: str
-    weekday_mask: str | None = None
-    due_month: int | None = None
-    due_date: datetime | None = None
-    recurrence_end_date: datetime | None = None
-    is_active: bool
     days_overdue: int
     activity_count: int = 0
-    routine_type_id: UUID | None = None
-    routine_type_name: str | None = None
-    routine_type_color: str | None = None
 
 
 # ──────────────────────────────────────────────
@@ -334,17 +364,37 @@ class ClientTemplateAssignmentUpdate(BaseModel):
 
 
 class ClientTemplateAssignmentResponse(BaseModel):
+    """One template linked to a client, as the company page renders it.
+
+    The page shows the active toggle and removes or refreshes the link by id,
+    and matches the linked templates by `template_id`. Out, because nothing
+    renders them: `user_id` (the link list is already scoped to the caller),
+    `start_date`, `last_generated_at`, `created_at` and `updated_at`.
+    """
+
     id: UUID
     client_id: UUID
     template_id: UUID
-    user_id: UUID
-    start_date: datetime | None = None
     is_active: bool
-    last_generated_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ClientTemplateAssignResponse(BaseModel):
+    """What linking a template to a client answers: the link and the task count.
+
+    `template_name` is out — the page refetches the list, which already carries
+    the template rows it renders.
+    """
+
+    assignment_id: UUID
+    tasks_generated: int
+
+
+class ClientTemplateRegenerateResponse(BaseModel):
+    """What regenerating a client's tasks answers: how many were created."""
+
+    tasks_generated: int
 
 
 # ──────────────────────────────────────────────
