@@ -548,23 +548,24 @@ class TeamRepository:
             .filter(InvitationRoutine.invitation_id == invitation.id)
             .all()
         )
-        template_ids = [r.template_id for r in routines]
+        template_ids = {r.template_id for r in routines}
         if not template_ids:
             return []
 
-        template_id_set = set(template_ids)
-        all_assignments = self.session.query(ClientTemplateAssignment).all()
-        assignment_map = {
-            a.template_id: a
-            for a in all_assignments
-            if a.client_id == client_id and a.template_id in template_id_set
-        }
-
-        active_ids = set()
-        for tid in template_id_set:
-            assignment = assignment_map.get(tid)
-            if assignment is None or assignment.is_active:
-                active_ids.add(tid)
+        # Só os vínculos desta empresa e destas rotinas entram na consulta. A
+        # versão anterior carregava a tabela `client_template_assignments`
+        # inteira para filtrar em Python, então o custo crescia com o volume de
+        # todas as empresas, e não com o da empresa pedida.
+        assignments = (
+            self.session.query(ClientTemplateAssignment)
+            .filter(
+                ClientTemplateAssignment.client_id == client_id,
+                ClientTemplateAssignment.template_id.in_(template_ids),
+            )
+            .all()
+        )
+        disabled = {a.template_id for a in assignments if not a.is_active}
+        active_ids = template_ids - disabled
 
         if not active_ids:
             return []
