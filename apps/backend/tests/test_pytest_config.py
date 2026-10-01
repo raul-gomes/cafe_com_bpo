@@ -43,6 +43,7 @@ def _repo_root() -> Path | None:
             return candidate
     return None
 
+
 MIGRATION_REHEARSAL = "tests/integration/test_migrations_postgres.py"
 
 

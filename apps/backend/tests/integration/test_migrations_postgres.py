@@ -118,6 +118,7 @@ class Rehearsal:
             env=env,
             capture_output=True,
             text=True,
+            check=False,
         )
         if result.returncode != 0:
             masked = re.sub(r":[^:@/]+@", ":***@", self.url)
@@ -260,15 +261,12 @@ class Rehearsal:
             existing = {
                 row[0]
                 for row in connection.execute(
-                    text(
-                        "SELECT tablename FROM pg_tables WHERE schemaname = "
-                        "'public'"
-                    )
+                    text("SELECT tablename FROM pg_tables WHERE schemaname = 'public'")
                 )
             }
             return {
                 table: connection.execute(
-                    text(f"SELECT count(*) FROM {table}")  # noqa: S608 - fixed list
+                    text(f"SELECT count(*) FROM {table}")
                 ).scalar_one()
                 for table in sorted(existing & set(WATCHED_TABLES))
             }
@@ -497,7 +495,9 @@ def postgres_admin_url() -> str:
 
 
 @pytest.fixture
-def rehearsal(request: pytest.FixtureRequest, postgres_admin_url: str) -> Iterator[Rehearsal]:
+def rehearsal(
+    request: pytest.FixtureRequest, postgres_admin_url: str
+) -> Iterator[Rehearsal]:
     """Yields a throwaway database parked on the production baseline.
 
     Per-test (not session-scoped) so the database name is derived from the test
@@ -606,12 +606,11 @@ def test_the_engine_refuses_to_hard_delete_a_company(rehearsal: Rehearsal) -> No
     assert client_with_children, "fixture must have clients"
     victim = next(iter(client_with_children))
 
-    with pytest.raises(IntegrityError):
-        with rehearsal.engine.begin() as connection:
-            connection.execute(
-                text("DELETE FROM companies WHERE id = CAST(:id AS uuid)"),
-                {"id": victim},
-            )
+    with pytest.raises(IntegrityError), rehearsal.engine.begin() as connection:
+        connection.execute(
+            text("DELETE FROM companies WHERE id = CAST(:id AS uuid)"),
+            {"id": victim},
+        )
 
 
 def test_the_archived_client_survives_the_whole_apply(rehearsal: Rehearsal) -> None:

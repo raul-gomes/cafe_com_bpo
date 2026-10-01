@@ -93,7 +93,9 @@ def test_create_comment_increments_count_and_sends_notification(client):
     assert notif_resp.status_code == 200
     notifs = notif_resp.json()
     assert len(notifs) >= 1
-    assert notifs[0]["user_id"] == post_resp.json()["author_id"]
+    # The list is already scoped to the author, so the payload does not repeat
+    # who owns each row.
+    assert "user_id" not in notifs[0]
     assert notifs[0]["type"] == "post_commented"
     assert notifs[0]["is_read"] is False
     assert notifs[0]["related_entity_type"] == "discussion_post"

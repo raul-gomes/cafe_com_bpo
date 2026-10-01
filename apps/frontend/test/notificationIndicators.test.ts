@@ -11,7 +11,6 @@ import type { AppNotificationResponse } from '../src/schemas/notifications'
 function notif(over: Partial<AppNotificationResponse>): AppNotificationResponse {
   return {
     id: 'n1',
-    user_id: 'u1',
     title: 'titulo',
     message: 'mensagem',
     type: 'conversation_message',
