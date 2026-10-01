@@ -53,8 +53,6 @@ ACTIVITY_KEYS = {
     "name",
     "description",
     "priority",
-    "due_day",
-    "due_days",
     "estimated_minutes",
     "order",
 }
@@ -138,13 +136,13 @@ def test_the_template_detail_drops_the_columns_no_screen_uses(client):
     assert set(response.json()) == TEMPLATE_KEYS | {"activities"}
 
 
-def test_the_nested_activities_ship_what_the_task_deadline_is_built_from(client):
-    """The activities keep the schedule the scheduler reads to set a deadline.
+def test_the_nested_activities_ship_only_what_the_list_renders(client):
+    """The activity schedule is write-only, so it stays out of the payload.
 
-    The activity list does not render them, but `due_day`/`due_days` are what
-    `scheduler.calculate_activity_deadline` uses, and the client commands that
-    create the routine send them. Dropping them from the contract would be a
-    payload/side-effect mismatch, so the contract test pins them instead.
+    `due_day`/`due_days` are accepted by the create/update commands because the
+    scheduler reads them when it builds the card deadline. No component reads
+    them back, so the detail payload omits them (§6); the effect is covered by
+    the deadline assertions in `tests/test_api_tasks.py`.
     """
     auth = _auth(client, f"tpl_acts_{uuid4()}@cafe.com")
     template_id = _template(client, auth)["id"]

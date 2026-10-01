@@ -133,6 +133,26 @@ def freeze_assignments_clock(weekday: datetime | None = None):
     return mock.patch.object(assignments_service, "datetime", _FixedClock)
 
 
+def freeze_scheduler_clock(fixed: datetime | None = None):
+    """Congela o relógio do scheduler.
+
+    O ``TaskScheduler.run_daily_check`` recebe ``now`` opcional, mas os
+    endpoints de gatilho não o repassam. Congelar ``datetime.now`` no módulo
+    ``src.modules.task_manager.scheduler`` deixa tanto o run direto quanto o
+    gatilho HTTP determinísticos, como prescreve a §3.
+    """
+    from src.modules.task_manager import scheduler as scheduler_module
+
+    moment = fixed or datetime(2026, 7, 20, 15, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment if tz is None else moment.astimezone(tz)
+
+    return mock.patch.object(scheduler_module, "datetime", _FixedClock)
+
+
 def freeze_deadline_clock(fixed: datetime | None = None):
     """Congela o relógio da regra de prazo (`src/core/deadline`).
 

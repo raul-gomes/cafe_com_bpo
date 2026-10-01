@@ -169,8 +169,6 @@ export interface TemplateActivityResponse {
   name: string;
   description?: string;
   priority: string;
-  due_day?: number;
-  due_days?: number;
   estimated_minutes?: number;
   order: number;
 }

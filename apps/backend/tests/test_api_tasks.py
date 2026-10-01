@@ -1,7 +1,11 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from tests.helpers import freeze_assignments_clock, register_user
+from tests.helpers import (
+    freeze_assignments_clock,
+    freeze_scheduler_clock,
+    register_user,
+)
 
 
 def get_auth_header(client, email):
@@ -547,48 +551,77 @@ def test_next_business_day_monday():
     assert result == monday  # Sem alteração
 
 
-def test_create_template_with_due_days(client):
+def _cards_deadline(client, auth, email: str) -> list[dict]:
+    """Lê os cards do usuário via API e devolve `{"nome": deadline}`.
+
+    Lê pela rota autenticada (e não direto do ORM) para que o teste exercite o
+    mesmo payload que a tela consome; o `deadline` chega como ISO 8601.
     """
-    Sprint 3 Section 1: Criar template activity com due_days.
-    due_days é opcional e alternativo ao due_day.
+    tasks = client.get("/tasks/", headers=auth).json()
+    return {task["title"]: task["deadline"] for task in tasks}
+
+
+def test_create_template_with_due_days(client):
+    """Sprint 3 Section 1: uma atividade com `due_days` desloca o prazo do card.
+
+    `due_day`/`due_days` não são renderizados e por isso saíram do payload
+    (§6); o que os torna reais é o efeito: `due_days` pede N dias a partir da
+    data-base e esse prazo é o do card gerado. O teste prova o efeito, não o eco
+    do campo.
     """
     email = f"due_days_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
 
-    # Criar template primeiro
     tmpl_resp = client.post(
         "/tasks/templates/",
         json={
             "name": "Template Due Days",
             "process_type": "fiscal",
-            "recurrence": "monthly",
+            "recurrence": "once",
         },
         headers=auth,
     )
     assert tmpl_resp.status_code == 201
     tmpl_id = tmpl_resp.json()["id"]
 
-    # Criar activity com due_days (sem due_day — mas due_day é obrigatório no schema)
     act_resp = client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={
-            "name": "Atividade com due_days",
-            "due_day": 15,
-            "due_days": 5,
-        },
+        json={"name": "Atividade com due_days", "due_days": 5},
         headers=auth,
     )
     assert act_resp.status_code == 201
-    assert act_resp.json()["due_days"] == 5
-    assert act_resp.json()["due_day"] == 15
+
+    # O prazo da atividade 'once' é calculado em `calculate_activity_deadline`,
+    # que lê o relógio do módulo do scheduler — por isso os dois congelados.
+    now = datetime(2026, 7, 20, 12, 0, 0, tzinfo=timezone.utc)
+    with freeze_assignments_clock(now), freeze_scheduler_clock(now):
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
+    assert assign_resp.status_code == 201, assign_resp.text
+    assert assign_resp.json()["tasks_generated"] == 1, (
+        "Rotina 'once' gera na vinculação"
+    )
+
+    cards = _cards_deadline(client, auth, email)
+    assert list(cards) == ["Atividade com due_days"], (
+        f"Rotina 'once' com due_days=5 deveria gerar 1 card, veio {cards}"
+    )
+    # 20/07 + 5 dias = 25/07 (sábado) → próximo dia útil = 27/07.
+    deadline = cards["Atividade com due_days"]
+    assert deadline[:10] == "2026-07-27", (
+        f"due_days=5 a partir de 20/07 → 27/07, veio {deadline}"
+    )
 
 
 def test_create_template_activity_without_due_days(client):
-    """
-    Sprint 3 Section 1: Criar template activity sem due_days — usa due_day normalmente.
-    """
+    """Sprint 3 Section 1: atividade sem `due_days` segue o `due_day` da rotina."""
     email = f"no_due_days_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
 
     tmpl_resp = client.post(
         "/tasks/templates/",
@@ -596,6 +629,7 @@ def test_create_template_activity_without_due_days(client):
             "name": "Template Sem Due Days",
             "process_type": "contabil",
             "recurrence": "monthly",
+            "due_day": 10,
         },
         headers=auth,
     )
@@ -604,12 +638,29 @@ def test_create_template_activity_without_due_days(client):
 
     act_resp = client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Atividade padrão", "due_day": 10},
+        json={"name": "Atividade padrão"},
         headers=auth,
     )
     assert act_resp.status_code == 201
-    assert act_resp.json()["due_days"] is None
-    assert act_resp.json()["due_day"] == 10
+
+    now = datetime(2026, 7, 1, 12, 0, 0, tzinfo=timezone.utc)
+    with freeze_assignments_clock(now):
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
+    assert assign_resp.status_code == 201, assign_resp.text
+    assert assign_resp.json()["tasks_generated"] == 1, (
+        "Dia 1 ≤ due_day 10 → gera no mês"
+    )
+
+    cards = _cards_deadline(client, auth, email)
+    assert list(cards) == ["Atividade padrão"], cards
+    deadline = cards["Atividade padrão"]
+    assert deadline[:10] == "2026-07-10", (
+        f"Herda o due_day=10 da rotina → 10/07, veio {deadline}"
+    )
 
 
 # ── Sprint 3 Section 2: RoutineType CRUD ──
@@ -1174,23 +1225,33 @@ def test_scheduler_monthly_skips_existing_task(client):
         json={"name": "Task Mensal", "due_day": 1},
         headers=auth,
     )
-    assign_resp = client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli["id"], "template_id": tmpl_id},
-        headers=auth,
-    )
-    assert assign_resp.status_code == 201
-    assert assign_resp.json()["tasks_generated"] == 0, (
-        "due_day já passou este mês → vínculo não deve gerar tasks mensais"
-    )
 
-    data = _get_scheduler_result(now=now)
-    assert data["tasks_generated"] >= 1, "Ultimo dia util do mes deve gerar task mensal"
+    from tests.helpers import freeze_assignments_clock, freeze_scheduler_clock
 
-    # Segundo run — nao deve duplicar
-    data2 = _get_scheduler_result(now=now)
-    assert data2["tasks_generated"] == 0
-    assert data2["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
+    # §3 determinismo: vínculo e scheduler leem o mesmo instante fixo —
+    # 31/07/2026 (sexta, último dia útil de julho). Sem isso o resultado
+    # dependia do dia em que a suíte rodasse: com due_day=1 no dia 1 do mês a
+    # vinculação já geraria o card e o teste falharia.
+    with freeze_assignments_clock(now), freeze_scheduler_clock(now):
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
+        assert assign_resp.status_code == 201
+        assert assign_resp.json()["tasks_generated"] == 0, (
+            "due_day já passou este mês → vínculo não deve gerar tasks mensais"
+        )
+
+        data = _get_scheduler_result(now=now)
+        assert data["tasks_generated"] >= 1, (
+            "Ultimo dia util do mes deve gerar task mensal"
+        )
+
+        # Segundo run — nao deve duplicar
+        data2 = _get_scheduler_result(now=now)
+        assert data2["tasks_generated"] == 0
+        assert data2["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
 
 
 def test_scheduler_monthly_skips_wrong_day(client):

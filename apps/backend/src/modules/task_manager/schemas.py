@@ -211,17 +211,16 @@ class TemplateActivityResponse(BaseModel):
     """One activity of a template, as the detail page and drawer render it.
 
     Out, because no screen reads them: `template_id` (the activities are nested
-    under the template that owns them), `due_day`/`due_days` (the activity
-    inherits the template schedule when it has none) and `phase_id` (phases
-    belong to tasks, not to the template activities) and `created_at`.
+    under the template that owns them), `due_day`/`due_days` (the schedule is
+    write-only — it reaches the card through the generated deadline, so no
+    component needs to re-read it), `phase_id` (phases belong to tasks, not to
+    the template activities) and `created_at`.
     """
 
     id: UUID
     name: str
     description: str | None = None
     priority: str
-    due_day: int | None = None
-    due_days: int | None = None
     estimated_minutes: int | None = None
     order: int = 0
 
