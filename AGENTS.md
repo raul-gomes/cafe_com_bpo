@@ -55,6 +55,7 @@ Every module at `apps/backend/src/modules/{name}/` follows: `models.py` → `sch
 - **Always**: Update `docs/lineage.md` whenever the database structure changes (local-only, not versioned).
 - **Always**: Update `docs/tree_files.md` whenever you create, rename, move or delete a file/function — it is the catalog of every file with its functions and purpose.
 - **Always**: Business rules in `docs/regras_negocio.md` MUST NOT be violated by any implementation. Before changing anything that touches a documented business rule, ALWAYS ask the product owner if the rule is still correct. Update that file whenever a business rule is created or changes.
+- **Always**: Record every pending found while working in `docs/pendencias.md` — the catalog of what is open, blocked or deliberately deferred. Add the entry **in the same cycle** as the discovery, cite the `file:line` that revealed it, then mark it `FEITA` with the commit that closed it (the entry stays as history; it is not deleted). **A pending is not an excuse to leave code behind**: dead code that *you* just orphaned is removed in the same cycle instead of being logged.
 
 
 ### Frontend quirks
@@ -153,7 +154,7 @@ These rules are **not optional**. Each one exists because breaking it already ca
 - **Never write into the repo from inside the container as root** — bind-mounted dirs (`src/`, `tests/`, `alembic/`) would become root-owned and break the host developer. Fix a copy under `/tmp` in the container and apply a unified patch on the host with `git apply`.
 - The production image intentionally has no pytest/ruff; after a rebuild, reinstall `requirements-dev.txt` in the dev container before running checks.
 - Migrations: generate with `alembic revision --autogenerate`, then `alembic upgrade head`. Lint fixes on historical migrations must be annotation/whitespace-only — never change the behavior of an already-applied migration.
-- Keep the catalogs in sync: `docs/lineage.md` (schema), `docs/tree_files.md` (files/functions), `docs/regras_negocio.md` (business rules — ask the product owner first), `docs/architecture.md` (patterns), and the design-system route (new components).
+- Keep the catalogs in sync: `docs/lineage.md` (schema), `docs/tree_files.md` (files/functions), `docs/regras_negocio.md` (business rules — ask the product owner first), `docs/pendencias.md` (open/blocked/deferred work — add on discovery, mark `FEITA` with the commit that closed it), `docs/architecture.md` (patterns), and the design-system route (new components).
 
 ### 5. Dependencies and CI configuration
 
@@ -202,7 +203,7 @@ Retrofit policy: you translate **when you touch a file** — never a big-bang re
 - [ ] New dependencies declared in requirements and validated with an image build
 - [ ] No debug leftovers, no commented-out code, no lint-silencing hacks
 - [ ] Every function/method documented with a docstring and type-hinted (params + return)
-- [ ] `docs/lineage.md` / `docs/tree_files.md` / `docs/regras_negocio.md` / `docs/architecture.md` updated when applicable
+- [ ] `docs/lineage.md` / `docs/tree_files.md` / `docs/regras_negocio.md` / `docs/pendencias.md` / `docs/architecture.md` updated when applicable
 - [ ] Business rules untouched, or explicitly confirmed with the product owner
 - [ ] Conventional commit, containing only the files of that change
 
@@ -210,6 +211,7 @@ Retrofit policy: you translate **when you touch a file** — never a big-bang re
 
 - `MODULES.md` — Full module documentation and dependency graph
 - `docs/tree_files.md` — Catalog of every file with its functions and purpose (keep updated)
+- `docs/pendencias.md` — Open, blocked and deliberately deferred work; every pending is recorded here on discovery (keep updated)
 - `docs/regras_negocio.md` — Business rules catalog (MUST NOT be violated; confirm with product owner before changing)
 - `docs/architecture.md` — Architectural patterns and decisions (keep updated when patterns change)
 - `docker-compose.yml` — Service definitions and env vars

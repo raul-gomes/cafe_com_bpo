@@ -440,20 +440,7 @@ class TeamRepository:
         self.session.refresh(member)
         return member
 
-    def get_role_name_by_id(self, role_id: UUID) -> str | None:
-        role = self.session.query(Role.role).filter(Role.id == role_id).first()
-        return role[0] if role else None
-
     # ── Routines for a member ──
-
-    def get_routines_for_invitation(
-        self, invitation_id: UUID
-    ) -> list[InvitationRoutine]:
-        return (
-            self.session.query(InvitationRoutine)
-            .filter(InvitationRoutine.invitation_id == invitation_id)
-            .all()
-        )
 
     def get_accepted_invitation_for_user(
         self, client_id: UUID, user_id: UUID
@@ -637,13 +624,6 @@ class TeamRepository:
             .first()
         )
         return client[0] if client else None
-
-    def get_client_by_id(self, client_id: UUID) -> Client | None:
-        return (
-            self.session.query(Client)
-            .filter(Client.id == client_id, Client.is_active)
-            .first()
-        )
 
     def get_user_by_email(self, email: str) -> User | None:
         return (
