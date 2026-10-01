@@ -1,5 +1,7 @@
 from uuid import uuid4
 
+import pytest
+
 from tests.helpers import pricing_input_for_total, register_user
 
 
@@ -289,6 +291,16 @@ def test_deal_contatante_representative_comes_from_the_contact(client):
     assert deal["representante_email"] == "pessoa@governanca.com.br"
 
 
+@pytest.mark.xfail(
+    strict=True,
+    reason=(
+        "Fase 3, item 7 (governança) BLOQUEADA: a identidade do negócio convertido é dupla — a "
+        "empresa do prospecto é apagada no colapso e sobra a do cliente, mas a tela mantém "
+        "id = prospect_id porque é o que liga nas propostas e contratos. Ler de `companies` "
+        "trocaria a identidade do negócio. Ver docs/pendencias.md 4.6/4.7 e a opção escolhida pelo "
+        "dono. Quando migrar, este teste passa e o `strict=True` obriga a remover o marcador."
+    ),
+)
 def test_deals_are_listed_from_companies_not_the_prospect_row(client):
     """A Governança lê a empresa (Fase 3, item 7).
 
