@@ -15,7 +15,7 @@ This file also protects two things the dashboard had none of:
 """
 
 from datetime import datetime, timedelta, timezone
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 from fastapi import status
 
@@ -204,3 +204,45 @@ def test_a_pending_invitation_ships_only_what_the_card_renders(client):
 
     assert len(body["pending_invitations"]) == 1, body["pending_invitations"]
     assert set(body["pending_invitations"][0]) == INVITATION_KEYS
+
+
+def test_the_invitation_card_takes_the_company_name_not_the_legacy_row(client):
+    """O nome do convite vem de `companies` (Fase 3, item 5).
+
+    O join pendurava em `teams.client_id → clients`. Aqui a empresa recebe um
+    nome novo **sem** passar pela API — o espelho de cadastrais escreveria
+    também na linha legada, e o teste deixaria de provar nada. O cartão precisa
+    mostrar o nome da empresa: com o join antigo ele mostraria o da linha
+    `clients`, que continua com o texto antigo.
+    """
+    from src.core.database import SessionLocal
+    from src.modules.companies.models import Company
+
+    suffix = uuid4().hex[:8]
+    member_email = f"dash_fonte_{suffix}@cafe.com"
+    owner_auth = _register(client, f"dash_fonte_owner_{suffix}@cafe.com", name="Owner")
+    member_auth = _register(client, member_email, name="Membro")
+    company = client.post(
+        "/clients/", json={"name": f"Nome Antigo {suffix}"}, headers=owner_auth
+    ).json()
+    assert (
+        client.post(
+            f"/clients/{company['id']}/invite",
+            json={"emails": [member_email], "template_ids": []},
+            headers=owner_auth,
+        ).status_code
+        == status.HTTP_201_CREATED
+    )
+
+    session = SessionLocal()
+    try:
+        company_row = session.get(Company, UUID(company["id"]))
+        company_row.name = f"Nome Novo {suffix}"
+        session.commit()
+    finally:
+        session.close()
+
+    body = client.get("/dashboard/summary", headers=member_auth).json()
+
+    assert len(body["pending_invitations"]) == 1, body["pending_invitations"]
+    assert body["pending_invitations"][0]["client_name"] == f"Nome Novo {suffix}"

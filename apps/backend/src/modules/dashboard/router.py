@@ -11,6 +11,7 @@ from src.modules.auth.models import User
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 from src.modules.clients.models import Client
+from src.modules.companies.models import Company
 from src.modules.notifications.models import AppNotification
 from src.modules.task_manager.models import Task
 from src.modules.team.models import Team, TeamInvitation
@@ -140,15 +141,19 @@ def get_dashboard_summary(
     )
 
     # 4. Pending team invitations for this user's email
+    # The company name comes from `companies` (Fase 3, item 5), joined through
+    # the team's `company_id`: `teams` is only ever linked to the company
+    # facade now, so reaching for the legacy `clients` row here would break the
+    # card the moment that row is gone.
     now = datetime.now(timezone.utc)
     pending_invitations = (
         db.query(
             TeamInvitation,
-            Client.name.label("client_name"),
+            Company.name.label("client_name"),
             User.name.label("inviter_name"),
         )
         .join(Team, Team.id == TeamInvitation.team_id)
-        .join(Client, Client.id == Team.client_id)
+        .join(Company, Company.id == Team.company_id)
         .join(User, User.id == TeamInvitation.invited_by)
         .filter(
             TeamInvitation.invited_email == current_user.email.strip().lower(),
