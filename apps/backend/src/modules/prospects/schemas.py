@@ -1,8 +1,7 @@
 import re
-from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, EmailStr, field_validator
+from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
 
 class ProspectBase(BaseModel):
@@ -65,17 +64,47 @@ class ProspectUpdate(ProspectBase):
     name: str | None = None
 
 
-class ProspectResponse(ProspectBase):
-    id: UUID
-    user_id: UUID
-    converted_client_id: UUID | None = None
-    converted_at: datetime | None = None
-    reproved_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
+class ProspectResponse(BaseModel):
+    """Prospecto como a tela de prospecção renderiza — lido de `companies`.
 
-    class Config:
-        from_attributes = True
+    DTO escrito à mão (não herda `ProspectBase`, §6): a resposta nascia com 26
+    chaves e nenhuma delas mudava a tela. Fora, porque nenhum componente lê:
+
+    - `user_id`: a rota já devolve só as empresas do próprio usuário;
+    - `created_at`/`updated_at`: auditoria, que a tela não mostra;
+    - `converted_at`/`reproved_at`/`converted_client_id`: as flags do ciclo de
+      vida, que já filtram a listagem no servidor — um prospecto convertido ou
+      não captado nem chega aqui, então devolvê-las era informação que a tela
+      não tinha como usar.
+
+    O representante (`representante_*`) **fica**, com o nome de payload atual:
+    o card mostra nome/cpf/cargo e o formulário de edição preenche os cinco.
+    O valor vem do contato (fonte única, Fase 4) com as colunas legadas como
+    fallback enquanto elas existirem.
+    """
+
+    id: UUID
+    name: str
+    cnpj: str | None = None
+    phone: str | None = None
+    email: str | None = None
+    color: str | None = None
+    description: str | None = None
+    segment: str | None = None
+    street: str | None = None
+    number: str | None = None
+    complement: str | None = None
+    neighborhood: str | None = None
+    city: str | None = None
+    state: str | None = None
+    cep: str | None = None
+    representante_nome: str | None = None
+    representante_email: str | None = None
+    representante_cpf: str | None = None
+    representante_telefone: str | None = None
+    representante_cargo: str | None = None
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class ProspectConvertResponse(BaseModel):

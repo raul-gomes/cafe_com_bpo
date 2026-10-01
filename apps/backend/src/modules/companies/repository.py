@@ -2,7 +2,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from .models import COMPANY_TYPE_CLIENT, Company
+from .models import COMPANY_TYPE_CLIENT, COMPANY_TYPE_PROSPECT, Company
 
 
 class CompanyRepository:
@@ -37,3 +37,27 @@ class CompanyRepository:
 
     def list_clients(self, user_id: UUID) -> list[Company]:
         return self.list_by_type(user_id, COMPANY_TYPE_CLIENT)
+
+    def list_open_prospects(self, user_id: UUID) -> list[Company]:
+        """Empresas em prospecção ainda abertas, em ordem alfabética.
+
+        Reproduz 1:1 o filtro do `ProspectRepository.get_by_user` legado: quem
+        foi convertido vira cliente e quem foi marcado como não captado sai da
+        listagem (passa a viver na Governança como Perdido, até voltar à
+        negociação). As flags do ciclo de vida já são espelhadas em
+        `companies` (`converted_at`/`reproved_at`), então o filtro migra
+        inteiro sem consulta à tabela legada.
+        """
+        return (
+            self.session.query(Company)
+            .filter(
+                Company.user_id == user_id,
+                Company.type == COMPANY_TYPE_PROSPECT,
+                Company.is_active,
+                Company.deleted_at.is_(None),
+                Company.converted_at.is_(None),
+                Company.reproved_at.is_(None),
+            )
+            .order_by(Company.name)
+            .all()
+        )

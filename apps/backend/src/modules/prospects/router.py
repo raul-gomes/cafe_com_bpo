@@ -9,6 +9,8 @@ from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
 from src.modules.clients.repository import ClientRepository
+from src.modules.companies.repository import CompanyRepository
+from src.modules.contacts.repository import ContactRepository
 from src.modules.contracts.repository import ContractRepository
 from src.modules.proposals.repository import PricingScenarioRepository
 from src.modules.prospects.repository import ProspectRepository
@@ -27,6 +29,18 @@ def get_prospect_repository(
     session: Annotated[Session, Depends(get_db_session)],
 ) -> ProspectRepository:
     return ProspectRepository(session)
+
+
+def get_company_repository(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> CompanyRepository:
+    return CompanyRepository(session)
+
+
+def get_contact_repository(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> ContactRepository:
+    return ContactRepository(session)
 
 
 def get_client_repository(
@@ -48,36 +62,58 @@ def get_contract_repository(
 
 
 ProspectRepoDep = Annotated[ProspectRepository, Depends(get_prospect_repository)]
+CompanyRepoDep = Annotated[CompanyRepository, Depends(get_company_repository)]
+ContactRepoDep = Annotated[ContactRepository, Depends(get_contact_repository)]
 ClientRepoDep = Annotated[ClientRepository, Depends(get_client_repository)]
 ProposalRepoDep = Annotated[PricingScenarioRepository, Depends(get_proposal_repository)]
 ContractRepoDep = Annotated[ContractRepository, Depends(get_contract_repository)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
-def _to_response(prospect) -> ProspectResponse:
-    return ProspectResponse(
-        **{k: getattr(prospect, k) for k in prospect.__dict__ if not k.startswith("_")}
-    )
+def _service(
+    repo: ProspectRepository,
+    companies: CompanyRepository,
+    contacts: ContactRepository,
+) -> ProspectService:
+    """Monta o service com a fachada de leitura e o repositório de contatos.
+
+    Args:
+        repo: Repositório legado dos prospects.
+        companies: Leitura da `companies`, dona da listagem.
+        contacts: Leitura do contato da pessoa, em lote.
+
+    Returns:
+        O service pronto para ler e converter.
+    """
+    return ProspectService(repo, companies, contacts)
 
 
 @router.get("/", response_model=list[ProspectResponse])
 def get_prospects(
     repo: ProspectRepoDep,
+    companies: CompanyRepoDep,
+    contacts: ContactRepoDep,
     current_user: CurrentUserDep,
 ):
-    """Retorna os prospectos ativos e não convertidos do usuário atual."""
-    return [_to_response(p) for p in repo.get_by_user(current_user.id)]
+    """Prospectos em aberto do usuário atual, lidos de `companies`.
+
+    Só entram os que ainda não viraram cliente e não estão marcados como não
+    captado — quem foi aprovado ou reprovado vive na Governança.
+    """
+    return _service(repo, companies, contacts).list_prospects(current_user.id)
 
 
 @router.post("/", response_model=ProspectResponse, status_code=status.HTTP_201_CREATED)
 def create_prospect(
     prospect_in: ProspectCreate,
     repo: ProspectRepoDep,
+    companies: CompanyRepoDep,
+    contacts: ContactRepoDep,
     current_user: CurrentUserDep,
 ):
     new_prospect = repo.create(prospect_in, current_user.id)
     log.info(f"🚀 Prospecto criado: {prospect_in.name} por {current_user.email}")
-    return _to_response(new_prospect)
+    return _service(repo, companies, contacts).render_prospect(new_prospect)
 
 
 @router.put("/{prospect_id}", response_model=ProspectResponse)
@@ -85,6 +121,8 @@ def update_prospect(
     prospect_id: UUID,
     prospect_in: ProspectUpdate,
     repo: ProspectRepoDep,
+    companies: CompanyRepoDep,
+    contacts: ContactRepoDep,
     current_user: CurrentUserDep,
 ):
     prospect = repo.get_by_id(prospect_id, current_user.id)
@@ -92,7 +130,7 @@ def update_prospect(
         raise HTTPException(status_code=404, detail="Prospecto não encontrado")
 
     updated = repo.update(prospect, prospect_in)
-    return _to_response(updated)
+    return _service(repo, companies, contacts).render_prospect(updated)
 
 
 @router.delete("/{prospect_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -144,6 +182,8 @@ def convert_prospect(
 def reprove_prospect(
     prospect_id: UUID,
     repo: ProspectRepoDep,
+    companies: CompanyRepoDep,
+    contacts: ContactRepoDep,
     current_user: CurrentUserDep,
 ):
     """Marca um prospecto como não captado (perdido).
@@ -165,13 +205,15 @@ def reprove_prospect(
     log.info(
         f"🚫 Prospecto marcado como não captado: {prospect_id} por {current_user.email}"
     )
-    return _to_response(updated)
+    return _service(repo, companies, contacts).render_prospect(updated)
 
 
 @router.post("/{prospect_id}/unreprove", response_model=ProspectResponse)
 def unreprove_prospect(
     prospect_id: UUID,
     repo: ProspectRepoDep,
+    companies: CompanyRepoDep,
+    contacts: ContactRepoDep,
     current_user: CurrentUserDep,
 ):
     """Desfaz a reprovação, devolvendo o prospecto à negociação."""
@@ -183,4 +225,4 @@ def unreprove_prospect(
     log.info(
         f"↩️ Prospecto de volta à negociação: {prospect_id} por {current_user.email}"
     )
-    return _to_response(updated)
+    return _service(repo, companies, contacts).render_prospect(updated)

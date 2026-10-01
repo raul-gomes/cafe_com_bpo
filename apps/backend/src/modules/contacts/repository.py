@@ -111,6 +111,37 @@ class ContactRepository:
             query = query.filter(search_filter)
         return query.all()
 
+    def list_primary_by_company_ids(
+        self, company_ids: list[UUID]
+    ) -> dict[UUID, Contact]:
+        """Contato principal de cada empresa pedida, em uma única consulta.
+
+        `companies.primary_contact_id` é quem aponta para a pessoa da empresa
+        (regra Fase 4). O método é **em lote** de propósito: a listagem de
+        prospects monta o payload da tela inteira, e buscar contato por linha
+        viraria N+1 — duas consultas por prospecto na tela.
+
+        Args:
+            company_ids: Ids das empresas a consultar.
+
+        Returns:
+            Mapa `company_id -> Contact` só com as empresas que têm contato
+            principal ativo.
+        """
+        if not company_ids:
+            return {}
+        rows = (
+            self.session.query(Contact.company_id, Contact)
+            .join(Company, Company.primary_contact_id == Contact.id)
+            .filter(
+                Company.id.in_(company_ids),
+                Contact.is_active,
+                Contact.user_id == Company.user_id,
+            )
+            .all()
+        )
+        return {company_id: contact for company_id, contact in rows}
+
     def get_by_id(self, contact_id: UUID, user_id: UUID) -> Contact | None:
         """Contact of the user itself (scoped by `user_id`, never by the body)."""
         return (
