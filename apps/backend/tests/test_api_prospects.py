@@ -475,7 +475,8 @@ def test_reprove_keeps_prospect_creatable_again(client):
     resp = client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
     assert resp.status_code == 200
     assert all(
-        p["id"] != prospect["id"] for p in client.get("/prospects/", headers=auth).json()
+        p["id"] != prospect["id"]
+        for p in client.get("/prospects/", headers=auth).json()
     )
 
     resp = client.post(f"/prospects/{prospect['id']}/unreprove", headers=auth)

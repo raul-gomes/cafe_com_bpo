@@ -82,7 +82,9 @@ class ProspectService:
             [company.id for company in companies]
         )
         sem_contato = {
-            company.id: company for company in companies if company.id not in por_empresa
+            company.id: company
+            for company in companies
+            if company.id not in por_empresa
         }
         legados = (
             dict(legacy) if legacy is not None else self._legacy_rows(list(sem_contato))

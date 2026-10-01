@@ -151,7 +151,9 @@ def test_the_representative_comes_from_the_contact(client, db_session):
     assert listed[0]["representante_cpf"] == "52998224725"
 
 
-def test_a_prospect_without_contact_falls_back_to_the_legacy_columns(client, db_session):
+def test_a_prospect_without_contact_falls_back_to_the_legacy_columns(
+    client, db_session
+):
     """A company with no active contact still shows the person it had.
 
     The fallback is the same one `contracts` and `governanca` use: while
