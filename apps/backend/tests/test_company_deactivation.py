@@ -407,3 +407,65 @@ def test_archiving_a_prospect_deactivates_the_whole_tree(client):
             assert stored.deleted_at is not None, f"{model.__name__} has no date"
     finally:
         session.close()
+
+
+def test_archiving_a_client_deactivates_the_company_row(client):
+    """Regra §16: arquivar o cliente desativa a **empresa** e some da listagem.
+
+    A listagem de clientes é lida de `companies` (Fase 3, item 3), então a
+    empresa é a linha que decide o que aparece. Sem desativá-la junto, o
+    cliente arquivado continuava na tela — e `DELETE` devolvia 204 como se
+    tivesse funcionado.
+    """
+    from src.core.database import SessionLocal
+
+    headers, _ = _register_and_login(client)
+    created = client.post(
+        "/clients/", json={"name": "Castellum Arquivado"}, headers=headers
+    )
+    assert created.status_code == 201, created.text
+    client_id = UUID(created.json()["id"])
+
+    archived = client.delete(f"/clients/{client_id}", headers=headers)
+    assert archived.status_code in (200, 204), archived.text
+
+    session = SessionLocal()
+    try:
+        company = session.get(Company, client_id)
+        assert company.is_active is False
+        assert company.deleted_at is not None
+    finally:
+        session.close()
+
+    listed = client.get("/clients/", headers=headers).json()
+    assert listed == [], "cliente arquivado não pode continuar na listagem"
+
+
+def test_archiving_a_prospect_deactivates_the_company_row(client):
+    """Regra §16: arquivar o prospecto desativa a empresa e some da listagem.
+
+    Mesma razão do cliente, agora pela leitura de prospects (Fase 3, item 4):
+    quem filtra a tela é `companies.is_active`.
+    """
+    from src.core.database import SessionLocal
+
+    headers, _ = _register_and_login(client)
+    created = client.post(
+        "/prospects/", json={"name": "Lead Arquivado"}, headers=headers
+    )
+    assert created.status_code == 201, created.text
+    prospect_id = UUID(created.json()["id"])
+
+    archived = client.delete(f"/prospects/{prospect_id}", headers=headers)
+    assert archived.status_code in (200, 204), archived.text
+
+    session = SessionLocal()
+    try:
+        company = session.get(Company, prospect_id)
+        assert company.is_active is False
+        assert company.deleted_at is not None
+    finally:
+        session.close()
+
+    listed = client.get("/prospects/", headers=headers).json()
+    assert listed == [], "prospecto arquivado não pode continuar na listagem"

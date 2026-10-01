@@ -18,6 +18,7 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from src.modules.companies.models import Company
 from src.modules.contracts.models import Contract
 from src.modules.proposals.models import PricingScenario
 from src.modules.task_manager.models import (
@@ -54,8 +55,9 @@ def deactivate_company(session: Session, company_id: UUID) -> dict[str, int]:
     quando a empresa estava ativa". O contato da empresa fica de fora (ver
     `CASCADE_TABLES`).
 
-    A empresa em si e o registro legado (prospect/client) são desativados pelo
-    chamador, que já os carregou com escopo do usuário.
+    O registro legado (prospect/client) é desativado pelo chamador, que já o
+    carregou com escopo do usuário; a linha de `companies` é desativada aqui,
+    porque é a raiz da cascata e a que a listagem lê.
 
     Returns:
         dict[str, int]: nome da tabela -> quantas linhas foram desativadas.
@@ -72,5 +74,17 @@ def deactivate_company(session: Session, company_id: UUID) -> dict[str, int]:
             )
         )
         report[model.__tablename__] = updated
+    # A própria empresa entra na cascata: a listagem de clientes e de prospects
+    # é lida de `companies` (Fase 3, itens 3 e 4), então `companies.is_active` é
+    # o que decide o que a tela mostra. Antes a empresa ficava ativa e o
+    # arquivamento devolvia 204 sem tirar a empresa da listagem.
+    report["companies"] = (
+        session.query(Company)
+        .filter(Company.id == company_id, Company.is_active.is_(True))
+        .update(
+            {"is_active": False, "deleted_at": deactivated_at},
+            synchronize_session="fetch",
+        )
+    )
     session.flush()
     return report
