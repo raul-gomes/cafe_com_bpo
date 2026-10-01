@@ -14,7 +14,8 @@ from src.core.config import get_settings
 from src.core.deadline import days_remaining
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
-from src.modules.clients.models import Client
+from src.modules.companies.models import Company
+from src.modules.companies.repository import CompanyRepository
 from src.modules.notifications.repository import NotificationRepository
 from src.modules.notifications.schemas import NotificationCreate
 from src.modules.team.repository import TeamRepository
@@ -50,16 +51,48 @@ class TaskService:
     def __init__(
         self,
         repository: TaskRepository,
+        companies: CompanyRepository,
         sla_repo: SLARepository | None = None,
         attachment_repo: AttachmentRepository | None = None,
         notification_repo: NotificationRepository | None = None,
     ):
+        """Monta o serviço com o repositório de tarefas e a facade de empresas.
+
+        `companies` é a `CompanyRepository` — a fonte única do vínculo e da
+        posse (Fase 3, item 6). A checagem de posse mora aqui, e não no router:
+        o id da rota é o do cliente, mas quem responde "esta empresa é sua" é a
+        empresa, não a linha legada `clients`.
+        """
         self.repository = repository
+        self.companies = companies
         self.sla_repo = sla_repo or SLARepository(repository.session)
         self.attachment_repo = attachment_repo or AttachmentRepository(
             repository.session
         )
         self.notification_repo = notification_repo
+
+    def _company(self, client_id: UUID) -> Company | None:
+        """Empresa (estágio `client`) por trás do id da rota, ou `None`.
+
+        Tarefa, SLA e rotina só existem para cliente — a garantia é do banco (FK
+        composta). Esta leitura carrega a mesma premissa para o serviço, que
+        responde "não encontrado" em vez de montar payload para uma empresa em
+        prospecção.
+        """
+        return self.companies.get_client_by_id(client_id)
+
+    def _owned_company(self, client_id: UUID, user_id: UUID) -> Company | None:
+        """Empresa do usuário, ou `None` se não for dele.
+
+        `CompanyRepository.get_by_id` não filtra por dono — é uma leitura de
+        etapa, e quem pede é que sabe se a empresa é sua. O filtro do legado
+        (`Client.user_id == user_id`) precisa ser reposto aqui, explicitamente,
+        ou a troca de origem viraria escalada de privilégio.
+        """
+        company = self._company(client_id)
+        if company is None or company.user_id != user_id:
+            return None
+        return company
 
     def _notify(
         self,
@@ -295,11 +328,12 @@ class TaskService:
     # ── SLA Alerts ──
 
     def get_sla_alerts(self, user_id: UUID) -> SLAAlertsResponse:
-        """Get SLA alerts for the dashboard."""
-        from src.modules.clients.repository import ClientRepository
+        """Alertas de SLA do painel, com o nome saindo da empresa.
 
-        client_repo = ClientRepository(self.repository.session)
-
+        Os alertas são agrupados por empresa e o nome vem de `companies` (Fase 3,
+        item 6). Como as tarefas consultadas já são do usuário, a posse vem junto
+        no filtro de dono.
+        """
         overdue_tasks = self.repository.get_tasks_overdue(user_id)
         warning_tasks = self.repository.get_tasks_near_deadline(user_id, days_ahead=2)
 
@@ -313,8 +347,8 @@ class TaskService:
 
         overdue_alerts = []
         for cid, tasks in overdue_by_client.items():
-            client = client_repo.get_by_id(UUID(cid), user_id)
-            client_name = client.name if client else "Cliente"
+            company = self._owned_company(UUID(cid), user_id)
+            client_name = company.name if company else "Cliente"
             # Dias de calendario, nao fracao de instante: `.days` de um
             # timedelta trunca em direcao a zero e reportava "0d em atraso" para
             # tarefas atrasadas ha poucas horas.
@@ -343,8 +377,8 @@ class TaskService:
 
         warning_alerts = []
         for cid, tasks in warning_by_client.items():
-            client = client_repo.get_by_id(UUID(cid), user_id)
-            client_name = client.name if client else "Cliente"
+            company = self._owned_company(UUID(cid), user_id)
+            client_name = company.name if company else "Cliente"
             warning_alerts.append(
                 SLAAlert(
                     type="warning",
@@ -369,12 +403,13 @@ class TaskService:
     def get_client_timeline(
         self, client_id: UUID, user_id: UUID, month: str | None = None
     ) -> ClientTimelineResponse:
-        """Get timeline for a specific client, month, with SLA status."""
-        from src.modules.clients.repository import ClientRepository
+        """Timeline de tarefas de uma empresa, no mês, com o selo do SLA.
 
-        client_repo = ClientRepository(self.repository.session)
-        client = client_repo.get_by_id(client_id, user_id)
-        if not client:
+        A empresa vem de `companies` (Fase 3, item 6) e a posse é exigida: o
+        id da rota é do cliente, e quem valida é o dono da empresa.
+        """
+        company = self._owned_company(client_id, user_id)
+        if not company:
             raise ValueError(f"Client {client_id} not found")
 
         # Parse month or use current
@@ -454,8 +489,8 @@ class TaskService:
         month_str = f"{year:04d}-{mon:02d}"
         return ClientTimelineResponse(
             client_id=client_id,
-            client_name=client.name,
-            client_email=getattr(client, "email", None),
+            client_name=company.name,
+            client_email=getattr(company, "email", None),
             month=month_str,
             stats=stats,
             slas=sla_list,
@@ -519,20 +554,22 @@ class TaskService:
         body: str,
         attachment_ids: list[UUID],
     ) -> dict:
-        """Send an email with task attachments to the client."""
-        from src.modules.clients.repository import ClientRepository
+        """Envia e-mail com os anexos da tarefa para o contato da empresa.
 
+        O contato sai de `companies` (Fase 3, item 6). Sem e-mail cadastrado
+        ali, a empresa não recebe a mensagem — o mesmo aviso de antes, agora
+        dito em cima da fonte nova.
+        """
         task = self.repository.get_by_id(task_id, user_id)
         if not task:
             raise ValueError(f"Task {task_id} not found")
 
-        # Get client info
-        client_repo = ClientRepository(self.repository.session)
-        client = client_repo.get_by_id(task.client_id, user_id)
-        if not client:
+        # Contato da empresa dona da tarefa
+        company = self._owned_company(task.client_id, user_id)
+        if not company:
             raise ValueError(f"Client {task.client_id} not found")
 
-        client_email = getattr(client, "email", None)
+        client_email = getattr(company, "email", None)
         if not client_email:
             raise ValueError(f"Client {task.client_id} has no email configured")
 
@@ -566,7 +603,7 @@ class TaskService:
         self._notify(
             user_id,
             "Email enviado",
-            f"Arquivo(s) enviado(s) para {client.name} ({client_email})",
+            f"Arquivo(s) enviado(s) para {company.name} ({client_email})",
             "email_sent",
             "task",
             task_id,
@@ -577,7 +614,7 @@ class TaskService:
         return {
             "success": True,
             "to": client_email,
-            "client_name": client.name,
+            "client_name": company.name,
             "attachments_sent": sent_count,
         }
 
@@ -651,10 +688,16 @@ def _as_uuid(value) -> UUID | None:
 
 
 def _owns_client(session: Session, client_id: UUID, user_id: UUID) -> bool:
-    client = session.query(Client).filter(Client.id == client_id).first()
-    if client is None:
+    """Diz se a empresa do id é do usuário — a checagem que protege o SSE.
+
+    Filtra por dono na empresa (`companies`), e não na linha legada: é a mesma
+    regra de `TaskService._owned_company`, no caminho do evento. Sem empresa
+    ativa, o evento é de alguém que não existe mais e não é entregue.
+    """
+    company = CompanyRepository(session).get_client_by_id(client_id)
+    if company is None:
         return False
-    return client.user_id == user_id
+    return company.user_id == user_id
 
 
 def event_relevant_for_user(

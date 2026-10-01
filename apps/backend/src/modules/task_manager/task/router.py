@@ -10,6 +10,7 @@ from src.core.database import get_db_session
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user, get_current_user_for_sse
+from src.modules.companies.repository import CompanyRepository
 from src.modules.notifications.repository import NotificationRepository
 
 from ..models import get_done_phase
@@ -44,6 +45,7 @@ def get_task_service(
 ) -> TaskService:
     return TaskService(
         TaskRepository(session),
+        CompanyRepository(session),
         sla_repo=SLARepository(session),
         notification_repo=NotificationRepository(session),
     )
@@ -120,19 +122,18 @@ def get_tasks(
             )
             return [t for t in all_tasks if str(t.client_id) == str(client_id)]
 
-    # ── Visão geral (sem client_id): agrega clientes do usuário ──
-    from src.modules.clients.repository import ClientRepository
+    # ── Visão geral (sem client_id): agrega as empresas do usuário ──
     from src.modules.team.repository import TeamRepository
 
     team_repo = TeamRepository(session)
-    client_repo = ClientRepository(session)
+    companies = CompanyRepository(session)
 
     all_tasks: list = []
     seen: set = set()
 
-    # 1) Clientes onde o usuário é OWNER → vê todas as tarefas (dele + membros).
-    #    Pule esta seção na visão "Equipe" (team_only=clientes compartilhados).
-    owned_clients = client_repo.get_by_user(current_user.id)
+    # 1) Empresas onde o usuário é DONO → vê todas as tarefas (dele + membros).
+    #    Pule esta seção na visão "Equipe" (team_only=empresas compartilhadas).
+    owned_clients = companies.list_clients(current_user.id)
     if not team_only:
         for c in owned_clients:
             cid = c.id
@@ -149,7 +150,7 @@ def get_tasks(
                         seen.add(t.id)
                         all_tasks.append(t)
 
-    # 2) Clientes onde o usuário é MEMBER → próprias + rotinas liberadas
+    # 2) Empresas onde o usuário é MEMBRO → próprias + rotinas liberadas
     for cid in team_repo.get_team_client_ids(current_user.id):
         if any(str(c.id) == str(cid) for c in owned_clients):
             continue  # já tratado como owner
