@@ -1,6 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../client';
-import { TaskResponse } from '../../schemas/tasks';
 
 export interface ActivityResponse {
     id: string;
@@ -8,22 +7,33 @@ export interface ActivityResponse {
     created_at: string;
     is_read: boolean;
     post_id?: string;
-    comment_id?: string;
     triggered_by_name?: string;
     message_snippet?: string;
 }
 
-/** Tarefa do resumo do painel. Mesmo payload de `TaskResponse`: o endpoint
- *  entrega os mesmos campos, então a extensão viraria campos repetidos. */
-export type UrgentTaskItem = TaskResponse;
+/** Tarefa do carrossel de urgentes. Não é o `TaskResponse`: o resumo entrega
+ *  só o que o painel desenha (prazo, atraso e cliente), e o tipo completo
+ *  mentiria sobre os outros campos. */
+export interface UrgentTaskItem {
+    id: string;
+    title: string;
+    client_name: string;
+    deadline?: string;
+    days_remaining?: number;
+    is_overdue: boolean;
+}
 
 export interface PendingInvitation {
     invitation_id: string;
-    client_id?: string;
     client_name?: string;
     inviter_name?: string;
     created_at: string;
-    expires_at: string;
+}
+
+/** Os dois contadores da barra lateral. */
+export interface DashboardStats {
+    pending_tasks_count: number;
+    unread_notifications_count: number;
 }
 
 export interface DashboardSummary {
@@ -31,11 +41,7 @@ export interface DashboardSummary {
     urgent_tasks: UrgentTaskItem[];
     activities: ActivityResponse[];
     pending_invitations: PendingInvitation[];
-    stats: {
-        pending_tasks_count?: number;
-        unread_notifications_count?: number;
-        [key: string]: any;
-    };
+    stats: DashboardStats;
 }
 
 export const useDashboard = () => {

@@ -17,6 +17,7 @@ from src.modules.team.models import Team, TeamInvitation
 
 from .schemas import (
     ActivityResponse,
+    DashboardStats,
     DashboardSummary,
     PendingInvitation,
     UrgentTaskResponse,
@@ -29,7 +30,19 @@ SessionDep = Annotated[Session, Depends(get_db_session)]
 
 
 @router.get("/summary", response_model=DashboardSummary)
-def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
+def get_dashboard_summary(
+    current_user: CurrentUserDep, db: SessionDep
+) -> DashboardSummary:
+    """Aggregates what the panel landing page shows on its first paint.
+
+    Args:
+        current_user: The caller; every read is scoped to them.
+        db: The database session.
+
+    Returns:
+        The greeting, the urgent tasks, the activity feed, the pending team
+        invitations and the two sidebar counters.
+    """
     # 1. Fetch urgent tasks
     now = datetime.now(timezone.utc)
     three_days_from_now = now + timedelta(days=3)
@@ -64,8 +77,6 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             title=t.Task.title,
             client_name=t.client_name,
             deadline=t.Task.deadline,
-            priority=t.Task.priority,
-            phase_id=t.Task.phase_id,
             days_remaining=_compute_days_remaining(t.Task.deadline),
             is_overdue=_is_overdue(t.Task.deadline),
         )
@@ -99,7 +110,6 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
                 if n.AppNotification.related_entity_type == "discussion_post"
                 else None
             ),
-            comment_id=None,
             triggered_by_name=n.triggerer_name,
             message_snippet=(
                 n.AppNotification.message[:100] if n.AppNotification.message else None
@@ -109,8 +119,8 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
     ]
 
     # 3. Stats
-    stats = {
-        "pending_tasks_count": db.query(Task)
+    stats = DashboardStats(
+        pending_tasks_count=db.query(Task)
         .filter(
             Task.user_id == current_user.id,
             Task.completed_at.is_(None),
@@ -119,15 +129,21 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             Task.cancelled_at.is_(None),
         )
         .count(),
-        "unread_notifications_count": len(activities),
-    }
+        # Counted on the table, not as `len(activities)`: the feed above is
+        # capped at 20 rows, and the sidebar must show the real total.
+        unread_notifications_count=db.query(AppNotification)
+        .filter(
+            AppNotification.user_id == current_user.id,
+            AppNotification.is_read.is_(False),
+        )
+        .count(),
+    )
 
     # 4. Pending team invitations for this user's email
     now = datetime.now(timezone.utc)
     pending_invitations = (
         db.query(
             TeamInvitation,
-            Client.id.label("client_id"),
             Client.name.label("client_name"),
             User.name.label("inviter_name"),
         )
@@ -146,13 +162,11 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
     pending = [
         PendingInvitation(
             invitation_id=inv.id,
-            client_id=client_id,
             client_name=client_name,
             inviter_name=inviter_name,
             created_at=inv.created_at,
-            expires_at=inv.expires_at,
         )
-        for inv, client_id, client_name, inviter_name in pending_invitations
+        for inv, client_name, inviter_name in pending_invitations
     ]
 
     return DashboardSummary(

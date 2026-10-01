@@ -9,7 +9,12 @@ import {
   Check,
 } from 'lucide-react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useDashboard } from '../../api/hooks/useDashboard';
+import {
+  useDashboard,
+  type ActivityResponse,
+  type DashboardSummary,
+  type UrgentTaskItem,
+} from '../../api/hooks/useDashboard';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useAppNotifications } from '../../api/hooks/useAppNotifications';
 import { formatDistanceToNow } from 'date-fns';
@@ -17,15 +22,15 @@ import { ptBR } from 'date-fns/locale';
 import { PendingInvitationCard } from '../../components/dashboard/PendingInvitationCard';
 import { Carousel } from '../../components/dashboard/Carousel';
 import { TaskCalendar } from '../../components/tasks/TaskCalendar';
-import { TaskResponse } from '../../schemas/tasks';
 import { apiClient } from '../../api/client';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Skeleton } from '../../components/ui/skeleton';
 import { cn } from '../../lib/utils';
 
-/* ── Tarefa do resumo do dashboard: mesmo payload de `TaskResponse` ── */
-type DashboardTask = TaskResponse;
+/* ── Tarefa do resumo do dashboard: o payload de `UrgentTaskItem`, não o
+ *    `TaskResponse` completo — o resumo entrega só o que o painel desenha. ── */
+type DashboardTask = UrgentTaskItem;
 
 export const DashboardPage: React.FC = () => {
   const { useDashboardSummary } = useDashboard();
@@ -70,11 +75,11 @@ export const DashboardPage: React.FC = () => {
       {
         onSuccess: () => {
           // Remove the task from the dashboard immediately
-          queryClient.setQueryData(['dashboard', 'summary'], (old: any) => {
+          queryClient.setQueryData<DashboardSummary>(['dashboard', 'summary'], (old) => {
             if (!old) return old;
             return {
               ...old,
-              urgent_tasks: (old.urgent_tasks ?? []).filter((t: any) => t.id !== task.id),
+              urgent_tasks: (old.urgent_tasks ?? []).filter((t) => t.id !== task.id),
               stats: {
                 ...old.stats,
                 pending_tasks_count: Math.max(0, (old.stats?.pending_tasks_count ?? 0) - 1),
@@ -87,7 +92,7 @@ export const DashboardPage: React.FC = () => {
     );
   };
 
-  const handleActivityClick = (activity: any) => {
+  const handleActivityClick = (activity: ActivityResponse) => {
     markAsRead.mutate(activity.id);
     if (activity.post_id) {
       navigate(`/painel/forum/${activity.post_id}`);
