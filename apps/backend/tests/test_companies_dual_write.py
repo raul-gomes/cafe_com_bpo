@@ -320,3 +320,37 @@ def test_converting_a_prospect_keeps_both_contacts(db_session, user_id):
     assert empresa.primary_contact_id == contact_do_cliente.id, "não pode sobrescrever"
     assert db_session.get(Contact, contact_do_prospect.id).company_id == client.id
     assert db_session.get(Contact, contact_do_cliente.id).company_id == client.id
+
+
+# --- os cadastrais não podem envelhecer na empresa ---------------------------
+#
+# A leitura de clientes já sai de `companies` (Fase 3, item 3), então a linha
+# da empresa precisa acompanhar a edição do cadastro legado. Sem o espelho no
+# update, salvar um CNPJ e recarregar a tela mostra o valor antigo — o usuário
+# perde o dado que acabou de cadastrar sem nenhum erro aparecer.
+
+
+def test_editing_a_client_updates_its_company(db_session, user_id):
+    client = _client(db_session, user_id)
+    client.name = "Castellum Renomeado"
+    client.cnpj = "11222333000181"
+    client.segment = "chargeback"
+    db_session.commit()
+
+    company = db_session.get(Company, client.id)
+    assert company.name == "Castellum Renomeado"
+    assert company.cnpj == "11222333000181"
+    assert company.segment == "chargeback"
+
+
+def test_editing_a_prospect_updates_its_company(db_session, user_id):
+    prospect = _prospect(db_session, user_id)
+    prospect.name = "Lead Qualificado"
+    prospect.phone = "11988887777"
+    prospect.city = "Sao Paulo"
+    db_session.commit()
+
+    company = db_session.get(Company, prospect.id)
+    assert company.name == "Lead Qualificado"
+    assert company.phone == "11988887777"
+    assert company.city == "Sao Paulo"

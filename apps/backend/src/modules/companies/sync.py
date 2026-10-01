@@ -89,6 +89,47 @@ def _prospect_becomes_company(mapper, connection, target: Prospect) -> None:
     _mirror(target, COMPANY_TYPE_PROSPECT)
 
 
+@event.listens_for(Session, "before_flush")
+def _mirror_pending_cadastrais(session: Session, flush_context, instances) -> None:
+    """Espelha os cadastrais editados das linhas legadas para a empresa.
+
+    A leitura de clientes já sai de `companies` (Fase 3, item 3) e a de
+    prospects vem logo atrás (item 4), então a empresa precisa acompanhar a
+    edição do cadastro legado. Sem este espelho, salvar um CNPJ e recarregar a
+    tela mostra o valor antigo — o dado que o usuário acabou de cadastrar
+    desaparece da tela sem nenhum erro.
+
+    É `before_flush` (e não `before_update`) por causa da ordem do flush: o
+    unit of work decide o que está sujo **antes** de emitir os UPDATEs, e as
+    duas tabelas não têm FK entre si, então a empresa pode já ter sido
+    processada quando o `before_update` do prospecto roda — a alteração feita
+    ali não vira UPDATE. Em `before_flush` o `session.dirty` ainda está sendo
+    lido, e a empresa entra no mesmo flush.
+
+    Só os cadastrais são copiados: `is_active`/`deleted_at` têm dono próprio (a
+    desativação em cascata, regra §16) e o ciclo de vida (`converted_at`,
+    `reproved_at`) é espelhado pelos métodos de lifecycle, que também decidem
+    quando a empresa muda de estágio.
+    """
+    from src.modules.companies.backfill import CADASTRAL_FIELDS
+
+    for target in session.dirty:
+        if not isinstance(target, (Client, Prospect)):
+            continue
+        company = session.get(Company, target.id)
+        if company is None:
+            # Empresa sem linha (ou já colapsada na conversão): nada a
+            # atualizar. A verificação V5 e o backfill cobrem o buraco.
+            log.warning(
+                "[companies] %s %s sem empresa: cadastrais não espelhados",
+                type(target).__name__,
+                target.id,
+            )
+            continue
+        for field_name in CADASTRAL_FIELDS:
+            setattr(company, field_name, getattr(target, field_name))
+
+
 def _fill_company_id(mapper, connection, target) -> None:
     """Preenche `company_id` na linha filha a partir do dono legado."""
     if getattr(target, "company_id", None) is not None:
