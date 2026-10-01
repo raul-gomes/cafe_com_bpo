@@ -246,3 +246,92 @@ def test_the_invitation_card_takes_the_company_name_not_the_legacy_row(client):
 
     assert len(body["pending_invitations"]) == 1, body["pending_invitations"]
     assert body["pending_invitations"][0]["client_name"] == f"Nome Novo {suffix}"
+
+
+def test_the_urgent_card_names_the_company_not_the_legacy_row(client):
+    """O carrossel de urgentes tira o nome da empresa (Fase 3, item 7).
+
+    Era o último join do módulo pendurado em `tasks.client_id → clients`. O
+    teste dá à empresa um nome novo por fora da API — o espelho de cadastrais
+    reescreveria a linha legada junto, e a asserção não provaria nada. Com o
+    join antigo o cartão mostraria o nome velho da linha `clients`.
+    """
+    from src.core.database import SessionLocal
+    from src.modules.companies.models import Company
+
+    suffix = uuid4().hex[:8]
+    auth = _register(client, f"dash_urgente_{suffix}@cafe.com")
+    company = client.post(
+        "/clients/", json={"name": f"Urgente Antigo {suffix}"}, headers=auth
+    ).json()
+    created = client.post(
+        "/tasks/",
+        json={
+            "title": "Fechar planilha",
+            "client_id": company["id"],
+            "deadline": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        },
+        headers=auth,
+    )
+    assert created.status_code == status.HTTP_201_CREATED, created.text
+
+    session = SessionLocal()
+    try:
+        company_row = session.get(Company, UUID(company["id"]))
+        company_row.name = f"Urgente Novo {suffix}"
+        session.commit()
+    finally:
+        session.close()
+
+    body = client.get("/dashboard/summary", headers=auth).json()
+
+    assert body["urgent_tasks"], body["urgent_tasks"]
+    assert body["urgent_tasks"][0]["client_name"] == f"Urgente Novo {suffix}", (
+        "o cartão de urgente ainda lê o nome da linha legada `clients`"
+    )
+
+
+def test_an_urgent_task_survives_the_legacy_row_being_deactivated(client):
+    """O carrossel não filtra a linha legada — e não deve passar a filtrar.
+
+    Este teste **não** falha no código de hoje: o `INNER JOIN` casa por id e
+    ignora `is_active`, então degradar a linha não tira a tarefa do painel. É
+    uma trava de comportamento, não uma prova da correção: a migração do join
+    pode ser feita com `Company.is_active` no filtro sem nenhum teste reclamar,
+    e com a cascata de desativação (§16) isso apagaria do painel o que está
+    vencendo. Preservar o comportamento é a decisão consciente deste item; se o
+    dono quiser o contrário, é pendência 4.1 com regra nova.
+    """
+    from src.core.database import SessionLocal
+    from src.modules.clients.models import Client
+
+    suffix = uuid4().hex[:8]
+    auth = _register(client, f"dash_degradado_{suffix}@cafe.com")
+    company = client.post(
+        "/clients/", json={"name": f"Urgente Degradada {suffix}"}, headers=auth
+    ).json()
+    created = client.post(
+        "/tasks/",
+        json={
+            "title": "Fechar planilha",
+            "client_id": company["id"],
+            "deadline": (datetime.now(timezone.utc) + timedelta(days=1)).isoformat(),
+        },
+        headers=auth,
+    )
+    assert created.status_code == status.HTTP_201_CREATED, created.text
+
+    session = SessionLocal()
+    try:
+        session.query(Client).filter(Client.id == UUID(company["id"])).update(
+            {"is_active": False}
+        )
+        session.commit()
+    finally:
+        session.close()
+
+    body = client.get("/dashboard/summary", headers=auth).json()
+
+    assert body["urgent_tasks"], (
+        "a tarefa urgente sumiu do painel quando a linha legada foi degradada"
+    )

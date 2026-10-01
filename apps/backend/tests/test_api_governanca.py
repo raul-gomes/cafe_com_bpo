@@ -287,3 +287,98 @@ def test_deal_contatante_representative_comes_from_the_contact(client):
     )
     assert deal["representante_nome"] == "Pessoa do Contato"
     assert deal["representante_email"] == "pessoa@governanca.com.br"
+
+
+def test_deals_are_listed_from_companies_not_the_prospect_row(client):
+    """A Governança lê a empresa (Fase 3, item 7).
+
+    A lista de negócios vinha inteira de `prospects`: nome, contatos, segmentação
+    e o par `converted_client_id`/`reproved_at` que decide o status do funil. Tudo
+    isso já é espelho em `companies`, com o **mesmo id** (a conversão preserva o
+    id), então ler de lá não muda chave nenhuma de proposta ou contrato.
+
+    O teste renomeia a empresa por fora da API: o espelho de cadastrais
+    reescreveria também a linha `prospects`, e a asserção deixaria de provar
+    nada. Com a leitura legada o cartão sai com o nome velho.
+    """
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.companies.models import Company
+
+    auth = get_auth_header(client, f"gov_origem_{uuid4()}@cafe.com")
+    prospect = create_prospect(client, auth, name="Governança Antiga").json()
+
+    session = SessionLocal()
+    try:
+        company = session.get(Company, UUID(prospect["id"]))
+        company.name = "Governança Nova"
+        session.commit()
+    finally:
+        session.close()
+
+    deals = get_deals(client, auth)["deals"]
+    alvo = next(d for d in deals if d["id"] == prospect["id"])
+    assert alvo["name"] == "Governança Nova", (
+        "a Governança ainda lê o nome da linha `prospects`"
+    )
+
+
+def test_deal_identity_is_split_after_conversion(client):
+    """A identidade do negócio convertido é **dupla**, e isso trava a migração.
+
+    Este teste **não** falha no código de hoje: ele fixa a topologia que a
+    Governança tem agora, que é o que impede a leitura de virar `companies`
+    mecanicamente.
+
+    Depois da conversão existem dois ids, e eles não são o mesmo:
+    `companies` tem **uma** linha só, a do cliente (C, `type='client'`,
+    `converted_at` preenchido) — a empresa do prospecto (P) é apagada no
+    colapso (`companies/sync.py:154`). O negócio na Governança continua com
+    `id = P`, que é o que liga nas propostas e nos contratos (`prospect_id`),
+    e com `client_id = C`, que é a empresa que sobreviveu.
+
+    Ler a Governança de `companies` significaria trocar a identidade do negócio de
+    P para C, e com ela as chaves de proposta e contrato. Isso é decisão de
+    produto, não refatoração: está em `docs/pendencias.md` 4.6. O que este teste
+    garante é que ninguém troca a identidade sem perceber.
+    """
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.companies.models import Company
+
+    auth = get_auth_header(client, f"gov_status_{uuid4()}@cafe.com")
+    em_negociacao = create_prospect(client, auth, name="Ainda Negociando").json()
+    conquistado = create_prospect(client, auth, name="Virou Cliente").json()
+    perdido = create_prospect(client, auth, name="Foi Perdido").json()
+
+    assert client.post(
+        f"/prospects/{conquistado['id']}/convert", json={}, headers=auth
+    ).status_code in (200, 201)
+    assert client.post(
+        f"/prospects/{perdido['id']}/reprove", json={}, headers=auth
+    ).status_code in (200, 201)
+
+    deals = {d["id"]: d for d in get_deals(client, auth)["deals"]}
+
+    assert deals[em_negociacao["id"]]["status"] == "em_negociacao"
+    assert deals[conquistado["id"]]["status"] == "conquistado"
+    assert deals[perdido["id"]]["status"] == "perdido"
+    assert deals[perdido["id"]]["client_id"] is None
+
+    # A identidade dupla: o negócio fica no id do prospecto (é o que liga nas
+    # propostas e contratos) e aponta para o id da empresa que sobreviveu.
+    negocio = deals[conquistado["id"]]
+    assert negocio["id"] == conquistado["id"]
+    assert negocio["client_id"] != conquistado["id"]
+
+    session = SessionLocal()
+    try:
+        # `companies` guarda a empresa do cliente; a do prospecto não existe mais.
+        assert session.get(Company, UUID(conquistado["id"])) is None
+        sobrevivente = session.get(Company, UUID(negocio["client_id"]))
+        assert sobrevivente is not None and sobrevivente.type == "client"
+        assert session.get(Company, UUID(perdido["id"])).reproved_at is not None
+    finally:
+        session.close()

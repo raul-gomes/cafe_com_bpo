@@ -10,7 +10,6 @@ from src.core.deadline import days_remaining, is_overdue
 from src.modules.auth.models import User
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
-from src.modules.clients.models import Client
 from src.modules.companies.models import Company
 from src.modules.notifications.models import AppNotification
 from src.modules.task_manager.models import Task
@@ -44,13 +43,19 @@ def get_dashboard_summary(
         The greeting, the urgent tasks, the activity feed, the pending team
         invitations and the two sidebar counters.
     """
+    # 1. Tarefas urgentes. O nome da empresa vem de `companies`, pelo
+    # `company_id` da tarefa (Fase 3, item 7) — era o último join do módulo
+    # pendurado em `tasks.client_id → clients`. Sem `Company.is_active` no
+    # filtro, de propósito: o join legado também não filtrava, e com a cascata
+    # de desativação (§16) acrescentar o filtro apagaria do painel justamente o
+    # que está vencendo. Mudar isso é regra nova, não migração de origem.
     # 1. Fetch urgent tasks
     now = datetime.now(timezone.utc)
     three_days_from_now = now + timedelta(days=3)
 
     tasks_query = (
-        db.query(Task, Client.name.label("client_name"))
-        .join(Client, Task.client_id == Client.id)
+        db.query(Task, Company.name.label("client_name"))
+        .join(Company, Task.company_id == Company.id)
         .filter(
             and_(
                 Task.user_id == current_user.id,
