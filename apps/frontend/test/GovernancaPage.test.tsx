@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
@@ -110,6 +110,13 @@ import { apiClient } from '../src/api/client'
 
 describe('GovernancaPage', () => {
   beforeEach(() => {
+    // §3 determinismo: a navegação de meses compara `activeMonth` com o mês
+    // corrente (`currentMonth()`), e o fixture é de setembro de 2026. Sem
+    // congelar a data, o botão "próximo" só ficava desabilitado enquanto o
+    // relógio real estivesse em setembro — o teste media o dia em que rodava.
+    // Só `Date` é falsificado: os timers seguem reais e o `userEvent` funciona.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-15T12:00:00Z'))
     vi.clearAllMocks()
     ;(getGovernanca as ReturnType<typeof vi.fn>).mockResolvedValue({
       months: ['2026-09', '2026-08'],
@@ -147,6 +154,10 @@ describe('GovernancaPage', () => {
     ;(previewContract as ReturnType<typeof vi.fn>).mockResolvedValue({
       sections: [{ title: 'Cláusula Primeira', content: 'Do objeto' }],
     })
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
   })
 
   const renderPage = () => {
