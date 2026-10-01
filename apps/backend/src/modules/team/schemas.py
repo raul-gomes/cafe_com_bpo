@@ -1,7 +1,7 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
 
 
 class InviteCreate(BaseModel):
@@ -23,22 +23,26 @@ class InviteBatchResponse(BaseModel):
 
 
 class RoutineAccess(BaseModel):
+    """Rotina liberada a um membro, como o chip de rotina no card."""
+
     template_id: UUID
     name: str
 
-    model_config = ConfigDict(from_attributes=True)
-
 
 class TeamMemberResponse(BaseModel):
+    """Card de membro da equipe (regra §6 — só o que a tela renderiza).
+
+    O card mostra avatar (iniciais de `name` ou `email`), nome, e-mail e os
+    chips de rotina. Ficaram de fora `joined_at`, `role` e `is_active`: a
+    listagem já vem filtrada por membro ativo e a tela não mostra data de
+    entrada nem papel — a role é sempre `member` (o dono é o `clients.user_id`,
+    não entra na lista).
+    """
+
     user_id: UUID
     name: str | None = None
     email: str
-    joined_at: datetime
-    role: str | None = None
-    is_active: bool = True
     routines: list[RoutineAccess] = []
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class TeamListResponse(BaseModel):
@@ -46,15 +50,18 @@ class TeamListResponse(BaseModel):
 
 
 class InvitationResponse(BaseModel):
+    """Card de "Convites enviados" (regra §6 — só o que a tela renderiza).
+
+    O card mostra o e-mail, o status e as datas de expiração/aceite. Ficaram de
+    fora `routines` (montado com duas queries por convite e nunca exibido) e
+    `created_at` (a lista é ordenada por ele, mas a tela mostra a expiração).
+    """
+
     invitation_id: UUID
     email: str
     status: str
     expires_at: datetime
     accepted_at: datetime | None = None
-    created_at: datetime
-    routines: list[RoutineAccess] = []
-
-    model_config = ConfigDict(from_attributes=True)
 
 
 class InvitationListResponse(BaseModel):
@@ -62,8 +69,12 @@ class InvitationListResponse(BaseModel):
 
 
 class AcceptResponse(BaseModel):
+    """Resposta do aceite de convite, lida pela tela de aceitar convite.
+
+    `client_name` é o nome da empresa (vem de `companies`, fonte única do
+    vínculo) e é o que a tela mostra no título antes e depois do aceite.
+    """
+
     status: str
     client_name: str | None = None
     client_id: UUID | None = None
-
-    model_config = ConfigDict(from_attributes=True)

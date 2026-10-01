@@ -35,6 +35,37 @@ class CompanyRepository:
             query = query.filter(Company.name.ilike(f"%{search}%"))
         return query.order_by(Company.name).all()
 
+    def get_by_id(self, company_id: UUID) -> Company | None:
+        """Empresa ativa por id, ou `None`.
+
+        A empresa é a fonte única do vínculo: toda verificação de posse e toda
+        resolução de nome na Fase 3 passa por aqui, e não pela linha legada de
+        `clients`/`prospects`. `deleted_at` entra no filtro pelo mesmo motivo de
+        `list_by_type` — empresa arquivada é soft delete e precisa contar como
+        ausente, mesmo com `is_active` ainda verdadeiro.
+        """
+        return (
+            self.session.query(Company)
+            .filter(
+                Company.id == company_id,
+                Company.is_active,
+                Company.deleted_at.is_(None),
+            )
+            .first()
+        )
+
+    def get_client_by_id(self, company_id: UUID) -> Company | None:
+        """Empresa no estágio `client`, ou `None` se for prospecto (ou não existir).
+
+        Time, rotina, SLA e tarefa só existem para cliente — a garantia é do
+        banco (FK composta em `teams`). Esta leitura carrega a mesma premissa
+        para o serviço, que responde 404 em vez de confiar numa linha órfã.
+        """
+        company = self.get_by_id(company_id)
+        if company is None or company.type != COMPANY_TYPE_CLIENT:
+            return None
+        return company
+
     def list_clients(self, user_id: UUID) -> list[Company]:
         return self.list_by_type(user_id, COMPANY_TYPE_CLIENT)
 

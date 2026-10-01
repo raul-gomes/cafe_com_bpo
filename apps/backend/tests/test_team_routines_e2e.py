@@ -13,7 +13,7 @@ Cenário:
    - Membro vê as tasks PRÓPRIAS + as das rotinas liberadas no convite.
    - Membro NÃO vê tasks de rotinas do owner que não foram liberadas.
    - assignee_name presente quando a task é de outra pessoa.
-   - Role/is_active do membro corretos no time.
+   - Contrato do membro restrito ao que o card renderiza (regra §6).
 7. Validações de convite:
    - Novo convite duplicado para membro já aceito → erro.
    - Convite para membro pendente → erro de pendência.
@@ -174,13 +174,19 @@ def test_owner_routines_and_invited_member_routines(client):
     assert acc.json()["status"] == "accepted"
     assert acc.json()["client_id"] == cli["id"]
 
-    # Team agora inclui o membro com role 'member' e is_active True
+    # Team agora inclui o membro. A listagem já vem filtrada por membro ativo
+    # (regra §16) e a tela não mostra data de entrada nem papel — por isso o
+    # contrato do membro é `user_id`/`name`/`email`/`routines` (regra §6).
     team = client.get(f"/clients/{cli['id']}/team", headers=owner_auth)
     assert team.status_code == 200
     members = {m["email"]: m for m in team.json()["members"]}
     assert member_email in members
-    assert members[member_email]["role"] == "member"
-    assert members[member_email]["is_active"] is True
+    assert set(members[member_email]) == {
+        "user_id",
+        "name",
+        "email",
+        "routines",
+    }
     # A rotina liberada aparece para o membro
     assert any(
         r["template_id"] == tmpl_fiscal["id"] for r in members[member_email]["routines"]

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db_session
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user, get_optional_user
+from src.modules.companies.repository import CompanyRepository
 
 from .repository import TeamRepository
 from .schemas import (
@@ -26,7 +27,14 @@ def get_repo(session: Annotated[Session, Depends(get_db_session)]) -> TeamReposi
     return TeamRepository(session)
 
 
+def get_company_repo(
+    session: Annotated[Session, Depends(get_db_session)],
+) -> CompanyRepository:
+    return CompanyRepository(session)
+
+
 RepoDep = Annotated[TeamRepository, Depends(get_repo)]
+CompanyRepoDep = Annotated[CompanyRepository, Depends(get_company_repo)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 OptionalUserDep = Annotated[UserResponse | None, Depends(get_optional_user)]
 
@@ -40,10 +48,11 @@ def invite_collaborator(
     client_id: UUID,
     data: InviteCreate,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Convidar um colaborador para a equipe do cliente."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         return service.invite_collaborator(client_id, data, current_user.id)
     except ValueError as e:
@@ -52,19 +61,17 @@ def invite_collaborator(
 
 @router.get("/invitations/accept", response_model=AcceptResponse)
 def accept_invitation(
+    repo: RepoDep,
+    companies: CompanyRepoDep,
+    current_user: OptionalUserDep,
     token: str = Query(...),
-    repo: RepoDep = None,
-    current_user: OptionalUserDep = None,
 ):
     """Aceitar um convite com token.
 
     Se o usuário está logado e o email bate, aceita na hora.
     Se não está logado, retorna status=redirect para o frontend redirecionar.
     """
-    if repo is None:
-        raise HTTPException(status_code=500, detail="Repository not initialized")
-
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         user_id = current_user.id if current_user else None
         return service.accept_invitation(token, user_id=user_id)
@@ -79,10 +86,11 @@ def accept_invitation(
 def accept_invitation_by_id(
     invitation_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Aceitar um convite pelo ID (usado na dashboard). Requer login."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         return service.accept_invitation_by_id(invitation_id, current_user.id)
     except ValueError as e:
@@ -96,10 +104,11 @@ def accept_invitation_by_id(
 def decline_invitation_by_id(
     invitation_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Recusar um convite pelo ID (usado na dashboard). Requer login."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         service.decline_invitation_by_id(invitation_id, current_user.id)
         return {"status": "declined"}
@@ -111,10 +120,11 @@ def decline_invitation_by_id(
 def list_team_members(
     client_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Listar membros da equipe de um cliente."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         return service.get_team_members(client_id, current_user.id)
     except ValueError as e:
@@ -125,10 +135,11 @@ def list_team_members(
 def list_invitations(
     client_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Listar convites do cliente (pendente/aceito/declinado/expirado)."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         return service.list_invitations(client_id, current_user.id)
     except ValueError as e:
@@ -143,10 +154,11 @@ def resend_invitation(
     client_id: UUID,
     invitation_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Reenviar o email de um convite (renova token + expiração)."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         return service.resend_invitation(client_id, invitation_id, current_user.id)
     except ValueError as e:
@@ -166,10 +178,11 @@ def cancel_invitation(
     client_id: UUID,
     invitation_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Cancelar (remover) um convite enviado."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         service.cancel_invitation(client_id, invitation_id, current_user.id)
     except ValueError as e:
@@ -189,10 +202,11 @@ def remove_team_member(
     client_id: UUID,
     user_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Remover um membro da equipe."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         service.remove_member(client_id, user_id, current_user.id)
     except ValueError as e:
@@ -213,10 +227,11 @@ def grant_routine_to_member(
     user_id: UUID,
     template_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Conceder o acesso de um membro da equipe a uma rotina."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         service.grant_routine_to_member(
             client_id, user_id, template_id, current_user.id
@@ -239,10 +254,11 @@ def revoke_routine_from_member(
     user_id: UUID,
     template_id: UUID,
     repo: RepoDep,
+    companies: CompanyRepoDep,
     current_user: CurrentUserDep,
 ):
     """Revogar o acesso de um membro da equipe a uma rotina."""
-    service = TeamService(repo)
+    service = TeamService(repo, companies)
     try:
         service.revoke_routine_from_member(
             client_id, user_id, template_id, current_user.id
