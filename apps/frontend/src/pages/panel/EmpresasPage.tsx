@@ -16,9 +16,8 @@ import {
   listInvitations,
   resendInvitation,
   cancelInvitation,
-  TeamMemberResponse,
-  InvitationResponse,
 } from '../../api/team';
+import type { InvitationData, TeamMemberData } from '../../schemas/team';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
@@ -49,8 +48,8 @@ export const EmpresasPage: React.FC = () => {
   const { useTemplatesList, useAssignTemplate, useClientAssignments, useRemoveAssignment, useUpdateAssignment } = useTasks();
   const [linkClientId, setLinkClientId] = useState<string | null>(null);
   const [teamClientId, setTeamClientId] = useState<string | null>(null);
-  const [teamMembers, setTeamMembers] = useState<TeamMemberResponse[]>([]);
-  const [invitations, setInvitations] = useState<InvitationResponse[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMemberData[]>([]);
+  const [invitations, setInvitations] = useState<InvitationData[]>([]);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [showInvite, setShowInvite] = useState(false);
   const [inviteEmails, setInviteEmails] = useState<EmailChip[]>([]);
@@ -908,7 +907,7 @@ export const EmpresasPage: React.FC = () => {
                         Cliente: <span className="font-medium text-muted-foreground">{teamClient?.name || '—'}</span>
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {member.routines.map(r => (
+                        {member.routines.map((r: { template_id: string; name: string }) => (
                           <span key={r.template_id} className="inline-flex items-center gap-1 rounded-sm bg-secondary px-1.5 py-0.5 text-[10px] font-medium text-secondary-foreground">
                             {r.name}
                             <button
@@ -928,7 +927,7 @@ export const EmpresasPage: React.FC = () => {
                       </div>
                       {/* Incluir rotina (botão único + seletor) */}
                       {(() => {
-                        const grantedIds = new Set(member.routines.map(r => r.template_id));
+                        const grantedIds = new Set(member.routines.map((r: { template_id: string; name: string }) => r.template_id));
                         const available = linkedTemplates.filter(t => !grantedIds.has(t.id));
                         if (available.length === 0) return null;
                         const isOpen = memberRoutinePicker === member.user_id;

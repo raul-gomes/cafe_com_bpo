@@ -13,6 +13,11 @@ import { z } from 'zod';
  * contato (fonte única da pessoa, Fase 4).
  *
  * O tipo é inferido do schema, para que o contrato tenha um lugar só.
+ *
+ * `.strict()` de propósito: o Zod **descarta** chaves desconhecidas por padrão,
+ * então um campo que voltou a ser enviado passaria silenciosamente e o
+ * `.parse()` não acusaria nada. Com `.strict()`, a deriva vira falha — no teste
+ * primeiro, na tela nunca.
  */
 export const prospectSchema = z.object({
   id: z.string(),
@@ -35,7 +40,7 @@ export const prospectSchema = z.object({
   representante_cpf: z.string().nullable().optional(),
   representante_telefone: z.string().nullable().optional(),
   representante_cargo: z.string().nullable().optional(),
-});
+}).strict();
 
 export type ProspectData = z.infer<typeof prospectSchema>;
 
@@ -46,6 +51,6 @@ export type ProspectWrite = Omit<ProspectData, 'id'>;
 export const prospectConvertResponseSchema = z.object({
   prospect_id: z.string(),
   client_id: z.string(),
-});
+}).strict();
 
 export type ProspectConvertResponse = z.infer<typeof prospectConvertResponseSchema>;
