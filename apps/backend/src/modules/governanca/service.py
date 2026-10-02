@@ -155,7 +155,6 @@ class GovernancaService:
             final_price = last.result_payload.get("final_price")
         return DealProposal(
             id=last.id,
-            client_name=last.client_name,
             number=last.number,
             final_price=float(final_price) if final_price is not None else None,
             created_at=last.created_at,

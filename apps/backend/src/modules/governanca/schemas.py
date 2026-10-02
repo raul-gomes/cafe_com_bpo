@@ -5,8 +5,14 @@ from pydantic import BaseModel
 
 
 class DealProposal(BaseModel):
+    """Último orçamento do negócio.
+
+    `client_name` saiu (2026-10-02): a tela mostra o nome do negócio, então o do
+    orçamento era o mesmo texto duplicado. O Zod da Governança é `.strict()`, e
+    mandar a chave derrubava a página inteira com "Unrecognized key".
+    """
+
     id: UUID
-    client_name: str | None = None
     number: int | None = None
     final_price: float | None = None
     created_at: datetime | None = None

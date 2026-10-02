@@ -581,3 +581,68 @@ def test_deal_payload_carries_only_what_the_governance_screen_reads(client):
     )
     for campo in ("client_id", "reference_date", "status"):
         assert campo not in deal, f"`{campo}` não é mais lido pela Governança"
+
+
+def test_deal_payload_keys_match_the_governance_zod_schema(client):
+    """O payload inteiro bate com o Zod do frontend, chave por chave.
+
+    Bug de 2026-10-02: o Zod da Governança é `.strict()`, então o backend mandar
+    uma chave a mais derruba a tela inteira ("Unrecognized key"). `client_name` na
+    proposta quebrou exatamente assim — o schema do frontend já tinha tirado o
+    campo, o backend continuava mandando, e a tela não renderizou nada.
+
+    O teste anterior só olhava o nível do `deal`, que é onde `client_id` morava.
+    Uma chave sobrando um nível abaixo passava por ele, que é como o
+    `client_name` chegou ao ar. Aqui o contrato é fechado nos três níveis.
+
+    As chaves são declaradas à mão porque backend e frontend não dividem volume de
+    arquivos (cada imagem copia só o próprio diretório), então o teste não consegue
+    ler o `schemas/governanca.ts`. O preço é a duplicação; a garantia é que
+    qualquer campo novo **quebre** o teste e obrigue a decidir se a tela o lê.
+
+    Este espelho de `apps/frontend/src/schemas/governanca.ts`.
+    """
+    auth = get_auth_header(client, f"gov_keys_{uuid4()}@cafe.com")
+    prospect = create_prospect(client, auth, name="Chaves Exactas").json()
+    proposal = create_proposal(client, auth, prospect).json()
+    generate_contract(client, auth, prospect, proposal)
+
+    negocio = next(
+        d for d in get_deals(client, auth)["deals"] if d["id"] == prospect["id"]
+    )
+    chaves_negocio = {
+        "id",
+        "name",
+        "cnpj",
+        "segment",
+        "color",
+        "city",
+        "state",
+        "email",
+        "phone",
+        "description",
+        "representante_nome",
+        "representante_cargo",
+        "representante_email",
+        "representante_telefone",
+        "representante_cpf",
+        "appearances",
+        "proposal",
+        "contract",
+        "timeline",
+    }
+    chaves_proposta = {"id", "number", "final_price", "created_at"}
+    chaves_contrato = {"id", "number", "status", "finalized_at", "created_at"}
+
+    def _compara(objeto, esperado, onde):
+        sobra = set(objeto) - esperado
+        falta = esperado - set(objeto)
+        assert not sobra and not falta, (
+            f"{onde}: só no backend {sorted(sobra)}, só no Zod {sorted(falta)}"
+        )
+
+    _compara(negocio, chaves_negocio, "negócio")
+    assert negocio["proposal"] is not None
+    _compara(negocio["proposal"], chaves_proposta, "proposta")
+    assert negocio["contract"] is not None
+    _compara(negocio["contract"], chaves_contrato, "contrato")
