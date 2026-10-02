@@ -135,6 +135,7 @@ import { MemberProfileView } from '../../components/network/MemberProfileView'
 import { MemberLink } from '../../components/network/MemberLink'
 import { NewIndicator } from '../../components/network/NewIndicator'
 import type { Deal } from '../../api/governanca'
+import { dealInMonth } from './governancaMonth'
 
 import './DesignSystemPage.css'
 
@@ -296,8 +297,7 @@ const DEMO_GOVERNANCA: Deal[] = [
   {
     id: 'deal-conquistado',
     name: 'TechFinance BPOS',
-    status: 'conquistado',
-    reference_date: '2026-09-15T10:00:00',
+    appearances: [{ month: '2026-09', status: 'conquistado' }],
     segment: 'Gestão financeira',
     cnpj: '39123456000180',
     city: 'São Paulo',
@@ -318,8 +318,7 @@ const DEMO_GOVERNANCA: Deal[] = [
   {
     id: 'deal-negociacao',
     name: 'Contabilidade Souza',
-    status: 'em_negociacao',
-    reference_date: '2026-09-18T14:00:00',
+    appearances: [{ month: '2026-09', status: 'em_negociacao' }],
     segment: 'Contabilidade',
     cnpj: '18222333000177',
     city: 'Belo Horizonte',
@@ -336,8 +335,7 @@ const DEMO_GOVERNANCA: Deal[] = [
   {
     id: 'deal-perdido',
     name: 'Café Exportadora',
-    status: 'perdido',
-    reference_date: '2026-09-10T11:30:00',
+    appearances: [{ month: '2026-09', status: 'perdido' }],
     segment: 'Agronegócio',
     cnpj: '27444555000100',
     city: 'Uberlândia',
@@ -1549,18 +1547,22 @@ const descriptors: ContractFieldDescriptor[] = [
           name="DealCard"
           description="Card de negócio da Governança: nome, status, segmento/CNPJ/cidade, valor da proposta e detalhe expansível com dados, links e timeline."
           howToUse={`import { DealCard } from '../../components/governanca/DealCard'
+import { dealInMonth } from '../pages/panel/governancaMonth'
 import type { Deal } from '../../api/governanca'
 
-<DealCard deal={deal.conquistado} />
+// A tag é do MÊS, não do negócio: use dealInMonth(deal, mes) ou dealsByMonth()
+const noMes = dealInMonth(deal, '2026-09')
+if (noMes) <DealCard deal={noMes} />
 
-// Deal: { id, name, status: 'conquistado'|'em_negociacao'|'perdido',
-//   reference_date, proposal: {id, final_price}, contract: {id, number},
+// Deal: { id, name, appearances: [{month: '2026-09', status}],
+//   proposal: {id, final_price}, contract: {id, number},
 //   timeline: [{type: 'created'|'sent'|'approved'|'rejected'|'pending', label, date, mock?}] }`}
         >
           <div className="ds-col gap-3">
-            {DEMO_GOVERNANCA.map((deal) => (
-              <DealCard key={deal.id} deal={deal} />
-            ))}
+            {DEMO_GOVERNANCA.map((deal) => {
+              const noMes = dealInMonth(deal, '2026-09');
+              return noMes ? <DealCard key={deal.id} deal={noMes} /> : null;
+            })}
           </div>
         </ComponentCard>
 

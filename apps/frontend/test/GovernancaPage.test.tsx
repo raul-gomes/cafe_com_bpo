@@ -13,8 +13,7 @@ const queryClient = new QueryClient({
 const conquistado = {
   id: 'deal-1',
   name: 'TechFinance BPOS',
-  status: 'conquistado',
-  reference_date: '2026-09-15T10:00:00',
+  appearances: [{ month: '2026-09', status: 'conquistado' }],
   segment: 'Gestão financeira',
   cnpj: '39123456000180',
   city: 'São Paulo',
@@ -36,8 +35,7 @@ const conquistado = {
 const negociacao = {
   id: 'deal-2',
   name: 'Contabilidade Souza',
-  status: 'em_negociacao',
-  reference_date: '2026-09-18T14:00:00',
+  appearances: [{ month: '2026-09', status: 'em_negociacao' }],
   segment: 'Contabilidade',
   cnpj: '18222333000177',
   city: 'Belo Horizonte',
@@ -55,8 +53,7 @@ const negociacao = {
 const perdido = {
   id: 'deal-3',
   name: 'Café Exportadora',
-  status: 'perdido',
-  reference_date: '2026-09-10T11:30:00',
+  appearances: [{ month: '2026-09', status: 'perdido' }],
   segment: 'Agronegócio',
   cnpj: '27444555000100',
   city: 'Uberlândia',
@@ -71,11 +68,23 @@ const perdido = {
   ],
 }
 
+  const renderPage = () => {
+    return render(
+      <ConfirmProvider>
+        <QueryClientProvider client={queryClient}>
+          <MemoryRouter initialEntries={['/painel/governanca']}>
+            <GovernancaPage />
+          </MemoryRouter>
+        </QueryClientProvider>
+      </ConfirmProvider>
+    )
+  }
+
 const dealAgosto = {
   ...negociacao,
   id: 'deal-4',
   name: 'Logística Vale',
-  reference_date: '2026-08-12T09:30:00',
+  appearances: [{ month: '2026-08', status: 'em_negociacao' }],
   segment: 'Logística',
   color: '#f59e0b',
   proposal: { id: 'p-4', final_price: 3200, created_at: '2026-08-12T09:00:00' },
@@ -160,17 +169,6 @@ describe('GovernancaPage', () => {
     vi.useRealTimers()
   })
 
-  const renderPage = () => {
-    return render(
-      <ConfirmProvider>
-        <QueryClientProvider client={queryClient}>
-          <MemoryRouter initialEntries={['/painel/governanca']}>
-            <GovernancaPage />
-          </MemoryRouter>
-        </QueryClientProvider>
-      </ConfirmProvider>
-    )
-  }
 
   it('rende o título e os cards de resumo do mês', async () => {
     renderPage()
@@ -361,5 +359,52 @@ describe('GovernancaPage', () => {
       expect(within(modal).getByText('Cliente: TechFinance BPOS')).toBeInTheDocument()
       expect(within(modal).getByText('Cláusula Primeira')).toBeInTheDocument()
     })
+  })
+})
+/**
+ * Regra do dono (2026-10-01): o negócio aparece no mês em que começou a
+ * prospecção, como **em negociação**, e no mês em que fechou, como
+ * **conquistado**. Este é o comportamento pedido; o resto dos testes desta
+ * página usa negócios de mês único.
+ */
+const fechouEmSetembro = {
+  ...conquistado,
+  id: 'deal-duplo',
+  name: 'Fechou Depois',
+  appearances: [
+    { month: '2026-07', status: 'em_negociacao' as const },
+    { month: '2026-09', status: 'conquistado' as const },
+  ],
+}
+
+describe('GovernancaPage — negócio nos dois meses', () => {
+  beforeEach(() => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-15T12:00:00Z'))
+    vi.clearAllMocks()
+    ;(getGovernanca as ReturnType<typeof vi.fn>).mockResolvedValue({
+      months: ['2026-09', '2026-07'],
+      deals: [fechouEmSetembro],
+    })
+  })
+
+  it('mostra o negócio como EM NEGOCIAÇÃO no mês da prospecção', async () => {
+    renderPage()
+    await screen.findByText('Fechou Depois')
+
+    await userEvent.setup().click(screen.getByTestId('month-picker'))
+    await userEvent.setup().click(screen.getByTestId('month-option-7'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Fechou Depois')).toBeInTheDocument()
+    })
+    // A tag do mês da prospecção é a de quem ainda estava em negociação.
+    expect(screen.getByTestId('deal-card').textContent).toContain('Em negociação')
+  })
+
+  it('mostra o mesmo negócio como CONQUISTADO no mês do fechamento', async () => {
+    renderPage()
+    expect(await screen.findByText('Fechou Depois')).toBeInTheDocument()
+    expect(screen.getByTestId('deal-card').textContent).toContain('Conquistado')
   })
 })

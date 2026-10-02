@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { Deal } from '../../api/governanca';
+import { DealNoMes } from '../../pages/panel/governancaMonth';
 import { Badge } from '../ui/badge';
 import { Button } from '../ui/button';
 import { Card } from '../ui/card';
@@ -10,7 +11,10 @@ import { DealDocsModal } from './DealDocsModal';
 import { cn } from '../../lib/utils';
 
 interface DealCardProps {
-  deal: Deal;
+  /** O negócio **no mês que está sendo olhado**: a tag renderizada é a desse
+   *  mês, não a do negócio. Um negócio capturado é `em_negociacao` no mês da
+   *  prospecção e `conquistado` no do fechamento. */
+  deal: DealNoMes;
   onUnreprove?: (deal: Deal) => void;
 }
 
