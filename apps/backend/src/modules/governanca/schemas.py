@@ -27,6 +27,18 @@ class TimelineEvent(BaseModel):
     mock: bool = False
 
 
+class DealAppearance(BaseModel):
+    """Um mês em que o negócio aparece na Governança, e a tag que ele carrega.
+
+    A tag é do **mês**, não do negócio: um negócio capturado aparece como
+    `em_negociacao` no mês em que a prospecção começou e como `conquistado` no mês
+    em que fechou (regra do dono, 2026-10-01).
+    """
+
+    month: str
+    status: str
+
+
 class Deal(BaseModel):
     id: UUID
     name: str
@@ -44,9 +56,7 @@ class Deal(BaseModel):
     representante_telefone: str | None = None
     representante_cpf: str | None = None
 
-    status: str
-    reference_date: datetime
-    client_id: UUID | None = None
+    appearances: list[DealAppearance] = []
     proposal: DealProposal | None = None
     contract: DealContract | None = None
     timeline: list[TimelineEvent] = []

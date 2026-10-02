@@ -26,9 +26,17 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 
 
 def _months_from_deals(deals: list) -> list[str]:
+    """Meses com negócio, do mais recente para o mais antigo.
+
+    Sai das **apariciones** de cada negócio, e não de uma data única: um negócio
+    capturado aparece no mês da prospecção e no do fechamento, e a barra de meses
+    precisa oferecer os dois. Pegar só o primeiro mês esconderia o mês em que a
+    captação de fato aconteceu.
+    """
     months: set[str] = set()
     for deal in deals:
-        months.add(deal.reference_date.strftime("%Y-%m"))
+        for appearance in deal.appearances:
+            months.add(appearance.month)
     return sorted(months, reverse=True)
 
 

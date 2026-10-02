@@ -70,6 +70,15 @@ class Company(Base):
     converted_at = Column(DateTime(timezone=True), nullable=True)
     reproved_at = Column(DateTime(timezone=True), nullable=True)
 
+    # Quando a prospecção começou. Para um prospecto, é o mesmo instante de
+    # `created_at`; para uma empresa que veio de um prospecto convertido, é a
+    # data original da prospecção, carregada no colapso. Existe porque a
+    # Governança agrupa o negócio pelo mês em que ele começou a ser
+    # prospectado, e a linha que sobrevive à conversão é a do cliente — criada
+    # na conversão, que é outro mês. Sem esta coluna, todo negócio prospectado
+    # antes da conversão mudaria de mês na tela.
+    negotiated_at = Column(DateTime(timezone=True), nullable=True)
+
     # `use_alter` porque `contacts.company_id` aponta de volta para cá: sem isso
     # o create_all do SQLite (que não faz ALTER ADD CONSTRAINT) trava.
     primary_contact_id = Column(

@@ -203,7 +203,18 @@ def collapse_prospect_into_client(
 
     prospect_company = session.get(Company, prospect.id)
     if prospect_company is not None:
+        # A data da prospecção viaja com o negócio antes de a empresa do
+        # prospecto ser apagada. A Governança agrupa pelo mês em que a
+        # prospecção começou, e a empresa do cliente nasce na conversão — outro
+        # mês. O fallback para `prospect.created_at` cobre empresa espelhada
+        # antes desta coluna existir.
+        data_prospeccao = prospect_company.negotiated_at or prospect.created_at
         session.delete(prospect_company)
+    else:
+        data_prospeccao = prospect.created_at
+
+    if company is not None and company.negotiated_at is None:
+        company.negotiated_at = data_prospeccao
 
     prospect.converted_client_id = client.id
     prospect.converted_at = converted_at

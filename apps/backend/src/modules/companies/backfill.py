@@ -19,6 +19,7 @@ testado é exatamente o código que roda na produção.
 
 import uuid
 from dataclasses import dataclass, field
+from datetime import datetime, timezone
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -85,6 +86,15 @@ def _company_from(source, company_type: str) -> Company:
         updated_at=source.updated_at,
         deleted_at=source.deleted_at,
         is_active=source.is_active,
+        # A prospecção começa junto com a linha. Não dá para copiar
+        # `source.created_at`: ele é `server_default` e o SQLAlchemy só o
+        # avalia **depois** deste ponto, então aqui ainda é `None`. O instante
+        # do insert em Python é a mesma coisa que a linha vai registrar. Para o
+        # espelho de um cliente criado direto fica `None` — é assim que a
+        # Governança sabe que aquele cliente nunca foi um negócio.
+        negotiated_at=None
+        if company_type == COMPANY_TYPE_CLIENT
+        else datetime.now(timezone.utc),
     )
     for field_name in CADASTRAL_FIELDS:
         setattr(company, field_name, getattr(source, field_name))
@@ -127,12 +137,21 @@ def backfill_companies(session: Session) -> BackfillReport:
     report = BackfillReport()
     existing = set(session.scalars(select(Company.id)))
     client_ids = set(session.scalars(select(Client.id)))
+    # Data de prospecção por cliente: o prospecto que virou aquele cliente. Lido
+    # antes do laço porque o prospecto só é visto na sequência seguinte.
+    prospeccao_por_cliente = {
+        prospect.converted_client_id: prospect.created_at
+        for prospect in session.scalars(select(Prospect))
+        if prospect.converted_client_id is not None
+    }
 
     for client in session.scalars(select(Client)):
         if client.id in existing:
             report.already_present += 1
             continue
-        session.add(_company_from(client, COMPANY_TYPE_CLIENT))
+        company = _company_from(client, COMPANY_TYPE_CLIENT)
+        company.negotiated_at = prospeccao_por_cliente.get(client.id)
+        session.add(company)
         report.clients_copied += 1
     session.flush()
 

@@ -443,7 +443,9 @@ def test_reprove_prospect_takes_it_out_of_the_list(client):
 
     governanca = client.get("/governanca/deals", headers=auth).json()
     perdido = [d for d in governanca["deals"] if d["id"] == prospect["id"]]
-    assert perdido and perdido[0]["status"] == "perdido", governanca
+    # A tag é do mês em que o negócio aparece, não do negócio
+    # (`appearances`, regra do dono 2026-10-01).
+    assert perdido and perdido[0]["appearances"][-1]["status"] == "perdido", governanca
 
     # Volta à negociação → reaparece na listagem
     resp = client.post(f"/prospects/{prospect['id']}/unreprove", headers=auth)

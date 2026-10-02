@@ -2,8 +2,16 @@
 Governança Module - Service Layer
 
 Visão macro (mensal) de toda a captação do usuário: cada negócio
-(= prospecto) é classificado como `conquistado` (convertido em Cliente),
-`perdido` (reprovado) ou `em_negociacao`, com a timeline do funil.
+(= empresa em prospecção ou já capturada) é classificado como `conquistado`
+(convertido em Cliente), `perdido` (reprovado) ou `em_negociacao`, com a
+timeline do funil.
+
+A lista vem de `companies`. A identidade do negócio é o id da empresa, e um
+negócio convertido **muda de id** no momento da conversão: a empresa do prospecto
+é apagada e sobra a do cliente. Isso é consequência de a Governança deixar de ler
+`prospects` — decisão do dono em 2026-10-01, e não uma troca de identificador
+escolhida: o `company_id` já estava preenchido em orçamentos e contratos, e é
+por ele que eles continuam sendo encontrados depois da conversão.
 """
 
 from datetime import datetime
@@ -12,13 +20,29 @@ from uuid import UUID
 from src.modules.contracts.models import Contract
 
 from .repository import GovernancaRepository
-from .schemas import Deal, DealContract, DealProposal, TimelineEvent
+from .schemas import (
+    Deal,
+    DealAppearance,
+    DealContract,
+    DealProposal,
+    TimelineEvent,
+)
 
 _DECISION_LABELS = {
     "approved": "Cliente aprovou a proposta",
     "changes": "Cliente solicitou alterações",
     "rejected": "Cliente reprovou a proposta",
 }
+
+
+def _month_key(value: datetime) -> str:
+    """Ano-mês no formato que a tela consome (`2026-03`).
+
+    Deliberadamente **sem** `astimezone`: o agrupamento é por mês do instante
+    registrado, e converter para outro fuso aqui arrastaria o negócio de mês
+    conforme onde a máquina roda — teste e produção veriam meses diferentes.
+    """
+    return f"{value.year:04d}-{value.month:02d}"
 
 
 def _parse_decided_at(value) -> datetime | None:
@@ -37,67 +61,89 @@ class GovernancaService:
         self.repo = repo
 
     def get_deals(self, user_id: UUID) -> list[Deal]:
-        prospects = self.repo.get_prospects(user_id)
-        prospect_ids = [p.id for p in prospects]
+        """Negócios da Governança, lidos de `companies` e ordenados por nome."""
+        companies = self.repo.get_deal_companies(user_id)
+        company_ids = [c.id for c in companies]
 
-        proposals_by_prospect: dict[UUID, list] = {}
-        for proposal in self.repo.get_proposals(user_id, prospect_ids):
-            proposals_by_prospect.setdefault(proposal.prospect_id, []).append(proposal)
+        proposals_by_company: dict[UUID, list] = {}
+        for proposal in self.repo.get_proposals(user_id, company_ids):
+            proposals_by_company.setdefault(proposal.company_id, []).append(proposal)
 
-        contracts_by_prospect: dict[UUID, list] = {}
-        for contract in self.repo.get_contracts(user_id, prospect_ids):
-            contracts_by_prospect.setdefault(contract.prospect_id, []).append(contract)
+        contracts_by_company: dict[UUID, list] = {}
+        for contract in self.repo.get_contracts(user_id, company_ids):
+            contracts_by_company.setdefault(contract.company_id, []).append(contract)
 
         deals: list[Deal] = []
-        for prospect in prospects:
-            proposals = proposals_by_prospect.get(prospect.id, [])
-            contracts = contracts_by_prospect.get(prospect.id, [])
+        for company in companies:
+            proposals = proposals_by_company.get(company.id, [])
+            contracts = contracts_by_company.get(company.id, [])
 
-            status = self._classify(prospect)
-            rep = self.repo.get_representative(prospect)
+            status = self._classify(company)
+            rep = self.repo.get_representative(company)
             deal = Deal(
-                id=prospect.id,
-                name=prospect.name,
-                cnpj=prospect.cnpj or None,
-                segment=prospect.segment or None,
-                color=prospect.color or None,
-                city=prospect.city or None,
-                state=prospect.state or None,
-                email=prospect.email or None,
-                phone=prospect.phone or None,
-                description=prospect.description or None,
+                id=company.id,
+                name=company.name,
+                cnpj=company.cnpj or None,
+                segment=company.segment or None,
+                color=company.color or None,
+                city=company.city or None,
+                state=company.state or None,
+                email=company.email or None,
+                phone=company.phone or None,
+                description=company.description or None,
                 representante_nome=rep.get("nome"),
                 representante_cargo=rep.get("cargo"),
                 representante_email=rep.get("email"),
                 representante_telefone=rep.get("telefone"),
                 representante_cpf=rep.get("cpf"),
-                status=status,
-                client_id=prospect.converted_client_id,
-                reference_date=self._reference_date(prospect, proposals, contracts),
+                appearances=self._appearances(company, status),
                 proposal=self._last_proposal(proposals),
                 contract=self._relevant_contract(contracts),
-                timeline=self._build_timeline(prospect, proposals, contracts, status),
+                timeline=self._build_timeline(company, proposals, contracts, status),
             )
             deals.append(deal)
 
         return deals
 
     @staticmethod
-    def _classify(prospect) -> str:
-        if prospect.converted_client_id is not None:
-            return "conquistado"
-        if prospect.reproved_at is not None:
-            return "perdido"
-        return "em_negociacao"
+    def _appearances(company, status: str) -> list[DealAppearance]:
+        """Meses em que o negócio aparece, e a tag de cada um.
+
+        Regra do dono (2026-10-01): o negócio aparece no mês em que **começou a
+        prospecção** e, se foi capturado, também no mês em que **fechou** — no
+        primeiro com a tag `em_negociacao`, no segundo com `conquistado`. É o que
+        faz a captação do mês mostrar o que foi negociado e o que foi fechado, em vez
+        de só o que existe hoje.
+
+        O que segura a data da prospecção depois da conversão é
+        `companies.negotiated_at`: a empresa do cliente nasce na conversão, em
+        outro mês, e a empresa do prospecto é apagada.
+
+        Se os dois meses forem o mesmo, sai **um** card com a tag final — duas
+        entradas no mesmo mês fariam o negócio contar duas vezes no resumo.
+        """
+        inicio = company.negotiated_at or company.created_at
+        meses: dict[str, str] = {}
+        if inicio is not None:
+            meses[_month_key(inicio)] = (
+                "em_negociacao" if status == "conquistado" else status
+            )
+        if status == "conquistado" and company.converted_at is not None:
+            meses[_month_key(company.converted_at)] = "conquistado"
+        return [DealAppearance(month=m, status=s) for m, s in meses.items()]
 
     @staticmethod
-    def _reference_date(prospect, proposals, contracts):
-        dates = [prospect.created_at]
-        if proposals:
-            dates.extend(p.created_at for p in proposals)
-        if contracts:
-            dates.extend(c.created_at for c in contracts)
-        return min(d for d in dates if d is not None)
+    def _classify(company) -> str:
+        """Estágio do funil, pelas flags de ciclo de vida espelhadas na empresa.
+
+        Os mesmos três estágios do legado, com a mesma precedência: converter
+        ganha de reprovar, o que faz sentido — negócio capturado não é perdido.
+        """
+        if company.converted_at is not None:
+            return "conquistado"
+        if company.reproved_at is not None:
+            return "perdido"
+        return "em_negociacao"
 
     @staticmethod
     def _last_proposal(proposals):
@@ -133,12 +179,15 @@ class GovernancaService:
         )
 
     @staticmethod
-    def _build_timeline(prospect, proposals, contracts, status) -> list[TimelineEvent]:
+    def _build_timeline(company, proposals, contracts, status) -> list[TimelineEvent]:
         events: list[TimelineEvent] = [
             TimelineEvent(
                 type="created",
                 label="Prospecção iniciada",
-                date=prospect.created_at,
+                # `negotiated_at` e não `created_at`: para o negócio já
+                # capturado, a empresa que sobreviveu nasceu na conversão, e a
+                # timeline precisa continuar mostrando quando a prospecção começou.
+                date=company.negotiated_at or company.created_at,
             )
         ]
 
@@ -185,7 +234,7 @@ class GovernancaService:
                         label="Proposta aprovada / Contrato assinado",
                         date=finalized.finalized_at
                         if finalized
-                        else prospect.converted_at,
+                        else company.converted_at,
                     )
                 )
         elif status == "perdido":
@@ -197,7 +246,7 @@ class GovernancaService:
                         if "rejected" in realized_types
                         else "Proposta recusada"
                     ),
-                    date=prospect.reproved_at,
+                    date=company.reproved_at,
                 )
             )
         elif not realized_types & {"approved", "rejected", "changes"}:

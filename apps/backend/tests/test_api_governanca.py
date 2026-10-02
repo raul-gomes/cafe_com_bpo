@@ -1,7 +1,5 @@
 from uuid import uuid4
 
-import pytest
-
 from tests.helpers import pricing_input_for_total, register_user
 
 
@@ -55,12 +53,26 @@ def get_deals(client, auth):
     return resp.json()
 
 
+def deal_status(deal) -> str:
+    """Estágio atual do negócio: a tag do **último** mês em que ele aparece.
+
+    A tag passou a ser por mês (regra do dono, 2026-10-01) — um negócio
+    capturado é `em_negociacao` no mês da prospecção e `conquistado` no do
+    fechamento. Os testes que verificam o estágio do negócio usam o último mês.
+    """
+    return deal["appearances"][-1]["status"]
+
+
 def test_deals_grouped_by_status(client):
     email = f"gov_status_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
 
     conquistado = create_prospect(client, auth, name="Ganhou Negócio").json()
-    client.post(f"/prospects/{conquistado['id']}/convert", headers=auth)
+    # A conversão devolve o id da empresa que sobreviveu, e é esse id que o
+    # negócio passa a ter na Governança.
+    conversao = client.post(f"/prospects/{conquistado['id']}/convert", headers=auth)
+    assert conversao.status_code in (200, 201)
+    conquistado_id = conversao.json()["client_id"]
 
     perdido = create_prospect(client, auth, name="Perdeu Negócio").json()
     client.post(f"/prospects/{perdido['id']}/reprove", headers=auth)
@@ -71,11 +83,11 @@ def test_deals_grouped_by_status(client):
     assert data["months"]
     by_id = {d["id"]: d for d in data["deals"]}
 
-    assert by_id[conquistado["id"]]["status"] == "conquistado"
-    assert by_id[perdido["id"]]["status"] == "perdido"
+    assert deal_status(by_id[conquistado_id]) == "conquistado"
+    assert deal_status(by_id[perdido["id"]]) == "perdido"
 
     negociacao = next(d for d in data["deals"] if d["name"] == "Em Negociação")
-    assert negociacao["status"] == "em_negociacao"
+    assert deal_status(negociacao) == "em_negociacao"
 
 
 def test_conquistado_deal_timeline_and_links(client):
@@ -84,13 +96,16 @@ def test_conquistado_deal_timeline_and_links(client):
     prospect = create_prospect(client, auth, name="Cliente Fechado").json()
     proposal = create_proposal(client, auth, prospect, final_price=3300.0).json()
     contract = generate_contract(client, auth, prospect, proposal).json()
-    client.post(f"/contracts/{contract['id']}/finalize", headers=auth)
+    # Finalizar o contrato converte o prospecto em cliente, e a resposta traz o
+    # id da empresa que sobrevveu — o id do negócio na Governança.
+    finalizacao = client.post(f"/contracts/{contract['id']}/finalize", headers=auth)
+    assert finalizacao.status_code in (200, 201), finalizacao.text
+    negocio_id = finalizacao.json()["client_id"]
 
     data = get_deals(client, auth)
-    deal = next(d for d in data["deals"] if d["id"] == prospect["id"])
+    deal = next(d for d in data["deals"] if d["id"] == negocio_id)
 
-    assert deal["status"] == "conquistado"
-    assert deal["client_id"] is not None
+    assert deal_status(deal) == "conquistado"
     assert deal["proposal"]["id"] == proposal["id"]
     assert deal["proposal"]["final_price"] == 3300.0
     assert deal["contract"]["id"] == contract["id"]
@@ -115,7 +130,7 @@ def test_perdido_deal_timeline(client):
         d for d in get_deals(client, auth)["deals"] if d["id"] == prospect["id"]
     )
 
-    assert deal["status"] == "perdido"
+    assert deal_status(deal) == "perdido"
     types = [t["type"] for t in deal["timeline"]]
     assert "rejected" in types
     assert "approved" not in types
@@ -132,7 +147,7 @@ def test_negociacao_deal_has_pending_mock(client):
         d for d in get_deals(client, auth)["deals"] if d["id"] == prospect["id"]
     )
 
-    assert deal["status"] == "em_negociacao"
+    assert deal_status(deal) == "em_negociacao"
     types = [t["type"] for t in deal["timeline"]]
     assert "pending" in types
     assert "approved" not in types
@@ -163,7 +178,7 @@ def test_negociacao_timeline_shows_full_client_decision_flow(client):
         d for d in get_deals(client, auth)["deals"] if d["id"] == prospect["id"]
     )
 
-    assert deal["status"] == "em_negociacao"
+    assert deal_status(deal) == "em_negociacao"
     types = [t["type"] for t in deal["timeline"]]
     assert "pending" not in types
     assert "changes" in types
@@ -291,23 +306,14 @@ def test_deal_contatante_representative_comes_from_the_contact(client):
     assert deal["representante_email"] == "pessoa@governanca.com.br"
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason=(
-        "Fase 3, item 7 (governança) BLOQUEADA: a identidade do negócio convertido é dupla — a "
-        "empresa do prospecto é apagada no colapso e sobra a do cliente, mas a tela mantém "
-        "id = prospect_id porque é o que liga nas propostas e contratos. Ler de `companies` "
-        "trocaria a identidade do negócio. Ver docs/pendencias.md 4.6/4.7 e a opção escolhida pelo "
-        "dono. Quando migrar, este teste passa e o `strict=True` obriga a remover o marcador."
-    ),
-)
 def test_deals_are_listed_from_companies_not_the_prospect_row(client):
     """A Governança lê a empresa (Fase 3, item 7).
 
     A lista de negócios vinha inteira de `prospects`: nome, contatos, segmentação
-    e o par `converted_client_id`/`reproved_at` que decide o status do funil. Tudo
-    isso já é espelho em `companies`, com o **mesmo id** (a conversão preserva o
-    id), então ler de lá não muda chave nenhuma de proposta ou contrato.
+    e as flags de ciclo de vida que decidem o status do funil. Tudo isso já é
+    espelho em `companies`, então ler de lá não muda o que a tela mostra — só a
+    origem. Para negócio convertido muda o id, e isso está em
+    `test_deal_identity_becomes_the_surviving_company_after_conversion`.
 
     O teste renomeia a empresa por fora da API: o espelho de cadastrais
     reescreveria também a linha `prospects`, e a asserção deixaria de provar
@@ -336,61 +342,189 @@ def test_deals_are_listed_from_companies_not_the_prospect_row(client):
     )
 
 
-def test_deal_identity_is_split_after_conversion(client):
-    """A identidade do negócio convertido é **dupla**, e isso trava a migração.
+def test_deal_identity_becomes_the_surviving_company_after_conversion(client):
+    """A identidade do negócio convertido é a **empresa que sobreviveu**.
 
-    Este teste **não** falha no código de hoje: ele fixa a topologia que a
-    Governança tem agora, que é o que impede a leitura de virar `companies`
-    mecanicamente.
+    Este teste documenta a topologia depois da migração da Governança para
+    `companies` (decisão do dono, 2026-10-01, `docs/pendencias.md` 4.6).
 
-    Depois da conversão existem dois ids, e eles não são o mesmo:
-    `companies` tem **uma** linha só, a do cliente (C, `type='client'`,
-    `converted_at` preenchido) — a empresa do prospecto (P) é apagada no
-    colapso (`companies/sync.py:154`). O negócio na Governança continua com
-    `id = P`, que é o que liga nas propostas e nos contratos (`prospect_id`),
-    e com `client_id = C`, que é a empresa que sobreviveu.
+    Na conversão existem dois ids, e não são o mesmo: a empresa do prospecto (P) é
+    apagada no colapso (`companies/sync.py:154`) e sobra a do cliente (C,
+    `type='client'`, `converted_at` preenchido). A Governança agora lista
+    `companies`, então o negócio sai com `id = C` — era `P` quando a lista vinha
+    de `prospects`.
 
-    Ler a Governança de `companies` significaria trocar a identidade do negócio de
-    P para C, e com ela as chaves de proposta e contrato. Isso é decisão de
-    produto, não refatoração: está em `docs/pendencias.md` 4.6. O que este teste
-    garante é que ninguém troca a identidade sem perceber.
+    Orçamentos e contratos **não**accompanham essa troca e não precisam: eles já
+    carregavam `company_id = C` desde o colapso, e é por essa coluna que a
+    Governança os agrupa. O que a migração trocou foi a identidade do negócio, não
+    a chave dos documentos.
     """
     from uuid import UUID
 
     from src.core.database import SessionLocal
     from src.modules.companies.models import Company
 
-    auth = get_auth_header(client, f"gov_status_{uuid4()}@cafe.com")
+    auth = get_auth_header(client, f"gov_identidade_{uuid4()}@cafe.com")
     em_negociacao = create_prospect(client, auth, name="Ainda Negociando").json()
     conquistado = create_prospect(client, auth, name="Virou Cliente").json()
     perdido = create_prospect(client, auth, name="Foi Perdido").json()
 
-    assert client.post(
+    conversao = client.post(
         f"/prospects/{conquistado['id']}/convert", json={}, headers=auth
-    ).status_code in (200, 201)
+    )
+    assert conversao.status_code in (200, 201)
+    client_id = conversao.json()["client_id"]
     assert client.post(
         f"/prospects/{perdido['id']}/reprove", json={}, headers=auth
     ).status_code in (200, 201)
 
-    deals = {d["id"]: d for d in get_deals(client, auth)["deals"]}
+    deals = {d["name"]: d for d in get_deals(client, auth)["deals"]}
 
-    assert deals[em_negociacao["id"]]["status"] == "em_negociacao"
-    assert deals[conquistado["id"]]["status"] == "conquistado"
-    assert deals[perdido["id"]]["status"] == "perdido"
-    assert deals[perdido["id"]]["client_id"] is None
+    # Quem não converteu mantém o próprio id: empresa do prospecto e negócio são
+    # a mesma linha.
+    assert deals["Ainda Negociando"]["id"] == em_negociacao["id"]
+    assert deals["Foi Perdido"]["id"] == perdido["id"]
 
-    # A identidade dupla: o negócio fica no id do prospecto (é o que liga nas
-    # propostas e contratos) e aponta para o id da empresa que sobreviveu.
-    negocio = deals[conquistado["id"]]
-    assert negocio["id"] == conquistado["id"]
-    assert negocio["client_id"] != conquistado["id"]
+    # Quem converteu passa a ser a empresa que sobrou, e o id antigo não existe
+    # mais como empresa.
+    assert deals["Virou Cliente"]["id"] == client_id
+    assert deals["Virou Cliente"]["id"] != conquistado["id"]
 
     session = SessionLocal()
     try:
-        # `companies` guarda a empresa do cliente; a do prospecto não existe mais.
         assert session.get(Company, UUID(conquistado["id"])) is None
-        sobrevivente = session.get(Company, UUID(negocio["client_id"]))
+        sobrevivente = session.get(Company, UUID(client_id))
         assert sobrevivente is not None and sobrevivente.type == "client"
         assert session.get(Company, UUID(perdido["id"])).reproved_at is not None
     finally:
         session.close()
+
+
+def _set_deal_dates(client, company_id, *, negotiated_at, converted_at=None):
+    """Fixa as datas do negócio direto na empresa, para o agrupamento mensal ser
+    determinístico. Uma conversão e uma prospecção acontecem no mesmo instante
+    num teste, então os dois meses cairiam juntos e a regra dos dois meses não
+    seria observável."""
+    from datetime import datetime, timezone
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.companies.models import Company
+
+    def _aware(value):
+        return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+
+    session = SessionLocal()
+    try:
+        company = session.get(Company, UUID(company_id))
+        company.negotiated_at = _aware(negotiated_at)
+        if converted_at is not None:
+            company.converted_at = _aware(converted_at)
+        session.commit()
+    finally:
+        session.close()
+
+
+def test_converted_deal_appears_in_the_prospecting_month_and_in_the_closing_month(
+    client,
+):
+    """Regra do dono (2026-10-01): o negócio aparece no mês em que começou a
+    prospecção, como **em negociação**, e no mês em que fechou, como
+    **conquistado**. A mesma empresa, em dois cards, com a tag de cada época.
+
+    Sem isso, a Governança migrada para `companies` mostraria todo negócio
+    capturado apenas no mês da conversão — a data da prospecção morre com a
+    empresa do prospecto, e é por isso que existe `companies.negotiated_at`.
+    """
+    auth = get_auth_header(client, f"gov_meses_{uuid4()}@cafe.com")
+    prospect = create_prospect(client, auth, name="Fechou em Outro Mês").json()
+    conversao = client.post(
+        f"/prospects/{prospect['id']}/convert", json={}, headers=auth
+    )
+    assert conversao.status_code in (200, 201), conversao.text
+    client_id = conversao.json()["client_id"]
+
+    _set_deal_dates(
+        client,
+        client_id,
+        negotiated_at="2026-03-10T09:00:00",
+        converted_at="2026-05-22T16:30:00",
+    )
+
+    deal = next(
+        d
+        for d in get_deals(client, auth)["deals"]
+        if d["name"] == "Fechou em Outro Mês"
+    )
+    aparicoes = {a["month"]: a["status"] for a in deal["appearances"]}
+    assert aparicoes == {"2026-03": "em_negociacao", "2026-05": "conquistado"}, (
+        f"negócio convertido deveria aparecer nos dois meses, veio {aparicoes}"
+    )
+
+
+def test_negotiation_and_closing_in_the_same_month_yields_one_card(client):
+    """Prospecção e conversão no mesmo mês: **um** card só, com a tag final.
+
+    Dois cards de meses diferentes é a regra; duas entradas no mesmo mês
+    fariam o negócio contar duas vezes no resumo daquele mês.
+    """
+    auth = get_auth_header(client, f"gov_mes_unico_{uuid4()}@cafe.com")
+    prospect = create_prospect(client, auth, name="Fechou no Mesmo Mês").json()
+    conversao = client.post(
+        f"/prospects/{prospect['id']}/convert", json={}, headers=auth
+    )
+    assert conversao.status_code in (200, 201), conversao.text
+
+    _set_deal_dates(
+        client,
+        conversao.json()["client_id"],
+        negotiated_at="2026-04-02T09:00:00",
+        converted_at="2026-04-28T17:00:00",
+    )
+
+    deal = next(
+        d
+        for d in get_deals(client, auth)["deals"]
+        if d["name"] == "Fechou no Mesmo Mês"
+    )
+    assert deal["appearances"] == [{"month": "2026-04", "status": "conquistado"}]
+
+
+def test_open_and_lost_deals_appear_once_in_the_prospecting_month(client):
+    """Negócio que não fechou não ganha segunda aparição: a regra dos dois meses
+    é sobre a conversão, e inventar uma segunda entrada para o mês da perda
+    mudaria o resumo de meses onde antes havia um card só."""
+    auth = get_auth_header(client, f"gov_mes_abertos_{uuid4()}@cafe.com")
+    em_negociacao = create_prospect(client, auth, name="Segue Negociação").json()
+    perdido = create_prospect(client, auth, name="Segue Perdido").json()
+    assert client.post(
+        f"/prospects/{perdido['id']}/reprove", json={}, headers=auth
+    ).status_code in (200, 201)
+
+    _set_deal_dates(client, em_negociacao["id"], negotiated_at="2026-06-01T09:00:00")
+    _set_deal_dates(client, perdido["id"], negotiated_at="2026-07-01T09:00:00")
+
+    deals = {d["name"]: d for d in get_deals(client, auth)["deals"]}
+    assert deals["Segue Negociação"]["appearances"] == [
+        {"month": "2026-06", "status": "em_negociacao"}
+    ]
+    assert deals["Segue Perdido"]["appearances"] == [
+        {"month": "2026-07", "status": "perdido"}
+    ]
+
+
+def test_deal_payload_carries_only_what_the_governance_screen_reads(client):
+    """Regra §6: o payload tem o que a tela lê e nada mais.
+
+    `client_id` nunca foi lido por ninguém, `reference_date` virou `appearances`
+    (a data deixou de ser um valor só) e `status` passou a ser de cada mês, não
+    do negócio — o frontend deriva a tag do mês que está olhando.
+    """
+    auth = get_auth_header(client, f"gov_payload_{uuid4()}@cafe.com")
+    prospect = create_prospect(client, auth, name="Payload Mínimo").json()
+
+    deal = next(
+        d for d in get_deals(client, auth)["deals"] if d["id"] == prospect["id"]
+    )
+    for campo in ("client_id", "reference_date", "status"):
+        assert campo not in deal, f"`{campo}` não é mais lido pela Governança"
