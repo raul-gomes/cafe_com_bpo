@@ -12,7 +12,7 @@ re-criado. O backfill é escrito para ser idempotente e para não depender de
 `type`, porque uma empresa convertida é `type='client'` e mesmo assim tem data
 de prospecção.
 
-Revision ID: b1c2d3e4f5a6
+Revision ID: e9f0a1b2c3d4
 Revises: f4a5b6c7d8e9
 Create Date: 2026-10-01
 
@@ -25,7 +25,7 @@ import sqlalchemy as sa
 
 from alembic import op
 
-revision: str = "b1c2d3e4f5a6"
+revision: str = "e9f0a1b2c3d4"
 down_revision: str | Sequence[str] | None = "f4a5b6c7d8e9"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
