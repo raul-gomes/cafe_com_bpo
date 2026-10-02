@@ -22,6 +22,10 @@ services:
       - ./apps/backend/src:/app/src
       - ./apps/backend/tests:/app/tests
       - ./apps/backend/alembic:/app/alembic
+      # pytest.ini precisa do host: sem o mount o container usa a cópia do
+      # build (sem `addopts = -m "not integration"`) e a suíte padrão passa a
+      # rodar os testes de integração, tocando rede.
+      - ./apps/backend/pytest.ini:/app/pytest.ini:ro
 
   gateway:
     build:

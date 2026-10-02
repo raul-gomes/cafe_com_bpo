@@ -309,7 +309,9 @@ export const TasksPage: React.FC = () => {
                 return true;
             }
             if (isMiddlePhase) {
-                // Tasks em andamento ficam "on hold": não contam como atrasadas
+                // Card em andamento com prazo vencido também está atrasado
+                // (regra do dono): a fase não isenta da tag de atraso.
+                if (isOverdue(t)) return true;
                 if (mode === 'overdue') return false;
                 // Sem deadline: sempre visível na fase intermediária
                 if (!t.deadline) return true;

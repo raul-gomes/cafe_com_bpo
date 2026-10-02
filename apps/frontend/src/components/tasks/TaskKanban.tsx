@@ -20,21 +20,20 @@ type Props = {
   bulkLoading: Record<string, 'completing' | 'cancelling' | null>;
 };
 
-const isTaskOverdueFn = (task: TaskResponse, doneColumnId: string, inProgressColumnIds: Set<string>, getTaskStatus: (t: TaskResponse) => string): boolean => {
+const isTaskOverdueFn = (task: TaskResponse, doneColumnId: string, getTaskStatus: (t: TaskResponse) => string): boolean => {
   const status = getTaskStatus(task);
   if (status === doneColumnId) return false;
-  // Tasks em andamento ficam "on hold": nunca são marcadas como atrasadas
-  if (inProgressColumnIds.has(status)) return false;
+  // A fase não isenta o card do atraso: só a conclusão zera a contagem.
   return task.is_overdue;
 };
 
 const getOverdueDaysFn = (task: TaskResponse): number => task.days_remaining ? -task.days_remaining : 0;
 
-const sortTasksByUrgency = (tasksToSort: TaskResponse[], doneColumnId: string, inProgressColumnIds: Set<string>, getTaskStatus: (t: TaskResponse) => string): TaskResponse[] => {
+const sortTasksByUrgency = (tasksToSort: TaskResponse[], doneColumnId: string, getTaskStatus: (t: TaskResponse) => string): TaskResponse[] => {
   const priorityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
   return [...tasksToSort].sort((a, b) => {
-    const aOver = isTaskOverdueFn(a, doneColumnId, inProgressColumnIds, getTaskStatus);
-    const bOver = isTaskOverdueFn(b, doneColumnId, inProgressColumnIds, getTaskStatus);
+    const aOver = isTaskOverdueFn(a, doneColumnId, getTaskStatus);
+    const bOver = isTaskOverdueFn(b, doneColumnId, getTaskStatus);
     if (aOver !== bOver) return aOver ? -1 : 1;
     const aPrio = priorityOrder[a.priority] ?? 1;
     const bPrio = priorityOrder[b.priority] ?? 1;
@@ -63,16 +62,10 @@ const TaskKanbanInner: React.FC<Props> = ({
     ? (sortedPhases.find(p => p.is_done)?.id ?? sortedPhases[sortedPhases.length - 1].id)
     : 'done';
 
-  // Fases "em andamento" (não é a primeira nem a de conclusão) → on hold, nunca atrasadas
-  const firstColumnId = sortedPhases.length > 0 ? sortedPhases[0].id : 'todo';
-  const inProgressColumnIds = new Set(
-    sortedPhases.filter(p => !p.is_done && p.id !== firstColumnId).map(p => p.id)
-  );
-
   const getClient = (id: string) => clients.find((c: any) => c.id === id);
 
   // Create single-arg wrappers for TaskCard props
-  const isTaskOverdueWrapper = (task: TaskResponse): boolean => isTaskOverdueFn(task, doneColumnId, inProgressColumnIds, getTaskStatus);
+  const isTaskOverdueWrapper = (task: TaskResponse): boolean => isTaskOverdueFn(task, doneColumnId, getTaskStatus);
 
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(280px, 1fr))` } as React.CSSProperties}>
@@ -154,7 +147,6 @@ const TaskKanbanInner: React.FC<Props> = ({
                     return t.title.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q);
                   }),
                   doneColumnId,
-                  inProgressColumnIds,
                   getTaskStatus,
                 ).map((task, index) => {
                   const client = getClient(task.client_id);
