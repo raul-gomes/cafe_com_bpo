@@ -12,6 +12,7 @@ from src.core.database import SessionLocal
 from src.core.security import PasswordService
 from src.modules.auth.models import User
 from src.modules.auth.repository import UserRepository
+from src.modules.governanca import service as governanca_service
 from src.modules.task_manager.assignments import service as assignments_service
 from src.modules.task_manager.task import repository as task_repository
 from src.modules.task_manager.task import service as task_service
@@ -111,6 +112,25 @@ def auth_header(client, email: str) -> dict:
 
 def unique_email(prefix: str) -> str:
     return f"{prefix}_{uuid4()}@cafe.com"
+
+
+def freeze_governance_clock(fixed: datetime | None = None):
+    """Congela o relógio da Governança num instante fixo.
+
+    A regra das aparições (dono, 2026-10-02) estende o negócio em negociação até
+    o **mês corrente**, então o payload depende de `datetime.now()`. Sem congelar,
+    um teste que espera "set, out" passaria em outubro e falharia em novembro — e
+    o CI rodaria a cada dia do ano. O módulo alvo é `governanca.service`, onde o
+    `datetime` é usado só para o mês corrente.
+    """
+    moment = fixed or datetime(2026, 10, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment if tz is None else moment.astimezone(tz)
+
+    return mock.patch.object(governanca_service, "datetime", _FixedClock)
 
 
 def freeze_assignments_clock(weekday: datetime | None = None):

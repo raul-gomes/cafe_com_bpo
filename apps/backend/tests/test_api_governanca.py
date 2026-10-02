@@ -1,6 +1,11 @@
+from datetime import datetime, timezone
 from uuid import uuid4
 
-from tests.helpers import pricing_input_for_total, register_user
+from tests.helpers import (
+    freeze_governance_clock,
+    pricing_input_for_total,
+    register_user,
+)
 
 
 def get_auth_header(client, email):
@@ -453,7 +458,9 @@ def test_deal_identity_becomes_the_surviving_company_after_conversion(client):
         session.close()
 
 
-def _set_deal_dates(client, company_id, *, negotiated_at, converted_at=None):
+def _set_deal_dates(
+    client, company_id, *, negotiated_at, converted_at=None, reproved_at=None
+):
     """Fixa as datas do negócio direto na empresa, para o agrupamento mensal ser
     determinístico. Uma conversão e uma prospecção acontecem no mesmo instante
     num teste, então os dois meses cairiam juntos e a regra dos dois meses não
@@ -473,6 +480,8 @@ def _set_deal_dates(client, company_id, *, negotiated_at, converted_at=None):
         company.negotiated_at = _aware(negotiated_at)
         if converted_at is not None:
             company.converted_at = _aware(converted_at)
+        if reproved_at is not None:
+            company.reproved_at = _aware(reproved_at)
         session.commit()
     finally:
         session.close()
@@ -510,8 +519,13 @@ def test_converted_deal_appears_in_the_prospecting_month_and_in_the_closing_mont
         if d["name"] == "Fechou em Outro Mês"
     )
     aparicoes = {a["month"]: a["status"] for a in deal["appearances"]}
-    assert aparicoes == {"2026-03": "em_negociacao", "2026-05": "conquistado"}, (
-        f"negócio convertido deveria aparecer nos dois meses, veio {aparicoes}"
+    assert aparicoes == {
+        "2026-03": "em_negociacao",
+        "2026-04": "em_negociacao",
+        "2026-05": "conquistado",
+    }, (
+        "o negócio ocupa os meses em que esteve aberto (regra do dono 2026-10-02), "
+        f"veio {aparicoes}"
     )
 
 
@@ -543,27 +557,109 @@ def test_negotiation_and_closing_in_the_same_month_yields_one_card(client):
     assert deal["appearances"] == [{"month": "2026-04", "status": "conquistado"}]
 
 
-def test_open_and_lost_deals_appear_once_in_the_prospecting_month(client):
-    """Negócio que não fechou não ganha segunda aparição: a regra dos dois meses
-    é sobre a conversão, e inventar uma segunda entrada para o mês da perda
-    mudaria o resumo de meses onde antes havia um card só."""
-    auth = get_auth_header(client, f"gov_mes_abertos_{uuid4()}@cafe.com")
-    em_negociacao = create_prospect(client, auth, name="Segue Negociação").json()
-    perdido = create_prospect(client, auth, name="Segue Perdido").json()
-    assert client.post(
-        f"/prospects/{perdido['id']}/reprove", json={}, headers=auth
-    ).status_code in (200, 201)
+def test_open_deal_repeats_every_month_until_it_closes(client):
+    """Negócio ainda em negociação aparece **em todos os meses** até fechar.
 
-    _set_deal_dates(client, em_negociacao["id"], negotiated_at="2026-06-01T09:00:00")
-    _set_deal_dates(client, perdido["id"], negotiated_at="2026-07-01T09:00:00")
+    Regra do dono (2026-10-02): a Governança responde "quantos negócios estavam em
+    negociação em cada mês". Um negócio prospectado em setembro e ainda aberto em
+    outubro estava em negociação nos dois meses, então aparece nos dois — a
+    versão anterior (só o mês da prospecção) escondia o pipeline corrente.
+    """
+    with freeze_governance_clock(datetime(2026, 10, 15, 12, 0, tzinfo=timezone.utc)):
+        auth = get_auth_header(client, f"gov_aberto_{uuid4()}@cafe.com")
+        prospect = create_prospect(client, auth, name="Segue Negociação").json()
+        _set_deal_dates(client, prospect["id"], negotiated_at="2026-09-28T18:57:00")
 
-    deals = {d["name"]: d for d in get_deals(client, auth)["deals"]}
-    assert deals["Segue Negociação"]["appearances"] == [
-        {"month": "2026-06", "status": "em_negociacao"}
-    ]
-    assert deals["Segue Perdido"]["appearances"] == [
-        {"month": "2026-07", "status": "perdido"}
-    ]
+        deal = next(
+            d
+            for d in get_deals(client, auth)["deals"]
+            if d["name"] == "Segue Negociação"
+        )
+        assert deal["appearances"] == [
+            {"month": "2026-09", "status": "em_negociacao"},
+            {"month": "2026-10", "status": "em_negociacao"},
+        ], f"veio {deal['appearances']}"
+
+
+def test_open_deal_crossing_a_year_boundary_keeps_months_continuous(client):
+    """Negócio aberto de novembro a janeiro atravessa a virada de ano."""
+    with freeze_governance_clock(datetime(2027, 1, 20, 12, 0, tzinfo=timezone.utc)):
+        auth = get_auth_header(client, f"gov_virada_{uuid4()}@cafe.com")
+        prospect = create_prospect(client, auth, name="Virada de Ano").json()
+        _set_deal_dates(client, prospect["id"], negotiated_at="2026-11-10T09:00:00")
+
+        deal = next(
+            d for d in get_deals(client, auth)["deals"] if d["name"] == "Virada de Ano"
+        )
+        assert [a["month"] for a in deal["appearances"]] == [
+            "2026-11",
+            "2026-12",
+            "2027-01",
+        ], f"veio {deal['appearances']}"
+
+
+def test_lost_deal_keeps_the_open_months_and_gains_lost_in_the_loss_month(client):
+    """Perdido depois de semanas: aberto nos meses que durou, `perdido` no da perda.
+
+    A regra antiga (2026-10-01) perdia a trajetória: o negócio sumia depois do mês
+    da prospecção e reaparecia já perdido no fim. O dono confirmou em 2026-10-02 que
+    ele ocupa todos os meses em que esteve em negociação.
+    """
+    with freeze_governance_clock(datetime(2026, 11, 5, 12, 0, tzinfo=timezone.utc)):
+        auth = get_auth_header(client, f"gov_perdido_{uuid4()}@cafe.com")
+        perdido = create_prospect(client, auth, name="Segue Perdido").json()
+        assert client.post(
+            f"/prospects/{perdido['id']}/reprove", json={}, headers=auth
+        ).status_code in (200, 201)
+        _set_deal_dates(
+            client,
+            perdido["id"],
+            negotiated_at="2026-09-05T09:00:00",
+            reproved_at="2026-10-18T11:00:00",
+        )
+
+        deal = next(
+            d for d in get_deals(client, auth)["deals"] if d["name"] == "Segue Perdido"
+        )
+        assert deal["appearances"] == [
+            {"month": "2026-09", "status": "em_negociacao"},
+            {"month": "2026-10", "status": "perdido"},
+        ], f"veio {deal['appearances']}"
+
+
+def test_lost_in_the_prospecting_month_yields_one_lost_card(client):
+    """Prospecção e perda no mesmo mês: um card só, com a tag final."""
+    with freeze_governance_clock(datetime(2026, 10, 15, 12, 0, tzinfo=timezone.utc)):
+        auth = get_auth_header(client, f"gov_perdida_mes_{uuid4()}@cafe.com")
+        perdido = create_prospect(client, auth, name="Perdido no Mesmo Mes").json()
+        assert client.post(
+            f"/prospects/{perdido['id']}/reprove", json={}, headers=auth
+        ).status_code in (200, 201)
+        _set_deal_dates(
+            client,
+            perdido["id"],
+            negotiated_at="2026-07-05T09:00:00",
+            reproved_at="2026-07-29T11:00:00",
+        )
+
+        deal = next(
+            d
+            for d in get_deals(client, auth)["deals"]
+            if d["name"] == "Perdido no Mesmo Mes"
+        )
+        assert deal["appearances"] == [{"month": "2026-07", "status": "perdido"}]
+
+
+def test_months_bar_lists_every_month_a_deal_appears_in(client):
+    """A barra de meses vem das aparições, então ganha os meses intermediários."""
+    with freeze_governance_clock(datetime(2026, 10, 15, 12, 0, tzinfo=timezone.utc)):
+        auth = get_auth_header(client, f"gov_barra_{uuid4()}@cafe.com")
+        prospect = create_prospect(client, auth, name="Barra de Meses").json()
+        _set_deal_dates(client, prospect["id"], negotiated_at="2026-08-20T09:00:00")
+
+        data = get_deals(client, auth)
+        for mes in ("2026-08", "2026-09", "2026-10"):
+            assert mes in data["months"], f"{mes} faltou na barra: {data['months']}"
 
 
 def test_deal_payload_carries_only_what_the_governance_screen_reads(client):

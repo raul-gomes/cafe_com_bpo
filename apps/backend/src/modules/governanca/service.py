@@ -14,7 +14,7 @@ escolhida: o `company_id` já estava preenchido em orçamentos e contratos, e é
 por ele que eles continuam sendo encontrados depois da conversão.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from src.modules.contracts.models import Contract
@@ -43,6 +43,29 @@ def _month_key(value: datetime) -> str:
     conforme onde a máquina roda — teste e produção veriam meses diferentes.
     """
     return f"{value.year:04d}-{value.month:02d}"
+
+
+def _months_between(first: datetime, last: datetime) -> list[str]:
+    """Meses de `first` a `last`, inclusive, no formato `YYYY-MM`.
+
+    Args:
+        first: Instante do primeiro mês da faixa.
+        last: Instante do último mês da faixa, não anterior a `first`.
+
+    Returns:
+        Os meses em ordem cronológica, do primeiro ao último. A contagem é por
+        ano e mês, e não por dias, porque a duração do mês varia — somar 30 dias
+        pularia fevereiro.
+    """
+    ano, mes = first.year, first.month
+    ultimo = (last.year, last.month)
+    meses: list[str] = []
+    while (ano, mes) <= ultimo:
+        meses.append(f"{ano:04d}-{mes:02d}")
+        mes += 1
+        if mes > 12:
+            ano, mes = ano + 1, 1
+    return meses
 
 
 def _parse_decided_at(value) -> datetime | None:
@@ -109,28 +132,52 @@ class GovernancaService:
     def _appearances(company, status: str) -> list[DealAppearance]:
         """Meses em que o negócio aparece, e a tag de cada um.
 
-        Regra do dono (2026-10-01): o negócio aparece no mês em que **começou a
-        prospecção** e, se foi capturado, também no mês em que **fechou** — no
-        primeiro com a tag `em_negociacao`, no segundo com `conquistado`. É o que
-        faz a captação do mês mostrar o que foi negociado e o que foi fechado, em vez
-        de só o que existe hoje.
+        Regra do dono (2026-10-01, ampliada em **2026-10-02**): o negócio ocupa
+        **todos os meses em que esteve em negociação**, do mês em que começou a
+        prospecção até o fechamento — e, se ainda estiver aberto, até o mês
+        corrente. O que fecha leva a tag do desfecho (`conquistado` ou `perdido`)
+        só no mês em que fechou; os meses anteriores ficam `em_negociacao`.
+
+        Antes o negócio aparecia em dois meses (prospecção e fechamento), o que
+        respondia "o que foi negociado e o que foi fechado" mas escondia o
+        pipeline corrente: uma empresa prospectada em setembro e ainda aberta em
+        outubro sumia de outubro.
 
         O que segura a data da prospecção depois da conversão é
         `companies.negotiated_at`: a empresa do cliente nasce na conversão, em
         outro mês, e a empresa do prospecto é apagada.
 
-        Se os dois meses forem o mesmo, sai **um** card com a tag final — duas
-        entradas no mesmo mês fariam o negócio contar duas vezes no resumo.
+        Uma aparição por mês, sempre: se prospecção e desfecho caírem no mesmo
+        mês, sai **um** card com a tag final — duas entradas no mesmo mês fariam
+        o negócio contar duas vezes no resumo daquele mês.
         """
         inicio = company.negotiated_at or company.created_at
-        meses: dict[str, str] = {}
-        if inicio is not None:
-            meses[_month_key(inicio)] = (
-                "em_negociacao" if status == "conquistado" else status
+        if inicio is None:
+            return []
+
+        if status == "conquistado":
+            fim, tag_final = company.converted_at, "conquistado"
+        elif status == "perdido":
+            fim, tag_final = company.reproved_at, "perdido"
+        else:
+            # Ainda em negociação: o alcance é o mês corrente.
+            fim, tag_final = datetime.now(timezone.utc), None
+
+        # Um desfecho anterior à prospecção é dado inconsistente, e a faixa ficaria
+        # invertida: o negócio fica só no mês em que nasceu, com a tag final.
+        if fim is None or _month_key(fim) < _month_key(inicio):
+            return [
+                DealAppearance(month=_month_key(inicio), status=tag_final or status)
+            ]
+
+        meses = _months_between(inicio, fim)
+        return [
+            DealAppearance(
+                month=mes,
+                status=tag_final if tag_final and mes == meses[-1] else "em_negociacao",
             )
-        if status == "conquistado" and company.converted_at is not None:
-            meses[_month_key(company.converted_at)] = "conquistado"
-        return [DealAppearance(month=m, status=s) for m, s in meses.items()]
+            for mes in meses
+        ]
 
     @staticmethod
     def _classify(company) -> str:
