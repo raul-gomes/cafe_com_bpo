@@ -22,7 +22,7 @@ from src.modules.proposals.models import PricingScenario
 # Campos que definem o vencimento do contrato: mesmo com default preenchido,
 # são SEMPRE pedidos no modal de geração (com o default como valor inicial).
 _ALWAYS_ASKED_KEYS = {"dia_vencimento", "primeiro_vencimento"}
-from src.modules.prospects.models import Prospect
+from src.modules.companies.models import Company
 
 # Listas de colocação dos serviços no Anexo I.
 SERVICO_RECORRENTE = "servicos"
@@ -39,9 +39,9 @@ CONTRATADA_SOURCE_KEYS: dict[str, str] = {
     "contratada_representante_cargo": "representante_cargo",
 }
 
-# Token de CONTRATANTE que já tem fonte no prospecto (atributos do model
-# `Prospect`). Quando o valor correspondente existe, o campo deixa de ser
-# solicitado no modal — o token é resolvido automaticamente na geração.
+# Token de CONTRATANTE que já tem fonte no representante do negócio. Quando o
+# valor correspondente existe, o campo deixa de ser solicitado no modal — o token
+# é resolvido automaticamente na geração.
 CONTRATANTE_SOURCE_KEYS: dict[str, str] = {
     "contratante_representante_nome": "representante_nome",
     "contratante_representante_cargo": "representante_cargo",
@@ -381,27 +381,22 @@ def _servico_rows(proposal: PricingScenario | None) -> tuple[list[dict], list[di
     return recorrentes, pontuais
 
 
-def _fonte_contratante(
-    field: dict[str, Any], prospect: Prospect, representante: dict | None
-) -> Any:
+def _fonte_contratante(field: dict[str, Any], representante: dict | None) -> Any:
     """Valor do token de CONTRATANTE para saber se o campo está preenchido.
 
-    Fase 4: o representante vem do CONTATO (`representante` dict). Só quando o
-    contato não tem o valor (ou é `None`) cai na coluna legada do prospecto.
+    O representante chega já resolvido (`companies.representative`): contato ativo
+    primeiro, colunas legadas do prospecto depois. Antes a coluna legada era lida
+    aqui, direto do objeto do prospecto — com a empresa como dona do negócio, a
+    única fonte é o dict normalizado.
     """
-    prospect_key = CONTRATANTE_SOURCE_KEYS.get(field["key"])
-    if prospect_key is None:
+    contato_key = CONTRATANTE_CONTATO_KEYS.get(field["key"])
+    if contato_key is None or representante is None:
         return None
-    if representante is not None:
-        contato_key = CONTRATANTE_CONTATO_KEYS.get(field["key"])
-        valor = contato_key and representante.get(contato_key)
-        if valor:
-            return valor
-    return getattr(prospect, prospect_key, None)
+    return representante.get(contato_key)
 
 
 def all_missing_field_descriptors(
-    prospect: Prospect,
+    company: Company,
     proposal: PricingScenario | None,
     contractada: dict | None,
     representante: dict | None = None,
@@ -409,10 +404,19 @@ def all_missing_field_descriptors(
     """Descritores completos (escalares + listas) dos campos sem fonte no banco.
 
     Campos com valor pré-preenchido (default não vazio, perfil de CONTRATADA ou
-    representante de CONTRATANTE no prospecto) não são solicitados no modal —
-    o usuário ajusta o valor diretamente no contrato. O representante de
-    CONTRATANTE vem do CONTATO (Fase 4); sem contato, vale a coluna legada.
+    representante de CONTRATANTE) não são solicitados no modal — o usuário ajusta
+    o valor diretamente no contrato. O representante de CONTRATANTE vem do CONTATO
+    (Fase 4) e, sem contato, da coluna legada — resolvido antes de chegar aqui.
     Serviços e volumes do Anexo I vêm do orçamento e não são pedidos.
+
+    Args:
+        company: Empresa dona do negócio, com os cadastrais do CONTRATANTE.
+        proposal: Orçamento vinculado, se houver.
+        contractada: Perfil do BPO (CONTRATADA), normalizado em dict.
+        representante: Representante normalizado nas chaves de `REPRESENTANTE_KEYS`.
+
+    Returns:
+        Um descritor por campo que ainda não tem fonte, na ordem dos grupos.
     """
     descriptors: list[dict[str, Any]] = []
     for group in SCALAR_FIELDS:
@@ -420,8 +424,9 @@ def all_missing_field_descriptors(
             source_key = CONTRATADA_SOURCE_KEYS.get(field["key"])
             if source_key and (contractada or {}).get(source_key):
                 continue
-            prospect_key = CONTRATANTE_SOURCE_KEYS.get(field["key"])
-            if prospect_key and _fonte_contratante(field, prospect, representante):
+            if field["key"] in CONTRATANTE_SOURCE_KEYS and _fonte_contratante(
+                field, representante
+            ):
                 continue
             descriptor = dict(field)
             descriptor["group"] = group["group"]

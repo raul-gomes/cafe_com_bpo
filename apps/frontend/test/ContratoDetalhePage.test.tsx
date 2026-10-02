@@ -19,7 +19,7 @@ vi.mock('../src/api/contracts', () => ({
 
 const DRAFT = {
   id: 'c1',
-  prospect_id: 'p1',
+  company_id: 'p1',
   proposal_id: 'o1',
   client_name: 'Alpha Consultoria',
   sections: [

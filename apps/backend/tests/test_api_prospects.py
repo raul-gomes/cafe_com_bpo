@@ -164,7 +164,7 @@ def test_delete_prospect_removes_linked_proposals_and_contracts(client):
     # Contrato vinculado ao prospecto + orçamento
     resp_contract = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
     assert resp_contract.status_code == 201
@@ -211,7 +211,7 @@ def test_delete_prospect_cascade_is_user_scoped(client):
     ).json()
     contract_a = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect_a["id"], "proposal_id": proposal_a["id"]},
+        json={"company_id": prospect_a["id"], "proposal_id": proposal_a["id"]},
         headers=auth_a,
     ).json()
 
@@ -229,7 +229,7 @@ def test_delete_prospect_cascade_is_user_scoped(client):
     ).json()
     contract_b = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect_b["id"], "proposal_id": proposal_b["id"]},
+        json={"company_id": prospect_b["id"], "proposal_id": proposal_b["id"]},
         headers=auth_b,
     ).json()
 

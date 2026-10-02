@@ -24,8 +24,8 @@ const PROSPECTS = [
   { id: 'p3', name: 'Sem Orçamento Ltda' },
 ]
 const PROPOSALS = [
-  { id: 'o1', client_name: 'Alpha Consultoria', prospect_id: 'p1', created_at: '2026-01-01T00:00:00Z', number: 7, client_decision: 'approved' },
-  { id: 'o2', client_name: 'Beta Ltda', prospect_id: 'p2', created_at: '2026-01-02T00:00:00Z', number: 8, client_decision: 'changes' },
+  { id: 'o1', client_name: 'Alpha Consultoria', company_id: 'p1', created_at: '2026-01-01T00:00:00Z', number: 7, client_decision: 'approved' },
+  { id: 'o2', client_name: 'Beta Ltda', company_id: 'p2', created_at: '2026-01-02T00:00:00Z', number: 8, client_decision: 'changes' },
 ]
 const DESCRIPTORS = [
   { key: 'sistema_gestao', label: 'Sistema de gestão', kind: 'text', default: '', group: 'Operação' },
@@ -34,7 +34,7 @@ const DESCRIPTORS = [
 const GENERATED = {
   id: 'c1',
   number: 1,
-  prospect_id: 'p1',
+  company_id: 'p1',
   proposal_id: 'o1',
   client_name: 'Alpha Consultoria',
   sections: [],
@@ -107,7 +107,7 @@ describe('NovoContratoModal', () => {
     await user.click(screen.getByRole('button', { name: /gerar contrato/i }))
 
     expect(mockGenerateContract).toHaveBeenCalledWith({
-      prospect_id: 'p1',
+      company_id: 'p1',
       proposal_id: 'o1',
       fields: expect.objectContaining({ dia_vencimento: '10' }),
     })
@@ -128,7 +128,7 @@ describe('NovoContratoModal', () => {
     await user.click(screen.getByRole('button', { name: /gerar contrato/i }))
 
     expect(mockGenerateContract).toHaveBeenCalledWith({
-      prospect_id: 'p1',
+      company_id: 'p1',
       proposal_id: null,
       fields: expect.objectContaining({ dia_vencimento: '10' }),
     })

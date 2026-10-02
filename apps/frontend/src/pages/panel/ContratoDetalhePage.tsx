@@ -129,7 +129,7 @@ export const ContratoDetalhePage: React.FC = () => {
     try {
       setFieldsLoading(true);
       const data = await getContractMissingFields(
-        contract.prospect_id as string,
+        contract.company_id as string,
         contract.proposal_id,
       );
       setFieldsDescriptors(data.fields);
@@ -208,7 +208,7 @@ export const ContratoDetalhePage: React.FC = () => {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          {!isFinalized && contract.prospect_id && (
+          {!isFinalized && contract.company_id && (
             <Button
               variant="outline"
               onClick={handleEditFields}

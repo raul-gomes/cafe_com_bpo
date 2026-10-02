@@ -23,7 +23,7 @@ class ContractTemplateUpdate(BaseModel):
 
 
 class ContractGenerate(BaseModel):
-    prospect_id: UUID
+    company_id: UUID
     proposal_id: UUID | None = None
     fields: dict[str, Any] | None = None
 
@@ -39,7 +39,8 @@ class ContractFieldsUpdate(BaseModel):
 class ContractResponse(BaseModel):
     id: UUID
     number: int | None = None
-    prospect_id: UUID | None = None
+    # `company_id` é a empresa dona do negócio — a coluna legada `prospect_id`
+    # não entra: nenhuma tela a lê, e ela sai no R4.
     company_id: UUID | None = None
     proposal_id: UUID | None = None
     client_name: str
@@ -63,7 +64,7 @@ class ContractPreviewResponse(BaseModel):
 
 
 class ContractMissingFieldsRequest(BaseModel):
-    prospect_id: UUID
+    company_id: UUID
     proposal_id: UUID | None = None
 
 

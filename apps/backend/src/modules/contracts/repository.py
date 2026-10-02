@@ -6,7 +6,7 @@ from sqlalchemy import func, or_
 from sqlalchemy.orm import Session
 
 from src.modules.companies.models import Company
-from src.modules.contacts.models import Contact
+from src.modules.companies.representative import resolve_representative
 
 from .default_template import (
     DEFAULT_TEMPLATE_SECTIONS,
@@ -20,37 +20,36 @@ class ContractRepository:
     def __init__(self, session: Session):
         self.session = session
 
-    # ── Pessoas (Fase 4: fonte única = Contact) ─────────────────
+    # ── Negócio ────────────────────────────────────────────────
 
-    def get_representative(self, prospect) -> dict[str, str | None]:
+    def get_company(self, company_id: UUID, user_id: UUID) -> Company | None:
+        """Empresa dona do negócio, filtrada pelo dono do usuário.
+
+        O filtro de dono mora aqui, e não no serviço, porque o `company_id` chega
+        do corpo da requisição: uma empresa de outro usuário precisa dar o mesmo
+        "não encontrado" que uma inexistente, senão o endpoint serve de verificação
+        de existência de negócio alheio. `is_active`/`deleted_at` é a desativação
+        da regra §16 — empresa arquivada não assina contrato.
+        """
+        return (
+            self.session.query(Company)
+            .filter(
+                Company.id == company_id,
+                Company.user_id == user_id,
+                Company.is_active,
+                Company.deleted_at.is_(None),
+            )
+            .first()
+        )
+
+    def get_representative(self, company: Company) -> dict[str, str | None]:
         """Representante da empresa para os tokens `contratante_representante_*`.
 
-        Fase 4: a fonte é o `Contact` (via `companies.primary_contact_id`).
-        Enquanto as colunas `prospect.representante_*` ainda existem, são o
-        fallback para empresas sem contato ativo (ex.: base pré-backfill).
+        Fonte única em `companies.representative`: contato ativo primeiro, colunas
+        legadas do prospecto depois. Mesma resolução da Governança, para o
+        contrato nunca divergir do que a tela mostra.
         """
-        if prospect is None:
-            return {}
-        company_id = prospect.converted_client_id or prospect.id
-        company = self.session.get(Company, company_id)
-        contact = None
-        if company is not None and company.primary_contact_id is not None:
-            contact = self.session.get(Contact, company.primary_contact_id)
-        if contact is not None and contact.is_active:
-            return {
-                "nome": contact.nome,
-                "cargo": contact.cargo,
-                "cpf": contact.cpf,
-                "email": contact.email,
-                "telefone": contact.telefone,
-            }
-        return {
-            "nome": prospect.representante_nome,
-            "cargo": prospect.representante_cargo,
-            "cpf": prospect.representante_cpf,
-            "email": prospect.representante_email,
-            "telefone": prospect.representante_telefone,
-        }
+        return resolve_representative(self.session, company)
 
     # ── Template do usuário ─────────────────────────────────────
 
@@ -143,16 +142,23 @@ class ContractRepository:
     def create_contract(
         self,
         user_id: UUID,
-        prospect_id: UUID,
-        proposal_id: UUID | None,
+        company_id: UUID,
         client_name: str,
         sections: list[dict],
+        proposal_id: UUID | None = None,
+        prospect_id: UUID | None = None,
         number: int | None = None,
         fields: dict | None = None,
         template_sections: list[dict] | None = None,
     ) -> Contract:
+        """Grava o contrato novo, já apontado para a empresa dona do negócio.
+
+        `prospect_id` é a coluna legada que o `finalize` usa para converter o
+        negócio: o serviço só a preenche quando a empresa ainda é um prospecto.
+        """
         contract = Contract(
             user_id=user_id,
+            company_id=company_id,
             prospect_id=prospect_id,
             proposal_id=proposal_id,
             client_name=client_name,
@@ -205,14 +211,19 @@ class ContractRepository:
         contract.deleted_at = datetime.now(timezone.utc)
         self.session.commit()
 
-    def delete_by_prospect(self, user_id: UUID, prospect_id: UUID) -> list[Contract]:
-        """Arquiva (soft delete) os contratos do usuário vinculados a um
-        prospecto — usado quando o prospecto é excluído."""
+    def delete_by_company(self, user_id: UUID, company_id: UUID) -> list[Contract]:
+        """Arquiva (soft delete) os contratos do usuário de uma empresa — usado
+        quando o prospecto dono do negócio é excluído.
+
+        Filtra por `company_id` e não pela coluna legada: o dono do contrato é a
+        empresa, e é a empresa que sobrevive ao colapso da conversão. Quem
+        conhece o vínculo empresa↔prospecto é quem chama (o módulo de prospects).
+        """
         contracts = (
             self.session.query(Contract)
             .filter(
                 Contract.user_id == user_id,
-                Contract.prospect_id == prospect_id,
+                Contract.company_id == company_id,
                 Contract.is_active,
             )
             .all()

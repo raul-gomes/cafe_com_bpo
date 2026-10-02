@@ -6,7 +6,7 @@ contracts) diretamente, como camada de agregação (sem modelos próprios).
 
 from uuid import UUID
 
-from sqlalchemy import and_, or_, select
+from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from src.modules.companies.models import (
@@ -14,10 +14,9 @@ from src.modules.companies.models import (
     COMPANY_TYPE_PROSPECT,
     Company,
 )
-from src.modules.contacts.models import Contact
+from src.modules.companies.representative import resolve_representative
 from src.modules.contracts.models import Contract
 from src.modules.proposals.models import PricingScenario
-from src.modules.prospects.models import Prospect
 
 
 class GovernancaRepository:
@@ -25,43 +24,12 @@ class GovernancaRepository:
         self.session = session
 
     def get_representative(self, company: Company) -> dict[str, str | None]:
-        """Representante do negócio — Fase 4: fonte é `Contact`.
+        """Representante do negócio — `Contact` ativo, colunas legadas depois.
 
-        Sem contato ativo, cai nas colunas legadas `prospect.representante_*`.
-        Esse é o **único** lugar do módulo que ainda toca `prospects`, e só
-        para negócio sem contato: o vínculo é `prospect.converted_client_id ==
-        company.id`, que sobrevive à conversão justamente porque a Governança
-        ainda lista a linha. Some junto com a tabela no R4.
+        Delega para `companies.representative`, que é a fonte única: o contrato
+        renderiza os mesmos tokens e não pode divergir do que a tela mostra.
         """
-        contact = None
-        if company.primary_contact_id is not None:
-            contact = self.session.get(Contact, company.primary_contact_id)
-        if contact is not None and contact.is_active:
-            return {
-                "nome": contact.nome,
-                "cargo": contact.cargo,
-                "cpf": contact.cpf,
-                "email": contact.email,
-                "telefone": contact.telefone,
-            }
-        legado = self.session.scalars(
-            select(Prospect).where(Prospect.converted_client_id == company.id)
-        ).first()
-        if legado is None:
-            return {
-                "nome": None,
-                "cargo": None,
-                "cpf": None,
-                "email": None,
-                "telefone": None,
-            }
-        return {
-            "nome": legado.representante_nome,
-            "cargo": legado.representante_cargo,
-            "cpf": legado.representante_cpf,
-            "email": legado.representante_email,
-            "telefone": legado.representante_telefone,
-        }
+        return resolve_representative(self.session, company)
 
     def get_deal_companies(self, user_id: UUID) -> list[Company]:
         """Empresas que são negócios na Governança: em prospecção, perdidas ou

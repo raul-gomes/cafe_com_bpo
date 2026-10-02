@@ -113,12 +113,12 @@ def missing_fields(
     service: ServiceDep,
     current_user: CurrentUserDep,
 ):
-    """Lista os campos sem fonte no banco (perfil/prospecto/orçamento) que o
+    """Lista os campos sem fonte no banco (perfil/empresa/orçamento) que o
     usuário precisa informar para gerar o contrato — usado pelo modal."""
     try:
         descriptors = service.missing_fields(
             current_user.id,
-            payload.prospect_id,
+            payload.company_id,
             payload.proposal_id,
             contractada=_contractada_from_user(current_user),
         )
@@ -141,14 +141,15 @@ def generate_contract(
     """Gera um novo contrato a partir do modelo padrão do usuário.
 
     Copia as seções do modelo e substitui os placeholders `{{token}}`
-    pelos dados do prospecto, do orçamento (se vinculado), da empresa
-    contratada (perfil) e dos campos informados no modal (`payload.fields`).
+    pelos dados da empresa dona do negócio, do orçamento (se vinculado), da
+    empresa contratada (perfil) e dos campos informados no modal
+    (`payload.fields`).
     """
     contractada = _contractada_from_user(current_user)
     try:
         contract = service.generate_contract(
             user_id=current_user.id,
-            prospect_id=payload.prospect_id,
+            company_id=payload.company_id,
             proposal_id=payload.proposal_id,
             contractada=contractada,
             fields=payload.fields,
@@ -176,7 +177,7 @@ def preview_contract(
     service: ServiceDep,
     current_user: CurrentUserDep,
 ):
-    """Resolve os tokens das seções com os dados atuais do prospecto, do
+    """Resolve os tokens das seções com os dados atuais da empresa, do
     orçamento vinculado e da empresa contratada (perfil) — para visualização.
 
     Tokens sem fonte permanecem literais `{{...}}`.

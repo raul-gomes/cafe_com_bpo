@@ -41,7 +41,9 @@ def create_proposal(client, auth, prospect, final_price=2500.0):
 
 
 def generate_contract(client, auth, prospect, proposal=None):
-    body = {"prospect_id": prospect["id"]}
+    # O negócio é a empresa e, enquanto em prospecção, empresa e prospecto
+    # compartilham o id — a geração recebe a empresa.
+    body = {"company_id": prospect["id"]}
     if proposal is not None:
         body["proposal_id"] = proposal["id"]
     return client.post("/contracts/generate", json=body, headers=auth)
@@ -304,6 +306,57 @@ def test_deal_contatante_representative_comes_from_the_contact(client):
     )
     assert deal["representante_nome"] == "Pessoa do Contato"
     assert deal["representante_email"] == "pessoa@governanca.com.br"
+
+
+def test_deal_in_prospection_without_contact_still_shows_its_representative(client):
+    """Negócio em prospecção com representante **só** na coluna legada.
+
+    Cadastrar um representante hoje nasce um `Contact` junto, então o fallback
+    existe para o dado anterior a isso: a linha de `prospects` com o representante
+    escrito e nenhum contato. A busca antiga só olhava
+    `converted_client_id` (o vínculo que só existe **depois** da conversão), então
+    em prospecção o negócio aparecia sem representante — a coluna estava lá e
+    ninguém lia.
+    """
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.companies.models import Company
+    from src.modules.contacts.models import Contact
+    from src.modules.prospects.models import Prospect
+
+    email = f"gov_rep_prospeccao_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    prospect = create_prospect(
+        client,
+        auth,
+        name="Prospecção sem Contato",
+        representante_nome="Só na Coluna",
+    ).json()
+
+    # Estado pré-backfill: some o contato, a coluna legada fica.
+    session = SessionLocal()
+    try:
+        row = session.query(Prospect).filter(Prospect.id == UUID(prospect["id"])).one()
+        contact = (
+            session.query(Contact)
+            .filter(Contact.company_id == UUID(prospect["id"]))
+            .first()
+        )
+        assert contact is not None, "o cadastro de hoje deveria ter criado o contato"
+        session.delete(contact)
+        row.representante_nome = "Só na Coluna"
+        session.flush()
+        company = session.get(Company, UUID(prospect["id"]))
+        company.primary_contact_id = None
+        session.commit()
+    finally:
+        session.close()
+
+    deal = next(
+        d for d in get_deals(client, auth)["deals"] if d["id"] == prospect["id"]
+    )
+    assert deal["representante_nome"] == "Só na Coluna"
 
 
 def test_deals_are_listed_from_companies_not_the_prospect_row(client):

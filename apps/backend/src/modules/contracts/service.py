@@ -5,8 +5,8 @@ from typing import Any
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
+from src.modules.companies.models import COMPANY_TYPE_PROSPECT, Company
 from src.modules.proposals.models import PricingScenario
-from src.modules.prospects.models import Prospect
 from src.modules.prospects.service import ProspectService
 
 from .fields import _servico_rows
@@ -331,38 +331,37 @@ def replace_placeholders(text: str, context: dict[str, str]) -> str:
 
 
 def _build_contratante(
-    prospect: Prospect, representante: dict | None = None
+    company: Company, representante: dict | None = None
 ) -> dict[str, str]:
+    """Tokens do CONTRATANTE a partir da empresa dona do negócio.
+
+    O endereço sai da própria empresa, que tem todos os campos cadastrais — a
+    geração não depende mais da linha em `prospects`. O representante vem
+    resolvido pelo chamador (`companies.representative`): contato ativo primeiro,
+    colunas legadas depois.
+    """
     endereco = "".join(
         part
         for part in [
-            prospect.street or "",
-            prospect.number and f", {prospect.number}",
-            prospect.neighborhood and f" - {prospect.neighborhood}",
-            prospect.city and f", {prospect.city}",
-            prospect.state and f" - {prospect.state}",
+            company.street or "",
+            company.number and f", {company.number}",
+            company.neighborhood and f" - {company.neighborhood}",
+            company.city and f", {company.city}",
+            company.state and f" - {company.state}",
         ]
         if part
     )
-    # Fase 4: representante vem do CONTATO. Sem contato ativo, cai nas colunas
-    # legadas `prospect.representante_*` (fallback durante a expansão).
     if representante is None:
-        representante = {
-            "nome": prospect.representante_nome,
-            "cargo": prospect.representante_cargo,
-            "cpf": prospect.representante_cpf,
-            "email": prospect.representante_email,
-            "telefone": prospect.representante_telefone,
-        }
+        representante = {}
     return {
-        "contratante_razao_social": prospect.name or "",
-        "contratante_cnpj": prospect.cnpj or "",
+        "contratante_razao_social": company.name or "",
+        "contratante_cnpj": company.cnpj or "",
         "contratante_endereco": endereco,
-        "contratante_cidade": prospect.city or "",
-        "contratante_uf": prospect.state or "",
-        "contratante_cep": prospect.cep or "",
-        "contratante_email": prospect.email or "",
-        "contratante_email_notificacoes": prospect.email or "",
+        "contratante_cidade": company.city or "",
+        "contratante_uf": company.state or "",
+        "contratante_cep": company.cep or "",
+        "contratante_email": company.email or "",
+        "contratante_email_notificacoes": company.email or "",
         "contratante_representante_nome": representante.get("nome") or "",
         "contratante_representante_cargo": representante.get("cargo") or "",
         "contratante_representante_cpf": representante.get("cpf") or "",
@@ -470,14 +469,14 @@ def _servico_listas(
 
 
 def build_context(
-    prospect: Prospect,
+    company: Company,
     proposal: PricingScenario | None,
     contractada: dict | None = None,
     extra: dict[str, Any] | None = None,
     contrato_numero: str = "",
     representante: dict | None = None,
 ) -> dict[str, Any]:
-    """Monta o contexto de tokens a partir do prospecto (CONTRATANTE), do
+    """Monta o contexto de tokens a partir da empresa (CONTRATANTE), do
     orçamento (PROP), da empresa do usuário (CONTRATADA), do representante
     (CONTATO, Fase 4) e dos campos informados no modal (`extra`)."""
 
@@ -487,19 +486,19 @@ def build_context(
     proposta_numero, proposta_data = _proposta_identificacao(proposal)
 
     ctx: dict[str, Any] = {
-        "nome": prospect.name or "",
-        "cnpj": prospect.cnpj or "",
-        "telefone": prospect.phone or "",
-        "email": prospect.email or "",
-        "segmento": prospect.segment or "",
+        "nome": company.name or "",
+        "cnpj": company.cnpj or "",
+        "telefone": company.phone or "",
+        "email": company.email or "",
+        "segmento": company.segment or "",
     }
-    ctx.update(_build_contratante(prospect, representante))
+    ctx.update(_build_contratante(company, representante))
     ctx.update(_build_contratada(contractada))
     ctx.update(
         {
             "contrato_numero": contrato_numero or "",
             "contrato_data_extenso": _data_extenso(data_documento),
-            "contrato_cidade": prospect.city or "",
+            "contrato_cidade": company.city or "",
             "proposta_numero": proposta_numero,
             "proposta_data": proposta_data,
             # Operação (padrões do plano; sobrescritos pelo extra)
@@ -650,6 +649,16 @@ class ContractService:
 
     # ── Contratos ───────────────────────────────────────────────
 
+    def _representative(self, company: Company | None) -> dict[str, str | None] | None:
+        """Representante do negócio para os tokens do CONTRATANTE.
+
+        `None` quando não há empresa: o `build_context` trata como "sem
+        representante" e o rascunho sem dono continua gerando placeholders.
+        """
+        if company is None:
+            return None
+        return self.repository.get_representative(company)
+
     @staticmethod
     def _substitute_sections(
         sections: list[dict], context: dict[str, Any]
@@ -662,31 +671,39 @@ class ContractService:
             for section in sections
         ]
 
-    def _load(self, user_id: UUID, prospect_id: UUID, proposal_id: UUID | None):
-        prospect = self.prospect_service.repository.get_by_id(prospect_id, user_id)
-        if not prospect:
-            raise ValueError("Prospect não encontrado")
+    def _load(
+        self, user_id: UUID, company_id: UUID, proposal_id: UUID | None
+    ) -> tuple[Company, PricingScenario | None]:
+        """Empresa dona do negócio e, se informado, o orçamento vinculado.
+
+        A empresa é resolvida pelo **dono**, não pelo id sozinho: `company_id` vem
+        do corpo da requisição, e uma empresa de outro usuário tem de dar o mesmo
+        erro de "não encontrado" que uma inexistente — senão o endpoint confirmaria
+        a existência do negócio alheio.
+        """
+        company = self.repository.get_company(company_id, user_id)
+        if not company:
+            raise ValueError("Empresa não encontrada")
         proposal = None
         if proposal_id is not None:
             proposal = self.proposal_repo.get_scenario_by_id(user_id, proposal_id)
             if not proposal:
                 raise ValueError("Orçamento não encontrado")
-        return prospect, proposal
+        return company, proposal
 
     def missing_fields(
         self,
         user_id: UUID,
-        prospect_id: UUID,
+        company_id: UUID,
         proposal_id: UUID | None,
         contractada: dict | None = None,
     ) -> list[dict]:
         """Descritores dos campos sem fonte no banco para o modal de geração."""
-        prospect, proposal = self._load(user_id, prospect_id, proposal_id)
+        company, proposal = self._load(user_id, company_id, proposal_id)
         from .fields import all_missing_field_descriptors
 
-        representante = self.repository.get_representative(prospect)
         return all_missing_field_descriptors(
-            prospect, proposal, contractada, representante=representante
+            company, proposal, contractada, representante=self._representative(company)
         )
 
     def _next_number(self, user_id: UUID) -> int:
@@ -695,33 +712,40 @@ class ContractService:
     def generate_contract(
         self,
         user_id: UUID,
-        prospect_id: UUID,
+        company_id: UUID,
         proposal_id: UUID | None,
         contractada: dict | None = None,
         fields: dict | None = None,
     ) -> Contract:
-        prospect, proposal = self._load(user_id, prospect_id, proposal_id)
+        company, proposal = self._load(user_id, company_id, proposal_id)
 
         template = self.repository.get_or_create_template(user_id)
         numero = self._next_number(user_id)
         context = build_context(
-            prospect,
+            company,
             proposal,
             contractada,
             extra=fields or {},
             contrato_numero=str(numero).zfill(4),
-            representante=self.repository.get_representative(prospect),
+            representante=self._representative(company),
         )
         # Snapshot do template com tokens ainda sem substituir: permite
         # re-render posteriormente ao editar os dados do modal.
         template_sections = deepcopy(template.sections or [])
         sections = self._substitute_sections(template_sections, context)
 
+        # `contracts.prospect_id` é coluna legada e o R4 apaga, mas o `finalize`
+        # ainda converte o negócio por ela. Um negócio em prospecção **é** a linha
+        # do prospecto (o espelho nasce com o mesmo id), então o vínculo sai sem
+        # ler `prospects`; um negócio já convertido não tem prospecto e a coluna
+        # fica vazia — que é o estado em que `finalize` não reconverte.
+        prospect_id = company.id if company.type == COMPANY_TYPE_PROSPECT else None
         return self.repository.create_contract(
             user_id=user_id,
-            prospect_id=prospect.id,
+            company_id=company.id,
+            prospect_id=prospect_id,
             proposal_id=proposal.id if proposal else None,
-            client_name=prospect.name or "Contrato",
+            client_name=company.name or "Contrato",
             sections=sections,
             template_sections=template_sections,
             number=numero,
@@ -739,18 +763,17 @@ class ContractService:
         if not contract:
             raise ValueError("Contrato não encontrado")
 
-        # Snapshot em branco (rascunho criado sem prospecto): retorna como está.
-        if contract.prospect_id is None:
+        # Rascunho sem dono (sem empresa): não há de onde resolver token, então
+        # o que está gravado é a resposta.
+        if contract.company_id is None:
             return contract.sections or []
 
         raw = contract.template_sections or contract.sections
         if not raw:
             return contract.sections or []
 
-        prospect = self.prospect_service.repository.get_by_id(
-            contract.prospect_id, user_id
-        )
-        if not prospect:
+        company = self.repository.get_company(contract.company_id, user_id)
+        if not company:
             return contract.sections or []
 
         proposal = None
@@ -760,12 +783,12 @@ class ContractService:
             )
 
         context = build_context(
-            prospect,
+            company,
             proposal,
             contractada,
             extra=contract.fields or {},
             contrato_numero=str(contract.number or "").zfill(4),
-            representante=self.repository.get_representative(prospect),
+            representante=self._representative(company),
         )
         return self._substitute_sections(raw, context)
 
@@ -782,15 +805,13 @@ class ContractService:
             raise ValueError("Contrato não encontrado")
         self._ensure_editable(contract)
 
-        if contract.prospect_id is None:
+        if contract.company_id is None:
             return self.repository.set_contract_fields(
                 contract,
                 {k: v for k, v in fields.items() if v not in (None, "")},
             )
 
-        prospect = self.prospect_service.repository.get_by_id(
-            contract.prospect_id, user_id
-        )
+        company = self.repository.get_company(contract.company_id, user_id)
         proposal = None
         if contract.proposal_id is not None:
             proposal = self.proposal_repo.get_scenario_by_id(
@@ -804,12 +825,12 @@ class ContractService:
 
         raw = contract.template_sections or contract.sections
         context = build_context(
-            prospect,
+            company,
             proposal,
             contractada,
             extra=merged,
             contrato_numero=str(contract.number or "").zfill(4),
-            representante=self.repository.get_representative(prospect),
+            representante=self._representative(company) if company else None,
         )
         sections = self._substitute_sections(raw, context)
         return self.repository.set_contract_data(

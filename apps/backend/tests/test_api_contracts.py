@@ -56,7 +56,7 @@ def _create_proposal(
             "complexity": "Média",
             "revenue": 50000,
         },
-        "prospect_id": prospect["id"],
+        "company_id": prospect["id"],
     }
     return client.post("/proposals/", json=payload, headers=auth)
 
@@ -140,14 +140,14 @@ def test_generate_substitutes_prospect_and_proposal_data(client):
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
 
     assert resp.status_code == 201
     contract = resp.json()
     assert contract["client_name"] == "Contratante XPTO"
-    assert contract["prospect_id"] == prospect["id"]
+    assert contract["company_id"] == prospect["id"]
     assert contract["proposal_id"] == proposal["id"]
     assert contract["status"] == "draft"
 
@@ -181,7 +181,7 @@ def test_generate_default_model_replaces_contractada_tokens(client):
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
 
@@ -252,14 +252,14 @@ def test_generate_renders_contracted_services_table(client):
                     },
                 ],
             },
-            "prospect_id": prospect["id"],
+            "company_id": prospect["id"],
         },
         headers=auth,
     ).json()
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
 
@@ -283,7 +283,7 @@ def test_generate_asks_and_applies_vencimento_fields(client):
 
     resp = client.post(
         "/contracts/missing-fields",
-        json={"prospect_id": prospect["id"]},
+        json={"company_id": prospect["id"]},
         headers=auth,
     )
     assert resp.status_code == 200
@@ -296,7 +296,7 @@ def test_generate_asks_and_applies_vencimento_fields(client):
     generated = client.post(
         "/contracts/generate",
         json={
-            "prospect_id": prospect["id"],
+            "company_id": prospect["id"],
             "fields": {
                 "dia_vencimento": "15",
                 "primeiro_vencimento": "2026-10-01",
@@ -324,7 +324,7 @@ def test_generate_resolves_document_date_tokens(client):
     prospect = _create_prospect(client, auth, name="Datado").json()
 
     resp = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     )
 
     assert resp.status_code == 201
@@ -343,7 +343,7 @@ def test_generate_keeps_unresolved_tokens_literal(client):
     prospect = _create_prospect(client, auth).json()
 
     resp = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     )
 
     assert resp.status_code == 201
@@ -378,7 +378,7 @@ def test_missing_fields_lists_modal_field_descriptors(client):
 
     resp = client.post(
         "/contracts/missing-fields",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
 
@@ -440,7 +440,7 @@ def test_missing_fields_omits_contratada_address_when_profile_has_city_state_cep
 
     resp = client.post(
         "/contracts/missing-fields",
-        json={"prospect_id": prospect["id"]},
+        json={"company_id": prospect["id"]},
         headers=auth,
     )
 
@@ -461,7 +461,7 @@ def test_missing_fields_keeps_contratada_address_when_profile_empty(client):
 
     resp = client.post(
         "/contracts/missing-fields",
-        json={"prospect_id": prospect["id"]},
+        json={"company_id": prospect["id"]},
         headers=auth,
     )
 
@@ -494,7 +494,7 @@ def test_preview_pulls_structured_company_address_after_profile_update(client):
         headers=auth,
     )
     contract = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     ).json()
 
     _set_company_profile(client, auth)
@@ -526,7 +526,7 @@ def test_missing_fields_omits_contratante_representante_when_prospect_has_them(c
 
     resp = client.post(
         "/contracts/missing-fields",
-        json={"prospect_id": prospect["id"]},
+        json={"company_id": prospect["id"]},
         headers=auth,
     )
 
@@ -545,7 +545,7 @@ def test_missing_fields_keeps_contratante_representante_when_prospect_empty(clie
 
     resp = client.post(
         "/contracts/missing-fields",
-        json={"prospect_id": prospect["id"]},
+        json={"company_id": prospect["id"]},
         headers=auth,
     )
 
@@ -591,7 +591,7 @@ def test_generate_pulls_contratante_representante_from_prospect(client):
     )
 
     resp = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     )
 
     assert resp.status_code == 201
@@ -618,7 +618,7 @@ def test_generate_persists_fields_and_number(client):
     }
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "fields": fields},
+        json={"company_id": prospect["id"], "fields": fields},
         headers=auth,
     )
 
@@ -641,7 +641,7 @@ def test_generate_removes_optional_block_when_field_empty(client):
     prospect = _create_prospect(client, auth).json()
 
     resp = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     )
     assert resp.status_code == 201
     valores = next(
@@ -656,10 +656,10 @@ def test_generate_number_sequence_increments(client):
     prospect = _create_prospect(client, auth).json()
 
     first = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     ).json()
     second = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     ).json()
 
     assert first["number"] == 1
@@ -674,7 +674,7 @@ def test_patch_contract_fields_rerenders_sections(client):
     prospect = _create_prospect(client, auth).json()
 
     contract = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     ).json()
 
     patch = client.patch(
@@ -707,7 +707,7 @@ def test_generate_without_proposal_keeps_orcamento_tokens(client):
     )
 
     resp = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     )
 
     assert resp.status_code == 201
@@ -721,7 +721,7 @@ def test_contracts_are_isolated_by_user(client):
     auth_a = _auth_header(client, email_a)
     prospect = _create_prospect(client, auth_a).json()
     generated = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth_a
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth_a
     ).json()
 
     email_b = f"iso_b_{uuid4()}@cafe.com"
@@ -739,7 +739,7 @@ def test_update_sections_while_draft(client):
     auth = _auth_header(client, email)
     prospect = _create_prospect(client, auth).json()
     contract = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     ).json()
 
     patch = client.patch(
@@ -758,7 +758,7 @@ def test_finalize_converts_prospect_and_locks_contract(client):
     auth = _auth_header(client, email)
     prospect = _create_prospect(client, auth, name="Para Converter").json()
     contract = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     ).json()
 
     fin = client.post(f"/contracts/{contract['id']}/finalize", headers=auth)
@@ -794,7 +794,7 @@ def test_finalize_converts_prospect_and_locks_contract(client):
 
     # Novo contrato para o mesmo prospecto -> 404 (não está mais ativo)
     regen = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     )
     assert regen.status_code == 404
 
@@ -804,7 +804,7 @@ def test_delete_draft_ok_and_finalized_forbidden(client):
     auth = _auth_header(client, email)
     prospect = _create_prospect(client, auth).json()
     contract = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     ).json()
 
     resp_del = client.delete(f"/contracts/{contract['id']}", headers=auth)
@@ -812,7 +812,7 @@ def test_delete_draft_ok_and_finalized_forbidden(client):
     assert client.get("/contracts/", headers=auth).json() == []
 
     contract2 = client.post(
-        "/contracts/generate", json={"prospect_id": prospect["id"]}, headers=auth
+        "/contracts/generate", json={"company_id": prospect["id"]}, headers=auth
     ).json()
     client.post(f"/contracts/{contract2['id']}/finalize", headers=auth)
     resp_del2 = client.delete(f"/contracts/{contract2['id']}", headers=auth)
@@ -834,7 +834,7 @@ def test_preview_resolves_tokens_with_current_data(client):
     proposal = _create_proposal(client, auth, prospect).json()
     contract = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     ).json()
 
@@ -924,7 +924,7 @@ def test_generate_composes_contratada_address_from_structured_fields(client):
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
     assert resp.status_code == 201
@@ -954,7 +954,7 @@ def test_generate_contratada_address_falls_back_to_company_address(client):
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
     assert resp.status_code == 201
@@ -1006,14 +1006,14 @@ def test_generate_pulls_implantacao_from_pontual_services(client):
                     },
                 ],
             },
-            "prospect_id": prospect["id"],
+            "company_id": prospect["id"],
         },
         headers=auth,
     ).json()
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
 
@@ -1060,14 +1060,14 @@ def test_generate_omits_implantacao_without_pontual_services(client):
                     },
                 ],
             },
-            "prospect_id": prospect["id"],
+            "company_id": prospect["id"],
         },
         headers=auth,
     ).json()
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
 
@@ -1089,7 +1089,7 @@ def test_missing_fields_omits_contratada_representante_cargo_when_profile_has_ca
 
     resp = client.post(
         "/contracts/missing-fields",
-        json={"prospect_id": prospect["id"]},
+        json={"company_id": prospect["id"]},
         headers=auth,
     )
 
@@ -1107,7 +1107,7 @@ def test_generate_uses_representante_cargo_from_profile(client):
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
 
@@ -1126,7 +1126,7 @@ def test_generate_uses_prospect_city_in_signature(client):
 
     resp = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"]},
+        json={"company_id": prospect["id"]},
         headers=auth,
     )
 
@@ -1197,7 +1197,7 @@ def test_contract_contratante_representative_comes_from_the_contact(client):
 
     generate = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
     assert generate.status_code == 201, generate.text
@@ -1207,7 +1207,7 @@ def test_contract_contratante_representative_comes_from_the_contact(client):
 
     missing = client.post(
         "/contracts/missing-fields",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
     keys = {f["key"] for f in missing.json()["fields"]}

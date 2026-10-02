@@ -192,7 +192,14 @@ class ProspectService:
             raise ValueError(f"Prospect {prospect_id} not found for user {user_id}")
         self.repository.delete(prospect)
         proposal_repo.delete_by_prospect(user_id, prospect_id)
-        contract_repo.delete_by_prospect(user_id, prospect_id)
+        # O contrato é da **empresa**, então quem é arquivado é o negócio dono dos
+        # contratos: a empresa do prospecto, ou a empresa que a substituiu quando
+        # o negócio já foi convertido (`converted_client_id`). Sem seguir a
+        # conversão, arquivar um prospecto já convertido deixaria os contratos
+        # dele visíveis.
+        contract_repo.delete_by_company(
+            user_id, prospect.converted_client_id or prospect.id
+        )
 
     def convert_prospect(
         self,

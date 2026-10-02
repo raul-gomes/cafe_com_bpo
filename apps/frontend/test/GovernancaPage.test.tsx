@@ -157,7 +157,7 @@ describe('GovernancaPage', () => {
       finalized_at: '2026-09-15T10:00:00',
       created_at: '2026-09-15T09:00:00',
       updated_at: '2026-09-15T09:00:00',
-      prospect_id: null,
+      company_id: 'c-1',
       proposal_id: 'p-1',
     })
     ;(previewContract as ReturnType<typeof vi.fn>).mockResolvedValue({
