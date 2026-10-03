@@ -3,6 +3,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, EmailStr, field_validator
 
+from src.core.validators import validate_cep, validate_cnpj
+
 
 class ProspectBase(BaseModel):
     name: str
@@ -38,12 +40,12 @@ class ProspectBase(BaseModel):
     @field_validator("cnpj")
     @classmethod
     def sanitize_cnpj(cls, v: str | None) -> str | None:
-        if v is None or not v.strip():
-            return v
-        cleaned = re.sub(r"\D", "", v)
-        if not cleaned:
-            raise ValueError("Informe um CNPJ válido")
-        return cleaned
+        return validate_cnpj(v)
+
+    @field_validator("cep")
+    @classmethod
+    def sanitize_cep(cls, v: str | None) -> str | None:
+        return validate_cep(v)
 
     @field_validator("representante_cpf")
     @classmethod
