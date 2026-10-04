@@ -1,0 +1,45 @@
+# Contexto de build da imagem do backend (`docker-compose.yml`: context: ./apps/backend).
+#
+# O Dockerfile faz `COPY . .`, então tudo que está aqui dentro entra na imagem
+# publicada no GHCR. Sem estas regras, um `.env` com JWT_SECRET, credenciais do
+# Google, senha do Postgres e chaves de Asaas/Resend viajam dentro da imagem — e um
+# `temp_test_venv` de centenas de MB dobra o tamanho do build.
+
+# Segredos: nunca entram na imagem.
+.env
+.env.*
+*.pem
+*.key
+
+# Ambiente virtual e caches de tooling.
+temp_test_venv/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Testes e artefatos de desenvolvimento: a imagem de produção não tem pytest/ruff
+# (AGENTS.md §4) e a suíte roda no CI, não no container.
+tests/
+docs/
+
+# Arquivos versionados que não são necessários em runtime (o Dockerfile cria
+# /app/logs e /app/storage).
+storage/
+logs/
+temp/
+*.md
+
+# Diretório leftover (apps/backend/apps/backend), sem arquivo e sem uso.
+apps/
+
+# Editores e VCS.
+.git/
+.gitignore
+.vscode/
+.idea/
