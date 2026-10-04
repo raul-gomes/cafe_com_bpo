@@ -1,5 +1,6 @@
 """Testes do webhook do provedor (Resend) — por provider_message_id e router."""
 
+import json
 from unittest.mock import patch
 from uuid import uuid4
 
@@ -64,17 +65,86 @@ class TestProviderMessageWebhook:
         assert handle_provider_message_event("pm-nao-existe", "delivered") is False
 
 
+WEBHOOK_SECRET = "resend-signing-secret-for-tests"
+
+
+def _post_signed(client, payload, secret=WEBHOOK_SECRET, timestamp=1_760_000_000):
+    """Posts a webhook with a valid Svix signature.
+
+    The endpoint refuses unsigned calls (SEC-9), so every router test has to
+    sign the body it sends.
+
+    Args:
+        client: Test client of the app under test.
+        payload: Webhook body.
+        secret: Signing secret.
+        timestamp: Unix seconds written in `svix-timestamp`.
+
+    Returns:
+        The HTTP response.
+    """
+    from src.modules.emails import webhook_security
+
+    body = json.dumps(payload).encode()
+    signature = webhook_security.compute_signature(
+        secret, "msg_test", str(timestamp), body
+    )
+    with patch("src.modules.emails.webhook_security._now", return_value=timestamp):
+        return client.post(
+            "/webhooks/email-provider",
+            content=body,
+            headers={
+                "svix-id": "msg_test",
+                "svix-timestamp": str(timestamp),
+                "svix-signature": f"v1,{signature}",
+                "Content-Type": "application/json",
+            },
+        )
+
+
+@pytest.fixture
+def signed_webhook_env(monkeypatch):
+    """Configures the Resend signing secret and isolates the settings cache.
+
+    Args:
+        monkeypatch: Pytest monkeypatch fixture.
+
+    Yields:
+        The configured secret.
+    """
+    from src.core.config import get_settings
+
+    monkeypatch.setenv("RESEND_WEBHOOK_SECRET", WEBHOOK_SECRET)
+    get_settings.cache_clear()
+    yield WEBHOOK_SECRET
+    get_settings.cache_clear()
+
+
 class TestWebhookRouter:
-    def test_resend_payload_updates_status(self):
+    def test_unsigned_webhook_is_refused(self):
+        """SEC-9: the endpoint used to accept any POST, so anyone could rewrite
+        a delivery status knowing an `email_id`."""
+        from src.main import create_app
+
+        client = TestClient(create_app())
+
+        resp = client.post(
+            "/webhooks/email-provider",
+            json={"type": "email.bounced", "data": {"email_id": "pm-abc"}},
+        )
+
+        assert resp.status_code == 401
+
+    def test_resend_payload_updates_status(self, signed_webhook_env):
         from src.main import create_app
 
         client = TestClient(create_app())
 
         with patch("src.modules.emails.router.handle_provider_message_event") as mock_h:
             mock_h.return_value = True
-            resp = client.post(
-                "/webhooks/email-provider",
-                json={
+            resp = _post_signed(
+                client,
+                {
                     "type": "email.bounced",
                     "data": {"email_id": "pm-abc", "to": ["a@example.com"]},
                 },
@@ -84,23 +154,19 @@ class TestWebhookRouter:
         assert resp.json()["status"] == "applied"
         mock_h.assert_called_once_with("pm-abc", "bounced")
 
-    def test_irrelevant_event_ignored(self):
+    def test_irrelevant_event_ignored(self, signed_webhook_env):
         from src.main import create_app
 
         client = TestClient(create_app())
-        resp = client.post(
-            "/webhooks/email-provider",
-            json={"type": "email.opened", "data": {"email_id": "pm-abc"}},
+        resp = _post_signed(
+            client, {"type": "email.opened", "data": {"email_id": "pm-abc"}}
         )
         assert resp.status_code == 200
         assert resp.json()["status"] == "ignored"
 
-    def test_payload_without_email_id_ignored(self):
+    def test_payload_without_email_id_ignored(self, signed_webhook_env):
         from src.main import create_app
 
         client = TestClient(create_app())
-        resp = client.post(
-            "/webhooks/email-provider",
-            json={"type": "email.delivered", "data": {}},
-        )
+        resp = _post_signed(client, {"type": "email.delivered", "data": {}})
         assert resp.status_code == 200

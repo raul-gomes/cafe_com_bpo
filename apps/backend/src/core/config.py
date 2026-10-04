@@ -1,6 +1,9 @@
 from functools import lru_cache
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+MIN_JWT_SECRET_LENGTH = 32
 
 
 class Settings(BaseSettings):
@@ -39,6 +42,9 @@ class Settings(BaseSettings):
     # Resend Email Settings
     resend_api_key: str = ""
     resend_from_email: str = "onboarding@resend.dev"
+    # Signing secret do webhook do Resend (Svix). Vazio = webhook recusado:
+    # sem segredo não há como distinguir o provedor de qualquer POST.
+    resend_webhook_secret: str = ""
 
     # Email Queue / Delivery Settings
     email_provider: str = "resend"  # resend | mailpit | noop
@@ -54,7 +60,15 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
 
     # Asaas Payments
+    # `asaas_base_url` por ambiente: `https://api.asaas.com/api/v3` em produção e
+    # `https://sandbox.asaas.com/api/v3` em teste. O cliente falha alto se
+    # produção apontar para sandbox (pagamento real nunca é testado em sandbox).
     asaas_api_key: str = ""
+    asaas_base_url: str = "https://sandbox.asaas.com/api/v3"
+    # Token compartilhado do webhook do Asaas (header `asaas-access-token`).
+    # Vazio = webhook recusado: sem token configurado a rota não aceita ninguém,
+    # porque "aceitar quando não há segredo" é exatamente o furo corrigido aqui.
+    asaas_webhook_token: str = ""
 
     # Google Calendar
     google_calendar_client_id: str = ""
@@ -65,6 +79,32 @@ class Settings(BaseSettings):
     support_email: str = "cafe@cafecombpo.com.br"
     # Destinatário dedicado do "Reportar Erro" (fallback: support_email)
     feedback_email: str = ""
+
+    @field_validator("jwt_secret")
+    @classmethod
+    def _jwt_secret_must_be_long(cls, value: str) -> str:
+        """Rejects a JWT secret too short to be a secret.
+
+        The same value signs and validates the token, so a weak or empty secret
+        makes every token forgeable. Failing at boot is the point: a deployment
+        that starts with an unusable secret must not look healthy.
+
+        Args:
+            value: The configured secret.
+
+        Returns:
+            The validated secret.
+
+        Raises:
+            ValueError: When the secret is shorter than the minimum length.
+        """
+        if len(value) < MIN_JWT_SECRET_LENGTH:
+            raise ValueError(
+                "JWT_SECRET precisa de ao menos "
+                f"{MIN_JWT_SECRET_LENGTH} caracteres (tem {len(value)}). "
+                "Um segredo curto torna qualquer token forjável."
+            )
+        return value
 
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
