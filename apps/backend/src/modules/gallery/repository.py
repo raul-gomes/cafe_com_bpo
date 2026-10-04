@@ -10,6 +10,9 @@ from sqlalchemy.orm import Session
 
 from src.modules.gallery.models import CommonGalleryItem, GalleryItem
 
+PRIVATE_DOWNLOAD_PREFIX = "/gallery/download/"
+COMMON_DOWNLOAD_PREFIX = "/gallery/common/download/"
+
 
 class GalleryRepository:
     """Repository for gallery item operations."""
@@ -38,6 +41,30 @@ class GalleryRepository:
         return (
             self.session.query(GalleryItem)
             .filter(GalleryItem.id == item_id, GalleryItem.user_id == user_id)
+            .first()
+        )
+
+    def find_owned_download(self, user_id: UUID, filename: str) -> GalleryItem | None:
+        """Returns the user's gallery row that points at `filename`, or `None`.
+
+        This is the authorization for the download route: the row is what proves
+        the file belongs to the caller. Resolving by filename on disk instead
+        would serve anything left in the directory (failed upload, manual copy)
+        to anyone who guessed the name.
+
+        Args:
+            user_id: Authenticated caller.
+            filename: Stored filename (already reduced with `os.path.basename`).
+
+        Returns:
+            The owned gallery item, or `None` when the caller owns no such file.
+        """
+        return (
+            self.session.query(GalleryItem)
+            .filter(
+                GalleryItem.user_id == user_id,
+                GalleryItem.file_path == f"{PRIVATE_DOWNLOAD_PREFIX}{filename}",
+            )
             .first()
         )
 
@@ -91,6 +118,26 @@ class CommonGalleryRepository:
         self.session.commit()
         self.session.refresh(item)
         return item
+
+    def find_download(self, filename: str) -> CommonGalleryItem | None:
+        """Returns the community row stored locally under `filename`, or `None`.
+
+        Only locally stored rows match: files uploaded to Cloudinary keep the
+        provider URL in `file_path` and are fetched straight from the CDN.
+
+        Args:
+            filename: Stored filename (already reduced with `os.path.basename`).
+
+        Returns:
+            The matching community item, or `None` when there is no local row.
+        """
+        return (
+            self.session.query(CommonGalleryItem)
+            .filter(
+                CommonGalleryItem.file_path == f"{COMMON_DOWNLOAD_PREFIX}{filename}"
+            )
+            .first()
+        )
 
     def get_by_id(self, item_id: UUID) -> CommonGalleryItem | None:
         """Get a common gallery item by ID."""
