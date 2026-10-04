@@ -65,20 +65,6 @@ export interface TaskPhaseResponse {
   created_at: string;
 }
 
-export interface TaskPhaseCreate {
-  name: string;
-  color: string;
-  order: number;
-  is_done: boolean;
-}
-
-export interface TaskPhaseUpdate {
-  name?: string;
-  color?: string;
-  order?: number;
-  is_done?: boolean;
-}
-
 export interface TimelineTask {
   id: string;
   title: string;
@@ -142,6 +128,46 @@ export interface RoutineTypeUpdate {
   suggestions?: string[];
 }
 
+/**
+ * Dia da semana no contrato da API (P-5).
+ *
+ * O backend é dono do mapeamento e manda o enum como string; o frontend nunca
+ * converte número em dia — era aí que nascia o off-by-one do `weekday_mask`.
+ * `saturday` e `sunday` existem para exibição de rotinas antigas; o seletor de
+ * dias é `SELECTABLE_WEEKDAYS` (seg–sex, só dia útil, por decisão do dono).
+ */
+export const WEEKDAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+export type Weekday = (typeof WEEKDAYS)[number];
+
+/** Dias que o produto permite marcar — seg a sex. */
+export const SELECTABLE_WEEKDAYS: readonly Weekday[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+];
+
+/** Rótulos em português para exibir os dias. */
+export const WEEKDAY_LABELS: Record<Weekday, string> = {
+  monday: 'Seg',
+  tuesday: 'Ter',
+  wednesday: 'Qua',
+  thursday: 'Qui',
+  friday: 'Sex',
+  saturday: 'Sáb',
+  sunday: 'Dom',
+};
+
 export interface ActivityTemplateListItem {
   id: string;
   user_id: string;
@@ -149,7 +175,7 @@ export interface ActivityTemplateListItem {
   description?: string;
   process_type?: string;
   recurrence: string;
-  weekday_mask?: string;
+  weekdays?: Weekday[];
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
@@ -180,7 +206,7 @@ export interface ActivityTemplateResponse {
   description?: string;
   process_type?: string;
   recurrence: string;
-  weekday_mask?: string;
+  weekdays?: Weekday[];
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
@@ -198,7 +224,7 @@ export interface ActivityTemplateCreate {
   description?: string;
   process_type?: string;
   recurrence?: string;
-  weekday_mask?: string;
+  weekdays?: Weekday[];
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
@@ -214,7 +240,7 @@ export interface ActivityTemplateUpdate {
   description?: string;
   process_type?: string;
   recurrence?: string;
-  weekday_mask?: string;
+  weekdays?: Weekday[];
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;

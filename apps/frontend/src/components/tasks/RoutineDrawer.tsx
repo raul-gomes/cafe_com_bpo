@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Plus, Trash2, X, Pencil, Globe, Archive, AlertTriangle } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
+import {
+  SELECTABLE_WEEKDAYS,
+  WEEKDAY_LABELS,
+  type ActivityTemplateResponse,
+  type Weekday,
+} from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 import {
   Sheet,
@@ -35,10 +41,10 @@ const PROCESS_TYPE_LABELS: Record<string, string> = {
   fiscal: 'Fiscal', contabil: 'Contábil', dp: 'DP', financeiro: 'Financeiro', administrativo: 'Administrativo',
 };
 
-const WEEKDAY_LABELS = [
-  { value: 1, label: 'Seg' }, { value: 2, label: 'Ter' }, { value: 3, label: 'Qua' },
-  { value: 4, label: 'Qui' }, { value: 5, label: 'Sex' },
-];
+const WEEKDAY_OPTIONS = SELECTABLE_WEEKDAYS.map(day => ({
+  value: day,
+  label: WEEKDAY_LABELS[day],
+}));
 
 const MONTH_OPTIONS = [
   { value: 1, label: 'Janeiro' }, { value: 2, label: 'Fevereiro' },
@@ -51,14 +57,12 @@ const MONTH_OPTIONS = [
 
 const selectClass = "flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900";
 
-function PeriodInfo({ template }: { template: any }) {
+function PeriodInfo({ template }: { template: ActivityTemplateResponse }) {
   if (template.recurrence === 'once' && template.due_days_from_start) {
     return <span>{template.due_days_from_start} dias após o start</span>;
   }
-  if (template.recurrence === 'weekly' && template.weekday_mask) {
-    const days = template.weekday_mask.split(',').map((d: string) =>
-      ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][Number(d)]
-    ).join(', ');
+  if (template.recurrence === 'weekly' && template.weekdays && template.weekdays.length > 0) {
+    const days = template.weekdays.map(day => WEEKDAY_LABELS[day]).join(', ');
     return <span>{days}</span>;
   }
   if (template.recurrence === 'monthly' && template.due_day) {
@@ -87,9 +91,11 @@ const RoutineEditForm: React.FC<RoutineEditFormProps> = ({ template, routineType
   const [dueDay, setDueDay] = useState<number | ''>(template.due_day ?? '');
   const [dueMonth, setDueMonth] = useState<number | ''>(template.due_month ?? '');
   const [dueDaysFromStart, setDueDaysFromStart] = useState<number | ''>(template.due_days_from_start ?? '');
-  const [weekdays, setWeekdays] = useState<number[]>(template.weekday_mask ? template.weekday_mask.split(',').map(Number) : [1, 2, 3, 4, 5]);
+  const [weekdays, setWeekdays] = useState<Weekday[]>(
+    template.weekdays?.length ? template.weekdays : [...SELECTABLE_WEEKDAYS]
+  );
 
-  const toggleWeekday = (day: number) => {
+  const toggleWeekday = (day: Weekday) => {
     setWeekdays(prev => prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort());
   };
 
@@ -104,7 +110,7 @@ const RoutineEditForm: React.FC<RoutineEditFormProps> = ({ template, routineType
       recurrence,
     };
     if (recurrence === 'once') payload.due_days_from_start = dueDaysFromStart === '' ? undefined : Number(dueDaysFromStart);
-    if (recurrence === 'weekly') payload.weekday_mask = weekdays.join(',');
+    if (recurrence === 'weekly') payload.weekdays = weekdays;
     if (recurrence === 'monthly') payload.due_day = dueDay === '' ? undefined : Number(dueDay);
     if (recurrence === 'yearly') {
       payload.due_day = dueDay === '' ? undefined : Number(dueDay);
@@ -141,7 +147,7 @@ const RoutineEditForm: React.FC<RoutineEditFormProps> = ({ template, routineType
       </div>
       <div>
         <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">Periodicidade</label>
-        <select value={recurrence} onChange={(e) => { setRecurrence(e.target.value); setDueDaysFromStart(''); setDueDay(''); setDueMonth(''); setWeekdays([1, 2, 3, 4, 5]); }} className={selectClass}>
+        <select value={recurrence} onChange={(e) => { setRecurrence(e.target.value); setDueDaysFromStart(''); setDueDay(''); setDueMonth(''); setWeekdays([...SELECTABLE_WEEKDAYS]); }} className={selectClass}>
           {Object.entries(RECURRENCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
       </div>
@@ -155,7 +161,7 @@ const RoutineEditForm: React.FC<RoutineEditFormProps> = ({ template, routineType
         <div>
           <label className="mb-1.5 block text-xs font-semibold text-muted-foreground">Dias da semana</label>
           <div className="flex gap-1.5 pt-1">
-            {WEEKDAY_LABELS.map(({ value, label }) => (
+            {WEEKDAY_OPTIONS.map(({ value, label }) => (
               <label key={value} className={cn(
                 "flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
                 weekdays.includes(value) ? "bg-primary/10 border-primary text-primary-strong" : "bg-muted border-border text-muted-foreground"

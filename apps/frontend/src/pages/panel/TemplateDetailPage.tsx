@@ -2,6 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Plus, X, Edit2, GripVertical, Settings2, Clock, AlertTriangle } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
+import {
+  SELECTABLE_WEEKDAYS,
+  WEEKDAY_LABELS,
+  type Weekday,
+} from '../../schemas/tasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Card, CardContent } from '../../components/ui/card';
@@ -29,10 +34,10 @@ const PROCESS_TYPE_LABELS: Record<string, string> = {
   fiscal: 'Fiscal', contabil: 'Contábil', dp: 'DP', financeiro: 'Financeiro', administrativo: 'Administrativo',
 };
 
-const WEEKDAY_LABELS = [
-  { value: 1, label: 'Seg' }, { value: 2, label: 'Ter' }, { value: 3, label: 'Qua' },
-  { value: 4, label: 'Qui' }, { value: 5, label: 'Sex' },
-];
+const WEEKDAY_OPTIONS = SELECTABLE_WEEKDAYS.map(day => ({
+  value: day,
+  label: WEEKDAY_LABELS[day],
+}));
 
 const MONTH_OPTIONS = [
   { value: 1, label: 'Janeiro' }, { value: 2, label: 'Fevereiro' },
@@ -79,7 +84,7 @@ export const TemplateDetailPage: React.FC = () => {
   const [cfgDueDay, setCfgDueDay] = useState<number | ''>('');
   const [cfgDueMonth, setCfgDueMonth] = useState<number | ''>('');
   const [cfgDueDaysFromStart, setCfgDueDaysFromStart] = useState<number | ''>('');
-  const [cfgWeekdays, setCfgWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [cfgWeekdays, setCfgWeekdays] = useState<Weekday[]>([...SELECTABLE_WEEKDAYS]);
   const [cfgRecurrence, setCfgRecurrence] = useState('monthly');
   const [cfgProcessType, setCfgProcessType] = useState('');
   const [cfgRoutineTypeId, setCfgRoutineTypeId] = useState('');
@@ -96,16 +101,19 @@ export const TemplateDetailPage: React.FC = () => {
       setCfgDueDay(template.due_day ?? '');
       setCfgDueMonth(template.due_month ?? '');
       setCfgDueDaysFromStart(template.due_days_from_start ?? '');
-      setCfgWeekdays(template.weekday_mask ? template.weekday_mask.split(',').map(Number) : [1, 2, 3, 4, 5]);
+      setCfgWeekdays(template.weekdays?.length ? template.weekdays : [...SELECTABLE_WEEKDAYS]);
       setCfgRecurrence(template.recurrence);
       setCfgProcessType(template.process_type || '');
       setCfgRoutineTypeId(template.routine_type_id || '');
     }
   }, [template]);
 
-  const toggleWeekday = (day: number) => {
+  const toggleWeekday = (day: Weekday) => {
     setCfgWeekdays(prev =>
-      prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
+      prev.includes(day)
+        ? prev.filter(d => d !== day)
+        : //Mantém a ordem de segunda a sexta, que é a ordem de exibição.
+          SELECTABLE_WEEKDAYS.filter(d => prev.includes(d) || d === day)
     );
   };
 
@@ -117,7 +125,7 @@ export const TemplateDetailPage: React.FC = () => {
       routine_type_id: cfgRoutineTypeId || undefined,
     };
     if (cfgRecurrence === 'once') payload.due_days_from_start = cfgDueDaysFromStart === '' ? undefined : Number(cfgDueDaysFromStart);
-    if (cfgRecurrence === 'weekly') payload.weekday_mask = cfgWeekdays.join(',');
+    if (cfgRecurrence === 'weekly') payload.weekdays = cfgWeekdays;
     if (cfgRecurrence === 'monthly') payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
     if (cfgRecurrence === 'yearly') {
       payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
@@ -289,7 +297,7 @@ export const TemplateDetailPage: React.FC = () => {
               {/* Recurrence fields */}
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Periodicidade</label>
-                <select value={cfgRecurrence} onChange={(e) => { setCfgRecurrence(e.target.value); setCfgDueDaysFromStart(''); setCfgDueDay(''); setCfgDueMonth(''); setCfgWeekdays([1, 2, 3, 4, 5]); }}
+                <select value={cfgRecurrence} onChange={(e) => { setCfgRecurrence(e.target.value); setCfgDueDaysFromStart(''); setCfgDueDay(''); setCfgDueMonth(''); setCfgWeekdays([...SELECTABLE_WEEKDAYS]); }}
                   className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                   {Object.entries(RECURRENCE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
@@ -304,7 +312,7 @@ export const TemplateDetailPage: React.FC = () => {
                 <div>
                   <label className="text-xs font-semibold text-muted-foreground block mb-1">Dias da semana</label>
                   <div className="flex gap-1.5 pt-1">
-                    {WEEKDAY_LABELS.map(({ value, label }) => (
+                    {WEEKDAY_OPTIONS.map(({ value, label }) => (
                       <label key={value} className={cn(
                         "flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
                         cfgWeekdays.includes(value) ? "bg-primary/10 border-primary text-primary-strong" : "bg-muted border-border text-muted-foreground"
@@ -353,8 +361,8 @@ export const TemplateDetailPage: React.FC = () => {
         {template.recurrence === 'once' && template.due_days_from_start && (
           <span>Prazo: <strong>{template.due_days_from_start} dias</strong> após o start</span>
         )}
-        {template.recurrence === 'weekly' && template.weekday_mask && (
-          <span>Dias: <strong>{template.weekday_mask.split(',').map(d => ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'][Number(d)]).join(', ')}</strong></span>
+        {template.recurrence === 'weekly' && template.weekdays && template.weekdays.length > 0 && (
+          <span>Dias: <strong>{template.weekdays?.map(day => WEEKDAY_LABELS[day]).join(', ')}</strong></span>
         )}
         {template.recurrence === 'monthly' && template.due_day && (
           <span>Vencimento: <strong>dia {template.due_day}</strong> de cada mês</span>

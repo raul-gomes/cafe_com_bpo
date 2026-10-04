@@ -22,6 +22,7 @@ from ..schemas import (
     TemplateActivityUpdate,
 )
 from ..templates.repository import TemplateRepository
+from ..weekdays import parse_weekday_mask
 
 
 class TemplateService:
@@ -93,7 +94,7 @@ class TemplateService:
                     description=tmpl.description,
                     process_type=tmpl.process_type,
                     recurrence=tmpl.recurrence,
-                    weekday_mask=tmpl.weekday_mask,
+                    weekdays=parse_weekday_mask(tmpl.weekday_mask),
                     due_day=tmpl.due_day,
                     due_month=tmpl.due_month,
                     due_days_from_start=tmpl.due_days_from_start,
@@ -162,7 +163,7 @@ class TemplateService:
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
-            weekday_mask=tmpl.weekday_mask,
+            weekdays=parse_weekday_mask(tmpl.weekday_mask),
             due_day=tmpl.due_day,
             due_month=tmpl.due_month,
             due_days_from_start=tmpl.due_days_from_start,
@@ -199,7 +200,7 @@ class TemplateService:
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
-            weekday_mask=tmpl.weekday_mask,
+            weekdays=parse_weekday_mask(tmpl.weekday_mask),
             due_day=tmpl.due_day,
             due_month=tmpl.due_month,
             due_days_from_start=tmpl.due_days_from_start,
@@ -256,7 +257,7 @@ class TemplateService:
             description=updated.description,
             process_type=updated.process_type,
             recurrence=updated.recurrence,
-            weekday_mask=updated.weekday_mask,
+            weekdays=parse_weekday_mask(updated.weekday_mask),
             due_day=updated.due_day,
             due_month=updated.due_month,
             due_days_from_start=updated.due_days_from_start,
@@ -323,7 +324,7 @@ class TemplateService:
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
-            weekday_mask=tmpl.weekday_mask,
+            weekdays=parse_weekday_mask(tmpl.weekday_mask),
             due_day=tmpl.due_day,
             due_month=tmpl.due_month,
             due_days_from_start=tmpl.due_days_from_start,

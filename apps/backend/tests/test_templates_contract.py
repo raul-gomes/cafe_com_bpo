@@ -34,7 +34,7 @@ TEMPLATE_KEYS = {
     "description",
     "process_type",
     "recurrence",
-    "weekday_mask",
+    "weekdays",
     "due_day",
     "due_month",
     "due_days_from_start",

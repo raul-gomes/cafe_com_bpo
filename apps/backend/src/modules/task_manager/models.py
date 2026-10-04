@@ -251,7 +251,9 @@ class ActivityTemplate(Base):
     recurrence = Column(
         String(50), nullable=False, default="monthly"
     )  # once, daily, weekly, monthly, quarterly, yearly
-    weekday_mask = Column(String(20), nullable=True)  # ex: "0,2,4" (dom=0, seg=1, ...)
+    # P-5: dígitos separados por vírgula, 1=segunda ... 7=domingo (ex: "1,3").
+    # O "0" (domingo) só é aceito na leitura, por compatibilidade com linhas antigas.
+    weekday_mask = Column(String(20), nullable=True)
     due_day = Column(
         Integer, nullable=True
     )  # dia do mês para recorrência mensal (1-31)

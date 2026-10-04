@@ -1,7 +1,10 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from src.modules.task_manager.weekdays import Weekday
 
 
 class TaskBase(BaseModel):
@@ -219,11 +222,19 @@ class TemplateActivityResponse(BaseModel):
 
 
 class ActivityTemplateBase(BaseModel):
+    """Dados de criação da rotina, com os dias no enum do contrato (P-5).
+
+    O dia da semana entra como :class:`Weekday` (`["monday", "wednesday"]`) e é
+    convertido para dígitos na gravação — o cliente nunca vê o número. Enviar o
+    antigo `weekday_mask` é recusado em vez de ignorado, para que um cliente
+    desatualizado não receba 201 e fique com rotina sem dia nenhum.
+    """
+
     name: str
     description: str | None = None
     process_type: str | None = None
     recurrence: str = "monthly"
-    weekday_mask: str | None = None  # ex: "0,2,4" (dom=0, seg=1, ...)
+    weekdays: list[Weekday] = Field(default_factory=list)
     due_day: int | None = None  # dia do mês p/ mensal (1-31)
     due_month: int | None = None  # 1-12, para recorrência anual
     due_days_from_start: int | None = None  # dias p/ "once"
@@ -236,17 +247,47 @@ class ActivityTemplateBase(BaseModel):
     is_archived: bool = False  # rotina arquivada: fica no final da página
     routine_type_id: UUID | None = None
 
+    @field_validator("weekdays")
+    @classmethod
+    def _reject_duplicated_days(cls, days: list[Weekday]) -> list[Weekday]:
+        """Recusa dia repetido em vez de gravar a lista deduplicada em silêncio.
+
+        `["monday", "monday"]` viraria `"1"`: o cliente pediria dois dias e leria um.
+        Como o seletor da tela nunca repete dia, a repetição só pode ser bug de
+        cliente — e erro de cliente deve aparecer como erro.
+        """
+        if len(set(days)) != len(days):
+            raise ValueError("weekdays não pode repetir o mesmo dia")
+        return days
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_legacy_mask(cls, data: Any) -> Any:
+        """Recusa `weekday_mask` em vez de ignorá-lo (P-5).
+
+        Sem esta recusa, um cliente antigo receberia 201 e a rotina ficaria sem dia
+        da semana — o usuário veria "salvo" e nunca veria card.
+        """
+        if isinstance(data, dict) and "weekday_mask" in data:
+            raise ValueError(
+                "weekday_mask não existe mais na API: envie weekdays "
+                '(ex.: ["monday", "wednesday"])'
+            )
+        return data
+
 
 class ActivityTemplateCreate(ActivityTemplateBase):
     pass
 
 
 class ActivityTemplateUpdate(BaseModel):
+    """Patch da rotina: os dias entram como enum, nunca como `weekday_mask`."""
+
     name: str | None = None
     description: str | None = None
     process_type: str | None = None
     recurrence: str | None = None
-    weekday_mask: str | None = None
+    weekdays: list[Weekday] | None = None
     due_day: int | None = None
     due_month: int | None = None
     due_days_from_start: int | None = None
@@ -255,6 +296,34 @@ class ActivityTemplateUpdate(BaseModel):
     is_active: bool | None = None
     is_archived: bool | None = None
     routine_type_id: UUID | None = None
+
+    @field_validator("weekdays")
+    @classmethod
+    def _reject_duplicated_days(cls, days: list[Weekday]) -> list[Weekday]:
+        """Recusa dia repetido em vez de gravar a lista deduplicada em silêncio.
+
+        `["monday", "monday"]` viraria `"1"`: o cliente pediria dois dias e leria um.
+        Como o seletor da tela nunca repete dia, a repetição só pode ser bug de
+        cliente — e erro de cliente deve aparecer como erro.
+        """
+        if len(set(days)) != len(days):
+            raise ValueError("weekdays não pode repetir o mesmo dia")
+        return days
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_legacy_mask(cls, data: Any) -> Any:
+        """Recusa `weekday_mask` em vez de ignorá-lo (P-5).
+
+        Sem esta recusa, um cliente antigo receberia 201 e a rotina ficaria sem dia
+        da semana — o usuário veria "salvo" e nunca veria card.
+        """
+        if isinstance(data, dict) and "weekday_mask" in data:
+            raise ValueError(
+                "weekday_mask não existe mais na API: envie weekdays "
+                '(ex.: ["monday", "wednesday"])'
+            )
+        return data
 
 
 class ActivityTemplateResponse(BaseModel):
@@ -267,7 +336,7 @@ class ActivityTemplateResponse(BaseModel):
     Out, because no screen reads them: `parent_template_id` (the fork is
     created server-side, the UI never links back to the general template),
     `due_date`/`recurrence_end_date` (the recurrence is described by
-    `recurrence` + `weekday_mask` + `due_day`/`due_month`/`due_days_from_start`
+    `recurrence` + `weekdays` + `due_day`/`due_month`/`due_days_from_start`
     and the edit form prefills from those) and `created_at`/`updated_at`.
     """
 
@@ -277,7 +346,7 @@ class ActivityTemplateResponse(BaseModel):
     description: str | None = None
     process_type: str | None = None
     recurrence: str
-    weekday_mask: str | None = None
+    weekdays: list[Weekday] = Field(default_factory=list)
     due_day: int | None = None
     due_month: int | None = None
     due_days_from_start: int | None = None
@@ -306,7 +375,7 @@ class ActivityTemplateListItem(BaseModel):
     description: str | None = None
     process_type: str | None = None
     recurrence: str
-    weekday_mask: str | None = None
+    weekdays: list[Weekday] = Field(default_factory=list)
     due_day: int | None = None
     due_month: int | None = None
     due_days_from_start: int | None = None
