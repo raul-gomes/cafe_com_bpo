@@ -31,10 +31,7 @@ from ..schemas import (
     SLAAlert,
     SLAAlertsResponse,
     TaskCreate,
-    TaskPhaseCreate,
-    TaskPhaseReorder,
     TaskPhaseResponse,
-    TaskPhaseUpdate,
     TaskResponse,
     TaskUpdate,
     TimelineDayResponse,
@@ -94,6 +91,28 @@ class TaskService:
             return None
         return company
 
+    def _writable_company(self, client_id: UUID, user_id: UUID) -> Company | None:
+        """Empresa onde o usuário pode criar card, ou `None` se não pode.
+
+        Vale dono **ou** colaborador ativo, que é a regra de
+        `docs/regras_negocio.md` §Equipes ("colaborador só vê/atua nos clientes
+        aos quais foi convidado") e a mesma autorização que
+        `GET /tasks/?client_id=` aplica na leitura: escrita mais estrita que a
+        leitura transformaria o convite em decoração.
+
+        A empresa continua vindo de `companies` (Fase 3, item 6) — a linha legada
+        `clients` é o que o R4 apaga, e perguntar a ela seria voltar à origem
+        única.
+        """
+        company = self._company(client_id)
+        if company is None:
+            return None
+        if company.user_id == user_id:
+            return company
+        if TeamRepository(self.repository.session).is_team_member(client_id, user_id):
+            return company
+        return None
+
     def _notify(
         self,
         user_id: UUID,
@@ -125,7 +144,27 @@ class TaskService:
         return self.repository.get_by_user(user_id, process_type_filter=process_type)
 
     def create_task(self, task_data: TaskCreate, user_id: UUID) -> TaskResponse:
-        """Create a new task."""
+        """Creates a task for a company the user can write on.
+
+        A empresa vem do corpo da requisição, então é **dado não confiável**: sem
+        a checagem, qualquer usuário autenticado criava card no board de outro —
+        saber o `client_id` bastava. A leitura já filtra por posse/membership, e a
+        escrita precisa aplicar a mesma regra, ou o filtro vira enfeite.
+
+        Raises:
+            ValueError: When `client_id` is not a company the user owns or is an
+                active collaborator of. The router turns it into a 404, so the
+                answer never confirms that the company exists.
+        """
+        if task_data.client_id is not None and not (
+            self._writable_company(task_data.client_id, user_id)
+        ):
+            log.warning(
+                "[tasks] criação recusada: usuário %s fora da empresa %s",
+                user_id,
+                task_data.client_id,
+            )
+            raise ValueError(f"Company {task_data.client_id} not found")
         if task_data.phase_id is None:
             phases = self.get_phases()
             if phases:
@@ -212,29 +251,6 @@ class TaskService:
     def get_phases(self) -> list[TaskPhaseResponse]:
         """Get the 3 global canonical phases, normalizing leftovers."""
         return self.repository.ensure_canonical_phases()
-
-    def create_phase(self, phase_data: TaskPhaseCreate) -> TaskPhaseResponse:
-        """Custom phases are no longer allowed — only the 3 canonical ones."""
-        raise ValueError("As fases são fixas: apenas as 3 fases padrão são permitidas")
-
-    def update_phase(
-        self, phase_id: UUID, phase_data: TaskPhaseUpdate
-    ) -> TaskPhaseResponse:
-        """Update an existing phase. Only name/color can change."""
-        phase = self.repository.get_phase_by_id(phase_id)
-        if not phase:
-            raise ValueError(f"Phase {phase_id} not found")
-        if phase_data.order is not None or phase_data.is_done is not None:
-            raise ValueError("A ordem e a flag de conclusão das fases padrão são fixas")
-        return self.repository.update_phase(phase, phase_data)
-
-    def delete_phase(self, phase_id: UUID) -> None:
-        """Canonical phases cannot be deleted."""
-        raise ValueError("As fases padrão não podem ser excluídas")
-
-    def reorder_phases(self, phase_orders: TaskPhaseReorder) -> list[TaskPhaseResponse]:
-        """Canonical phases cannot be reordered."""
-        raise ValueError("As fases padrão não podem ser reordenadas")
 
     # ── Timeline ──
 

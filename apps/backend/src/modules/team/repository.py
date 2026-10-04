@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.modules.auth.models import User
-from src.modules.clients.models import Client
+from src.modules.companies.repository import CompanyRepository
 from src.modules.task_manager.models import ActivityTemplate, ClientTemplateAssignment
 
 from .models import (
@@ -618,13 +618,17 @@ class TeamRepository:
 
     # ── Helpers ──
 
-    def get_client_owner_id(self, client_id: UUID) -> UUID | None:
-        client = (
-            self.session.query(Client.user_id)
-            .filter(Client.id == client_id, Client.is_active)
-            .first()
-        )
-        return client[0] if client else None
+    def get_company_owner_id(self, company_id: UUID) -> UUID | None:
+        """Dono da empresa (estágio `client`), ou `None` se ela não for dele.
+
+        A empresa é a fonte única do vínculo (Fase 3, item 6): a linha legada
+        `clients` respondia a mesma pergunta, mas ela é o que o R4 apaga — e,
+        com ela desativada, `GET /tasks/?client_id=` deixava de reconhecer o dono
+        e caía no caminho geral, que devolve as tarefas de todas as empresas do
+        usuário em vez de só a pedida.
+        """
+        company = CompanyRepository(self.session).get_client_by_id(company_id)
+        return company.user_id if company is not None else None
 
     def get_user_by_email(self, email: str) -> User | None:
         return (

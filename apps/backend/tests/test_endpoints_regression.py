@@ -426,7 +426,8 @@ class TestTasks:
     def test_task_phases(self, client):
         email = f"taskph_{_unique()}@cafe.com"
         auth = _register_and_login(client, email)["headers"]
-        # Creating a custom phase is blocked — only the 3 canonical ones exist
+        # Creating a phase does not exist anymore (PO, 2026-10-04): the endpoint
+        # is gone, not blocked. 405 = the path exists for GET but not for POST.
         resp = client.post(
             "/tasks/phases/",
             headers=auth,
@@ -435,7 +436,7 @@ class TestTasks:
                 "color": "#ffcc00",
             },
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 405
         # List phases: exactly 3 canonical
         resp = client.get("/tasks/phases/", headers=auth)
         assert resp.status_code == 200

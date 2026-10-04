@@ -70,25 +70,16 @@ class TaskResponse(TaskBase):
 
 
 class TaskPhaseBase(BaseModel):
+    """Shape of a canonical phase. Read-only: there is no create/update payload.
+
+    Decisão do produto owner (2026-10-04): as 3 fases canônicas são fixas e
+    globais, então a API não aceita criar, renomear, reordenar nem excluir fase.
+    """
+
     name: str
     color: str = "#6b7280"
     order: int = 0
     is_done: bool = False
-
-
-class TaskPhaseCreate(TaskPhaseBase):
-    pass
-
-
-class TaskPhaseUpdate(BaseModel):
-    name: str | None = None
-    color: str | None = None
-    order: int | None = None
-    is_done: bool | None = None
-
-
-class TaskPhaseReorder(BaseModel):
-    phases: list[dict]
 
 
 class TaskPhaseResponse(TaskPhaseBase):

@@ -19,10 +19,7 @@ from ..schemas import (
     ConflictsResponse,
     SLAAlertsResponse,
     TaskCreate,
-    TaskPhaseCreate,
-    TaskPhaseReorder,
     TaskPhaseResponse,
-    TaskPhaseUpdate,
     TaskResponse,
     TaskUpdate,
     TimelineResponse,
@@ -77,11 +74,13 @@ def get_tasks(
     - team_only=true: retorna SOMENTE as tarefas dos clientes onde o usuário
       é membro (clientes compartilhados), sem as dos clientes próprios.
     """
-    if client_id:
-        from src.modules.team.repository import TeamRepository
+    from src.modules.team.repository import TeamRepository
 
-        team_repo = TeamRepository(session)
-        owner_id = team_repo.get_client_owner_id(client_id)
+    team_repo = TeamRepository(session)
+    companies = CompanyRepository(session)
+
+    if client_id:
+        owner_id = team_repo.get_company_owner_id(client_id)
         is_owner = owner_id == current_user.id
         is_member = team_repo.is_team_member(client_id, current_user.id)
 
@@ -123,11 +122,6 @@ def get_tasks(
             return [t for t in all_tasks if str(t.client_id) == str(client_id)]
 
     # ── Visão geral (sem client_id): agrega as empresas do usuário ──
-    from src.modules.team.repository import TeamRepository
-
-    team_repo = TeamRepository(session)
-    companies = CompanyRepository(session)
-
     all_tasks: list = []
     seen: set = set()
 
@@ -177,8 +171,16 @@ def get_tasks(
 
 @router.post("/", response_model=TaskResponse, status_code=status.HTTP_201_CREATED)
 def create_task(task_in: TaskCreate, service: ServiceDep, current_user: CurrentUserDep):
-    """Cria uma nova tarefa para o usuário atual"""
-    return service.create_task(task_in, current_user.id)
+    """Cria uma nova tarefa para o usuário atual.
+
+    A empresa vem do corpo, então o serviço decide se o usuário pode escrever
+    nela (dono ou colaborador). Recusado vira 404 — e não 403 — para não
+    confirmar que a empresa de outro existe.
+    """
+    try:
+        return service.create_task(task_in, current_user.id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Tarefa não encontrada")
 
 
 @router.put("/{task_id}", response_model=TaskResponse)
@@ -254,53 +256,17 @@ def cancel_task(task_id: UUID, repo: RepoDep, current_user: CurrentUserDep):
     return cancelled_task
 
 
-# ── Phase endpoints ──
+# ── Phase endpoint ──
+# Decisão do produto owner (2026-10-04): as 3 fases canônicas (a fazer, em
+# andamento, concluído) são fixas e globais. Criar, renomear, reordenar e excluir
+# fase foram removidos da API — não há rota para nenhuma dessas operações, então
+# não existe mais quem possa alterar a coluna que todos os boards veem.
 
 
 @router.get("/phases/", response_model=list[TaskPhaseResponse])
 def get_phases(service: ServiceDep):
     """Retorna as 3 fases canônicas globais, criando-as se necessário."""
     return service.get_phases()
-
-
-@router.post(
-    "/phases/", response_model=TaskPhaseResponse, status_code=status.HTTP_201_CREATED
-)
-def create_phase(phase_in: TaskPhaseCreate, service: ServiceDep):
-    """Cria uma nova fase personalizada (bloqueado — apenas 3 fases padrão)."""
-    try:
-        return service.create_phase(phase_in)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.put("/phases/{phase_id}", response_model=TaskPhaseResponse)
-def update_phase(phase_id: UUID, phase_in: TaskPhaseUpdate, service: ServiceDep):
-    """Atualiza uma fase existente (apenas nome/cor)."""
-    try:
-        return service.update_phase(phase_id, phase_in)
-    except ValueError as e:
-        if "fixas" in str(e):
-            raise HTTPException(status_code=400, detail=str(e))
-        raise HTTPException(status_code=404, detail="Fase não encontrada")
-
-
-@router.delete("/phases/{phase_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_phase(phase_id: UUID, service: ServiceDep):
-    """Remove uma fase (bloqueado — as 3 fases padrão são fixas)."""
-    try:
-        service.delete_phase(phase_id)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-
-
-@router.post("/phases/reorder")
-def reorder_phases(phase_orders: TaskPhaseReorder, service: ServiceDep):
-    """Reordena as fases (bloqueado — as 3 fases padrão são fixas)."""
-    try:
-        return service.reorder_phases(phase_orders)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
 
 
 # ── Timeline endpoints ──

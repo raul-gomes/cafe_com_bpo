@@ -191,3 +191,32 @@ class TestOrigemDaLeitura:
             f"a timeline ainda depende da linha legada: {depois.text}"
         )
         assert len(depois.json()["tasks"]) == 1
+
+    def test_listagem_filtrada_por_empresa_sobrevive_a_linha_legada(self, client):
+        """O filtro `GET /tasks/?client_id=` também sai da linha legada.
+
+        Ele decide "sou o dono desta empresa?" com o dono lido de `clients`. Com
+        a linha legada desativada o dono deixa de ser reconhecido e o endpoint
+        cai no caminho geral, que devolve as tarefas de **todas** as empresas do
+        usuário — o `client_id` pedido deixa de valer. No R4, quando a tabela for
+        apagada, é esse filtro que some.
+        """
+        dono = auth_header(client, unique_email("dono-filtro"))
+        pedida = _criar_cliente(client, dono, "Empresa Pedida")
+        outra = _criar_cliente(client, dono, "Empresa Fora Da Consulta")
+        _criar_sla(client, dono, pedida)
+        _criar_sla(client, dono, outra)
+        tarefa_pedida = _criar_tarefa(client, dono, pedida, ONTEM)
+        _criar_tarefa(client, dono, outra, ONTEM)
+
+        antes = client.get(f"/tasks/?client_id={pedida}", headers=dono)
+        assert antes.status_code == 200, antes.text
+        assert [t["id"] for t in antes.json()] == [tarefa_pedida]
+
+        _degradar_linha_legada(pedida)
+
+        depois = client.get(f"/tasks/?client_id={pedida}", headers=dono)
+        assert depois.status_code == 200, depois.text
+        assert [t["id"] for t in depois.json()] == [tarefa_pedida], (
+            "o filtro por empresa ainda resolve o dono pela linha legada"
+        )

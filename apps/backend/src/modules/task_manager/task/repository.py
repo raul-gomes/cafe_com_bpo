@@ -7,7 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from src.core.deadline import business_day_bounds
 
 from ..models import Task, TaskPhase
-from ..schemas import TaskCreate, TaskPhaseUpdate, TaskUpdate
+from ..schemas import TaskCreate, TaskUpdate
 
 
 class TaskRepository:
@@ -253,24 +253,6 @@ class TaskRepository:
         for p in result:
             self.session.refresh(p)
         return result
-
-    def get_phase_by_id(self, phase_id: UUID) -> TaskPhase | None:
-        """Retorna uma fase global pelo id."""
-        return self.session.query(TaskPhase).filter(TaskPhase.id == phase_id).first()
-
-    def update_phase(self, phase: TaskPhase, phase_in: TaskPhaseUpdate) -> TaskPhase:
-        """Update a phase."""
-        update_data = phase_in.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(phase, field, value)
-        self.session.commit()
-        self.session.refresh(phase)
-        return phase
-
-    def delete_phase(self, phase: TaskPhase) -> None:
-        """Delete a phase."""
-        self.session.delete(phase)
-        self.session.commit()
 
     def create_default_phases(self) -> list[TaskPhase]:
         """Create the 3 global canonical phases."""

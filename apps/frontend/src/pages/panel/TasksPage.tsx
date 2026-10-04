@@ -1,14 +1,13 @@
 import React, { useState, useMemo, useRef, useEffect, useCallback } from 'react';
-import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Settings, Clock, RefreshCw, Users, ChevronDown, Building2 } from 'lucide-react';
+import { Plus, LayoutGrid, Calendar as CalendarIcon, Eye, X, Clock, RefreshCw, Users, ChevronDown, Building2 } from 'lucide-react';
 import { DragDropContext } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useTaskEvents } from '../../api/hooks/useTaskEvents';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
 import { TaskResponse } from '../../schemas/tasks';
-import { ClientData } from '../../api/clients';
+import { getClients } from '../../api/clients';
 import { TaskDrawer } from '../../components/tasks/TaskDrawer';
-import { PhaseManager } from '../../components/tasks/PhaseManager';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { TaskKanban } from '../../components/tasks/TaskKanban';
 import { TaskCalendar } from '../../components/tasks/TaskCalendar';
@@ -34,7 +33,6 @@ export const TasksPage: React.FC = () => {
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
     const [userFilter, setUserFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'overdue'>('today');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
-    const [showPhaseManager, setShowPhaseManager] = useState(false);
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
@@ -91,10 +89,7 @@ export const TasksPage: React.FC = () => {
 
     const { data: clients } = useQuery({
         queryKey: ['clients'],
-        queryFn: async () => {
-            const { data } = await apiClient.get('/clients/');
-            return data as (ClientData & { role?: string })[];
-        }
+        queryFn: getClients,
     });
 
     // When toggle on, fetch only the tasks of shared (team) clients
@@ -392,11 +387,6 @@ export const TasksPage: React.FC = () => {
                     <p className="mb-2 text-[14px] text-muted-foreground">Controle operacional e prazos por empresa.</p>
                 </div>
                 <div className="flex items-center gap-3">
-                    {view === 'kanban' && user?.role === 'admin' && (
-                        <Button variant="ghost" size="sm" onClick={() => setShowPhaseManager(true)}>
-                            <Settings size={16} /> Fases
-                        </Button>
-                    )}
                     {view === 'kanban' && (
                         <Button
                             variant="ghost"
@@ -659,11 +649,6 @@ export const TasksPage: React.FC = () => {
                 onFinalize={(id) => {
                     updateTaskStatus.mutate({ id, phase_id: doneColumnId });
                 }}
-            />
-
-            <PhaseManager
-                isOpen={showPhaseManager}
-                onClose={() => setShowPhaseManager(false)}
             />
         </div>
     );

@@ -31,7 +31,6 @@ vi.mock('../src/api/hooks/useTasks', () => {
         { id: 'phase-1', name: 'a fazer', color: '#6b7280', order: 0, is_done: false, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
         { id: 'phase-2', name: 'em andamento', color: '#3b82f6', order: 1, is_done: false, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
         { id: 'phase-3', name: 'concluido', color: '#22c55e', order: 2, is_done: true, is_default: true, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
-        { id: 'phase-4', name: 'em revisao', color: '#f59e0b', order: 3, is_done: false, is_default: false, user_id: 'u1', created_at: '2026-01-01T00:00:00Z' },
       ],
       isLoading: false,
     }),
@@ -42,10 +41,6 @@ vi.mock('../src/api/hooks/useTasks', () => {
     useUpdateTask: mockMutation,
     useUpdateClient: mockMutation,
     useDeleteTask: mockMutation,
-    useCreatePhase: mockMutation,
-    useUpdatePhase: mockMutation,
-    useDeletePhase: mockMutation,
-    useReorderPhases: mockMutation,
     useTemplatesList: () => ({ data: [] }),
     useTemplate: () => ({ data: null }),
     useCreateTemplate: mockMutation,
@@ -118,11 +113,10 @@ describe('TasksPage — Phases (Tarefa 5.2)', () => {
   it('renders phase names as Kanban column headers', () => {
     renderPage()
 
-    // All 4 phases should appear as column headers (h3 elements)
+    // The 3 canonical phases appear as column headers
     expect(screen.getAllByText('a fazer').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('em andamento').length).toBeGreaterThanOrEqual(1)
     expect(screen.getAllByText('concluido').length).toBeGreaterThanOrEqual(1)
-    expect(screen.getAllByText('em revisao').length).toBeGreaterThanOrEqual(1)
   })
 
   it('shows correct task count per phase column', async () => {
@@ -134,11 +128,15 @@ describe('TasksPage — Phases (Tarefa 5.2)', () => {
     expect(screen.getAllByText('1').length).toBeGreaterThanOrEqual(1)
   })
 
-  it('renders Fases button to open PhaseManager', async () => {
+  it('has no phase management UI at all (decisão do PO: 3 fases fixas)', () => {
+    // Product owner, 2026-10-04: o kanban tem só a fazer / fazendo / concluído.
+    // Não existe mais tela para criar, renomear, reordenar ou excluir fase — o
+    // botão que abria o gerenciador foi removido com a funcionalidade.
     renderPage()
 
-    const fasesBtn = screen.getByText('Fases')
-    expect(fasesBtn).toBeInTheDocument()
+    expect(screen.queryByText('Fases')).not.toBeInTheDocument()
+    expect(screen.queryByText('Gerenciar Fases')).not.toBeInTheDocument()
+    expect(screen.queryByTitle('Renomear / alterar cor')).not.toBeInTheDocument()
   })
 
   it('keeps a task without deadline visible in the kanban under today filter (regressão s30)', () => {

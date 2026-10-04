@@ -6,12 +6,10 @@ a fazer (order 0), em andamento (order 1), concluido (order 2, is_done=True).
 
 As fases são compartilhadas por todos os usuários (globais).
 
-Regras novas:
+Regras atuais (decisão do produto owner em 2026-10-04):
 - GET /tasks/phases/ cria/normaliza o conjunto canônico global.
-- Criar fase personalizada → 400.
-- Excluir fase → 400.
-- Reordenar fases → 400.
-- Atualizar fase: só nome/cor; mudar order/is_done → 400.
+- Criar, renomear, reordenar e excluir fase: **a rota não existe** (405 no path
+  de POST, 404 nos demais) — a funcionalidade foi removida, não bloqueada.
 - Mover task para fase inexistente → 422 (fase_inexistente).
 """
 
@@ -153,50 +151,58 @@ class TestCanonicalPhases:
         assert str(t["phase_id"]) != str(extra_id)
         assert t["completed_at"] is None
 
-    def test_create_custom_phase_blocked(self, client):
+    def test_create_phase_endpoint_does_not_exist(self, client):
+        """PO (2026-10-04): não existe criação de fase. A rota foi removida."""
         auth = get_auth(client, f"canon_{uuid4()}@cafe.com")
         resp = client.post(
             "/tasks/phases/",
             json={"name": "Em Revisão", "color": "#f59e0b", "order": 3},
             headers=auth,
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 405
 
-    def test_delete_phase_blocked(self, client):
+    def test_delete_phase_endpoint_does_not_exist(self, client):
+        """PO (2026-10-04): não existe exclusão de fase. A rota foi removida."""
         auth = get_auth(client, f"canon_{uuid4()}@cafe.com")
         phase_id = client.get("/tasks/phases/", headers=auth).json()[0]["id"]
         resp = client.delete(f"/tasks/phases/{phase_id}", headers=auth)
-        assert resp.status_code == 400
+        assert resp.status_code == 404
 
-    def test_reorder_blocked(self, client):
+    def test_reorder_endpoint_does_not_exist(self, client):
+        """PO (2026-10-04): não existe reordenação. A ordem 0/1/2 é a canônica."""
         auth = get_auth(client, f"canon_{uuid4()}@cafe.com")
         phases = client.get("/tasks/phases/", headers=auth).json()
         new_order = [{"id": p["id"], "order": 2 - i} for i, p in enumerate(phases)]
         resp = client.post(
             "/tasks/phases/reorder", json={"phases": new_order}, headers=auth
         )
-        assert resp.status_code == 400
+        assert resp.status_code == 404
         after = client.get("/tasks/phases/", headers=auth).json()
         assert [p["order"] for p in after] == [0, 1, 2]
 
-    def test_update_phase_allows_name_and_color(self, client):
+    def test_update_phase_endpoint_does_not_exist(self, client):
+        """PO (2026-10-04): renomear/recolorir deixou de existir.
+
+        Antes este teste exigia 200 e era o único caminho real para alterar uma
+        coluna global vista por todos os boards. Agora a resposta é 404 e a fase
+        canônica permanece com o nome original.
+        """
         auth = get_auth(client, f"canon_{uuid4()}@cafe.com")
         phase_id = client.get("/tasks/phases/", headers=auth).json()[0]["id"]
+
         resp = client.put(
             f"/tasks/phases/{phase_id}",
             json={"name": "Backlog", "color": "#ef4444"},
             headers=auth,
         )
-        assert resp.status_code == 200
-        assert resp.json()["name"] == "Backlog"
-        assert resp.json()["color"] == "#ef4444"
+        assert resp.status_code == 404
 
-    def test_update_phase_blocks_order_and_is_done(self, client):
-        auth = get_auth(client, f"canon_{uuid4()}@cafe.com")
-        phase_id = client.get("/tasks/phases/", headers=auth).json()[0]["id"]
         resp = client.put(
             f"/tasks/phases/{phase_id}", json={"is_done": True}, headers=auth
         )
-        assert resp.status_code == 400
-        resp = client.put(f"/tasks/phases/{phase_id}", json={"order": 5}, headers=auth)
-        assert resp.status_code == 400
+        assert resp.status_code == 404
+
+        after = client.get("/tasks/phases/", headers=auth).json()
+        untouched = next(p for p in after if p["id"] == phase_id)
+        assert untouched["name"] == "a fazer"
+        assert untouched["is_done"] is False
