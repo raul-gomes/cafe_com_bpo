@@ -1,5 +1,4 @@
 import re
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, field_validator
@@ -55,15 +54,13 @@ class ClientUpdate(ClientBase):
 class ClientResponse(ClientBase):
     """Cliente do usuário, lido da `companies` (facade).
 
-    Sem `role`: a resposta saía com `role="owner"` fixo em toda linha, o que
-    não distinguia nada — o endpoint já devolve só as empresas do próprio
-    usuário, e o acesso de um membro da equipe é outro endpoint.
+    Contrato §6: só o que a tela de empresas renderiza. `user_id`,
+    `created_at` e `updated_at` saíram — o dono já está implícito (o endpoint
+    devolve apenas as empresas do próprio usuário) e nenhum componente exibe
+    data de cadastro da empresa.
     """
 
     id: UUID
-    user_id: UUID
-    created_at: datetime
-    updated_at: datetime
 
     class Config:
         from_attributes = True
