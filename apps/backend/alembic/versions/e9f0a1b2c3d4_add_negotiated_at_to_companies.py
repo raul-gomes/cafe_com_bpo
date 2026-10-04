@@ -12,6 +12,13 @@ re-criado. O backfill é escrito para ser idempotente e para não depender de
 `type`, porque uma empresa convertida é `type='client'` e mesmo assim tem data
 de prospecção.
 
+O `add_column` é guardado por inspeção porque a revisão que cria a tabela
+(`c3d4e5f6a7b8`) já precisa da coluna: o backfill dela roda o modelo da
+aplicação, cujo INSERT carrega toda coluna mapeada. Num banco novo a coluna
+existe antes desta revisão; num banco que já passou pela `c3d4e5f6a7b8` sem a
+mudança, ela não existe e precisa ser criada. Os dois casos convergem para
+aqui, e o backfill abaixo é idempotente (`negotiated_at IS NULL`).
+
 Revision ID: e9f0a1b2c3d4
 Revises: f4a5b6c7d8e9
 Create Date: 2026-10-01
@@ -34,11 +41,15 @@ log = logging.getLogger("alembic.runtime.migration")
 
 
 def upgrade() -> None:
-    """Cria a coluna e preenche a data de prospecção de quem já existe."""
-    op.add_column(
-        "companies",
-        sa.Column("negotiated_at", sa.DateTime(timezone=True), nullable=True),
-    )
+    """Cria a coluna, se faltar, e preenche a data de prospecção de quem já existe."""
+    columns = {
+        column["name"] for column in sa.inspect(op.get_bind()).get_columns("companies")
+    }
+    if "negotiated_at" not in columns:
+        op.add_column(
+            "companies",
+            sa.Column("negotiated_at", sa.DateTime(timezone=True), nullable=True),
+        )
 
     # 1) Prospecto em aberto: a prospecção começou quando a empresa nasceu.
     op.execute(

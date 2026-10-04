@@ -64,6 +64,15 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.Column("deleted_at", sa.DateTime(timezone=True), nullable=True),
+        # `negotiated_at` é criada aqui, e não só na revisão `e9f0a1b2c3d4`, porque
+        # o preenchimento abaixo roda o **modelo da aplicação**
+        # (`companies.backfill`), e o INSERT do ORM carrega toda coluna mapeada.
+        # Sem a coluna nesta revisão, qualquer banco novo quebrava no meio da
+        # cadeia com `column "negotiated_at" does not exist` — foi o que o
+        # ensaio (`tests/integration/test_migrations_postgres.py`) pegou. A
+        # revisão `e9f0a1b2c3d4` continua sendo dona do backfill da data e
+        # passou a tolerar a coluna já existente.
+        sa.Column("negotiated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("is_active", sa.Boolean(), server_default="true", nullable=False),
         sa.CheckConstraint("type IN ('prospect', 'client')", name="ck_companies_type"),
         sa.ForeignKeyConstraint(["user_id"], ["users.id"], ondelete="CASCADE"),
