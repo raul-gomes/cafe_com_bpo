@@ -135,6 +135,61 @@ describe('NetworkPage - abas Fórum e Projetos', () => {
     expect(screen.queryByText('Como reduzir custos com BPO financeiro?')).not.toBeInTheDocument()
   })
 })
+describe('NetworkPage - filtro dos topicos publicos', () => {
+  const OTHER_POST: PostResponse = {
+    ...POST,
+    id: 'post-2',
+    author_id: 'user-2',
+    author: { id: 'user-2', name: 'Ana Souza', email: 'ana@cafe.com' },
+    title: 'Rotina de conciliao bancaria',
+    comments_count: 0,
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetPosts.mockReset()
+    mockGetProjects.mockReset()
+    mockGetConversations.mockReset()
+    mockGetMyGroups.mockReset()
+    mockGetPosts.mockResolvedValue({ items: [POST, OTHER_POST], total: 2 })
+  })
+
+  it('Todos mostra os dois topicos', async () => {
+    renderPage()
+
+    expect(await screen.findByText(POST.title)).toBeInTheDocument()
+    expect(screen.getByText(OTHER_POST.title)).toBeInTheDocument()
+  })
+
+  it('Meus Topicos mostra so o que o usuario atual escreveu', async () => {
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Meus Tópicos/i }))
+
+    expect(await screen.findByText(POST.title)).toBeInTheDocument()
+    expect(screen.queryByText(OTHER_POST.title)).not.toBeInTheDocument()
+  })
+
+  it('Respondidos mostra so o topico com resposta', async () => {
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Respondidos/i }))
+
+    expect(await screen.findByText(POST.title)).toBeInTheDocument()
+    expect(screen.queryByText(OTHER_POST.title)).not.toBeInTheDocument()
+  })
+
+  it('volta para todos os topicos ao escolher Todos de novo', async () => {
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Meus Tópicos/i }))
+    expect(screen.queryByText(OTHER_POST.title)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /^Todos$/i }))
+    expect(await screen.findByText(OTHER_POST.title)).toBeInTheDocument()
+  })
+})
+
 describe('NetworkPage - link do autor para o perfil do membro', () => {
   beforeEach(() => {
     vi.clearAllMocks()
