@@ -40,7 +40,7 @@ def create_template(client, auth, name):
             "name": name,
             "process_type": "fiscal",
             "recurrence": "weekly",
-            "weekday_mask": "1,4",
+            "weekdays": ["monday", "thursday"],
         },
         headers=auth,
     )

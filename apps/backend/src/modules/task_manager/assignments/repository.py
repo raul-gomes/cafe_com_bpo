@@ -143,14 +143,23 @@ class AssignmentRepository:
         return existing is not None
 
     def task_exists_by_instance_id(self, instance_id: UUID) -> bool:
-        """Check if a pending task with the given routine_instance_id exists."""
+        """Check whether the routine occurrence identified by `instance_id` was created.
+
+        A **completed** card still consumes its occurrence: the uuid5 encodes
+        `assignment_id + activity + period`, so the next occurrence carries a
+        different id and is free to be generated. Counting only pending cards here
+        let a second run inside the same period regenerate a card that was already
+        done (docs/regras_negocio.md §1.2 — "um card por atividade por ocorrência").
+
+        Cancelled cards are *not* counted on purpose: cancelling unblocks the
+        occurrence for good (§1.2 — conclude **or** cancel unblocks generation).
+        """
         existing = (
             self.session.query(Task.id)
             .filter(
                 Task.routine_instance_id == instance_id,
                 Task.is_active,
                 Task.is_cancelled == False,
-                Task.completed_at.is_(None),
             )
             .first()
         )

@@ -36,15 +36,21 @@ def create_client(client, auth, name="Empresa Teste"):
     return resp.json()
 
 
-def _create_weekly_setup(client, auth, mask="1,4"):
-    """Cria template semanal (mask frontend 1=Seg..5=Sex) com 2 atividades."""
+def _create_weekly_setup(client, auth, days=("monday", "thursday")):
+    """Cria template semanal nos dias do enum com 2 atividades.
+
+    Args:
+        client: Cliente FastAPI de teste.
+        auth: Header de autorização.
+        days: Dias do enum `Weekday` (P-5: o contrato da API é o enum, não dígitos).
+    """
     tmpl_resp = client.post(
         "/tasks/templates/",
         json={
             "name": "Rotina Semanal Teste",
             "process_type": "fiscal",
             "recurrence": "weekly",
-            "weekday_mask": mask,
+            "weekdays": list(days),
         },
         headers=auth,
     )
@@ -80,7 +86,9 @@ def test_weekly_link_wednesday_generates_only_thursday(client):
     email = f"weekly_{suf}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth, name=f"Cliente {suf}")
-    tmpl_id = _create_weekly_setup(client, auth, mask="1,4")  # Seg + Qui
+    tmpl_id = _create_weekly_setup(
+        client, auth, days=("monday", "thursday")
+    )  # Seg + Qui
 
     db = SessionLocal()
     user = db.query(User).filter(User.email == email).one()
@@ -114,7 +122,9 @@ def test_weekly_link_friday_no_remaining_marked_day_generates_nothing(
     email = f"weekly_fri_none_{suf}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth, name=f"Cliente {suf}")
-    tmpl_id = _create_weekly_setup(client, auth, mask="2,4")  # Ter + Qui
+    tmpl_id = _create_weekly_setup(
+        client, auth, days=("tuesday", "thursday")
+    )  # Ter + Qui
 
     db = SessionLocal()
     user = db.query(User).filter(User.email == email).one()
@@ -141,7 +151,9 @@ def test_weekly_link_friday_with_today_marked_generates_only_today(client):
     email = f"weekly_fri_today_{suf}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth, name=f"Cliente {suf}")
-    tmpl_id = _create_weekly_setup(client, auth, mask="1,3,5")  # Seg + Qua + Sex
+    tmpl_id = _create_weekly_setup(
+        client, auth, days=("monday", "wednesday", "friday")
+    )  # Seg + Qua + Sex
 
     db = SessionLocal()
     user = db.query(User).filter(User.email == email).one()
@@ -171,7 +183,7 @@ def test_weekly_link_deduplicates_same_period(client):
     email = f"weekly_dedup_{suf}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth, name=f"Cliente {suf}")
-    tmpl_id = _create_weekly_setup(client, auth, mask="1,4")
+    tmpl_id = _create_weekly_setup(client, auth, days=("monday", "thursday"))
 
     db = SessionLocal()
     user = db.query(User).filter(User.email == email).one()
@@ -200,7 +212,7 @@ def test_weekly_link_monday_generates_monday_and_thursday(client):
     email = f"weekly_mon_{suf}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth, name=f"Cliente {suf}")
-    tmpl_id = _create_weekly_setup(client, auth, mask="1,4")
+    tmpl_id = _create_weekly_setup(client, auth, days=("monday", "thursday"))
 
     db = SessionLocal()
     user = db.query(User).filter(User.email == email).one()

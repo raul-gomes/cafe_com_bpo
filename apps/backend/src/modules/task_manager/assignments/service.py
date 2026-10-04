@@ -32,6 +32,7 @@ from ..schemas import (
 )
 from ..task.repository import TaskRepository
 from ..templates.repository import TemplateRepository
+from ..weekdays import parse_weekday_mask
 
 
 class AssignmentService:
@@ -164,9 +165,7 @@ class AssignmentService:
             # o scheduler (rocketry) cuida das semanas seguintes.
             if tmpl.weekday_mask:
                 marked_days = {
-                    int(d.strip()) - 1
-                    for d in tmpl.weekday_mask.split(",")
-                    if d.strip()
+                    day.python_weekday for day in parse_weekday_mask(tmpl.weekday_mask)
                 }
                 # Busca o primeiro dia marcado dentro da semana atual (hoje..domingo)
                 days_left_in_week = 6 - now.weekday()

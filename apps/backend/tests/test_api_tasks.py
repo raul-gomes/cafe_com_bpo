@@ -1048,10 +1048,13 @@ def test_scheduler_does_not_duplicate(client):
     assert r2["tasks_skipped"] >= 1, "Deveria ter detectado task existente"
 
 
-def test_scheduler_weekly_with_weekday_mask(client):
-    """Scheduler gera tarefa semanal no domingo com base na weekday_mask."""
+def test_scheduler_weekly_with_weekdays(client):
+    """Scheduler gera tarefa semanal no domingo com base nos dias marcados."""
     now = datetime(2026, 7, 19, 0, 0, 0, tzinfo=timezone.utc)  # Sunday
-    mask = "0,1"  # Monday, Tuesday
+    # P-5: o contrato da API é o enum de dia, não dígitos. Antes a máscara "0"
+    # (domingo na convenção 0-based do frontend) virava -1 no backend e gerava a
+    # semana anterior; o teste só passava porque contava dias, sem conferir datas.
+    days = ["monday", "tuesday"]
 
     email = f"sched_weekly_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1062,7 +1065,7 @@ def test_scheduler_weekly_with_weekday_mask(client):
         json={
             "name": "Semanal Scheduler",
             "recurrence": "weekly",
-            "weekday_mask": mask,
+            "weekdays": days,
             "process_type": "fiscal",
         },
         headers=auth,
@@ -1085,10 +1088,31 @@ def test_scheduler_weekly_with_weekday_mask(client):
     _complete_pending_tasks(cli["id"], tmpl_id)
 
     data = _get_scheduler_result(now=now)
-    matched_days = len(mask.split(","))
+    matched_days = len(days)
     assert data["tasks_generated"] >= matched_days, (
-        f"Domingo deveria gerar tasks para a semana ({matched_days} dias no mask)"
+        f"Domingo deveria gerar tasks para a semana ({matched_days} dias marcados)"
     )
+
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.models import Task
+
+    db = SessionLocal()
+    try:
+        deadlines = {
+            t.deadline.date()
+            for t in db.query(Task)
+            .filter(Task.client_id == UUID(cli["id"]), Task.completed_at.is_(None))
+            .all()
+        }
+        # Segunda 20/07 e terça 21/07 — a semana seguinte, contada a partir do domingo.
+        assert deadlines == {
+            datetime(2026, 7, 20, tzinfo=timezone.utc).date(),
+            datetime(2026, 7, 21, tzinfo=timezone.utc).date(),
+        }, f"mask 1,2 deveria cair em segunda e terça; veio {deadlines}"
+    finally:
+        db.close()
 
 
 def test_scheduler_weekly_mode_skips_daily_templates(client):
@@ -1132,8 +1156,16 @@ def test_scheduler_weekly_mode_skips_daily_templates(client):
 
 
 def test_scheduler_sunday_auto_generates_monday_daily(client):
-    """Auto-detect de domingo mantém o bônus: gera os dailies de segunda."""
+    """Auto-detect de domingo mantém o bônus: gera os dailies de segunda.
+
+    O clock da geração inicial fica numa quarta-feira de propósito: card gerado
+    no ato do vínculo usa o dia corrente como `period_key`, e se fosse a segunda
+    ele **já seria** o card do bônus — o dedup por `routine_instance_id`
+    (docs/regras_negocio.md §1.2) recusaria a geração e o teste mediria o oposto
+    do que pretende.
+    """
     now = datetime(2026, 7, 19, 0, 0, 0, tzinfo=timezone.utc)  # Sunday
+    wednesday = datetime(2026, 7, 22, 12, 0, 0, tzinfo=timezone.utc)
 
     email = f"sched_sun_daily_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1150,7 +1182,7 @@ def test_scheduler_sunday_auto_generates_monday_daily(client):
         json={"name": "Task Diario Dom", "due_day": 1},
         headers=auth,
     )
-    with freeze_assignments_clock():
+    with freeze_assignments_clock(wednesday):
         assign = client.post(
             "/tasks/client-templates/",
             json={"client_id": cli["id"], "template_id": tmpl_id},
@@ -1166,20 +1198,27 @@ def test_scheduler_sunday_auto_generates_monday_daily(client):
     )
 
 
-def test_scheduler_weekly_skips_when_mask_mismatch(client):
-    """Scheduler semanal so roda no domingo; em segunda-feira nao gera."""
+def test_scheduler_weekly_generates_only_masked_days(client):
+    """Regra semanal gera a semana filtrada pela mask, mesmo em dia útil.
+
+    Desde o regate P-3 a regra roda também de segunda a sexta, para recuperar a
+    semana que o domingo deixou passar. Ela produz candidato para **todos** os
+    dias marcados da semana alvo (não só o dia corrente), então o filtro da mask
+    é o que garante que nada fora dela seja criado.
+    """
     now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
 
-    email = f"sched_weekly_skip_{uuid4()}@cafe.com"
+    email = f"sched_weekly_mask_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth)
 
     tmpl_resp = client.post(
         "/tasks/templates/",
         json={
-            "name": "Semanal Skip",
+            "name": "Semanal Mask",
             "recurrence": "weekly",
-            "weekday_mask": "0",  # Monday — matches today, mas nao e domingo
+            # terça — o seletor da tela só oferece dias úteis (seg a sex)
+            "weekdays": ["tuesday"],
             "process_type": "fiscal",
         },
         headers=auth,
@@ -1187,7 +1226,7 @@ def test_scheduler_weekly_skips_when_mask_mismatch(client):
     tmpl_id = tmpl_resp.json()["id"]
     client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Skip", "due_day": 1},
+        json={"name": "Task Mask", "due_day": 1},
         headers=auth,
     )
     client.post(
@@ -1197,9 +1236,23 @@ def test_scheduler_weekly_skips_when_mask_mismatch(client):
     )
 
     data = _get_scheduler_result(now=now)
-    assert data["tasks_generated"] == 0, (
-        "Weekly nao deve gerar em dia que nao seja domingo"
+    assert data["tasks_generated"] == 1, (
+        f"só a terça da mask deveria gerar 1 card; gerou {data['tasks_generated']}"
     )
+
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.models import Task
+
+    db = SessionLocal()
+    try:
+        card = db.query(Task).filter(Task.client_id == UUID(cli["id"])).one()
+        assert (
+            card.deadline.date() == datetime(2026, 7, 21, tzinfo=timezone.utc).date()
+        ), f"o card caiu em {card.deadline}, não no dia marcado (terça 21/07)"
+    finally:
+        db.close()
 
 
 def test_scheduler_monthly_skips_existing_task(client):
