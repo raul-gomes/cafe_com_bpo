@@ -54,6 +54,20 @@ class CompanyRepository:
             .first()
         )
 
+    def get_owned_company(self, user_id: UUID, company_id: UUID) -> Company | None:
+        """Empresa do usuário, ou `None` se não for dele (ou não existir).
+
+        Para os `company_id` que chegam do **corpo** da requisição. `get_by_id` é
+        leitura de etapa e não filtra dono — quem chama é que sabe se a empresa é
+        sua. Aqui os dois Senseis: empresa alheia tem de dar o mesmo "não
+        encontrada" que uma inexistente, senão o endpoint serve de verificação de
+        existência de negócio alheio.
+        """
+        company = self.get_by_id(company_id)
+        if company is None or company.user_id != user_id:
+            return None
+        return company
+
     def get_client_by_id(self, company_id: UUID) -> Company | None:
         """Empresa no estágio `client`, ou `None` se for prospecto (ou não existir).
 

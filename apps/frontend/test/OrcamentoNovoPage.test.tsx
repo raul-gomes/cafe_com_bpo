@@ -55,11 +55,20 @@ vi.mock('sonner', () => ({
 }))
 
 // O layout é irrelevante para o contrato de salvamento: só o `onSave` importa.
+// `prospects`/`prospectId` também: o seletor da tela continua offerta prospecção
+// (decisão do dono, 2026-10-03), mas o campo enviado é `company_id`.
 vi.mock('../src/components/pricing/PricingCalculatorLayout', () => ({
-  PricingCalculatorLayout: ({ onSave, isSaving }: any) => (
-    <button onClick={() => onSave(FORM, 'Empresa Teste')} disabled={isSaving}>
-      salvar
-    </button>
+  PricingCalculatorLayout: ({ onSave, isSaving, prospects, onProspectChange }: any) => (
+    <>
+      <button onClick={() => onSave(FORM, 'Empresa Teste')} disabled={isSaving}>
+        salvar
+      </button>
+      {prospects?.map((p: { id: string; name: string }) => (
+        <button key={p.id} onClick={() => onProspectChange?.(p.id)}>
+          {`vincular ${p.name}`}
+        </button>
+      ))}
+    </>
   ),
 }))
 
@@ -113,5 +122,42 @@ describe('OrcamentoNovoPage — o preço salvo é o do servidor', () => {
       const { toast } = await import('sonner')
       expect(toast.error).toHaveBeenCalled()
     })
+  })
+})
+
+describe('OrcamentoNovoPage — o vínculo do orçamento é a empresa', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetProspects.mockResolvedValue([
+      { id: 'empresa-1', name: 'Prospecto Alheio', email: 'a@b.com' },
+    ])
+    mockGet.mockResolvedValue({ data: {} })
+    mockPost.mockResolvedValue({
+      data: { id: 'prop-1', company_id: 'empresa-1', result_payload: {} },
+    })
+    mockPut.mockResolvedValue({
+      data: { id: 'prop-1', company_id: 'empresa-1', result_payload: {} },
+    })
+  })
+
+  it('envia company_id, e não prospect_id', async () => {
+    renderWithProviders(<OrcamentoNovoPage />)
+
+    fireEvent.click(await screen.findByText('vincular Prospecto Alheio'))
+    fireEvent.click(screen.getByText('salvar'))
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1))
+    const [, body] = mockPost.mock.calls[0]
+    expect(body.company_id).toBe('empresa-1')
+    expect(body).not.toHaveProperty('prospect_id')
+  })
+
+  it('não envia company_id quando o orçamento é de nome livre', async () => {
+    renderWithProviders(<OrcamentoNovoPage />)
+    fireEvent.click(screen.getByText('salvar'))
+
+    await waitFor(() => expect(mockPost).toHaveBeenCalledTimes(1))
+    const [, body] = mockPost.mock.calls[0]
+    expect(body).not.toHaveProperty('company_id')
   })
 })

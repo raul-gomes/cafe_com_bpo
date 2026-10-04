@@ -32,7 +32,7 @@ export const OrcamentoNovoPage: React.FC = () => {
           const resp = await apiClient.get(`/proposals/${id}`);
           setInitialData(resp.data.input_payload);
           setClientName(resp.data.client_name);
-          setProspectId(resp.data.prospect_id ?? null);
+          setProspectId(resp.data.company_id ?? null);
         } catch (err) {
           console.error('Erro ao carregar orçamento:', err);
           toast.error('Não foi possível carregar o orçamento.');
@@ -68,7 +68,10 @@ export const OrcamentoNovoPage: React.FC = () => {
         client_name: name,
         input_payload: formData
       };
-      if (prospectId) payload.prospect_id = prospectId;
+      // O vínculo é a empresa dona do negócio (`company_id`). O seletor da tela
+      // continua oferecendo prospecção (decisão do dono, 2026-10-03), e o
+      // id do prospecto escolhido é o id da empresa que ele é.
+      if (prospectId) payload.company_id = prospectId;
 
       const resp = id
         ? await apiClient.put(`/proposals/${id}`, payload)

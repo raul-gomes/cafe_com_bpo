@@ -154,7 +154,7 @@ def test_delete_prospect_removes_linked_proposals_and_contracts(client):
         json={
             "client_name": prospect["name"],
             "input_payload": pricing_input_for_total(500.0),
-            "prospect_id": prospect["id"],
+            "company_id": prospect["id"],
         },
         headers=auth,
     )
@@ -205,7 +205,7 @@ def test_delete_prospect_cascade_is_user_scoped(client):
         json={
             "client_name": prospect_a["name"],
             "input_payload": pricing_input_for_total(500.0),
-            "prospect_id": prospect_a["id"],
+            "company_id": prospect_a["id"],
         },
         headers=auth_a,
     ).json()
@@ -223,7 +223,7 @@ def test_delete_prospect_cascade_is_user_scoped(client):
         json={
             "client_name": prospect_b["name"],
             "input_payload": pricing_input_for_total(300.0),
-            "prospect_id": prospect_b["id"],
+            "company_id": prospect_b["id"],
         },
         headers=auth_b,
     ).json()
@@ -402,7 +402,9 @@ def test_update_prospect_representante_fields(client):
     assert data["representante_telefone"] is None
 
 
-def test_proposal_can_reference_prospect(client):
+def test_proposal_can_reference_the_company_of_the_prospect(client):
+    """O orçamento aponta para a **empresa**: o prospecto é a empresa em
+    prospecção, então o id é o mesmo e o contrato não conhece mais `prospect_id`."""
     email = f"prospect_prop_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
     prospect = create_prospect(client, auth, name="Para Orçamento").json()
@@ -412,12 +414,12 @@ def test_proposal_can_reference_prospect(client):
         json={
             "client_name": prospect["name"],
             "input_payload": pricing_input_for_total(500.0),
-            "prospect_id": prospect["id"],
+            "company_id": prospect["id"],
         },
         headers=auth,
     )
     assert resp.status_code == 201
-    assert resp.json()["prospect_id"] == prospect["id"]
+    assert resp.json()["company_id"] == prospect["id"]
 
 
 def test_reprove_prospect_takes_it_out_of_the_list(client):

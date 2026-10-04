@@ -16,6 +16,8 @@ from src.core.config import get_settings
 from src.core.email import EmailService
 from src.core.logger import log
 from src.modules.auth.models import User
+from src.modules.companies.models import Company
+from src.modules.companies.repository import CompanyRepository
 from src.modules.pricing.schemas import PricingCalculateRequest
 from src.modules.pricing.service import PricingService
 from src.modules.proposals.repository import PricingScenarioRepository
@@ -43,6 +45,10 @@ class ProposalNotFoundError(ValueError):
     """Orçamento inexistente ou pertencente a outro usuário."""
 
 
+class ProposalCompanyNotFoundError(ValueError):
+    """Empresa do corpo não existe ou é de outro usuário."""
+
+
 class ProposalService:
     """Service layer for proposal operations."""
 
@@ -50,9 +56,15 @@ class ProposalService:
         self,
         repository: PricingScenarioRepository,
         pricing_service: PricingService | None = None,
+        companies: CompanyRepository | None = None,
     ):
         self.repository = repository
         self.pricing_service = pricing_service or PricingService()
+        # A empresa é a fonte única do vínculo e da posse do negócio (Fase 3,
+        # item 1). A checagem de posse mora aqui, e não no router: o
+        # `company_id` chega do corpo, e empresa alheia tem de dar o mesmo erro
+        # de inexistente.
+        self.companies = companies or CompanyRepository(repository.session)
 
     @staticmethod
     def _safe_float(value, default=0.0):
@@ -84,19 +96,6 @@ class ProposalService:
 
         return sanitize_value(result_payload)
 
-    def get_user_proposals(
-        self, user_id: UUID, status: str | None = None
-    ) -> list[ProposalResponse]:
-        """Get all proposals for a user."""
-        proposals = self.repository.get_by_user(user_id, status_filter=status)
-        # Sanitize NaN values from result_payloads
-        for proposal in proposals:
-            if proposal.result_payload:
-                proposal.result_payload = self._sanitize_result_payload(
-                    proposal.result_payload
-                )
-        return proposals
-
     def get_proposal(self, proposal_id: UUID, user_id: UUID) -> ProposalResponse:
         """Get a specific proposal."""
         proposal = self.repository.get_scenario_by_id(
@@ -110,6 +109,22 @@ class ProposalService:
                 proposal.result_payload
             )
         return proposal
+
+    def _resolve_company(
+        self, company_id: UUID | None, user_id: UUID
+    ) -> Company | None:
+        """Empresa dona do orçamento, ou `None` quando o corpo não manda id.
+
+        A posse é verificada aqui porque o id chega do corpo da requisição: uma
+        empresa de outro usuário precisa dar o mesmo erro de inexistente, senão o
+        endpoint confirmaria a existência de um negócio alheio.
+        """
+        if company_id is None:
+            return None
+        company = self.companies.get_owned_company(user_id, company_id)
+        if company is None:
+            raise ProposalCompanyNotFoundError("Empresa não encontrada")
+        return company
 
     def _calculate_result_payload(self, input_payload: dict) -> dict:
         """Recalcula o resultado do orçamento pela Metodologia v4 do servidor.
@@ -143,6 +158,7 @@ class ProposalService:
         self, proposal_data: ProposalCreate, user_id: UUID
     ) -> ProposalResponse:
         """Create a new proposal with a server-calculated price."""
+        company = self._resolve_company(proposal_data.company_id, user_id)
         if proposal_data.result_payload:
             self._warn_ignored_result_payload(proposal_data.client_name)
         result_payload = self._calculate_result_payload(proposal_data.input_payload)
@@ -151,13 +167,14 @@ class ProposalService:
             client_name=proposal_data.client_name,
             input_payload=proposal_data.input_payload,
             result_payload=result_payload,
-            prospect_id=proposal_data.prospect_id,
+            company=company,
         )
 
     def update_proposal(
         self, proposal_id: UUID, user_id: UUID, proposal_data: ProposalCreate
     ) -> ProposalResponse:
         """Update an existing proposal with a server-calculated price."""
+        company = self._resolve_company(proposal_data.company_id, user_id)
         if proposal_data.result_payload:
             self._warn_ignored_result_payload(proposal_data.client_name)
         result_payload = self._calculate_result_payload(proposal_data.input_payload)
@@ -167,7 +184,7 @@ class ProposalService:
             client_name=proposal_data.client_name,
             input_payload=proposal_data.input_payload,
             result_payload=result_payload,
-            prospect_id=proposal_data.prospect_id,
+            company=company,
         )
         if not updated:
             raise ProposalNotFoundError(f"Proposal {proposal_id} not found")

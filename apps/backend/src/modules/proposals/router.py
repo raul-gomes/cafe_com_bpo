@@ -18,6 +18,7 @@ from .schemas import (
     ShareLinkResponse,
 )
 from .service import (
+    ProposalCompanyNotFoundError,
     ProposalNotFoundError,
     ProposalPricingError,
     ProposalService,
@@ -89,6 +90,13 @@ def create_proposal(
             f"📄 Proposta salva: '{proposal.client_name}' | ID: {new_scenario.id} | Usuário: {current_user.email}"
         )
         return new_scenario
+    except ProposalCompanyNotFoundError as e:
+        service.repository.session.rollback()
+        log.warning(
+            f"⚠️ Orçamento de '{proposal.client_name}' recusado por "
+            f"{current_user.email}: empresa inexistente ou de outro usuário"
+        )
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except ProposalPricingError as e:
         service.repository.session.rollback()
         log.warning(
@@ -145,6 +153,13 @@ def update_proposal(
             f"📝 Proposta atualizada: '{proposal.client_name}' | ID: {proposal_id} | Usuário: {current_user.email}"
         )
         return updated
+    except ProposalCompanyNotFoundError as e:
+        service.repository.session.rollback()
+        log.warning(
+            f"⚠️ Atualização do orçamento {proposal_id} recusada por "
+            f"{current_user.email}: empresa inexistente ou de outro usuário"
+        )
+        raise HTTPException(status_code=404, detail=str(e)) from e
     except ProposalPricingError as e:
         service.repository.session.rollback()
         log.warning(

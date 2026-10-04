@@ -40,7 +40,7 @@ def create_proposal(client, auth, prospect, final_price=2500.0):
             "complexity": "Média",
             "revenue": 50000,
         },
-        "prospect_id": prospect["id"],
+        "company_id": prospect["id"],
     }
     return client.post("/proposals/", json=payload, headers=auth)
 

@@ -3,10 +3,36 @@ import uuid
 from sqlalchemy import and_, func, or_
 from sqlalchemy.orm import Session
 
-from src.modules.companies.models import Company
+from src.modules.companies.models import (
+    COMPANY_TYPE_CLIENT,
+    COMPANY_TYPE_PROSPECT,
+    Company,
+)
 
 from .models import PricingScenario
-from .schemas import ProposalCreate, ProposalUpdate
+
+
+def _apply_company_link(scenario: PricingScenario, company: Company | None) -> None:
+    """Aponta o orçamento para a empresa dona do negócio e mantém a coluna
+    legada em escrita dupla.
+
+    `company_id` é a coluna que vale (R2): é por ela que a Governança agrupa e
+    que a cascata de arquivamento (§16) desativa. `client_id`/`prospect_id` ainda
+    são escritas em paralelo porque só o R4 as apaga — e o roteiro de release
+    (V5) compara `company_id` com `coalesce(client_id, prospect_id)`, então uma
+    linha nova escrita só com `company_id` nasceria como divergência no rehearsal.
+    """
+    scenario.company_id = company.id if company is not None else None
+    scenario.client_id = (
+        company.id
+        if company is not None and company.type == COMPANY_TYPE_CLIENT
+        else None
+    )
+    scenario.prospect_id = (
+        company.id
+        if company is not None and company.type == COMPANY_TYPE_PROSPECT
+        else None
+    )
 
 
 class PricingScenarioRepository:
@@ -35,16 +61,16 @@ class PricingScenarioRepository:
         client_name: str,
         input_payload: dict,
         result_payload: dict,
-        prospect_id: uuid.UUID | None = None,
+        company: Company | None = None,
     ) -> PricingScenario:
         scenario = PricingScenario(
             user_id=user_id,
             client_name=client_name,
             input_payload=input_payload,
             result_payload=result_payload,
-            prospect_id=prospect_id,
             number=self.next_proposal_number(user_id),
         )
+        _apply_company_link(scenario, company)
         self.session.add(scenario)
         self.session.flush()
         return scenario
@@ -109,8 +135,13 @@ class PricingScenarioRepository:
         client_name: str,
         input_payload: dict,
         result_payload: dict,
-        prospect_id: uuid.UUID | None = None,
+        company: Company | None = None,
     ) -> PricingScenario | None:
+        """Atualiza o orçamento e **reaponta** o vínculo com a empresa.
+
+        O PUT é um corpo inteiro (`ProposalCreate`), então `company=None`
+        significa "orçamento sem empresa" — e não "não mexer no vínculo".
+        """
         scenario = self.get_scenario_by_id(user_id=user_id, scenario_id=scenario_id)
         if not scenario:
             return None
@@ -118,7 +149,7 @@ class PricingScenarioRepository:
         scenario.client_name = client_name
         scenario.input_payload = input_payload
         scenario.result_payload = result_payload
-        scenario.prospect_id = prospect_id
+        _apply_company_link(scenario, company)
 
         self.session.flush()
         return scenario
@@ -134,19 +165,24 @@ class PricingScenarioRepository:
             return True
         return False
 
-    def delete_by_prospect(
-        self, user_id: uuid.UUID, prospect_id: uuid.UUID
+    def delete_by_company(
+        self, user_id: uuid.UUID, company_id: uuid.UUID
     ) -> list[PricingScenario]:
         """Arquiva (soft delete) os orçamentos ativos do usuário vinculados a
-        um prospecto — usado quando o prospecto é excluído (o vínculo saí de
-        vista do usuário e o link público compartilhado deixa de valer)."""
+        uma empresa — usado quando a empresa é arquivada, para o vínculo sair de
+        vista do usuário e o link público compartilhado deixar de valer.
+
+        Filtra por `company_id`, a coluna que vale (R2). Quem chama precisa
+        passar a empresa que **sobreviveu** à conversão (`converted_client_id`),
+        porque a empresa do prospecto convertido não existe mais em `companies`.
+        """
         from datetime import datetime, timezone
 
         scenarios = (
             self.session.query(PricingScenario)
             .filter(
                 PricingScenario.user_id == user_id,
-                PricingScenario.prospect_id == prospect_id,
+                PricingScenario.company_id == company_id,
                 PricingScenario.is_active,
             )
             .all()
@@ -157,67 +193,3 @@ class PricingScenarioRepository:
             scenario.deleted_at = now
         self.session.commit()
         return scenarios
-
-
-class ProposalRepository:
-    """
-    Repository interface for ProposalService operations on PricingScenario.
-    """
-
-    def __init__(self, session: Session):
-        self.session = session
-
-    def get_by_user(
-        self, user_id: uuid.UUID, status_filter: str | None = None
-    ) -> list[PricingScenario]:
-        query = self.session.query(PricingScenario).filter(
-            PricingScenario.user_id == user_id,
-            PricingScenario.is_active,
-        )
-        return query.all()
-
-    def get_by_id(
-        self, proposal_id: uuid.UUID, user_id: uuid.UUID
-    ) -> PricingScenario | None:
-        return (
-            self.session.query(PricingScenario)
-            .filter(
-                PricingScenario.id == proposal_id,
-                PricingScenario.user_id == user_id,
-                PricingScenario.is_active,
-            )
-            .first()
-        )
-
-    def create(self, data: ProposalCreate, user_id: uuid.UUID) -> PricingScenario:
-        scenario = PricingScenario(
-            user_id=user_id,
-            client_name=data.client_name,
-            input_payload=data.input_payload,
-            result_payload=data.result_payload,
-            number=self.next_proposal_number(user_id),
-        )
-        self.session.add(scenario)
-        self.session.flush()
-        self.session.refresh(scenario)
-        return scenario
-
-    def update(
-        self, scenario: PricingScenario, data: ProposalUpdate
-    ) -> PricingScenario:
-        if data.client_name is not None:
-            scenario.client_name = data.client_name
-        if data.input_payload is not None:
-            scenario.input_payload = data.input_payload
-        if data.result_payload is not None:
-            scenario.result_payload = data.result_payload
-        self.session.flush()
-        self.session.refresh(scenario)
-        return scenario
-
-    def delete(self, scenario: PricingScenario) -> None:
-        from datetime import datetime, timezone
-
-        scenario.is_active = False
-        scenario.deleted_at = datetime.now(timezone.utc)
-        self.session.flush()
