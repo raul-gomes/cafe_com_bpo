@@ -35,6 +35,12 @@ from src.modules.payments.router import router as payments_router
 from src.modules.pricing.router import router as pricing_router
 from src.modules.proposals.router import router as proposals_router
 from src.modules.prospects.router import router as prospects_router
+from src.modules.subscriptions.models import (
+    BetaAccess,  # noqa: F401  (tabelas sem rota até a Fase 4)
+    PaymentMethod,  # noqa: F401
+    Plan,  # noqa: F401
+    Subscription,  # noqa: F401
+)
 from src.modules.task_manager import router as tasks_router
 from src.modules.task_manager.scheduler import scheduler_instance
 from src.modules.team.router import router as team_router
