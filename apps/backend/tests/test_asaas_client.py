@@ -366,6 +366,39 @@ def test_sandbox_base_url_is_refused_in_production(monkeypatch):
         get_settings.cache_clear()
 
 
+def test_missing_api_key_is_refused_in_production(monkeypatch):
+    """Production without a key must break at boot, not at the first charge.
+
+    The compose file was missing the Asaas variables entirely, so production
+    booted with an empty key and every customer checkout failed with an opaque
+    401 from the provider. The refusal has to happen while starting.
+    """
+    monkeypatch.setenv("MODE", "production")
+    monkeypatch.setenv("ASAAS_API_KEY", "")
+    monkeypatch.setenv("ASAAS_BASE_URL", "https://api.asaas.com/api/v3")
+    get_settings.cache_clear()
+    try:
+        with pytest.raises(ValueError, match="ASAAS_API_KEY"):
+            AsaasClient()
+    finally:
+        get_settings.cache_clear()
+
+
+def test_a_missing_api_key_is_tolerated_outside_production(monkeypatch):
+    """Tests and local development run without a provider key on purpose.
+
+    Refusing to build the client everywhere would make the whole suite depend on
+    a real credential; the loud refusal is scoped to production.
+    """
+    monkeypatch.setenv("MODE", "test")
+    monkeypatch.setenv("ASAAS_API_KEY", "")
+    get_settings.cache_clear()
+    try:
+        assert AsaasClient().api_key == ""
+    finally:
+        get_settings.cache_clear()
+
+
 def _run(coroutine):
     """Runs a coroutine to completion.
 

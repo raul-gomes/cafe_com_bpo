@@ -41,6 +41,11 @@ services:
       - GOOGLE_CALENDAR_CLIENT_ID=${GOOGLE_CALENDAR_CLIENT_ID}
       - GOOGLE_CALENDAR_CLIENT_SECRET=${GOOGLE_CALENDAR_CLIENT_SECRET}
       - GOOGLE_CALENDAR_REDIRECT_URI=${GOOGLE_CALENDAR_REDIRECT_URI}
+      # Asaas (pagamentos). A chave e o token do webhook chegam por .env: sem
+      # ASAAS_WEBHOOK_TOKEN o /payments/webhook recusa (falha fechada, P-2).
+      - ASAAS_API_KEY=${ASAAS_API_KEY}
+      - ASAAS_BASE_URL=${ASAAS_BASE_URL:-https://sandbox.asaas.com/api/v3}
+      - ASAAS_WEBHOOK_TOKEN=${ASAAS_WEBHOOK_TOKEN}
       - CORS_ORIGINS=${CORS_ORIGINS}
       - CLOUDINARY_CLOUD_NAME=${CLOUDINARY_CLOUD_NAME}
       - CLOUDINARY_API_KEY=${CLOUDINARY_API_KEY}

@@ -58,13 +58,17 @@ class AsaasClient:
     """Thin, typed wrapper over the Asaas HTTP API."""
 
     def __init__(self) -> None:
-        """Builds the client from settings and refuses a sandbox in production.
+        """Builds the client from settings and refuses to run misconfigured.
 
         Raises:
             ValueError: When `MODE=production` and the base URL points at the
                 Asaas sandbox. Charging a real customer in the sandbox (or
                 testing in production) is silent money/data loss, so the boot
                 must break instead of the misconfiguration being ignored.
+            ValueError: When `MODE=production` and the API key is missing. A
+                production boot without `ASAAS_API_KEY` used to succeed and
+                only fail at the first checkout, as an opaque 401 from the
+                provider — the customer sees an error and nobody knows why.
         """
         # `get_settings()` is read per call (it is lru_cached): a module-level
         # snapshot would freeze the first configuration seen by the process.
@@ -75,6 +79,11 @@ class AsaasClient:
             raise ValueError(
                 "ASAAS_BASE_URL points at the Asaas sandbox while MODE=production: "
                 "real payments would never be processed. Configure the production URL."
+            )
+        if current.mode == "production" and not self.api_key.strip():
+            raise ValueError(
+                "ASAAS_API_KEY is empty while MODE=production: every checkout would "
+                "be refused by the provider. Configure the Asaas access token."
             )
 
     async def _request(
