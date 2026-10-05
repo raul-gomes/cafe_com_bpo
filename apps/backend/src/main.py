@@ -41,6 +41,7 @@ from src.modules.subscriptions.models import (
     Plan,  # noqa: F401
     Subscription,  # noqa: F401
 )
+from src.modules.subscriptions.router import access_router
 from src.modules.task_manager import router as tasks_router
 from src.modules.task_manager.scheduler import scheduler_instance
 from src.modules.team.router import router as team_router
@@ -160,6 +161,7 @@ def create_app() -> FastAPI:
     app.include_router(tasks_router)
     app.include_router(dashboard_router)
     app.include_router(payments_router)
+    app.include_router(access_router)
     app.include_router(notifications_router)
     app.include_router(calendar_router)
     app.include_router(feedback_router)
