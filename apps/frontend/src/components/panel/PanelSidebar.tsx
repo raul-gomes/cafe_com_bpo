@@ -97,6 +97,11 @@ const icons = {
       <path d="M3 7h18" />
     </svg>
   ),
+  priceTag: (
+    <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" />
+    </svg>
+  ),
   design: (
     <svg className="size-[18px] shrink-0 opacity-70" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 20h9" /><path d="M16.376 3.622a1 1 0 013.002 3.002L7.368 18.635a2 2 0 01-.855.506l-2.872.838a.5.5 0 01-.62-.62l.838-2.872a2 2 0 01.506-.854z" />
@@ -201,6 +206,7 @@ const NAV_MENUS: MenuConfig[] = [
     adminOnly: true,
     items: [
       { path: '/painel/design-system', icon: icons.design, label: 'Design System' },
+      { path: '/painel/planos', icon: icons.priceTag, label: 'Planos' },
     ],
   },
 ];

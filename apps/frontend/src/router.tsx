@@ -13,6 +13,7 @@ const UnderConstructionPage = React.lazy(() => import('./pages/UnderConstruction
 const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage'))
 const PublicProposalPage = React.lazy(() => import('./pages/PublicProposalPage'))
 const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
+const PlansPage = React.lazy(() => import('./pages/panel/PlansPage'))
 
 // ── Suspense wrapper ─────────────────────────────────────────────
 // eslint-disable-next-line react-refresh/only-export-components
@@ -223,6 +224,13 @@ export async function buildRouter() {
               element: <AdminRoute />,
               children: [
                 { path: '', element: <SuspenseWrapper><DesignSystemPage /></SuspenseWrapper> },
+              ],
+            },
+            {
+              path: 'planos',
+              element: <AdminRoute />,
+              children: [
+                { path: '', element: <SuspenseWrapper><PlansPage /></SuspenseWrapper> },
               ],
             },
           ]
