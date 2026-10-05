@@ -8,20 +8,30 @@ while the subscription screen is one of them.
 
 from datetime import UTC, datetime
 from typing import Annotated
+from uuid import UUID
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
 from src.core.entitlements import Access, resolve_access
 from src.modules.auth.schemas import UserResponse
-from src.modules.auth.service import get_current_user
-from src.modules.subscriptions.schemas import AccessResponse, PlanSummaryResponse
+from src.modules.auth.service import get_current_user, require_admin
+from src.modules.subscriptions.schemas import (
+    AccessResponse,
+    PlanCreate,
+    PlanResponse,
+    PlanSummaryResponse,
+    PlanUpdate,
+)
+from src.modules.subscriptions.service import PlanService
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 access_router = APIRouter(prefix="/access", tags=["access"])
+plans_router = APIRouter(prefix="/plans", tags=["plans"])
 
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
+AdminDep = Annotated[UserResponse, Depends(require_admin)]
 SessionDep = Annotated[Session, Depends(get_db_session)]
 
 
@@ -71,3 +81,61 @@ def _to_response(access: Access, *, is_admin: bool) -> AccessResponse:
         else None,
         is_admin=is_admin,
     )
+
+
+@plans_router.get("", response_model=list[PlanResponse])
+def list_plans(session: SessionDep, current_user: CurrentUserDep) -> list[PlanResponse]:
+    """Lists the plan catalog.
+
+    Any authenticated caller may read it, because the checkout has to know what
+    is for sale; the service hides the deactivated plans from everyone but the
+    admin, so the filter never depends on a flag the browser sends.
+
+    Args:
+        session: Database session.
+        current_user: Authenticated user.
+
+    Returns:
+        The plans visible to the caller.
+    """
+    return PlanService(session).list_plans(current_user)
+
+
+@plans_router.post("", response_model=PlanResponse, status_code=status.HTTP_201_CREATED)
+def create_plan(
+    data: PlanCreate,
+    session: SessionDep,
+    current_user: AdminDep,
+) -> PlanResponse:
+    """Creates a plan — the write that defines a price (§17.1).
+
+    Args:
+        data: Validated body.
+        session: Database session.
+        current_user: Authenticated admin; `require_admin` rejects the others.
+
+    Returns:
+        The created plan.
+    """
+    return PlanService(session).create_plan(current_user, data)
+
+
+@plans_router.patch("/{plan_id}", response_model=PlanResponse)
+def update_plan(
+    plan_id: UUID,
+    data: PlanUpdate,
+    session: SessionDep,
+    current_user: AdminDep,
+) -> PlanResponse:
+    """Edits a plan's name, price, description or active flag.
+
+    Args:
+        plan_id: Plan to edit.
+        data: Validated body; only the fields sent are written.
+        session: Database session.
+        current_user: Authenticated admin; `require_admin` rejects the others.
+
+    Returns:
+        The updated plan.
+    """
+    return PlanService(session).update_plan(current_user, plan_id, data)
