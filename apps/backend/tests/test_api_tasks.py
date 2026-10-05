@@ -1205,35 +1205,47 @@ def test_scheduler_weekly_generates_only_masked_days(client):
     semana que o domingo deixou passar. Ela produz candidato para **todos** os
     dias marcados da semana alvo (não só o dia corrente), então o filtro da mask
     é o que garante que nada fora dela seja criado.
+
+    O relógio do vínculo é congelado num **sábado depois da semana alvo**: a
+    geração inicial de `POST /tasks/client-templates/` só cria os dias marcados
+    que ainda restam na semana corrente (hoje..domingo), então nesse sábado ela
+    não gera nada e a geração fica a cargo do scheduler — que é o que se quer
+    testar aqui. Congelar na própria semana alvo faria o vínculo criar a terça e
+    o scheduler cair no dedup por `routine_instance_id` (gerando 0), o que não
+    prova nada. O teste só passava sem congelar porque o vínculo nascia na
+    semana real de execução, nunca na semana alvo.
     """
     now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
+    # Sábado da mesma semana alvo: a geração inicial não encontra dia marcado.
+    link_time = datetime(2026, 7, 25, 0, 0, 0, tzinfo=timezone.utc)  # Saturday
 
     email = f"sched_weekly_mask_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth)
 
-    tmpl_resp = client.post(
-        "/tasks/templates/",
-        json={
-            "name": "Semanal Mask",
-            "recurrence": "weekly",
-            # terça — o seletor da tela só oferece dias úteis (seg a sex)
-            "weekdays": ["tuesday"],
-            "process_type": "fiscal",
-        },
-        headers=auth,
-    )
-    tmpl_id = tmpl_resp.json()["id"]
-    client.post(
-        f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Mask", "due_day": 1},
-        headers=auth,
-    )
-    client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli["id"], "template_id": tmpl_id},
-        headers=auth,
-    )
+    with freeze_assignments_clock(link_time):
+        tmpl_resp = client.post(
+            "/tasks/templates/",
+            json={
+                "name": "Semanal Mask",
+                "recurrence": "weekly",
+                # terça — o seletor da tela só oferece dias úteis (seg a sex)
+                "weekdays": ["tuesday"],
+                "process_type": "fiscal",
+            },
+            headers=auth,
+        )
+        tmpl_id = tmpl_resp.json()["id"]
+        client.post(
+            f"/tasks/templates/{tmpl_id}/activities/",
+            json={"name": "Task Mask", "due_day": 1},
+            headers=auth,
+        )
+        client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
 
     data = _get_scheduler_result(now=now)
     assert data["tasks_generated"] == 1, (
