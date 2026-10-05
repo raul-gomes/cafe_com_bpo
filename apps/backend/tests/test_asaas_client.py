@@ -91,47 +91,6 @@ def provider(monkeypatch):
         get_settings.cache_clear()
 
 
-def test_create_subscription_sends_the_documented_contract(provider):
-    """Asaas requires customer, billingType, value, nextDueDate and cycle.
-
-    Anything missing is a 400 that the user sees as a failed checkout, and the
-    recurring charge silently never happens.
-
-    Args:
-        provider: Fake Asaas provider recording the requests.
-    """
-    client = AsaasClient()
-
-    _run(
-        client.create_subscription(
-            customer_id="cus_123",
-            value=Decimal("27.90"),
-            next_due_date=date(2026, 11, 10),
-            cycle="MONTHLY",
-            credit_card_token="tok_abc",
-            remote_ip="203.0.113.9",
-            external_reference="11111111-2222-3333-4444-555555555555",
-            description="Cafe com BPO - Mensal",
-        )
-    )
-
-    request = provider.last
-    assert request.method == "POST"
-    assert str(request.url) == f"{PRODUCTION_URL}/subscriptions"
-    assert request.headers["access_token"] == API_KEY
-    assert provider.body() == {
-        "customer": "cus_123",
-        "billingType": "CREDIT_CARD",
-        "value": 27.9,
-        "nextDueDate": "2026-11-10",
-        "cycle": "MONTHLY",
-        "description": "Cafe com BPO - Mensal",
-        "externalReference": "11111111-2222-3333-4444-555555555555",
-        "creditCardToken": "tok_abc",
-        "remoteIp": "203.0.113.9",
-    }
-
-
 @pytest.mark.parametrize(
     ("stored", "sent"),
     [
@@ -159,17 +118,21 @@ def test_the_stored_cycle_is_accepted_verbatim(provider, stored, sent):
     client = AsaasClient()
 
     _run(
-        client.create_subscription(
+        client.create_subscription_checkout(
             customer_id="cus_123",
+            item_name="Cafe com BPO - Mensal",
+            item_description="Assinatura mensal",
             value=Decimal("27.90"),
             next_due_date=date(2026, 11, 10),
             cycle=stored,
-            credit_card_token="tok_abc",
-            remote_ip="203.0.113.9",
+            success_url="https://app.test/ok",
+            cancel_url="https://app.test/cancel",
+            expired_url="https://app.test/expired",
+            external_reference="sub_42",
         )
     )
 
-    assert provider.body()["cycle"] == sent
+    assert provider.body()["subscription"]["cycle"] == sent
 
 
 def test_the_default_cycle_column_matches_the_client_vocabulary():
@@ -193,37 +156,57 @@ def test_unknown_cycle_is_refused_before_any_request(provider):
 
     with pytest.raises(ValueError, match="cycle"):
         _run(
-            client.create_subscription(
+            client.create_subscription_checkout(
                 customer_id="cus_123",
+                item_name="Cafe com BPO - Mensal",
+                item_description="Assinatura mensal",
                 value=Decimal("27.90"),
                 next_due_date=date(2026, 11, 10),
                 cycle="FORTNIGHTLY",
-                credit_card_token="tok_abc",
-                remote_ip="203.0.113.9",
+                success_url="https://app.test/ok",
+                cancel_url="https://app.test/cancel",
+                expired_url="https://app.test/expired",
+                external_reference="sub_42",
             )
         )
 
     assert provider.requests == []
 
 
-def test_create_subscription_refuses_to_send_raw_card_data(provider):
-    """There is no parameter to pass a PAN: the token is the only way in.
+def test_no_method_of_the_client_accepts_card_data(provider):
+    """No signature anywhere in the client takes a PAN, a CVV or a card token.
 
-    A signature that accepts `number`/`ccv` would let a future endpoint log or
-    store them, which §17.5 of the business rules forbids.
+    §17.2 moved the card to a page Asaas hosts, so the platform never receives
+    one of these values: a method that asked for one could only be fed by
+    inventing card data, and would put us back in SAQ D. Checked across the whole
+    class rather than one method, so a new method cannot quietly reintroduce it.
 
     Args:
         provider: Fake Asaas provider recording the requests.
     """
     import inspect
 
-    parameters = set(inspect.signature(AsaasClient.create_subscription).parameters)
+    forbidden = {
+        "credit_card_number",
+        "credit_card_expiry",
+        "credit_card_ccv",
+        "credit_card_holder_name",
+        "credit_card_token",
+        "number",
+        "ccv",
+        "card_number",
+    }
+    offenders = {
+        name: sorted(
+            forbidden & set(inspect.signature(getattr(AsaasClient, name)).parameters)
+        )
+        for name in dir(AsaasClient)
+        if not name.startswith("_")
+        and callable(getattr(AsaasClient, name))
+        and forbidden & set(inspect.signature(getattr(AsaasClient, name)).parameters)
+    }
 
-    assert "number" not in parameters
-    assert "ccv" not in parameters
-    assert "credit_card_token" in parameters
-    assert "remote_ip" in parameters
-    assert provider.requests == []
+    assert offenders == {}
 
 
 def test_get_subscription_reads_the_subscription(provider):
@@ -254,33 +237,6 @@ def test_cancel_subscription_issues_a_delete_without_a_body(provider):
     assert provider.last.method == "DELETE"
     assert str(provider.last.url) == f"{PRODUCTION_URL}/subscriptions/sub_42"
     assert not provider.last.content
-
-
-def test_update_subscription_card_sends_only_the_token(provider):
-    """`PUT /subscriptions/{id}/creditCard` accepts a token instead of the card.
-
-    This is how a user changes the card on an active subscription without our
-    server ever seeing the new PAN: the browser tokenizes and sends the token.
-
-    Args:
-        provider: Fake Asaas provider recording the requests.
-    """
-    client = AsaasClient()
-
-    _run(
-        client.update_subscription_card(
-            subscription_id="sub_42",
-            credit_card_token="tok_new",
-            remote_ip="203.0.113.9",
-        )
-    )
-
-    assert provider.last.method == "PUT"
-    assert str(provider.last.url) == f"{PRODUCTION_URL}/subscriptions/sub_42/creditCard"
-    body = provider.body()
-    assert body == {"creditCardToken": "tok_new", "remoteIp": "203.0.113.9"}
-    assert "number" not in body
-    assert "ccv" not in body
 
 
 def test_query_filters_never_travel_in_the_body(provider):
@@ -318,11 +274,14 @@ def test_update_subscription_sends_only_the_changed_fields(provider):
     assert provider.body() == {"nextDueDate": "2026-12-10"}
 
 
-def test_provider_error_never_reaches_the_caller_with_card_data(provider, caplog):
-    """A rejected card must not echo the PAN, the token or the API key back.
+def test_provider_error_never_reaches_the_caller_with_the_body(provider, caplog):
+    """A rejected request must not echo what we sent, nor the API key, back.
 
     `raise_for_status` builds the message from the URL, which is fine; the body
-    of an Asaas error can repeat what we sent, so it is never propagated.
+    of an Asaas error can repeat the request, so it is never propagated. This
+    used to be pinned with a card number, back when §17.2 had the backend
+    tokenizing; it is now pinned with the payer's document, which still travels
+    in a subscription body and is the most sensitive thing we send.
 
     Args:
         provider: Fake Asaas provider recording the requests.
@@ -332,8 +291,8 @@ def test_provider_error_never_reaches_the_caller_with_card_data(provider, caplog
     provider.payload = {
         "errors": [
             {
-                "code": "invalid_card",
-                "description": "card 4111111111111111 token tok_abc rejected",
+                "code": "invalid_document",
+                "description": "document 12345678909 for customer cus_7 rejected",
             }
         ]
     }
@@ -341,17 +300,24 @@ def test_provider_error_never_reaches_the_caller_with_card_data(provider, caplog
 
     with pytest.raises(httpx.HTTPStatusError) as raised:
         _run(
-            client.update_subscription_card(
-                subscription_id="sub_42",
-                credit_card_token="tok_abc",
-                remote_ip="203.0.113.9",
+            client.create_subscription_checkout(
+                customer_id="cus_7",
+                item_name="Cafe com BPO - Mensal",
+                item_description="Assinatura mensal",
+                value=Decimal("27.90"),
+                cycle="MONTHLY",
+                next_due_date=date(2026, 11, 10),
+                success_url="https://app.test/ok",
+                cancel_url="https://app.test/cancel",
+                expired_url="https://app.test/expired",
+                external_reference="12345678909",
             )
         )
 
     rendered = str(raised.value)
-    assert "4111111111111111" not in rendered
+    assert "12345678909" not in rendered
     assert API_KEY not in rendered
-    assert "card 4111" not in caplog.text
+    assert "document 12345678909" not in caplog.text
 
 
 def test_sandbox_base_url_is_refused_in_production(monkeypatch):
@@ -416,112 +382,68 @@ def _run(coroutine):
     return asyncio.run(coroutine)
 
 
-# --- Saved cards (§17.2) -----------------------------------------------------
-# The card is tokenized by Asaas and only the metadata is stored. These tests pin
-# the wire contract and, above all, that the PAN and the CVV never end up in a
-# log line: the request that carries them is the only place they exist.
+# --- Hosted checkout (§17.2) ---------------------------------------------------
+# The card never reaches our servers: the buyer is redirected to a page Asaas
+# hosts, which keeps the platform in PCI DSS SAQ A instead of SAQ D. These tests
+# pin the wire contract that makes that possible, and the three things Asaas
+# rejects with a 400 that no offline guess would have found.
 
 
-def test_tokenize_credit_card_sends_the_documented_contract(provider):
-    """`POST /creditCard/tokenizeCreditCard` exchanges the card for a token.
+def test_create_checkout_sends_the_documented_contract(provider):
+    """`POST /checkouts` opens a recurring session for an existing customer.
 
     Args:
         provider: Fake Asaas provider recording the requests.
     """
     client = AsaasClient()
     provider.payload = {
-        "creditCardToken": "tok_abc",
-        "creditCardBrand": "VISA",
-        "creditCardLastDigits": "4444",
-        "creditCardExpiry": "12/2030",
+        "id": "chk_1",
+        "link": "https://www.asaas.com/checkoutSession/show/chk_1",
+        "status": "ACTIVE",
     }
 
     result = _run(
-        client.tokenize_credit_card(
-            credit_card_number="4111111111111111",
-            credit_card_expiry="12/2030",
-            credit_card_ccv="123",
-            credit_card_holder_name="ADA L OVELACE",
+        client.create_subscription_checkout(
+            customer_id="cus_7",
+            item_name="Cafe com BPO - Mensal",
+            item_description="Assinatura mensal",
+            value=Decimal("27.90"),
+            cycle="MONTHLY",
+            next_due_date=date(2026, 10, 20),
+            success_url="https://app.test/painel/pagamentos?status=ok",
+            cancel_url="https://app.test/painel/pagamentos?status=cancelado",
+            expired_url="https://app.test/painel/pagamentos?status=expirado",
+            external_reference="sub_42",
         )
     )
 
     assert provider.last.method == "POST"
-    assert str(provider.last.url) == f"{PRODUCTION_URL}/creditCard/tokenizeCreditCard"
+    assert str(provider.last.url) == f"{PRODUCTION_URL}/checkouts"
     body = provider.body()
-    assert body["creditCardNumber"] == "4111111111111111"
-    assert body["creditCardExpiry"] == "12/2030"
-    assert body["creditCardCcv"] == "123"
-    assert body["creditCardHolderName"] == "ADA L OVELACE"
-    assert result["creditCardToken"] == "tok_abc"
+    # A recurring charge is the whole point, and Asaas only allows a card on it.
+    assert body["chargeTypes"] == ["RECURRENT"]
+    assert body["billingTypes"] == ["CREDIT_CARD"]
+    assert body["customer"] == "cus_7"
+    assert body["externalReference"] == "sub_42"
+    assert body["subscription"] == {
+        "cycle": "MONTHLY",
+        "nextDueDate": "2026-10-20",
+    }
+    assert body["callback"]["successUrl"].endswith("status=ok")
+    assert body["callback"]["cancelUrl"].endswith("status=cancelado")
+    assert body["callback"]["expiredUrl"].endswith("status=expirado")
+    # The item carries the price, so it must be a JSON number and not a string:
+    # a quoted "27.90" is rejected as an invalid object.
+    item = body["items"][0]
+    assert item["quantity"] == 1
+    assert item["value"] == 27.90
+    assert isinstance(item["value"], float)
+    assert item["name"] == "Cafe com BPO - Mensal"
+    assert result["link"].endswith("chk_1")
 
 
-def test_the_tokenized_card_never_reaches_the_log(provider, caplog):
-    """The PAN and the CVV must not be written anywhere, not even on failure.
-
-    A provider error is logged without its body already; this pins the rest — the
-    card data we forward must not be part of any log line we produce.
-
-    Args:
-        provider: Fake Asaas provider recording the requests.
-        caplog: pytest log capture fixture.
-    """
-    client = AsaasClient()
-    provider.status = 400
-    provider.payload = {"errors": [{"description": "invalid card"}]}
-
-    with caplog.at_level("DEBUG"), pytest.raises(httpx.HTTPStatusError):
-        _run(
-            client.tokenize_credit_card(
-                credit_card_number="4111111111111111",
-                credit_card_expiry="12/2030",
-                credit_card_ccv="123",
-                credit_card_holder_name="ADA L OVELACE",
-            )
-        )
-
-    assert "4111111111111111" not in caplog.text
-    assert "123" not in caplog.text.replace("4111111111111111", "")
-    assert API_KEY not in caplog.text
-
-
-def test_list_credit_cards_filters_by_customer_in_the_query(provider):
-    """Listing must reach Asaas filtered, otherwise every card is returned.
-
-    The query-string rule that `test_query_filters_never_travel_in_the_body`
-    locked for payments applies to the card list too: the same defect class.
-
-    Args:
-        provider: Fake Asaas provider recording the requests.
-    """
-    client = AsaasClient()
-    provider.payload = {"creditCards": [{"id": "card_1"}]}
-
-    result = _run(client.list_credit_cards("cus_7"))
-
-    request = provider.last
-    assert request.method == "GET"
-    assert not request.content, "a GET filter must not be sent as a JSON body"
-    assert dict(request.url.params) == {"customer": "cus_7"}
-    assert result == [{"id": "card_1"}]
-
-
-def test_delete_credit_card_addresses_the_token_not_the_card(provider):
-    """Asaas deletes a card by token; a wrong key leaves the card alive.
-
-    Args:
-        provider: Fake Asaas provider recording the requests.
-    """
-    client = AsaasClient()
-
-    _run(client.delete_credit_card(customer_id="cus_7", credit_card_token="tok_abc"))
-
-    assert provider.last.method == "DELETE"
-    assert str(provider.last.url) == f"{PRODUCTION_URL}/creditCard/deleteCreditCard"
-    assert provider.body() == {"customer": "cus_7", "creditCardToken": "tok_abc"}
-
-
-def test_set_default_credit_card_sends_the_token(provider):
-    """Marking the default is also keyed by token, for the same reason.
+def test_the_checkout_item_always_carries_an_image(provider):
+    """`imageBase64` is required on every item and Asaas answers 400 without it.
 
     Args:
         provider: Fake Asaas provider recording the requests.
@@ -529,9 +451,116 @@ def test_set_default_credit_card_sends_the_token(provider):
     client = AsaasClient()
 
     _run(
-        client.set_default_credit_card(customer_id="cus_7", credit_card_token="tok_abc")
+        client.create_subscription_checkout(
+            customer_id="cus_7",
+            item_name="Cafe com BPO - Mensal",
+            item_description="Assinatura mensal",
+            value=Decimal("27.90"),
+            cycle="MONTHLY",
+            next_due_date=date(2026, 10, 20),
+            success_url="https://app.test/ok",
+            cancel_url="https://app.test/cancel",
+            expired_url="https://app.test/expired",
+            external_reference="sub_42",
+        )
     )
 
+    image = provider.body()["items"][0]["imageBase64"]
+    assert image, "the item would be rejected by Asaas"
+    assert provider.body()["items"][0]["description"] == "Assinatura mensal"
+
+
+def test_the_checkout_never_carries_card_data(provider):
+    """The whole point of the hosted checkout: no PAN reaches a request we build.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(
+        client.create_subscription_checkout(
+            customer_id="cus_7",
+            item_name="Cafe com BPO - Mensal",
+            item_description="Assinatura mensal",
+            value=Decimal("27.90"),
+            cycle="MONTHLY",
+            next_due_date=date(2026, 10, 20),
+            success_url="https://app.test/ok",
+            cancel_url="https://app.test/cancel",
+            expired_url="https://app.test/expired",
+            external_reference="sub_42",
+        )
+    )
+
+    serialized = provider.last.content.decode()
+    for field in ("creditCard", "creditCardToken", "cardNumber", "ccv"):
+        assert field not in serialized
+
+
+def test_a_quote_in_the_price_would_break_the_checkout(provider):
+    """Guards the decimal -> number conversion that `value` depends on.
+
+    §17.1 stores the price as `NUMERIC(12,2)`, so it arrives as `Decimal("27.90")`.
+    Serialized as a string the provider answers
+    `{"code": "invalid_object"}`; observed in the sandbox on 2026-10-05.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(
+        client.create_subscription_checkout(
+            customer_id="cus_7",
+            item_name="Cafe com BPO - Mensal",
+            item_description="Assinatura mensal",
+            value=Decimal("27.90"),
+            cycle="MONTHLY",
+            next_due_date=date(2026, 10, 20),
+            success_url="https://app.test/ok",
+            cancel_url="https://app.test/cancel",
+            expired_url="https://app.test/expired",
+            external_reference="sub_42",
+        )
+    )
+
+    assert json.loads(provider.last.content)["items"][0]["value"] == 27.90
+
+
+def test_cancel_checkout_addresses_the_session(provider):
+    """Cancelling is `POST /checkouts/{id}/cancel`, and the payer is told.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+    provider.payload = {"id": "chk_1", "status": "CANCELED"}
+
+    result = _run(client.cancel_checkout("chk_1"))
+
     assert provider.last.method == "POST"
-    assert str(provider.last.url) == f"{PRODUCTION_URL}/creditCard/setDefaultCreditCard"
-    assert provider.body() == {"customer": "cus_7", "creditCardToken": "tok_abc"}
+    assert str(provider.last.url) == f"{PRODUCTION_URL}/checkouts/chk_1/cancel"
+    assert result["status"] == "CANCELED"
+
+
+def test_replacing_the_card_needs_no_card_endpoint():
+    """The client exposes no way to write a card, and that is deliberate.
+
+    §17.2 replaced the card through another hosted checkout: `PUT
+    /subscriptions/{id}/creditCard` wants the PAN again (back to SAQ D) or a token
+    this platform never holds. A method named like the old card API reappearing
+    here means the SAQ A decision was undone in code.
+
+    Returns:
+        None. Raises `AssertionError` when a card-writing method exists.
+    """
+    forbidden = {
+        "tokenize_credit_card",
+        "update_subscription_card",
+        "list_credit_cards",
+        "set_default_credit_card",
+        "delete_credit_card",
+    }
+
+    assert forbidden.isdisjoint(dir(AsaasClient))

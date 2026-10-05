@@ -1,19 +1,23 @@
 """HTTP client for the Asaas payment API.
 
 The client lives in `core` and not in the payments module because Asaas is a
-core provider: subscriptions (the launch beta, the paid plan), card handling and
-every charge created by a recurring cycle go through it.
+core provider: subscriptions (the launch beta, the paid plan), the hosted checkout
+that closes them and every charge created by a recurring cycle go through it.
 
-Three rules shape this file:
+Four rules shape this file:
 
 - **The base URL is per environment** (`ASAAS_BASE_URL`). A hardcoded sandbox URL
   meant production could never charge a real customer, and the mistake was
   invisible until a customer's money moved in the wrong place.
-- **Card data is never sent as data.** Only a `creditCardToken` produced by the
-  provider's tokenization crosses this module. No method accepts a number, a CVV
-  or an expiry, so no future caller can log or store them by accident.
+- **The card never crosses this module.** §17.2 sends the buyer to a checkout page
+  Asaas hosts, so no method accepts a number, a CVV or an expiry. The tokenization
+  methods this file used to carry are gone with the decision: writing one back
+  would put the platform in PCI DSS SAQ D, and `test_replacing_the_card_needs_no_
+  card_endpoint` fails if a method named like the old card API comes back.
 - **Request and response bodies are never logged.** A charge body carries the
-  payer's name and document; a card token is a credential.
+  payer's name and document; a session link is a credential of its own.
+- **The subscription is only created by a paid checkout.** Nothing here treats a
+  session as an active subscription — `CHECKOUT_PAID` is what confirms it.
 """
 
 from datetime import date
@@ -25,6 +29,16 @@ from src.core.config import get_settings
 from src.core.logger import log
 
 SANDBOX_HOST = "sandbox.asaas.com"
+
+# Asaas requires an image on every checkout item and answers 400 without one.
+# A 1x1 transparent PNG is the honest minimum: the item is our plan, not a
+# product photo, and shipping a real logo would mean a binary asset in the image
+# build for something the payer never looks at. `allow_insecure_images` is not
+# enabled on the account, so the payload must be a valid image.
+_CHECKOUT_ITEM_IMAGE_BASE64 = (
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8"
+    "/x8AAwMCAO+/p9sAAAAASUVORK5CYII="
+)
 
 # The recurring cycles Asaas accepts. This is the single vocabulary used inside
 # the platform too: `subscriptions.cycle` is stored exactly as the provider names
@@ -242,58 +256,6 @@ class AsaasClient:
         """
         return await self._request("GET", f"/payments/{payment_id}")
 
-    async def create_subscription(
-        self,
-        *,
-        customer_id: str,
-        value: Decimal,
-        next_due_date: date,
-        cycle: str,
-        credit_card_token: str,
-        remote_ip: str,
-        external_reference: str | None = None,
-        description: str | None = None,
-    ) -> dict:
-        """Creates a recurring subscription charged to a tokenized card.
-
-        The recurring plan is billed by credit card because it is the only
-        billing type Asaas supports for a subscription with an automatic
-        renewal, and because the platform promises a card on file.
-
-        Args:
-            customer_id: Asaas customer that pays the subscription.
-            value: Monthly value in reais, as stored in `plans.price`.
-            next_due_date: Due date of the first charge.
-            cycle: Cycle name, which must be one of `SUBSCRIPTION_CYCLES`.
-            credit_card_token: Token produced by the provider's tokenization.
-            remote_ip: IP of the buyer, required by Asaas and never ours.
-            external_reference: Our subscription id, echoed back by the provider
-                and by the subscription webhooks.
-            description: Description shown on the statements.
-
-        Returns:
-            The Asaas subscription payload.
-
-        Raises:
-            ValueError: When `cycle` has no provider equivalent.
-        """
-        if cycle not in SUBSCRIPTION_CYCLES:
-            raise ValueError(f"unsupported subscription cycle: {cycle!r}")
-        payload: dict = {
-            "customer": customer_id,
-            "billingType": "CREDIT_CARD",
-            "value": float(value),
-            "nextDueDate": next_due_date.isoformat(),
-            "cycle": cycle,
-        }
-        if description:
-            payload["description"] = description
-        if external_reference:
-            payload["externalReference"] = external_reference
-        payload["creditCardToken"] = credit_card_token
-        payload["remoteIp"] = remote_ip
-        return await self._request("POST", "/subscriptions", payload)
-
     async def get_subscription(self, subscription_id: str) -> dict:
         """Fetches a subscription by provider id.
 
@@ -364,31 +326,100 @@ class AsaasClient:
         """
         return await self._request("DELETE", f"/subscriptions/{subscription_id}")
 
-    async def update_subscription_card(
+    async def create_subscription_checkout(
         self,
         *,
-        subscription_id: str,
-        credit_card_token: str,
-        remote_ip: str,
+        customer_id: str,
+        item_name: str,
+        item_description: str,
+        value: Decimal,
+        cycle: str,
+        next_due_date: date,
+        success_url: str,
+        cancel_url: str,
+        expired_url: str,
+        external_reference: str,
+        minutes_to_expire: int = 60,
     ) -> dict:
-        """Replaces the card of an active subscription without charging it.
+        """Opens a hosted checkout where the buyer signs up a subscription.
 
-        `PUT /subscriptions/{id}/creditCard` also updates the pending charges of
-        the recurrence, so a card fixed before the due date is enough.
+        The buyer is redirected to a page Asaas hosts and the card is typed
+        there, so no PAN, CVV or token ever reaches this platform — that is what
+        keeps us in PCI DSS SAQ A. Creating the session does **not** confirm a
+        payment: the subscription only exists after `CHECKOUT_PAID`.
+
+        The shape below was verified against the sandbox on 2026-10-05. Three
+        details are not guessable and each one costs a 400 if wrong: a recurring
+        charge accepts **only** `CREDIT_CARD` (Pix is rejected even though the
+        documentation lists it), `imageBase64` is **required** on every item, and
+        `value` must be a JSON number — a quoted decimal is an `invalid_object`.
 
         Args:
-            subscription_id: Asaas subscription id.
-            credit_card_token: Token produced by the provider's tokenization.
-            remote_ip: IP of the buyer, required by Asaas and never ours.
+            customer_id: Asaas customer, reused so the buyer keeps one identity.
+            item_name: Plan name shown on the Asaas page (max 30 chars).
+            item_description: Line under the name (max 150 chars).
+            value: Price in reais, straight from `plans.price`.
+            cycle: Billing cycle, e.g. `MONTHLY`.
+            next_due_date: First charge date, which the Beta rules fix.
+            success_url: Where Asaas sends the buyer after paying.
+            cancel_url: Where Asaas sends the buyer who gives up.
+            expired_url: Where Asaas sends the buyer after the session lapses.
+            external_reference: Our subscription id, so the webhook can match it.
+            minutes_to_expire: Lifetime of the session (10..1440).
+
+        Raises:
+            ValueError: When `cycle` has no provider equivalent.
 
         Returns:
-            The updated Asaas subscription payload.
+            The Asaas payload with the checkout `id`, `link` and `status`. The
+            `link` is returned as-is and never rebuilt: sandbox and production
+            use different hosts and sandbox carries an extra path segment.
         """
+        if cycle not in SUBSCRIPTION_CYCLES:
+            raise ValueError(f"unsupported subscription cycle: {cycle!r}")
         return await self._request(
-            "PUT",
-            f"/subscriptions/{subscription_id}/creditCard",
-            {"creditCardToken": credit_card_token, "remoteIp": remote_ip},
+            "POST",
+            "/checkouts",
+            {
+                "customer": customer_id,
+                "billingTypes": ["CREDIT_CARD"],
+                "chargeTypes": ["RECURRENT"],
+                "items": [
+                    {
+                        "name": item_name,
+                        "description": item_description,
+                        "quantity": 1,
+                        "value": float(value),
+                        "imageBase64": _CHECKOUT_ITEM_IMAGE_BASE64,
+                    }
+                ],
+                "subscription": {
+                    "cycle": cycle,
+                    "nextDueDate": next_due_date.isoformat(),
+                },
+                "callback": {
+                    "successUrl": success_url,
+                    "cancelUrl": cancel_url,
+                    "expiredUrl": expired_url,
+                },
+                "externalReference": external_reference,
+                "minutesToExpire": minutes_to_expire,
+            },
         )
+
+    async def cancel_checkout(self, checkout_id: str) -> dict:
+        """Closes a checkout nobody paid for.
+
+        Used when the buyer abandons the journey in a way we learn about before
+        the session expires. The state change arrives as `CHECKOUT_CANCELED`.
+
+        Args:
+            checkout_id: Checkout id as returned by `create_subscription_checkout`.
+
+        Returns:
+            The Asaas payload with the new `status`.
+        """
+        return await self._request("POST", f"/checkouts/{checkout_id}/cancel", {})
 
     async def list_subscription_payments(
         self, subscription_id: str, *, limit: int = 20, offset: int = 0
@@ -407,96 +438,6 @@ class AsaasClient:
             "GET",
             f"/subscriptions/{subscription_id}/payments",
             query={"limit": limit, "offset": offset},
-        )
-
-    async def tokenize_credit_card(
-        self,
-        *,
-        credit_card_number: str,
-        credit_card_expiry: str,
-        credit_card_ccv: str,
-        credit_card_holder_name: str,
-    ) -> dict:
-        """Exchanges raw card data for a token Asaas keeps on its side.
-
-        §17.2 decides the backend tokenizes: the number, the CVV and the token
-        are never stored, and only the brand, the last four digits, the expiry
-        and the holder are kept locally. This is the **only** method in the client
-        that receives a PAN, and it exists because there is no token to forward
-        before the first one is created.
-
-        The values live in the request body and nowhere else: nothing here logs
-        them, and `_request` reports provider errors with the URL and the status
-        only, so a rejected card cannot leak the number into a log line.
-
-        Args:
-            credit_card_number: Card number as typed by the user.
-            credit_card_expiry: Expiry in `MM/YYYY` form.
-            credit_card_ccv: The security code from the card.
-            credit_card_holder_name: Holder name printed on the card.
-
-        Returns:
-            The Asaas payload with the token and the card metadata.
-        """
-        return await self._request(
-            "POST",
-            "/creditCard/tokenizeCreditCard",
-            {
-                "creditCardNumber": credit_card_number,
-                "creditCardExpiry": credit_card_expiry,
-                "creditCardCcv": credit_card_ccv,
-                "creditCardHolderName": credit_card_holder_name,
-            },
-        )
-
-    async def list_credit_cards(self, customer_id: str) -> list[dict]:
-        """Lists the cards Asaas holds for a customer.
-
-        Args:
-            customer_id: Asaas customer that owns the cards.
-
-        Returns:
-            The saved cards, each with its brand, last digits, expiry and holder.
-        """
-        payload = await self._request(
-            "GET", "/creditCard/listCreditCards", query={"customer": customer_id}
-        )
-        return payload.get("creditCards", [])
-
-    async def set_default_credit_card(
-        self, *, customer_id: str, credit_card_token: str
-    ) -> dict:
-        """Marks a card as the one charged from now on.
-
-        Args:
-            customer_id: Asaas customer that owns the card.
-            credit_card_token: Token of the card to make the default.
-
-        Returns:
-            The Asaas payload for the updated card.
-        """
-        return await self._request(
-            "POST",
-            "/creditCard/setDefaultCreditCard",
-            {"customer": customer_id, "creditCardToken": credit_card_token},
-        )
-
-    async def delete_credit_card(
-        self, *, customer_id: str, credit_card_token: str
-    ) -> dict:
-        """Removes a saved card from Asaas.
-
-        Args:
-            customer_id: Asaas customer that owns the card.
-            credit_card_token: Token of the card to remove.
-
-        Returns:
-            The Asaas payload confirming the deletion.
-        """
-        return await self._request(
-            "DELETE",
-            "/creditCard/deleteCreditCard",
-            {"customer": customer_id, "creditCardToken": credit_card_token},
         )
 
 
