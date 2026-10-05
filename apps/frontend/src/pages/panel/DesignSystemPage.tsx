@@ -227,8 +227,8 @@ const DEMO_MEMBER_COMMENTS = [
   {
     id: 'c1',
     user_id: 'user-demo',
-    author_id: 'user-2',
-    author: { id: 'user-2', name: 'Bruno Lima', avatar_url: null },
+    author_id: '00000000-0000-4000-8000-00000000000b',
+    author: { id: '00000000-0000-4000-8000-00000000000b', name: 'Bruno Lima', avatar_url: null },
     message:
       'Entreguei tres clientes para a Marina e o resultado do fechamento mensal foi excelente.',
     created_at: '2026-09-20T14:00:00Z',
@@ -237,8 +237,8 @@ const DEMO_MEMBER_COMMENTS = [
   {
     id: 'c2',
     user_id: 'user-demo',
-    author_id: 'user-3',
-    author: { id: 'user-3', name: 'Ana Souza', avatar_url: null },
+    author_id: '00000000-0000-4000-8000-00000000000c',
+    author: { id: '00000000-0000-4000-8000-00000000000c', name: 'Ana Souza', avatar_url: null },
     message: 'Muito serio e pontual nos entregas.',
     created_at: '2026-09-21T09:00:00Z',
     can_delete: true,
@@ -685,9 +685,9 @@ const [skills, setSkills] = useState<string[]>([])
           <div className="ds-col">
             <ProjectCard
               project={{
-                id: 'demo-1',
-                owner_id: 'user-1',
-                owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                id: '00000000-0000-4000-8000-000000000002',
+                owner_id: '00000000-0000-4000-8000-00000000000a',
+                owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
                 title: 'Automação de fluxo fiscal',
                 description:
                   'Projeto para automatizar o fluxo fiscal dos clientes do escritório.',
@@ -701,7 +701,7 @@ const [skills, setSkills] = useState<string[]>([])
                   { id: 's1', name: 'Python', slug: 'python', is_active: true },
                   { id: 's2', name: 'Excel', slug: 'excel', is_active: true },
                 ],
-                group_id: 'demo-group-1',
+                group_id: '00000000-0000-4000-8000-000000000005',
                 is_group_member: true,
                 is_owner: false,
                 application_count: 0,
@@ -725,9 +725,9 @@ const [skills, setSkills] = useState<string[]>([])
           <div className="ds-col">
             <ProjectApplicationsPanel
               project={{
-                id: 'demo-apps-1',
-                owner_id: 'user-1',
-                owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                id: '00000000-0000-4000-8000-000000000001',
+                owner_id: '00000000-0000-4000-8000-00000000000a',
+                owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
                 title: 'Automação de fluxo fiscal',
                 description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
                 status: 'open',
@@ -737,7 +737,7 @@ const [skills, setSkills] = useState<string[]>([])
                 created_at: '2026-09-08T00:00:00Z',
                 updated_at: '2026-09-08T00:00:00Z',
                 skills: [],
-                group_id: 'demo-group-1',
+                group_id: '00000000-0000-4000-8000-000000000005',
                 is_group_member: true,
                 is_owner: true,
                 application_count: 1,
@@ -760,9 +760,9 @@ const [skills, setSkills] = useState<string[]>([])
             <GroupPostCard
               post={{
                 id: 'post-1',
-                group_id: 'demo-group-1',
-                author_id: 'user-1',
-                author: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                group_id: '00000000-0000-4000-8000-000000000005',
+                author_id: '00000000-0000-4000-8000-00000000000a',
+                author: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
                 body: 'Equipe, alinhemos o escopo do primeiro entregável do fluxo fiscal.',
                 created_at: '2026-09-09T10:00:00Z',
               }}
@@ -1687,9 +1687,9 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
         >
           <ProjetosCard
             project={{
-              id: 'demo-gestao-1',
-              owner_id: 'user-1',
-              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              id: '00000000-0000-4000-8000-000000000004',
+              owner_id: '00000000-0000-4000-8000-00000000000a',
+              owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
               title: 'Automação de fluxo fiscal',
               description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
               status: 'open',
@@ -1701,7 +1701,7 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
               skills: [
                 { id: 's1', name: 'Python', slug: 'python', is_active: true },
               ],
-              group_id: 'demo-group-1',
+              group_id: '00000000-0000-4000-8000-000000000005',
               is_group_member: true,
               is_owner: true,
               application_count: 3,
@@ -1759,9 +1759,9 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
         >
           <ProjetoEquipePanel
             project={{
-              id: 'demo-equipe-1',
-              owner_id: 'user-1',
-              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              id: '00000000-0000-4000-8000-000000000003',
+              owner_id: '00000000-0000-4000-8000-00000000000a',
+              owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
               title: 'Automação de fluxo fiscal',
               description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
               status: 'open',
@@ -1771,20 +1771,20 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
               created_at: '2026-09-08T00:00:00Z',
               updated_at: '2026-09-10T00:00:00Z',
               skills: [],
-              group_id: 'demo-group-1',
+              group_id: '00000000-0000-4000-8000-000000000005',
               is_group_member: true,
               is_owner: false,
               application_count: 0,
               applications_closed: false,
             }}
             group={{
-              id: 'demo-group-1',
-              project_id: 'demo-equipe-1',
+              id: '00000000-0000-4000-8000-000000000005',
+              project_id: '00000000-0000-4000-8000-000000000003',
               project_title: 'Automação de fluxo fiscal',
               is_member: true,
               members: [
-                { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
-                { id: 'user-2', name: 'Ana Souza', email: 'ana@cafe.com' },
+                { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                { id: '00000000-0000-4000-8000-00000000000b', name: 'Ana Souza', email: 'ana@cafe.com' },
               ],
               posts: [],
               created_at: '2026-09-08T00:00:00Z',
@@ -1805,9 +1805,9 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
         >
           <ProjetoTopicoPanel
             project={{
-              id: 'demo-topico-1',
-              owner_id: 'user-1',
-              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              id: '00000000-0000-4000-8000-000000000006',
+              owner_id: '00000000-0000-4000-8000-00000000000a',
+              owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
               title: 'Automação de fluxo fiscal',
               description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
               status: 'open',
@@ -1817,26 +1817,26 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
               created_at: '2026-09-08T00:00:00Z',
               updated_at: '2026-09-10T00:00:00Z',
               skills: [],
-              group_id: 'demo-group-1',
+              group_id: '00000000-0000-4000-8000-000000000005',
               is_group_member: true,
               is_owner: true,
               application_count: 0,
               applications_closed: false,
             }}
             group={{
-              id: 'demo-group-1',
-              project_id: 'demo-topico-1',
+              id: '00000000-0000-4000-8000-000000000005',
+              project_id: '00000000-0000-4000-8000-000000000006',
               project_title: 'Automação de fluxo fiscal',
               is_member: true,
               members: [
-                { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
               ],
               posts: [
                 {
                   id: 'post-1',
-                  group_id: 'demo-group-1',
-                  author_id: 'user-2',
-                  author: { id: 'user-2', name: 'Ana Souza', email: 'ana@cafe.com' },
+                  group_id: '00000000-0000-4000-8000-000000000005',
+                  author_id: '00000000-0000-4000-8000-00000000000b',
+                  author: { id: '00000000-0000-4000-8000-00000000000b', name: 'Ana Souza', email: 'ana@cafe.com' },
                   body: 'Alinhemos o escopo do primeiro entregável do fluxo fiscal.',
                   created_at: '2026-09-09T10:00:00Z',
                 },
