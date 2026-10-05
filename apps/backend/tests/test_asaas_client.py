@@ -25,6 +25,7 @@ from decimal import Decimal
 import httpx
 import pytest
 
+from src.core import asaas_client
 from src.core import asaas_client as client_module
 from src.core.asaas_client import AsaasClient
 from src.core.config import get_settings
@@ -106,7 +107,7 @@ def test_create_subscription_sends_the_documented_contract(provider):
             customer_id="cus_123",
             value=Decimal("27.90"),
             next_due_date=date(2026, 11, 10),
-            cycle="monthly",
+            cycle="MONTHLY",
             credit_card_token="tok_abc",
             remote_ip="203.0.113.9",
             external_reference="11111111-2222-3333-4444-555555555555",
@@ -132,24 +133,28 @@ def test_create_subscription_sends_the_documented_contract(provider):
 
 
 @pytest.mark.parametrize(
-    ("internal", "asaas"),
+    ("stored", "sent"),
     [
-        ("weekly", "WEEKLY"),
-        ("biweekly", "BIWEEKLY"),
-        ("monthly", "MONTHLY"),
-        ("bimonthly", "BIMONTHLY"),
-        ("quarterly", "QUARTERLY"),
-        ("semiannually", "SEMIANNUALLY"),
-        ("yearly", "YEARLY"),
+        ("WEEKLY", "WEEKLY"),
+        ("BIWEEKLY", "BIWEEKLY"),
+        ("MONTHLY", "MONTHLY"),
+        ("BIMONTHLY", "BIMONTHLY"),
+        ("QUARTERLY", "QUARTERLY"),
+        ("SEMIANNUALLY", "SEMIANNUALLY"),
+        ("YEARLY", "YEARLY"),
     ],
 )
-def test_cycle_names_are_translated_to_the_provider_enum(provider, internal, asaas):
-    """Our lowercase cycle vocabulary is translated to Asaas' uppercase enum.
+def test_the_stored_cycle_is_accepted_verbatim(provider, stored, sent):
+    """`subscriptions.cycle` is stored the way Asaas names it: uppercase.
+
+    The column, its server default and the migration seed all use `MONTHLY`, so a
+    client that only understood `monthly` would raise `ValueError` the first time
+    the checkout passed `subscription.cycle` through — one vocabulary, not two.
 
     Args:
         provider: Fake Asaas provider recording the requests.
-        internal: Cycle name as stored locally.
-        asaas: Cycle name expected by Asaas.
+        stored: Cycle name as stored in `subscriptions.cycle`.
+        sent: Cycle name expected by Asaas.
     """
     client = AsaasClient()
 
@@ -158,13 +163,24 @@ def test_cycle_names_are_translated_to_the_provider_enum(provider, internal, asa
             customer_id="cus_123",
             value=Decimal("27.90"),
             next_due_date=date(2026, 11, 10),
-            cycle=internal,
+            cycle=stored,
             credit_card_token="tok_abc",
             remote_ip="203.0.113.9",
         )
     )
 
-    assert provider.body()["cycle"] == asaas
+    assert provider.body()["cycle"] == sent
+
+
+def test_the_default_cycle_column_matches_the_client_vocabulary():
+    """The domain constant and the provider vocabulary cannot drift apart.
+
+    Args:
+        None: No fixture; this is a pure constant comparison.
+    """
+    from src.modules.subscriptions.models import SUBSCRIPTION_CYCLE_MONTHLY
+
+    assert SUBSCRIPTION_CYCLE_MONTHLY in asaas_client.SUBSCRIPTION_CYCLES
 
 
 def test_unknown_cycle_is_refused_before_any_request(provider):
@@ -181,7 +197,7 @@ def test_unknown_cycle_is_refused_before_any_request(provider):
                 customer_id="cus_123",
                 value=Decimal("27.90"),
                 next_due_date=date(2026, 11, 10),
-                cycle="fortnightly",
+                cycle="FORTNIGHTLY",
                 credit_card_token="tok_abc",
                 remote_ip="203.0.113.9",
             )

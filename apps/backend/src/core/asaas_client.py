@@ -26,17 +26,21 @@ from src.core.logger import log
 
 SANDBOX_HOST = "sandbox.asaas.com"
 
-# Our cycle vocabulary -> the provider's enum. The mapping is explicit instead of
-# `upper()` so an unknown cycle fails before a request is made.
-CYCLE_MAP = {
-    "weekly": "WEEKLY",
-    "biweekly": "BIWEEKLY",
-    "monthly": "MONTHLY",
-    "bimonthly": "BIMONTHLY",
-    "quarterly": "QUARTERLY",
-    "semiannually": "SEMIANNUALLY",
-    "yearly": "YEARLY",
-}
+# The recurring cycles Asaas accepts. This is the single vocabulary used inside
+# the platform too: `subscriptions.cycle` is stored exactly as the provider names
+# it, so the checkout passes `subscription.cycle` through without a translation
+# that two vocabularies could disagree about.
+SUBSCRIPTION_CYCLES = frozenset(
+    {
+        "WEEKLY",
+        "BIWEEKLY",
+        "MONTHLY",
+        "BIMONTHLY",
+        "QUARTERLY",
+        "SEMIANNUALLY",
+        "YEARLY",
+    }
+)
 
 # How a charge is billed -> the provider's `billingType` enum. The platform
 # charges the recurring plan by credit card; the other two are the legacy
@@ -251,7 +255,7 @@ class AsaasClient:
             customer_id: Asaas customer that pays the subscription.
             value: Monthly value in reais, as stored in `plans.price`.
             next_due_date: Due date of the first charge.
-            cycle: Our cycle vocabulary (`monthly`, `weekly`, ...).
+            cycle: Cycle name, which must be one of `SUBSCRIPTION_CYCLES`.
             credit_card_token: Token produced by the provider's tokenization.
             remote_ip: IP of the buyer, required by Asaas and never ours.
             external_reference: Our subscription id, echoed back by the provider
@@ -264,15 +268,14 @@ class AsaasClient:
         Raises:
             ValueError: When `cycle` has no provider equivalent.
         """
-        asaas_cycle = CYCLE_MAP.get(cycle)
-        if asaas_cycle is None:
+        if cycle not in SUBSCRIPTION_CYCLES:
             raise ValueError(f"unsupported subscription cycle: {cycle!r}")
         payload: dict = {
             "customer": customer_id,
             "billingType": "CREDIT_CARD",
             "value": float(value),
             "nextDueDate": next_due_date.isoformat(),
-            "cycle": asaas_cycle,
+            "cycle": cycle,
         }
         if description:
             payload["description"] = description
@@ -312,7 +315,7 @@ class AsaasClient:
             subscription_id: Asaas subscription id.
             value: New monthly value in reais.
             next_due_date: New due date of the next charge.
-            cycle: Our cycle vocabulary (`monthly`, `weekly`, ...).
+            cycle: Cycle name, which must be one of `SUBSCRIPTION_CYCLES`.
             end_date: Date after which no charge is generated.
             description: New description.
 
@@ -333,10 +336,9 @@ class AsaasClient:
             }
         )
         if cycle is not None:
-            asaas_cycle = CYCLE_MAP.get(cycle)
-            if asaas_cycle is None:
+            if cycle not in SUBSCRIPTION_CYCLES:
                 raise ValueError(f"unsupported subscription cycle: {cycle!r}")
-            payload["cycle"] = asaas_cycle
+            payload["cycle"] = cycle
         return await self._request("PUT", f"/subscriptions/{subscription_id}", payload)
 
     async def cancel_subscription(self, subscription_id: str) -> dict:
