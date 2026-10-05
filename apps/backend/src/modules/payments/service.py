@@ -1,15 +1,12 @@
 import secrets
 from uuid import UUID
 
-import httpx
-
+from src.core.asaas_client import AsaasClient
 from src.core.config import get_settings
 from src.core.logger import log
 from src.modules.payments.models import Payment
 from src.modules.payments.repository import PaymentRepository
 from src.modules.payments.schemas import CreateCustomerInput, CreatePaymentInput
-
-SANDBOX_HOST = "sandbox.asaas.com"
 
 # Asaas event name -> the status stored in `payments.status`.
 WEBHOOK_STATUS_MAP = {
@@ -19,157 +16,6 @@ WEBHOOK_STATUS_MAP = {
     "PAYMENT_REFUNDED": "refunded",
     "PAYMENT_DELETED": "deleted",
 }
-
-
-class AsaasClient:
-    """HTTP client for the Asaas API.
-
-    The base URL is per environment (`ASAAS_BASE_URL`): the previous hardcoded
-    sandbox URL meant production could never charge a real customer, and the
-    mistake was invisible.
-    """
-
-    def __init__(self) -> None:
-        """Builds the client from settings and refuses a sandbox in production.
-
-        Raises:
-            ValueError: When `MODE=production` and the base URL points at the
-                Asaas sandbox. Charging a real customer in the sandbox (or
-                testing in production) is silent money/data loss, so the boot
-                must break instead of the misconfiguration being ignored.
-        """
-        # `get_settings()` is read per call (it is lru_cached): a module-level
-        # snapshot would freeze the first configuration seen by the process.
-        current = get_settings()
-        self.api_key = current.asaas_api_key or ""
-        self.base_url = current.asaas_base_url
-        if current.mode == "production" and SANDBOX_HOST in self.base_url:
-            raise ValueError(
-                "ASAAS_BASE_URL aponta para o sandbox do Asaas com MODE=production: "
-                "pagamento real não é processado. Configure a URL de produção."
-            )
-
-    async def _request(
-        self, method: str, endpoint: str, json_data: dict | None = None
-    ) -> dict:
-        headers = {
-            "Content-Type": "application/json",
-            "access_token": self.api_key,
-        }
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.request(
-                method,
-                f"{self.base_url}{endpoint}",
-                headers=headers,
-                json=json_data,
-            )
-            response.raise_for_status()
-            return response.json()
-
-    async def create_customer(self, customer_data: CreateCustomerInput) -> dict:
-        """Creates a customer in Asaas and returns the raw provider payload.
-
-        Args:
-            customer_data: Validated customer data from the request boundary.
-
-        Returns:
-            The Asaas customer payload (its `id` identifies the customer).
-        """
-        payload = {
-            "name": customer_data.name,
-            "email": customer_data.email,
-        }
-        if customer_data.cpf_cnpj:
-            payload["cpfCnpj"] = customer_data.cpf_cnpj
-        if customer_data.phone:
-            payload["phone"] = customer_data.phone
-        if customer_data.mobile_phone:
-            payload["mobilePhone"] = customer_data.mobile_phone
-        if customer_data.address:
-            payload["address"] = customer_data.address
-        if customer_data.address_number:
-            payload["addressNumber"] = customer_data.address_number
-        if customer_data.city:
-            payload["city"] = customer_data.city
-        if customer_data.state:
-            payload["state"] = customer_data.state
-        if customer_data.postal_code:
-            payload["postalCode"] = customer_data.postal_code
-
-        return await self._request("POST", "/customers", payload)
-
-    async def get_customer(self, customer_id: str) -> dict:
-        """Fetches a customer by provider id.
-
-        Args:
-            customer_id: Asaas customer id.
-
-        Returns:
-            The Asaas customer payload.
-        """
-        return await self._request("GET", f"/customers/{customer_id}")
-
-    async def create_payment(
-        self, customer_id: str, payment_data: CreatePaymentInput
-    ) -> dict:
-        """Creates a charge in Asaas and returns the raw provider payload.
-
-        Args:
-            customer_id: Asaas customer that pays the charge.
-            payment_data: Validated charge data from the request boundary.
-
-        Returns:
-            The Asaas payment payload (its `id` identifies the charge).
-        """
-        payload = {
-            "customer": customer_id,
-            "billingType": payment_data.payment_method.upper(),
-            "value": payment_data.amount,
-            "dueDate": payment_data.due_date.isoformat(),
-            "description": payment_data.description or "Pagamento Cafe com BPO",
-        }
-        if payment_data.success_url:
-            payload["callback"] = {"successUrl": payment_data.success_url}
-
-        return await self._request("POST", "/payments", payload)
-
-    async def get_payment(self, payment_id: str) -> dict:
-        """Fetches a charge by provider id.
-
-        Args:
-            payment_id: Asaas payment id.
-
-        Returns:
-            The Asaas payment payload.
-        """
-        return await self._request("GET", f"/payments/{payment_id}")
-
-    async def get_payment_status(self, payment_id: str) -> dict:
-        """Fetches the current status of a charge.
-
-        Args:
-            payment_id: Asaas payment id.
-
-        Returns:
-            The Asaas status payload.
-        """
-        return await self._request("GET", f"/payments/{payment_id}/status")
-
-    async def list_payments(
-        self, customer_id: str, limit: int = 20, offset: int = 0
-    ) -> dict:
-        """Lists the charges of a customer.
-
-        Args:
-            customer_id: Asaas customer id.
-            limit: Maximum number of records.
-            offset: Pagination offset.
-
-        Returns:
-            The Asaas list payload.
-        """
-        params = {"customer": customer_id, "limit": limit, "offset": offset}
-        return await self._request("GET", "/payments", params)
 
 
 class PaymentService:
@@ -248,7 +94,9 @@ class PaymentService:
         if existing:
             return await self.asaas.get_customer(existing.asaas_customer_id)
 
-        asaas_customer = await self.asaas.create_customer(customer_data)
+        asaas_customer = await self.asaas.create_customer(
+            **_customer_payload(customer_data)
+        )
         self.repository.save_customer_id(user_id, asaas_customer["id"])
         log.info(
             f"💳 Cliente Asaas criado para usuário {user_id}: {asaas_customer['id']}"
@@ -278,7 +126,14 @@ class PaymentService:
         else:
             customer_id = customer.asaas_customer_id
 
-        asaas_payment = await self.asaas.create_payment(customer_id, payment_data)
+        asaas_payment = await self.asaas.create_payment(
+            customer_id=customer_id,
+            amount=payment_data.amount,
+            payment_method=payment_data.payment_method,
+            due_date=payment_data.due_date,
+            description=payment_data.description,
+            success_url=payment_data.success_url,
+        )
 
         payment = self.repository.create_payment(
             user_id=user_id,
@@ -347,3 +202,20 @@ class PaymentService:
         log.info(f"[payments] webhook processado: {payment.id} | {event_type}")
 
         return payment
+
+
+def _customer_payload(customer_data: CreateCustomerInput) -> dict:
+    """Unpacks the request schema into the client keywords.
+
+    The client lives in `core` and takes plain values: a provider adapter that
+    imports a module's boundary schema makes `core` depend on `modules`, and the
+    dependency is then impossible to invert when a second module needs the same
+    client.
+
+    Args:
+        customer_data: Validated customer data from the request boundary.
+
+    Returns:
+        Keyword arguments for `AsaasClient.create_customer`.
+    """
+    return customer_data.model_dump()

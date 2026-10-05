@@ -262,7 +262,7 @@ def test_create_payment_error_does_not_leak_internals(
     client, webhook_settings, monkeypatch
 ):
     """A provider failure answers with a safe message; detail goes to the log."""
-    from src.modules.payments.service import AsaasClient
+    from src.core.asaas_client import AsaasClient
 
     async def _boom(*args, **kwargs):
         raise RuntimeError("asaas key abc123 rejected connection to db-primary")
@@ -308,7 +308,7 @@ def test_base_url_comes_from_settings(monkeypatch):
 
 def test_client_uses_configured_base_url(monkeypatch):
     """The client must not ignore the configured URL."""
-    from src.modules.payments.service import AsaasClient
+    from src.core.asaas_client import AsaasClient
 
     monkeypatch.setenv("ASAAS_BASE_URL", "https://api.asaas.com/api/v3")
     get_settings.cache_clear()
@@ -321,7 +321,7 @@ def test_client_uses_configured_base_url(monkeypatch):
 def test_production_pointing_to_sandbox_fails_loudly(monkeypatch):
     """Charging a real customer in the sandbox is silent data loss, so the
     misconfiguration has to break the boot instead of being ignored."""
-    from src.modules.payments.service import AsaasClient
+    from src.core.asaas_client import AsaasClient
 
     monkeypatch.setenv("MODE", "production")
     monkeypatch.setenv("ASAAS_BASE_URL", "https://sandbox.asaas.com/api/v3")
