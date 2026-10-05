@@ -414,3 +414,124 @@ def _run(coroutine):
     import asyncio
 
     return asyncio.run(coroutine)
+
+
+# --- Saved cards (§17.2) -----------------------------------------------------
+# The card is tokenized by Asaas and only the metadata is stored. These tests pin
+# the wire contract and, above all, that the PAN and the CVV never end up in a
+# log line: the request that carries them is the only place they exist.
+
+
+def test_tokenize_credit_card_sends_the_documented_contract(provider):
+    """`POST /creditCard/tokenizeCreditCard` exchanges the card for a token.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+    provider.payload = {
+        "creditCardToken": "tok_abc",
+        "creditCardBrand": "VISA",
+        "creditCardLastDigits": "4444",
+        "creditCardExpiry": "12/2030",
+    }
+
+    result = _run(
+        client.tokenize_credit_card(
+            credit_card_number="4111111111111111",
+            credit_card_expiry="12/2030",
+            credit_card_ccv="123",
+            credit_card_holder_name="ADA L OVELACE",
+        )
+    )
+
+    assert provider.last.method == "POST"
+    assert str(provider.last.url) == f"{PRODUCTION_URL}/creditCard/tokenizeCreditCard"
+    body = provider.body()
+    assert body["creditCardNumber"] == "4111111111111111"
+    assert body["creditCardExpiry"] == "12/2030"
+    assert body["creditCardCcv"] == "123"
+    assert body["creditCardHolderName"] == "ADA L OVELACE"
+    assert result["creditCardToken"] == "tok_abc"
+
+
+def test_the_tokenized_card_never_reaches_the_log(provider, caplog):
+    """The PAN and the CVV must not be written anywhere, not even on failure.
+
+    A provider error is logged without its body already; this pins the rest — the
+    card data we forward must not be part of any log line we produce.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+        caplog: pytest log capture fixture.
+    """
+    client = AsaasClient()
+    provider.status = 400
+    provider.payload = {"errors": [{"description": "invalid card"}]}
+
+    with caplog.at_level("DEBUG"), pytest.raises(httpx.HTTPStatusError):
+        _run(
+            client.tokenize_credit_card(
+                credit_card_number="4111111111111111",
+                credit_card_expiry="12/2030",
+                credit_card_ccv="123",
+                credit_card_holder_name="ADA L OVELACE",
+            )
+        )
+
+    assert "4111111111111111" not in caplog.text
+    assert "123" not in caplog.text.replace("4111111111111111", "")
+    assert API_KEY not in caplog.text
+
+
+def test_list_credit_cards_filters_by_customer_in_the_query(provider):
+    """Listing must reach Asaas filtered, otherwise every card is returned.
+
+    The query-string rule that `test_query_filters_never_travel_in_the_body`
+    locked for payments applies to the card list too: the same defect class.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+    provider.payload = {"creditCards": [{"id": "card_1"}]}
+
+    result = _run(client.list_credit_cards("cus_7"))
+
+    request = provider.last
+    assert request.method == "GET"
+    assert not request.content, "a GET filter must not be sent as a JSON body"
+    assert dict(request.url.params) == {"customer": "cus_7"}
+    assert result == [{"id": "card_1"}]
+
+
+def test_delete_credit_card_addresses_the_token_not_the_card(provider):
+    """Asaas deletes a card by token; a wrong key leaves the card alive.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(client.delete_credit_card(customer_id="cus_7", credit_card_token="tok_abc"))
+
+    assert provider.last.method == "DELETE"
+    assert str(provider.last.url) == f"{PRODUCTION_URL}/creditCard/deleteCreditCard"
+    assert provider.body() == {"customer": "cus_7", "creditCardToken": "tok_abc"}
+
+
+def test_set_default_credit_card_sends_the_token(provider):
+    """Marking the default is also keyed by token, for the same reason.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(
+        client.set_default_credit_card(customer_id="cus_7", credit_card_token="tok_abc")
+    )
+
+    assert provider.last.method == "POST"
+    assert str(provider.last.url) == f"{PRODUCTION_URL}/creditCard/setDefaultCreditCard"
+    assert provider.body() == {"customer": "cus_7", "creditCardToken": "tok_abc"}

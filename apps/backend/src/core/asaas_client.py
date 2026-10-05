@@ -409,6 +409,96 @@ class AsaasClient:
             query={"limit": limit, "offset": offset},
         )
 
+    async def tokenize_credit_card(
+        self,
+        *,
+        credit_card_number: str,
+        credit_card_expiry: str,
+        credit_card_ccv: str,
+        credit_card_holder_name: str,
+    ) -> dict:
+        """Exchanges raw card data for a token Asaas keeps on its side.
+
+        §17.2 decides the backend tokenizes: the number, the CVV and the token
+        are never stored, and only the brand, the last four digits, the expiry
+        and the holder are kept locally. This is the **only** method in the client
+        that receives a PAN, and it exists because there is no token to forward
+        before the first one is created.
+
+        The values live in the request body and nowhere else: nothing here logs
+        them, and `_request` reports provider errors with the URL and the status
+        only, so a rejected card cannot leak the number into a log line.
+
+        Args:
+            credit_card_number: Card number as typed by the user.
+            credit_card_expiry: Expiry in `MM/YYYY` form.
+            credit_card_ccv: The security code from the card.
+            credit_card_holder_name: Holder name printed on the card.
+
+        Returns:
+            The Asaas payload with the token and the card metadata.
+        """
+        return await self._request(
+            "POST",
+            "/creditCard/tokenizeCreditCard",
+            {
+                "creditCardNumber": credit_card_number,
+                "creditCardExpiry": credit_card_expiry,
+                "creditCardCcv": credit_card_ccv,
+                "creditCardHolderName": credit_card_holder_name,
+            },
+        )
+
+    async def list_credit_cards(self, customer_id: str) -> list[dict]:
+        """Lists the cards Asaas holds for a customer.
+
+        Args:
+            customer_id: Asaas customer that owns the cards.
+
+        Returns:
+            The saved cards, each with its brand, last digits, expiry and holder.
+        """
+        payload = await self._request(
+            "GET", "/creditCard/listCreditCards", query={"customer": customer_id}
+        )
+        return payload.get("creditCards", [])
+
+    async def set_default_credit_card(
+        self, *, customer_id: str, credit_card_token: str
+    ) -> dict:
+        """Marks a card as the one charged from now on.
+
+        Args:
+            customer_id: Asaas customer that owns the card.
+            credit_card_token: Token of the card to make the default.
+
+        Returns:
+            The Asaas payload for the updated card.
+        """
+        return await self._request(
+            "POST",
+            "/creditCard/setDefaultCreditCard",
+            {"customer": customer_id, "creditCardToken": credit_card_token},
+        )
+
+    async def delete_credit_card(
+        self, *, customer_id: str, credit_card_token: str
+    ) -> dict:
+        """Removes a saved card from Asaas.
+
+        Args:
+            customer_id: Asaas customer that owns the card.
+            credit_card_token: Token of the card to remove.
+
+        Returns:
+            The Asaas payload confirming the deletion.
+        """
+        return await self._request(
+            "DELETE",
+            "/creditCard/deleteCreditCard",
+            {"customer": customer_id, "creditCardToken": credit_card_token},
+        )
+
 
 def _without_nulls(payload: dict) -> dict:
     """Drops the keys whose value is `None`.
