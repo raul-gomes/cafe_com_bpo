@@ -18,9 +18,11 @@ from src.core.database import get_db_session
 from src.core.entitlements import Access, resolve_access
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user, require_admin
+from src.modules.subscriptions.models import BillingProfile
 from src.modules.subscriptions.repository import BillingProfileRepository
 from src.modules.subscriptions.schemas import (
     AccessResponse,
+    BillingData,
     BillingProfileResponse,
     CancelResponse,
     CheckoutCreate,
@@ -255,6 +257,31 @@ async def cancel_subscription(
     )
 
 
+def _profile_response(profile: BillingProfile) -> BillingProfileResponse:
+    """Adapts a stored billing row to the response schema (§6).
+
+    Both billing routes answer through this helper, so the eight fields the
+    form reads can never drift between what the save returns and what the
+    prefill returns.
+
+    Args:
+        profile: The stored billing row.
+
+    Returns:
+        The response body: the eight fields, and nothing else.
+    """
+    return BillingProfileResponse(
+        cpf_cnpj=profile.cpf_cnpj,
+        phone=profile.phone,
+        address=profile.address,
+        address_number=profile.address_number,
+        complement=profile.complement,
+        city=profile.city,
+        state=profile.state,
+        postal_code=profile.postal_code,
+    )
+
+
 @router.get("/billing", response_model=BillingProfileResponse)
 def get_billing_profile(
     session: SessionDep,
@@ -286,13 +313,32 @@ def get_billing_profile(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Você ainda não informou seus dados de cobrança.",
         )
-    return BillingProfileResponse(
-        cpf_cnpj=profile.cpf_cnpj,
-        phone=profile.phone,
-        address=profile.address,
-        address_number=profile.address_number,
-        complement=profile.complement,
-        city=profile.city,
-        state=profile.state,
-        postal_code=profile.postal_code,
-    )
+    return _profile_response(profile)
+
+
+@router.put("/billing", response_model=BillingProfileResponse)
+def save_billing_profile(
+    data: BillingData,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> BillingProfileResponse:
+    """Saves the caller's billing data from the payments-page form (§17.8).
+
+    The profile is upserted keyed by `current_user.id` inside the repository,
+    so a save can only ever touch the caller's own row (§17.7) — there is no
+    user id in the body to spoof. Saving without a checkout is the point of
+    this route: the form's promise is that document and address stay for the
+    next one, and the commit here is what makes that durable.
+
+    Args:
+        data: Validated and normalized billing data (document digits, phone
+            digits, upper-case state — enforced by the schema's validators).
+        session: Database session.
+        current_user: Authenticated user.
+
+    Returns:
+        The saved profile, in the same shape the GET prefills from.
+    """
+    profile = BillingProfileRepository(session).save(current_user.id, data)
+    session.commit()
+    return _profile_response(profile)

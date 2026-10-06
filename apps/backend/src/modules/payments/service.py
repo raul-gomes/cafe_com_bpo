@@ -9,7 +9,6 @@ from src.core.config import get_settings
 from src.core.logger import log
 from src.modules.payments.models import Payment
 from src.modules.payments.repository import PaymentRepository, WebhookEventRepository
-from src.modules.payments.schemas import CreateCustomerInput, CreatePaymentInput
 from src.modules.subscriptions.models import Subscription
 from src.modules.subscriptions.service import SubscriptionWebhookService
 
@@ -29,7 +28,7 @@ _PAYMENT_REPORTED_EVENTS = frozenset({"PAYMENT_REFUNDED", "PAYMENT_DELETED"})
 
 
 class PaymentService:
-    """Business logic for charges and for the Asaas webhook."""
+    """Business logic for the billing history and for the Asaas webhook."""
 
     def __init__(self, repository: PaymentRepository) -> None:
         """Assembles the service with its repositories and the Asaas client.
@@ -39,7 +38,7 @@ class PaymentService:
         the dispatch commits them together or not at all.
 
         Args:
-            repository: Data access for payments and customer ids.
+            repository: Data access for the payment history.
         """
         self.repository = repository
         self.asaas = AsaasClient()
@@ -71,103 +70,16 @@ class PaymentService:
             return False
         return secrets.compare_digest(provided_token, expected)
 
-    def get_user_payments(self, user_id: UUID) -> list[Payment]:
-        """Lists the payments of a user, newest first.
+    def get_billing_history(self, user_id: UUID) -> list[Payment]:
+        """Lists the subscription charges of a user, newest paid month first.
 
         Args:
             user_id: Authenticated user.
 
         Returns:
-            The user's payments.
+            The user's subscription charges (legacy one-off rows excluded).
         """
-        return self.repository.get_by_user(user_id)
-
-    def get_payment(self, payment_id: UUID, user_id: UUID) -> Payment | None:
-        """Returns one of the user's payments, scoped by owner.
-
-        Args:
-            payment_id: Payment id.
-            user_id: Authenticated user.
-
-        Returns:
-            The payment, or `None` when it is not the user's.
-        """
-        return self.repository.get_by_id(payment_id, user_id)
-
-    async def create_customer_for_user(
-        self, user_id: UUID, customer_data: CreateCustomerInput
-    ) -> dict:
-        """Returns the user's Asaas customer, creating it on first use.
-
-        Args:
-            user_id: Authenticated user.
-            customer_data: Validated customer data.
-
-        Returns:
-            The Asaas customer payload.
-        """
-        existing = self.repository.get_customer_by_user(user_id)
-        if existing:
-            return await self.asaas.get_customer(existing.asaas_customer_id)
-
-        asaas_customer = await self.asaas.create_customer(
-            **_customer_payload(customer_data)
-        )
-        self.repository.save_customer_id(user_id, asaas_customer["id"])
-        log.info(
-            f"💳 Cliente Asaas criado para usuário {user_id}: {asaas_customer['id']}"
-        )
-        return asaas_customer
-
-    async def create_payment(
-        self,
-        user_id: UUID,
-        payment_data: CreatePaymentInput,
-        customer_info: CreateCustomerInput,
-    ) -> Payment:
-        """Creates a charge in Asaas and records it as pending.
-
-        Args:
-            user_id: Authenticated user paying.
-            payment_data: Validated charge data.
-            customer_info: Customer data used when the user has no Asaas id yet.
-
-        Returns:
-            The stored `Payment` in `pending` status.
-        """
-        customer = self.repository.get_customer_by_user(user_id)
-        if not customer:
-            asaas_customer = await self.asaas.create_customer(customer_info)
-            customer_id = asaas_customer["id"]
-        else:
-            customer_id = customer.asaas_customer_id
-
-        asaas_payment = await self.asaas.create_payment(
-            customer_id=customer_id,
-            amount=payment_data.amount,
-            payment_method=payment_data.payment_method,
-            due_date=payment_data.due_date,
-            description=payment_data.description,
-            success_url=payment_data.success_url,
-        )
-
-        payment = self.repository.create_payment(
-            user_id=user_id,
-            amount=payment_data.amount,
-            description=payment_data.description,
-            payment_method=payment_data.payment_method,
-            due_date=payment_data.due_date.isoformat(),
-            asaas_customer_id=customer_id,
-            asaas_payment_id=asaas_payment["id"],
-            success_url=payment_data.success_url,
-            error_url=payment_data.error_url,
-        )
-
-        log.info(
-            f"💳 Pagamento criado: {payment.id} | Asaas: {asaas_payment['id']} | Valor: R$ {payment_data.amount}"
-        )
-
-        return payment
+        return self.repository.list_billing_history(user_id)
 
     async def process_event(
         self, event_data: dict, *, now: datetime | None = None
@@ -293,23 +205,6 @@ class PaymentService:
                 payment_id, WEBHOOK_STATUS_MAP[event_type]
             )
         return False
-
-
-def _customer_payload(customer_data: CreateCustomerInput) -> dict:
-    """Unpacks the request schema into the client keywords.
-
-    The client lives in `core` and takes plain values: a provider adapter that
-    imports a module's boundary schema makes `core` depend on `modules`, and the
-    dependency is then impossible to invert when a second module needs the same
-    client.
-
-    Args:
-        customer_data: Validated customer data from the request boundary.
-
-    Returns:
-        Keyword arguments for `AsaasClient.create_customer`.
-    """
-    return customer_data.model_dump()
 
 
 def _history_kwargs(

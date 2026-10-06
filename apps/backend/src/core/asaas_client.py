@@ -57,15 +57,6 @@ SUBSCRIPTION_CYCLES = frozenset(
     }
 )
 
-# How a charge is billed -> the provider's `billingType` enum. The platform
-# charges the recurring plan by credit card; the other two are the legacy
-# one-off charges still reachable from the old payment form.
-BILLING_TYPE_MAP = {
-    "PIX": "PIX",
-    "BOLETO": "BOLETO",
-    "CREDIT_CARD": "CREDIT_CARD",
-}
-
 DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
@@ -268,57 +259,6 @@ class AsaasClient:
             The Asaas customer payload.
         """
         return await self._request("GET", f"/customers/{customer_id}")
-
-    async def create_payment(
-        self,
-        *,
-        customer_id: str,
-        amount: float,
-        payment_method: str,
-        due_date: date,
-        description: str | None = None,
-        success_url: str | None = None,
-    ) -> dict:
-        """Creates a one-off charge in Asaas and returns the raw payload.
-
-        Args:
-            customer_id: Asaas customer that pays the charge.
-            amount: Charge value in reais.
-            payment_method: `PIX`, `BOLETO` or `CREDIT_CARD`.
-            due_date: Due date of the charge.
-            description: Description shown to the payer.
-            success_url: Redirect target after payment.
-
-        Returns:
-            The Asaas payment payload (its `id` identifies the charge).
-
-        Raises:
-            ValueError: When the billing method has no provider equivalent.
-        """
-        billing_type = BILLING_TYPE_MAP.get(payment_method.upper())
-        if billing_type is None:
-            raise ValueError(f"unsupported billing method: {payment_method!r}")
-        payload: dict = {
-            "customer": customer_id,
-            "billingType": billing_type,
-            "value": float(amount),
-            "dueDate": due_date.isoformat(),
-            "description": description or "Pagamento Cafe com BPO",
-        }
-        if success_url:
-            payload["callback"] = {"successUrl": success_url}
-        return await self._request("POST", "/payments", payload)
-
-    async def get_payment(self, payment_id: str) -> dict:
-        """Fetches a charge by provider id.
-
-        Args:
-            payment_id: Asaas payment id.
-
-        Returns:
-            The Asaas payment payload.
-        """
-        return await self._request("GET", f"/payments/{payment_id}")
 
     async def get_subscription(self, subscription_id: str) -> dict:
         """Fetches a subscription by provider id.

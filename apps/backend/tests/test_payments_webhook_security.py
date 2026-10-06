@@ -12,9 +12,12 @@ Cobrado aqui:
 - idempotência por `id` do evento — o Asaas reenvia o mesmo evento, e reprocessar
   sobrescrevia o `webhook_data` com uma cópia nova;
 - corpo do webhook fora do log e erro sem vazar interno;
-- `POST /payments/create` validado na fronteira (422), não `dict` cru;
 - `ASAAS_BASE_URL` por ambiente, e produção apontando para sandbox **quebra** em
   vez de cobrar dinheiro no ambiente de teste.
+
+Os testes da fronteira de `POST /payments/create` saíram junto com a rota
+(Fase 9): o cobro direto foi aposentado pelo checkout hospedado, e o regressão
+que as rotas continuam fora está em `test_billing_history.py`.
 """
 
 from uuid import uuid4
@@ -43,23 +46,6 @@ def _user_id(db_session, email: str):
     found = db_session.query(User.id).filter_by(email=email.lower()).first()
     assert found is not None, f"usuário {email} não encontrado"
     return found[0]
-
-
-def _auth(client, email: str) -> dict:
-    """Registers a user and returns its auth header.
-
-    Args:
-        client: FastAPI test client.
-        email: Email of the user.
-
-    Returns:
-        Authorization header for the user.
-    """
-    create_test_user(email=email, password="StrongPassword123!")
-    token = client.post(
-        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
-    ).json()["access_token"]
-    return {"Authorization": f"Bearer {token}"}
 
 
 @pytest.fixture
@@ -230,68 +216,6 @@ def test_webhook_for_unknown_payment_is_acknowledged(client, payment, webhook_se
 
     assert resp.status_code == 200, resp.text
     assert "pay_nope" not in resp.text
-
-
-# ── fronteira e vazamento de erro ────────────────────────────────────────────
-
-
-def test_create_payment_validates_the_body(client, webhook_settings):
-    """`payload: dict` meant FastAPI validated nothing: a bad body became a 400
-    with the internal exception text instead of a 422."""
-    auth = _auth(client, f"pay_bound_{uuid4()}@cafe.com")
-
-    resp = client.post(
-        "/payments/create",
-        json={"payment": {"amount": "nao-e-numero"}, "customer": {"name": "A"}},
-        headers=auth,
-    )
-
-    assert resp.status_code == 422, resp.text
-
-
-def test_create_payment_requires_both_sections(client, webhook_settings):
-    """Missing sections are a validation error, not a KeyError."""
-    auth = _auth(client, f"pay_missing_{uuid4()}@cafe.com")
-
-    resp = client.post("/payments/create", json={"payment": {}}, headers=auth)
-
-    assert resp.status_code == 422, resp.text
-
-
-def test_create_payment_error_does_not_leak_internals(
-    client, webhook_settings, monkeypatch
-):
-    """A provider failure answers with a safe message; detail goes to the log."""
-    from src.core.asaas_client import AsaasClient
-
-    async def _boom(*args, **kwargs):
-        raise RuntimeError("asaas key abc123 rejected connection to db-primary")
-
-    async def _customer(*args, **kwargs):
-        return {"id": "cus_999"}
-
-    # Both provider calls are patched: an unpatched one would reach the network
-    # and make this test pass for the wrong reason.
-    monkeypatch.setattr(AsaasClient, "create_customer", _customer)
-    monkeypatch.setattr(AsaasClient, "create_payment", _boom)
-    auth = _auth(client, f"pay_err_{uuid4()}@cafe.com")
-
-    resp = client.post(
-        "/payments/create",
-        json={
-            "payment": {
-                "amount": 10.0,
-                "payment_method": "PIX",
-                "due_date": "2026-10-20",
-            },
-            "customer": {"name": "Fulano", "email": "fulano@example.com"},
-        },
-        headers=auth,
-    )
-
-    assert resp.status_code == 400, resp.text
-    assert "abc123" not in resp.text
-    assert "db-primary" not in resp.text
 
 
 # ── B8: ambiente do Asaas ────────────────────────────────────────────────────
