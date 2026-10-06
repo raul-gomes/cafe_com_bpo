@@ -1,15 +1,15 @@
 """Opening a hosted checkout — where a subscription actually starts (§17.2, Fase 4).
 
-Six money rules are protected here, and each one was a plausible silent bug:
+Seven rules are protected here, and each one was a plausible silent bug:
 
 1. **The price comes from the database, never from the browser.** `plans.price`
    is the source of truth (§17.1), so a `price` in the body is refused with a 422
    instead of being ignored: a client that sends one believes it is paying that.
 2. **The Asaas customer is reused.** A second `create_customer` for the same person
    splits their payment history in two inside the provider.
-3. **`externalReference` is our subscription id.** This is the only thing that
-   lets the webhook of Fase 5 find the row it has to activate, so a wrong value
-   here is a customer who pays and stays on free forever.
+3. **`externalReference` is our subscription id.** It is what Asaas documents
+   for reconciliation, so a wrong value breaks anything (us or them) that
+   matches a payment back to a subscription by it.
 4. **The row is created `incomplete` and not `active`.** Creating the session does
    not pay: only `CHECKOUT_PAID` confirms. A row marked active before the money
    arrives hands out a paid plan to anyone who opens a link.
@@ -18,6 +18,10 @@ Six money rules are protected here, and each one was a plausible silent bug:
    a session nobody will confirm.
 6. **A beta pays only after the free year** (§17.6): the first charge is dated the
    day after `beta_access.expires_at`, never today.
+7. **The checkout id is stored** (P-16): the `CHECKOUT_*` webhook payload carries
+   only `checkout.id` — no `externalReference`, no subscription id — so a session
+   the provider answers without an id is refused with the same 502 as one
+   without a link.
 
 The response is a contract: the exact keys are asserted, because §6 says a field
 ships only if the page reads it.
@@ -283,6 +287,52 @@ def test_checkout_returns_the_link_and_marks_the_row_incomplete(
     assert row.plan_id == plan.id
     # The provider has not paid yet, so there is no subscription over there.
     assert row.asaas_subscription_id is None
+
+
+def test_the_checkout_id_is_stored_for_the_webhook(
+    provider, db_session: Session, plan: Plan, actor: UserResponse
+):
+    """The `CHECKOUT_*` payload carries only `checkout.id` — nothing else finds us.
+
+    The webhook of Fase 5 receives `checkout.id`, `event` and the payer's
+    customer id; it does **not** carry the `externalReference` we sent. Without
+    this column the activation of a paid session would have nothing to match
+    against (P-16).
+
+    Args:
+        provider: Fake Asaas provider.
+        db_session: Database session.
+        plan: Active plan.
+        actor: Authenticated user.
+    """
+    _open(db_session, actor, plan)
+
+    row = db_session.query(Subscription).filter(Subscription.user_id == actor.id).one()
+    assert row.asaas_checkout_id == provider.payload["id"]
+
+
+def test_a_checkout_without_an_id_is_refused(
+    provider, db_session: Session, plan: Plan, actor: UserResponse
+):
+    """A session we cannot recognise later is as useless as one without a link.
+
+    Args:
+        provider: Fake Asaas provider, answering without an id.
+        db_session: Database session.
+        plan: Active plan.
+        actor: Authenticated user.
+    """
+    provider.payload = {
+        "link": "https://sandbox.asaas.com/000/checkoutSession/show/chk_1",
+        "status": "ACTIVE",
+    }
+
+    with pytest.raises(HTTPException) as raised:
+        _open(db_session, actor, plan)
+
+    assert raised.value.status_code == 502
+    db_session.rollback()
+    assert db_session.query(Subscription).count() == 0
 
 
 def test_the_price_never_comes_from_the_body(provider, db_session, plan, actor):

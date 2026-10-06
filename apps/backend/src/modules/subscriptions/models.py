@@ -145,6 +145,11 @@ class Subscription(Base):
 
     asaas_customer_id = Column(String(100), nullable=True)
     asaas_subscription_id = Column(String(100), nullable=True, unique=True)
+    # The checkout session behind the attempt. Its id is the only key the
+    # `CHECKOUT_*` webhook payload carries — no `externalReference`, no
+    # subscription id — so this is what Fase 5 matches the payment against
+    # (P-16).
+    asaas_checkout_id = Column(String(100), nullable=True, unique=True)
 
     # Período já pago. `current_period_end` é o que segura o acesso depois de um
     # cancelamento (§17.5).

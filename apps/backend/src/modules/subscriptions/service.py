@@ -332,20 +332,30 @@ class CheckoutService:
             external_reference=str(subscription.id),
             minutes_to_expire=CHECKOUT_MINUTES_TO_EXPIRE,
         )
+        checkout_id = checkout.get("id")
         link = checkout.get("link")
-        if not isinstance(link, str) or not link:
-            # Without a link the buyer has nowhere to go; nothing is committed,
-            # the session stays a provider-side curiosity and the caller gets a
+        if (
+            not isinstance(checkout_id, str)
+            or not checkout_id
+            or not isinstance(link, str)
+            or not link
+        ):
+            # Without a link the buyer has nowhere to go, and without the id
+            # no webhook can ever recognise this session (`CHECKOUT_PAID`
+            # carries only `checkout.id`, P-16). Nothing is committed: the
+            # session stays a provider-side curiosity and the caller gets a
             # clean failure instead of a button that does nothing.
             raise HTTPException(
                 status_code=status.HTTP_502_BAD_GATEWAY,
                 detail="Não foi possível iniciar o pagamento. Tente novamente.",
             )
+        subscription.asaas_checkout_id = checkout_id
 
-        # Committed last, once the link exists. Before the provider call the row
-        # only holds `incomplete` data; committing it on failure would leave a
-        # row that answers 409 to every retry, with no way for the user to clear
-        # it. After the call it is the record Fase 5 matches the payment against.
+        # Committed last, once the session can be identified again. Before the
+        # provider call the row only holds `incomplete` data; committing it on
+        # failure would leave a row that answers 409 to every retry, with no way
+        # for the user to clear it. After the call it is the record Fase 5
+        # matches the payment against, by checkout id and by our reference.
         self.session.commit()
 
         return CheckoutResponse(
