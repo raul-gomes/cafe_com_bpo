@@ -164,6 +164,71 @@ class SubscriptionRepository:
         self.session.flush()
         return subscription
 
+    def get_by_checkout_id(self, checkout_id: str) -> Subscription | None:
+        """Finds the row by the hosted checkout session that belongs to it.
+
+        This is the only key a `CHECKOUT_*` webhook payload carries (P-16).
+
+        Args:
+            checkout_id: Checkout session id assigned by Asaas.
+
+        Returns:
+            The matching subscription, or `None`.
+        """
+        return (
+            self.session.query(Subscription)
+            .filter(Subscription.asaas_checkout_id == checkout_id)
+            .one_or_none()
+        )
+
+    def get_by_provider_subscription_id(self, provider_id: str) -> Subscription | None:
+        """Finds the row by the provider's subscription id.
+
+        Args:
+            provider_id: Subscription id assigned by Asaas.
+
+        Returns:
+            The matching subscription, or `None`.
+        """
+        return (
+            self.session.query(Subscription)
+            .filter(Subscription.asaas_subscription_id == provider_id)
+            .one_or_none()
+        )
+
+    def get_by_external_reference(self, reference: str) -> Subscription | None:
+        """Finds the row by an `externalReference` the provider sent back.
+
+        The reference is our own id, so anything that is not a UUID is by
+        definition not one of our rows — rejected before it reaches a query.
+
+        Args:
+            reference: Value of `externalReference`.
+
+        Returns:
+            The matching subscription, or `None` when the reference is absent
+            from the payload, malformed, or unknown.
+        """
+        try:
+            subscription_id = UUID(reference)
+        except (ValueError, TypeError, AttributeError):
+            return None
+        return self.session.get(Subscription, subscription_id)
+
+    def delete(self, subscription: Subscription) -> None:
+        """Removes a row that never became history.
+
+        An abandoned checkout (`incomplete`) is not something anyone paid for,
+        and while it exists the partial unique index answers 409 to every new
+        attempt. The row is deleted without committing — the webhook commits
+        once, together with its event record.
+
+        Args:
+            subscription: The row to remove.
+        """
+        self.session.delete(subscription)
+        self.session.flush()
+
 
 class BillingProfileRepository:
     """Reads and writes the billing data of §17.8.

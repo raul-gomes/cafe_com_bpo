@@ -259,6 +259,32 @@ def test_query_filters_never_travel_in_the_body(provider):
     assert dict(request.url.params) == {"limit": "5", "offset": "10"}
 
 
+def test_list_subscriptions_filters_by_customer_in_the_url(provider):
+    """The webhook enrichment must see only our customer's subscriptions.
+
+    `CHECKOUT_PAID` looks the provider subscription up by customer to store
+    `asaas_subscription_id`; without the `customer` filter Asaas would answer
+    with every subscription on the account and the first entry could belong to
+    somebody else.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(client.list_subscriptions(customer="cus_42", limit=5, offset=10))
+
+    request = provider.last
+    assert request.method == "GET"
+    assert str(request.url).split("?")[0] == f"{PRODUCTION_URL}/subscriptions"
+    assert not request.content, "a GET filter must not be sent as a JSON body"
+    assert dict(request.url.params) == {
+        "customer": "cus_42",
+        "limit": "5",
+        "offset": "10",
+    }
+
+
 def test_update_subscription_sends_only_the_changed_fields(provider):
     """`PUT /subscriptions/{id}` replaces the schedule, so only what changes goes.
 

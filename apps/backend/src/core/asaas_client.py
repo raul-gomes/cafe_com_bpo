@@ -20,12 +20,13 @@ Four rules shape this file:
   session as an active subscription — `CHECKOUT_PAID` is what confirms it.
 """
 
-from datetime import date
+from datetime import UTC, date, datetime
 from decimal import Decimal
 
 import httpx
 
 from src.core.config import get_settings
+from src.core.deadline import BUSINESS_TZ
 from src.core.logger import log
 
 SANDBOX_HOST = "sandbox.asaas.com"
@@ -502,6 +503,94 @@ class AsaasClient:
             f"/subscriptions/{subscription_id}/payments",
             query={"limit": limit, "offset": offset},
         )
+
+    async def list_subscriptions(
+        self, *, customer: str, limit: int = 100, offset: int = 0
+    ) -> dict:
+        """Lists the subscriptions of one customer.
+
+        Used by the webhook enrichment of `CHECKOUT_PAID`: the checkout event
+        carries no subscription id, so the only way to learn it is to ask the
+        provider for this customer's subscriptions and match on
+        `externalReference`. The `customer` filter travels in the query string —
+        a filter in the body of a GET is dropped by the provider, which would
+        answer with the whole account's subscriptions.
+
+        Args:
+            customer: Asaas customer whose subscriptions are listed.
+            limit: Maximum number of records.
+            offset: Pagination offset.
+
+        Returns:
+            The Asaas list payload (`{"object": "list", "data": [...]}`).
+        """
+        return await self._request(
+            "GET",
+            "/subscriptions",
+            query={"customer": customer, "limit": limit, "offset": offset},
+        )
+
+
+def parse_asaas_date(value: object) -> date | None:
+    """Extracts the calendar date from a provider date field.
+
+    Asaas sends due dates as `YYYY-MM-DD` but stamps instants with a time and
+    an offset on the same field name (`nextDueDate` in a `CHECKOUT_*` payload).
+    A due date is a business day, so the date part is taken as written — the
+    stamp's time zone games must not move a charge to the neighbouring day.
+
+    Args:
+        value: Raw field from a provider payload.
+
+    Returns:
+        The date, or `None` when the field is absent or malformed (logged —
+        a malformed due date silently dropping the period is the kind of bug
+        that only shows up as an access loss a month later).
+    """
+    if not value:
+        return None
+    if not isinstance(value, str) or len(value) < 10:
+        log.warning("[asaas] data de vencimento malformada recebida do provedor")
+        return None
+    try:
+        return date.fromisoformat(value[:10])
+    except ValueError:
+        log.warning("[asaas] data de vencimento malformada recebida do provedor")
+        return None
+
+
+def parse_asaas_datetime(value: object) -> datetime | None:
+    """Parses a provider instant and normalizes it to UTC.
+
+    Two shapes exist in the documented payloads: ISO 8601 with an offset
+    (`2026-10-05T12:00:00-03:00`, also `+0000`) and the naive
+    `YYYY-MM-DD HH:MM:SS` of `datePayment`, which Asaas stamps in the
+    account's business timezone (America/Sao_Paulo). A naive value is
+    therefore business time, never UTC — reading it as UTC puts every payment
+    three hours in the past.
+
+    Args:
+        value: Raw field from a provider payload.
+
+    Returns:
+        The instant in UTC, or `None` when the field is absent or malformed.
+    """
+    if not value:
+        return None
+    if not isinstance(value, str):
+        log.warning("[asaas] data-hora malformada recebida do provedor")
+        return None
+    text = value.strip().replace(" ", "T", 1)
+    if not text:
+        return None
+    try:
+        parsed = datetime.fromisoformat(text)
+    except ValueError:
+        log.warning("[asaas] data-hora malformada recebida do provedor")
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=BUSINESS_TZ)
+    return parsed.astimezone(UTC)
 
 
 def _without_nulls(payload: dict) -> dict:

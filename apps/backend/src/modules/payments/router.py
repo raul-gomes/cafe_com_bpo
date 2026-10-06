@@ -115,22 +115,21 @@ async def asaas_webhook(
 
     Exige o token compartilhado no header `asaas-access-token`: sem ele, o
     status de um pagamento virava o que qualquer POST quisesse. O corpo não é
-    logado (dado pessoal do pagador) e a resposta não carrega erro interno.
-    Evento já processado é idempotente; evento desconhecido responde 200 para o
-    Asaas não reenviar indefinidamente.
+    logado (dado pessoal do pagador).
+
+    A resposta carrega só `{"status"}` — Asaas lê o código HTTP, e um campo a
+    mais seria um identificador interno saindo do serviço (§6). Evento já
+    processado ou sem alvo responde **200** `ignored`, porque um não-2xx faz o
+    provedor reenviar para sempre; uma falha inesperada responde **503**, porque
+    um 200 enganoso descartaria o evento e o estado ficaria para sempre errado.
     """
     if not service.verify_webhook_token(request.headers.get("asaas-access-token")):
         return JSONResponse(status_code=401, content={"detail": "Não autorizado"})
 
     try:
         body = await request.json()
-        payment = service.process_webhook(body)
-
-        if payment is None:
-            log.info("[payments] webhook sem efeito (evento ou pagamento desconhecido)")
-            return {"status": "ignored"}
-
-        return {"status": "ok", "payment_id": str(payment.id)}
+        outcome = await service.process_event(body)
+        return {"status": outcome}
     except Exception as e:
         log.error(f"Erro ao processar webhook Asaas: {e!s}")
-        return JSONResponse(status_code=200, content={"status": "ignored"})
+        return JSONResponse(status_code=503, content={"status": "retry"})

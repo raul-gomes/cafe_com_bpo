@@ -77,3 +77,26 @@ class Payment(Base):
     )
 
     user = relationship("User", back_populates="payments")
+
+
+class WebhookEvent(Base):
+    """One delivered Asaas event — the platform-wide idempotency key (§17, P-18).
+
+    Asaas delivers at-least-once and documents retries on non-2xx. The primary
+    key is the provider's event id, so a replay loses the insert race and is
+    answered `ignored` instead of being applied twice.
+
+    The old dedup stored one `event_id` inside each payment's `webhook_data`:
+    an event whose payment row did not exist could never be recorded at all, so
+    it was reprocessed on every retry. This table records every arrival — even
+    one with no target — and stores only the event id, its type and the time:
+    the payload carries the payer's personal data and nothing reads it back.
+    """
+
+    __tablename__ = "webhook_events"
+
+    event_id = Column(String(100), primary_key=True)
+    event_type = Column(String(100), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
