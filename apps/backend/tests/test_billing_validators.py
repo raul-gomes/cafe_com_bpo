@@ -12,7 +12,11 @@ product considered valid, so each test pins a failure that really happened:
 
 import pytest
 
-from src.core.validators import validate_document, validate_phone
+from src.core.validators import (
+    validate_document,
+    validate_phone,
+    validate_postal_code,
+)
 
 
 @pytest.mark.parametrize(
@@ -105,3 +109,31 @@ def test_an_empty_document_is_none_not_an_error(typed):
         typed: What the user typed.
     """
     assert validate_document(typed) is None
+
+
+@pytest.mark.parametrize(
+    ("typed", "expected"),
+    [("01310-000", "01310000"), ("01310000", "01310000"), (" 01310 000 ", "01310000")],
+)
+def test_the_postal_code_reaches_the_column_as_eight_digits(typed, expected):
+    """SQLite accepts `01310-000` in a `varchar(8)`; PostgreSQL truncates and fails.
+
+    The column is eight wide because that is a Brazilian CEP without the dash, and
+    the dash form is what people type and what an autofill pastes.
+
+    Args:
+        typed: What the user typed.
+        expected: The eight digits stored.
+    """
+    assert validate_postal_code(typed) == expected
+
+
+@pytest.mark.parametrize("typed", ["0131-000", "0131000", "abc"])
+def test_a_postal_code_that_is_not_eight_digits_is_refused(typed):
+    """A truncated address reaches the provider and fails the payment.
+
+    Args:
+        typed: What the user typed.
+    """
+    with pytest.raises(ValueError, match="CEP"):
+        validate_postal_code(typed)

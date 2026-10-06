@@ -182,3 +182,29 @@ def validate_phone(value: str | None) -> str | None:
         raise ValueError("Informe um telefone válido com DDD")
 
     return digits
+
+
+def validate_postal_code(value: str | None) -> str | None:
+    """Normalizes a postal code to the eight digits the column stores.
+
+    Kept apart from `validate_cep`, which deliberately returns the address as
+    typed because the prospect and client screens show it that way. Here the value
+    is a machine key that Asaas and the column both expect without the dash, and a
+    masked one is nine characters in an eight-wide column.
+
+    Args:
+        value: The postal code as typed.
+
+    Returns:
+        Eight digits, or `None` when nothing was sent.
+
+    Raises:
+        ValueError: When the code does not have eight digits.
+    """
+    if value is None or not str(value).strip():
+        return None
+
+    digits = _only_digits(value)
+    if len(digits) != 8:
+        raise ValueError("Informe um CEP válido")
+    return digits

@@ -7,7 +7,11 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.asaas_client import SUBSCRIPTION_CYCLES
-from src.core.validators import validate_document, validate_phone
+from src.core.validators import (
+    validate_document,
+    validate_phone,
+    validate_postal_code,
+)
 
 CODE_PATTERN = r"^[a-z0-9][a-z0-9_-]*$"
 
@@ -199,7 +203,23 @@ class BillingData(BaseModel):
         """
         return value.upper()
 
-    @field_validator("postal_code", "address", "address_number", "city")
+    @field_validator("postal_code")
+    @classmethod
+    def _normalize_postal_code(cls, value: str) -> str:
+        """Reduces the postal code to the eight digits the column stores.
+
+        Args:
+            value: The postal code as typed.
+
+        Returns:
+            Eight digits.
+
+        Raises:
+            ValueError: When the code does not have eight digits.
+        """
+        return validate_postal_code(value) or ""
+
+    @field_validator("address", "address_number", "city")
     @classmethod
     def _strip(cls, value: str | None) -> str | None:
         """Removes the surrounding spaces an autofill or a copy leaves behind.

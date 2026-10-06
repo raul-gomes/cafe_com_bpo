@@ -641,7 +641,7 @@ def test_the_billing_data_is_saved_and_sent_to_the_provider(
     body = provider.body_of(provider.calls_to("/customers")[0])
     assert body["cpfCnpj"] == "24971563792"
     assert body["phone"] == "4738010919"
-    assert body["postalCode"] == "01310-000"
+    assert body["postalCode"] == "01310000"
 
 
 def test_a_second_checkout_reuses_the_saved_billing_data(
@@ -754,7 +754,7 @@ def test_the_billing_screen_gets_the_saved_data_to_prefill(
         "complement": None,
         "city": "São Paulo",
         "state": "SP",
-        "postal_code": "01310-000",
+        "postal_code": "01310000",
     }
 
 
