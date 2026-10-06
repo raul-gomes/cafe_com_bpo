@@ -10,21 +10,26 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from src.core.asaas_client import AsaasClient
 from src.core.database import get_db_session
 from src.core.entitlements import Access, resolve_access
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user, require_admin
+from src.modules.subscriptions.repository import BillingProfileRepository
 from src.modules.subscriptions.schemas import (
     AccessResponse,
+    BillingProfileResponse,
+    CheckoutCreate,
+    CheckoutResponse,
     PlanCreate,
     PlanResponse,
     PlanSummaryResponse,
     PlanUpdate,
 )
-from src.modules.subscriptions.service import PlanService
+from src.modules.subscriptions.service import CheckoutService, PlanService
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 access_router = APIRouter(prefix="/access", tags=["access"])
@@ -139,3 +144,75 @@ def update_plan(
         The updated plan.
     """
     return PlanService(session).update_plan(current_user, plan_id, data)
+
+
+@router.post(
+    "/checkout", response_model=CheckoutResponse, status_code=status.HTTP_201_CREATED
+)
+async def open_checkout(
+    data: CheckoutCreate,
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> CheckoutResponse:
+    """Opens the hosted checkout where the buyer subscribes a plan.
+
+    The response carries the link to redirect to; the card is typed on Asaas's
+    page, so nothing about it passes through here (§17.2). Creating the session
+    is not paying: the row starts `incomplete` and the webhook of Fase 5 promotes
+    it when `CHECKOUT_PAID` arrives.
+
+    Args:
+        data: Body with the `plan_id` and nothing else; the price comes from
+            `plans.price` (§17.1).
+        session: Database session.
+        current_user: Authenticated user buying the plan.
+
+    Returns:
+        The link to redirect to, with the plan and its price.
+    """
+    return await CheckoutService(session, AsaasClient()).open_checkout(
+        current_user, data
+    )
+
+
+@router.get("/billing", response_model=BillingProfileResponse)
+def get_billing_profile(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> BillingProfileResponse:
+    """Returns the caller's saved billing data, for the form to prefill (§17.8).
+
+    404 rather than an empty object when nothing is saved: the form knows what to
+    do with a 404 (ask for everything) and what to do with empty fields (ask for
+    what is missing), which are different screens.
+
+    Scoped to `current_user` in the query itself. A document and an address are
+    personal data (§17.7): the ownership check belongs where the row is read, not
+    only in the router.
+
+    Args:
+        session: Database session.
+        current_user: Authenticated user.
+
+    Returns:
+        The saved profile.
+
+    Raises:
+        HTTPException: 404 when the user never saved billing data.
+    """
+    profile = BillingProfileRepository(session).get_for_user(current_user.id)
+    if profile is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Você ainda não informou seus dados de cobrança.",
+        )
+    return BillingProfileResponse(
+        cpf_cnpj=profile.cpf_cnpj,
+        phone=profile.phone,
+        address=profile.address,
+        address_number=profile.address_number,
+        complement=profile.complement,
+        city=profile.city,
+        state=profile.state,
+        postal_code=profile.postal_code,
+    )

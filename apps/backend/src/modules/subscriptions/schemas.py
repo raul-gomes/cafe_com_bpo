@@ -1,11 +1,13 @@
-"""Response schemas of the subscription area."""
+"""Schemas of the subscription area."""
 
 from datetime import datetime
 from decimal import Decimal
+from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from src.core.asaas_client import SUBSCRIPTION_CYCLES
+from src.core.validators import validate_document, validate_phone
 
 CODE_PATTERN = r"^[a-z0-9][a-z0-9_-]*$"
 
@@ -117,3 +119,153 @@ class AccessResponse(BaseModel):
     subscription_status: str | None = None
     plan: PlanSummaryResponse | None = None
     is_admin: bool = False
+
+
+class BillingData(BaseModel):
+    """Document and address the provider needs before it will sell (§17.8).
+
+    Every field is normalized on the way in, because the two rules that break
+    silently are the ones about shape:
+
+    - `phone` reaches Asaas as digits only. A masked number is refused with
+      *"o campo phoneNumber deve ser informado"*, a message that blames a missing
+      field for a formatting problem — the user sees a form error for something
+      they did right.
+    - `cpf_cnpj` is checked digit by digit. The permissive rule of the
+      registration form is wrong here: a bad document would only surface at
+      payment confirmation, with the user looking at a screen saying it worked.
+    - `state` is uppercased so "sp" and "SP" are the same profile.
+    - `city` is a name. Asaas accepts the name and nobody should type an IBGE code.
+
+    `extra="forbid"` for the same reason as `CheckoutCreate`: a field we silently
+    drop is a field the form believes was saved.
+
+    None of this is card data, so PCI DSS SAQ A is unaffected.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    cpf_cnpj: str = Field(min_length=11, max_length=18)
+    phone: str = Field(min_length=10, max_length=20)
+    address: str = Field(min_length=3, max_length=200)
+    address_number: str = Field(min_length=1, max_length=20)
+    complement: str | None = Field(default=None, max_length=120)
+    city: str = Field(min_length=2, max_length=100)
+    state: str = Field(min_length=2, max_length=2)
+    postal_code: str = Field(min_length=8, max_length=9)
+
+    @field_validator("cpf_cnpj")
+    @classmethod
+    def _normalize_document(cls, value: str) -> str:
+        """Validates the document and returns it without punctuation.
+
+        Args:
+            value: The document as typed.
+
+        Returns:
+            The digits only.
+
+        Raises:
+            ValueError: When the check digit does not add up.
+        """
+        return validate_document(value) or ""
+
+    @field_validator("phone")
+    @classmethod
+    def _normalize_phone(cls, value: str) -> str:
+        """Strips punctuation and the country code.
+
+        Args:
+            value: The phone as typed.
+
+        Returns:
+            Ten or eleven digits.
+
+        Raises:
+            ValueError: When the number has no plausible Brazilian length.
+        """
+        return validate_phone(value) or ""
+
+    @field_validator("state")
+    @classmethod
+    def _uppercase_state(cls, value: str) -> str:
+        """Uppercases the state code.
+
+        Args:
+            value: The state as typed.
+
+        Returns:
+            The two-letter code in upper case.
+        """
+        return value.upper()
+
+    @field_validator("postal_code", "address", "address_number", "city")
+    @classmethod
+    def _strip(cls, value: str | None) -> str | None:
+        """Removes the surrounding spaces an autofill or a copy leaves behind.
+
+        Args:
+            value: What the user typed.
+
+        Returns:
+            The value trimmed.
+        """
+        return value.strip() if isinstance(value, str) else value
+
+
+class BillingProfileResponse(BaseModel):
+    """Saved billing data, as the subscription form reads it back.
+
+    Purpose-built and not the ORM: the form needs to prefill eight fields and
+    nothing else (§6). `complement` is nullable because it is optional in the
+    provider too.
+    """
+
+    cpf_cnpj: str
+    phone: str
+    address: str
+    address_number: str
+    complement: str | None
+    city: str
+    state: str
+    postal_code: str
+
+
+class CheckoutCreate(BaseModel):
+    """Body of `POST /subscriptions/checkout`.
+
+    One field, and `extra="forbid"` is the rule rather than a nicety: §17.1 makes
+    `plans.price` the only source of the price, so a `price` in this body is
+    refused with a 422 instead of being ignored. A client that sends one believes
+    it is paying that amount, and silently charging `plans.price` is how a person
+    ends up upset in a support ticket.
+
+    The subscription id is minted here and never accepted from the client: it is
+    what `externalReference` carries and what the webhook matches on, so a
+    client-supplied id would point the confirmation at someone else's history.
+
+    `billing` is optional here because the answer depends on the database, which
+    this schema cannot see: a user who already saved their data opens the
+    checkout with a plan id alone (§17.8), while a first-time subscriber must send
+    it. The service decides, and refuses a checkout with neither.
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    plan_id: UUID
+    billing: BillingData | None = None
+
+
+class CheckoutResponse(BaseModel):
+    """Answer of `POST /subscriptions/checkout`.
+
+    Only what the payments screen shows: the plan being bought, the price it
+    will cost, and the link that opens the Asaas page where the card is typed.
+    `status` is `incomplete` — the session exists, nobody paid yet (§17.2).
+    """
+
+    link: str
+    plan_name: str
+    price: Decimal
+    cycle: str
+    status: str

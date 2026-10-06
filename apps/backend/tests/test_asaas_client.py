@@ -671,3 +671,32 @@ def test_an_optional_billing_field_is_absent_rather_than_null(provider):
     )
 
     assert "mobilePhone" not in provider.body()
+
+
+def test_the_address_complement_reaches_the_provider_when_given(provider):
+    """Apartment, block or floor — the payer must see a complete address.
+
+    Only asserted when set: an explicit `null` reads as "clear this field", which
+    is not what an empty optional input means.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(
+        client.create_customer(
+            name="ADA L OVELACE",
+            email="ada@cafe.com",
+            cpf_cnpj="24971563792",
+            phone="4738010919",
+            address="Av. Paulista",
+            address_number="150",
+            complement="Conj. 101",
+            city="São Paulo",
+            state="SP",
+            postal_code="01310-000",
+        )
+    )
+
+    assert provider.body()["complement"] == "Conj. 101"

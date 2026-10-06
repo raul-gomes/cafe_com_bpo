@@ -159,6 +159,7 @@ class AsaasClient:
         mobile_phone: str | None = None,
         address: str | None = None,
         address_number: str | None = None,
+        complement: str | None = None,
         city: str | None = None,
         state: str | None = None,
         postal_code: str | None = None,
@@ -173,6 +174,7 @@ class AsaasClient:
             mobile_phone: Mobile with area code.
             address: Street.
             address_number: Street number.
+            complement: Apartment, block, floor — optional.
             city: City.
             state: State.
             postal_code: Postal code.
@@ -188,6 +190,7 @@ class AsaasClient:
             "mobilePhone": mobile_phone,
             "address": address,
             "addressNumber": address_number,
+            "complement": complement,
             "city": city,
             "state": state,
             "postalCode": postal_code,
@@ -205,6 +208,7 @@ class AsaasClient:
         mobile_phone: str | None = None,
         address: str | None = None,
         address_number: str | None = None,
+        complement: str | None = None,
         city: str | None = None,
         state: str | None = None,
         postal_code: str | None = None,
@@ -244,6 +248,7 @@ class AsaasClient:
             "mobilePhone": mobile_phone,
             "address": address,
             "addressNumber": address_number,
+            "complement": complement,
             "city": city,
             "state": state,
             "postalCode": postal_code,

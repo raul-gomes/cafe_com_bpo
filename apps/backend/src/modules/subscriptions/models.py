@@ -1,7 +1,8 @@
 """Monthly subscription and launch beta program (business rule §17).
 
-Four tables: the plan an admin edits, the subscription mirrored from Asaas, the
-saved cards (metadata only) and the beta access granted at launch.
+Five tables: the plan an admin edits, the subscription mirrored from Asaas, the
+saved cards (metadata only), the billing profile (§17.8) and the beta access
+granted at launch.
 
 Access is **not** a column: it is derived per request
 (`src.core.entitlements`). Storing `is_paid` would create a second state that
@@ -239,6 +240,53 @@ class BetaAccess(Base):
     notes = Column(Text, nullable=True)
 
 
+class BillingProfile(Base):
+    """Document and address the payment provider requires to sell (§17.8).
+
+    The hosted Checkout collects the card and **nothing else**: without a document,
+    a phone and an address, Asaas refuses to open the session. This table is that
+    data, one row per user, so nobody types their address again on a second attempt
+    and a later checkout needs only a plan id.
+
+    Deliberately **not** on `users`: registration must stay free of billing data,
+    because only someone who actually subscribes has to answer these questions.
+
+    Length and format live in the schema (`String(n)` plus the Pydantic validators
+    of §17.8); repeating them as check constraints would only add a second place
+    to keep in sync.
+
+    This is billing identity, not card data: no PAN, no CVV, no token, therefore
+    PCI DSS SAQ A (§17.8).
+    """
+
+    __tablename__ = "billing_profiles"
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+        unique=True,
+    )
+    cpf_cnpj = Column(String(14), nullable=False)
+    phone = Column(String(11), nullable=False)
+    address = Column(String(200), nullable=False)
+    address_number = Column(String(20), nullable=False)
+    complement = Column(String(120), nullable=True)
+    city = Column(String(100), nullable=False)
+    state = Column(String(2), nullable=False)
+    postal_code = Column(String(8), nullable=False)
+    created_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at = Column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+
 __all__ = [
     "BETA_SOURCE_LAUNCH",
     "PRICE_SYNC_FAILED",
@@ -252,6 +300,7 @@ __all__ = [
     "SUBSCRIPTION_STATUS_INCOMPLETE",
     "SUBSCRIPTION_STATUS_PAST_DUE",
     "BetaAccess",
+    "BillingProfile",
     "PaymentMethod",
     "Plan",
     "Subscription",

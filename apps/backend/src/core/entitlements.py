@@ -161,7 +161,7 @@ def resolve_access(
     if getattr(user, "role", None) == ROLE_ADMIN:
         return Access(state=AccessState.ADMIN, read_only_modules=())
 
-    beta = _current_beta(session, user_id=user.id, now=now)
+    beta = running_beta(session, user_id=user.id, now=now)
     if beta is not None:
         return Access(
             state=AccessState.BETA,
@@ -204,10 +204,14 @@ def resolve_access(
     )
 
 
-def _current_beta(
+def running_beta(
     session: Session, *, user_id: UUID, now: datetime
 ) -> BetaAccess | None:
     """Returns the beta grant that is still running.
+
+    Public because §17.6 is needed in two places and must not drift: the access
+    gate asks "is this person a beta right now", and the checkout asks "when does
+    the free year end" to date the first charge after it.
 
     Args:
         session: Database session.
