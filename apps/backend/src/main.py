@@ -3,7 +3,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -12,6 +12,7 @@ from slowapi.errors import RateLimitExceeded
 
 from src.core.config import get_settings
 from src.core.database import engine
+from src.core.entitlements import write_gate
 from src.core.logger import log, setup_logging
 from src.core.rate_limit import limiter
 from src.modules.auth.router import router as auth_router
@@ -105,6 +106,9 @@ def create_app() -> FastAPI:
         description="API de Precificação e Gestão de Propostas BPO (Arquitetura Modular)",
         version="1.1.0",
         lifespan=lifespan,
+        # §4 of the payments plan: every route runs through the write gate so a
+        # free user only mutates the three modules of §2.
+        dependencies=[Depends(write_gate)],
     )
 
     app.state.limiter = limiter

@@ -1,11 +1,12 @@
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import grant_user_beta, register_user
 
 
 def auth_for(client, email):
     payload = {"email": email, "password": "StrongPassword123!", "name": "Group User"}
     register_user(payload=payload)
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )

@@ -20,7 +20,8 @@ Regressões cobertas aqui:
 
 from uuid import UUID
 
-from tests.helpers import auth_header, pricing_input_for_total, unique_email
+from tests.helpers import paid_auth_header as auth_header
+from tests.helpers import pricing_input_for_total, unique_email
 
 
 def _create_company(client, auth, kind: str, name: str = "Empresa do Teste") -> dict:

@@ -10,7 +10,7 @@ from uuid import UUID, uuid4
 
 from fastapi import status
 
-from tests.helpers import create_test_user
+from tests.helpers import create_test_user, grant_user_beta
 
 PASSWORD = "StrongPassword123!"
 
@@ -51,6 +51,7 @@ def _auth(client, email: str) -> dict:
         The Authorization header of the new user.
     """
     create_test_user(email=email, password=PASSWORD)
+    grant_user_beta(email)
     response = client.post(
         "/auth/login", data={"username": email, "password": PASSWORD}
     )

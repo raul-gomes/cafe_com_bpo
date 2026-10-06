@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from tests.helpers import create_test_user
+from tests.helpers import create_test_user, grant_user_beta
 
 
 def test_full_user_flow_integration(client):
@@ -18,6 +18,7 @@ def test_full_user_flow_integration(client):
 
     # 1. Criação direta no banco (registro público removido)
     create_test_user(email=email, password=password, name="Integration User")
+    grant_user_beta(email)
 
     # 2. Login
     login_resp = client.post(

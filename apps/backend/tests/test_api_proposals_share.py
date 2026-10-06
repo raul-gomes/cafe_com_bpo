@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from src.core.config import get_settings
-from tests.helpers import pricing_input_for_total, register_user
+from tests.helpers import grant_user_beta, pricing_input_for_total, register_user
 
 FRONTEND_URL = get_settings().frontend_url.rstrip("/")
 
@@ -10,6 +10,7 @@ FRONTEND_URL = get_settings().frontend_url.rstrip("/")
 def get_auth_header(client, email):
     payload = {"email": email, "password": "StrongPassword123!"}
     register_user(payload=payload)
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )

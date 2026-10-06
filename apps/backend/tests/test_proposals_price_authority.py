@@ -7,7 +7,9 @@ trocava o valor de um orçamento. Aqui o preço é sempre derivado do
 """
 
 from tests.helpers import (
-    auth_header,
+    paid_auth_header as auth_header,
+)
+from tests.helpers import (
     unique_email,
     valid_pricing_input,
     valid_proposal_payload,

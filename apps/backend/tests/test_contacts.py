@@ -21,7 +21,7 @@ Product-owner rules confirmed on 2026-09-28:
 
 from uuid import UUID, uuid4
 
-from tests.helpers import register_user
+from tests.helpers import grant_user_beta, register_user
 
 
 def auth_for(client, name="Bpo User"):
@@ -29,6 +29,7 @@ def auth_for(client, name="Bpo User"):
     register_user(
         payload={"email": email, "password": "StrongPassword123!", "name": name}
     )
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )

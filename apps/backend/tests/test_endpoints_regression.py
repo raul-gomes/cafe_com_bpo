@@ -13,7 +13,7 @@ Testa TODOS os endpoints da aplicação para garantir que:
 
 from uuid import uuid4
 
-from tests.helpers import pricing_input_for_total, register_user
+from tests.helpers import grant_user_beta, pricing_input_for_total, register_user
 
 # ─── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -30,6 +30,7 @@ def _make_user(email: str) -> dict:
 def _register_and_login(client, email: str) -> dict:
     """Registra um usuário e faz login, retornando o header de autorização."""
     register_user(payload=_make_user(email))
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login",
         data={

@@ -31,14 +31,19 @@ Two decisions worth stating, because both fail *closed*:
 """
 
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 from enum import StrEnum
 from uuid import UUID
 
+from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from src.core.database import get_db_session
+from src.core.logger import log
+from src.core.security import oauth2_scheme
 from src.core.time_utils import as_utc
+from src.modules.auth.service import get_current_user
 from src.modules.subscriptions.models import (
     SUBSCRIPTION_STATUS_ACTIVE,
     SUBSCRIPTION_STATUS_CANCELED,
@@ -297,3 +302,188 @@ def _read_only_for_free() -> tuple[str, ...]:
         Module names, sorted for a stable payload.
     """
     return tuple(sorted(set(MODULE_NAMES) - set(FREE_WRITABLE_MODULES)))
+
+
+# ---------------------------------------------------------------------------
+# Write gate (§4 of the payments plan, Fase 6)
+# ---------------------------------------------------------------------------
+
+#: Internal label for routes that are never gated. Deliberately outside
+#: `MODULE_NAMES`: it is not part of the §2 vocabulary the UI renders.
+MODULE_PLATAFORMA = "plataforma"
+
+#: The gate's 403 message, shown by the frontend in the upgrade toast.
+WRITE_FORBIDDEN_DETAIL = "Seu plano não permite esta ação"
+
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS"})
+
+#: Prefixes of §4 classified as the always-gated-by-nobody platform rows.
+_PLATAFORMA_PREFIXES = (
+    "/auth",
+    "/dashboard",
+    "/notifications",
+    "/feedback",
+    "/webhooks",
+    "/pricing",
+    "/plans",
+)
+
+
+@dataclass(frozen=True)
+class RouteRule:
+    """The §4 rule attached to a route path.
+
+    Attributes:
+        module: One of `MODULE_NAMES`, or `MODULE_PLATAFORMA` for the routes
+            that are never gated.
+        free_writable: Whether a free user may write here even though the
+            module is otherwise read-only for them (§4 exceptions).
+        always_allowed: Whether the route bypasses the gate entirely — the
+            platform rows of §4 and the signature-authenticated webhooks.
+    """
+
+    module: str
+    free_writable: bool = False
+    always_allowed: bool = False
+
+
+def _under(path: str, prefix: str) -> bool:
+    """Whether `path` is `prefix` or lives below it.
+
+    Args:
+        path: Route path from the request or from openapi.
+        prefix: Classified prefix of §4.
+
+    Returns:
+        True when the path equals the prefix or starts with `prefix/`, so a
+        path template like `/tasks/{task_id}` matches the `/tasks` row.
+    """
+    return path == prefix or path.startswith(prefix + "/")
+
+
+def _network_rule(path: str) -> RouteRule:
+    """Classifies a route under `/network`, the mixed router of §4.
+
+    The endpoint map of §4 splits the router: the forum routes (posts, comments
+    and skills) are comunidade, everything else (projects, invites,
+    applications, conversations, groups, member and profile comments) is gestão.
+    Anything unknown under `/network` defaults to gestão — read-only for free
+    users — so a new endpoint fails closed instead of silently opening a module.
+
+    Args:
+        path: Route path under `/network`.
+
+    Returns:
+        The comunidade rule for the forum, the gestao rule otherwise.
+    """
+    for prefix in (
+        "/network/posts",
+        "/network/comments",
+        "/network/me/skills",
+        "/network/skills",
+    ):
+        if _under(path, prefix):
+            return RouteRule(MODULE_COMUNIDADE)
+    return RouteRule(MODULE_GESTAO)
+
+
+def classify_route(path: str) -> RouteRule | None:
+    """Maps a route path to its §4 rule, or `None` when it matches nothing.
+
+    Order matters: the always-allowed sets and the free-writable exceptions are
+    checked before the prefix table, because a path can match several rows
+    (`/payments/webhook` is below `/payments` but must never be gated).
+
+    Args:
+        path: Route path from the request or from openapi.
+
+    Returns:
+        The matching `RouteRule`, or `None` for an unclassified path; the gate
+        fails closed on those.
+    """
+    always = RouteRule(MODULE_PLATAFORMA, always_allowed=True)
+    for prefix in _PLATAFORMA_PREFIXES:
+        if _under(path, prefix):
+            return always
+    if path == "/payments/webhook":
+        return always
+    if _under(path, "/invitations") and path.endswith(("/accept", "/decline")):
+        return RouteRule(MODULE_GESTAO, free_writable=True)
+    if _under(path, "/proposals/public"):
+        return RouteRule(MODULE_CAPTAR, free_writable=True)
+    if _under(path, "/network"):
+        return _network_rule(path)
+    for prefix, module in _MODULE_PREFIXES:
+        if _under(path, prefix):
+            return RouteRule(module)
+    return None
+
+
+#: The §4 prefix table: each row decides the module of a family of routes.
+#: Deliberately a tuple so the openapi completeness test walks the same rules
+#: the gate enforces.
+_MODULE_PREFIXES = (
+    ("/tasks", MODULE_OPERACIONAL),
+    ("/clients", MODULE_OPERACIONAL),
+    ("/calendar", MODULE_OPERACIONAL),
+    ("/gallery", MODULE_COMUNIDADE),
+    ("/contacts", MODULE_GESTAO),
+    ("/team", MODULE_GESTAO),
+    ("/invitations", MODULE_GESTAO),
+    ("/payments", MODULE_PAGAMENTOS),
+    ("/subscriptions", MODULE_PAGAMENTOS),
+    ("/access", MODULE_PAGAMENTOS),
+    ("/proposals", MODULE_CAPTAR),
+    ("/prospects", MODULE_CAPTAR),
+    ("/contracts", MODULE_CAPTAR),
+    ("/governanca", MODULE_CAPTAR),
+)
+
+
+def write_gate(
+    request: Request,
+    token: str | None = Depends(oauth2_scheme),
+    session: Session = Depends(get_db_session),
+) -> None:
+    """Enforces §4 before every route: a free user may only write in three modules.
+
+    Safe methods always pass. A mutating route is classified first; a path with
+    no rule fails closed with the gate's 403, so a new endpoint can never open a
+    hole silently. Platform rows and the signature-authenticated webhooks
+    bypass the gate. Without a token the gate stays out of the way — the route's
+    own authentication answers 401. With a token, access is resolved (§2) and
+    the write is allowed for the full-access states and for the free-writable
+    modules and exceptions of §4.
+
+    Args:
+        request: Incoming request.
+        token: Bearer token, or `None` when absent (`auto_error=False`).
+        session: Database session.
+
+    Raises:
+        HTTPException: 403 when the route is gated and the user may not write.
+    """
+    if request.method in SAFE_METHODS:
+        return
+    rule = classify_route(request.url.path)
+    if rule is None:
+        log.error(
+            "Write gate: unclassified mutating route rejected",
+            extra={"method": request.method, "path": request.url.path},
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail=WRITE_FORBIDDEN_DETAIL
+        )
+    if rule.always_allowed:
+        return
+    if token is None:
+        return
+    user = get_current_user(token, session)
+    access = resolve_access(session, user, now=datetime.now(UTC))
+    if access.can_write_everything:
+        return
+    if rule.free_writable or rule.module in FREE_WRITABLE_MODULES:
+        return
+    raise HTTPException(
+        status_code=status.HTTP_403_FORBIDDEN, detail=WRITE_FORBIDDEN_DETAIL
+    )

@@ -2,7 +2,7 @@ from uuid import uuid4
 
 from src.modules.contracts.default_template import DEFAULT_TEMPLATE_SECTIONS
 from src.modules.contracts.fields import SERVICO_RECORRENTE
-from tests.helpers import pricing_input_for_service_cost, register_user
+from tests.helpers import grant_user_beta, pricing_input_for_service_cost, register_user
 
 SERVICO_KEY = SERVICO_RECORRENTE
 
@@ -10,6 +10,7 @@ SERVICO_KEY = SERVICO_RECORRENTE
 def _auth_header(client, email):
     payload = {"email": email, "password": "StrongPassword123!", "name": "Test User"}
     register_user(payload=payload)
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )

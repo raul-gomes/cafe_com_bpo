@@ -18,7 +18,7 @@ import pytest
 from src.core.database import SessionLocal
 from src.modules.auth.models import User
 from src.modules.notifications.models import AppNotification
-from tests.helpers import register_user
+from tests.helpers import grant_user_beta, register_user
 
 PASSWORD = "StrongPassword123!"
 
@@ -35,6 +35,7 @@ def _user_id_by_email(email: str):
 def _login(client, email: str):
     """Cadastra e autentica um membro. Devolve (auth_header, user_id)."""
     register_user(payload={"email": email, "password": PASSWORD, "name": "Membro"})
+    grant_user_beta(email)
     user_id = _user_id_by_email(email)
     resp = client.post("/auth/login", data={"username": email, "password": PASSWORD})
     token = resp.json()["access_token"]

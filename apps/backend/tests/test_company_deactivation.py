@@ -283,10 +283,11 @@ def test_database_refuses_the_hard_delete_of_a_company(db_session, user_id):
 
 def _register_and_login(client) -> tuple[dict, UUID]:
     """Registers a BPO user through the API and returns (headers, user id)."""
-    from tests.helpers import register_user
+    from tests.helpers import grant_user_beta, register_user
 
     email = f"archive_{uuid4()}@cafe.com"
     register_user(payload={"email": email, "password": "StrongPassword123!"})
+    grant_user_beta(email)
     token = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     ).json()["access_token"]

@@ -4,15 +4,18 @@ O endpoint público /auth/register foi removido (registro desativado):
 usuários de teste são criados diretamente no banco via UserRepository.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest import mock
 from uuid import uuid4
+
+from sqlalchemy import select
 
 from src.core.database import SessionLocal
 from src.core.security import PasswordService
 from src.modules.auth.models import User
 from src.modules.auth.repository import UserRepository
 from src.modules.governanca import service as governanca_service
+from src.modules.subscriptions.models import BetaAccess
 from src.modules.task_manager.assignments import service as assignments_service
 from src.modules.task_manager.task import repository as task_repository
 from src.modules.task_manager.task import service as task_service
@@ -104,6 +107,58 @@ def valid_proposal_payload(client_name: str = "Cliente do Teste", **overrides) -
 def auth_header(client, email: str) -> dict:
     """Cria o usuário de teste, faz login e devolve o header de autorização."""
     register_user(payload={"email": email, "password": TEST_PASSWORD})
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": TEST_PASSWORD}
+    )
+    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
+def grant_user_beta(email: str) -> None:
+    """Grants a 30-day beta to an existing user, looked up by email.
+
+    Used by tests that exercise business behavior under the §4 write gate
+    (Fase 6): the user needs full access, but the grant must never touch a test
+    session's savepoint (P-19), so it runs on a dedicated session of its own.
+    The email is used instead of a user object because `register_user` returns a
+    detached ORM instance whose attributes cannot be read after the commit.
+
+    Args:
+        email: Email of an already persisted user.
+    """
+    session = SessionLocal()
+    try:
+        user = session.scalar(select(User).where(User.email == email.lower()))
+        if user is None:
+            raise ValueError(f"grant_user_beta: user {email} not found")
+        session.add(
+            BetaAccess(
+                id=uuid4(),
+                user_id=user.id,
+                expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+                source="test_seed",
+            )
+        )
+        session.commit()
+    finally:
+        session.close()
+
+
+def paid_auth_header(client, email: str) -> dict:
+    """Registers a user with full access and logs in.
+
+    Same contract as `auth_header`, plus a beta grant, so the §4 write gate
+    (Fase 6) lets the test mutate every module. Use this when a test exercises
+    business behavior rather than plan entitlement.
+
+    Args:
+        client: FastAPI test client.
+        email: Unique email for the new user.
+
+    Returns:
+        The Authorization header of the new user.
+    """
+    register_user(payload={"email": email, "password": TEST_PASSWORD})
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": TEST_PASSWORD}
     )

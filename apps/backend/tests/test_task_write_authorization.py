@@ -16,7 +16,7 @@ classe de falha não existe mais e a cobertura virou "a rota não existe", em
 
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import grant_user_beta, register_user
 
 
 def _login(client, email: str) -> dict:
@@ -30,6 +30,7 @@ def _login(client, email: str) -> dict:
         Authorization header dict for the new user.
     """
     register_user(payload={"email": email, "password": "StrongPassword123!"})
+    grant_user_beta(email)
     token = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     ).json()["access_token"]
