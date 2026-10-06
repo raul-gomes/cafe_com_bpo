@@ -194,6 +194,64 @@ class AsaasClient:
         }
         return await self._request("POST", "/customers", _without_nulls(payload))
 
+    async def update_customer(
+        self,
+        *,
+        customer_id: str,
+        name: str,
+        email: str,
+        cpf_cnpj: str | None = None,
+        phone: str | None = None,
+        mobile_phone: str | None = None,
+        address: str | None = None,
+        address_number: str | None = None,
+        city: str | None = None,
+        state: str | None = None,
+        postal_code: str | None = None,
+    ) -> dict:
+        """Fills in or corrects the billing data Asaas holds for a customer.
+
+        §17.8: the Checkout refuses to open until the customer carries a
+        document, a phone and an address. That makes this method the rescue for a
+        person whose first attempt failed — we already stored their customer id,
+        and the provider keeps it forever, so without the update they would be
+        permanently unable to subscribe.
+
+        The same call carries the corrections when the user edits their address,
+        which is why the write happens on every checkout rather than once.
+
+        Args:
+            customer_id: Asaas customer to update.
+            name: Customer name.
+            email: Customer e-mail.
+            cpf_cnpj: Document, digits only.
+            phone: Phone with area code, digits only — a masked one is refused.
+            mobile_phone: Mobile with area code, when it differs.
+            address: Street.
+            address_number: Street number.
+            city: City name; Asaas accepts the name, no IBGE code needed.
+            state: Two-letter state code.
+            postal_code: Postal code.
+
+        Returns:
+            The Asaas customer payload after the update.
+        """
+        payload = {
+            "name": name,
+            "email": email,
+            "cpfCnpj": cpf_cnpj,
+            "phone": phone,
+            "mobilePhone": mobile_phone,
+            "address": address,
+            "addressNumber": address_number,
+            "city": city,
+            "state": state,
+            "postalCode": postal_code,
+        }
+        return await self._request(
+            "PUT", f"/customers/{customer_id}", _without_nulls(payload)
+        )
+
     async def get_customer(self, customer_id: str) -> dict:
         """Fetches a customer by provider id.
 

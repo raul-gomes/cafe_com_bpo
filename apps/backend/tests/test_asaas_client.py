@@ -564,3 +564,110 @@ def test_replacing_the_card_needs_no_card_endpoint():
     }
 
     assert forbidden.isdisjoint(dir(AsaasClient))
+
+
+# --- Billing customer (§17.8) -------------------------------------------------
+# The Checkout refuses to open unless the customer carries a document, a phone
+# and an address, and it refuses a masked phone with a message that says the
+# field is missing. Updating an existing customer is what rescues one that was
+# created without those fields, which is exactly the state a failed attempt
+# leaves behind.
+
+
+def test_create_customer_sends_the_billing_fields_asaas_requires(provider):
+    """`POST /customers` needs the document, the phone and the address.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(
+        client.create_customer(
+            name="ADA L OVELACE",
+            email="ada@cafe.com",
+            cpf_cnpj="24971563792",
+            phone="4738010919",
+            address="Av. Paulista",
+            address_number="150",
+            city="São Paulo",
+            state="SP",
+            postal_code="01310-000",
+        )
+    )
+
+    body = provider.body()
+    assert provider.last.method == "POST"
+    assert str(provider.last.url) == f"{PRODUCTION_URL}/customers"
+    assert body == {
+        "name": "ADA L OVELACE",
+        "email": "ada@cafe.com",
+        "cpfCnpj": "24971563792",
+        "phone": "4738010919",
+        "address": "Av. Paulista",
+        "addressNumber": "150",
+        "city": "São Paulo",
+        "state": "SP",
+        "postalCode": "01310-000",
+    }
+
+
+def test_update_customer_addresses_the_customer_by_id(provider):
+    """`PUT /customers/{id}` is how an incomplete customer is completed.
+
+    Without this a person who failed a first attempt is stuck forever: Asaas
+    remembers the customer id we stored, and refuses the checkout because that
+    customer has no document.
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(
+        client.update_customer(
+            customer_id="cus_7",
+            name="ADA L OVELACE",
+            email="ada@cafe.com",
+            cpf_cnpj="24971563792",
+            phone="4738010919",
+            address="Av. Paulista",
+            address_number="150",
+            city="São Paulo",
+            state="SP",
+            postal_code="01310-000",
+        )
+    )
+
+    body = provider.body()
+    assert provider.last.method == "PUT"
+    assert str(provider.last.url) == f"{PRODUCTION_URL}/customers/cus_7"
+    assert body["cpfCnpj"] == "24971563792"
+    assert body["phone"] == "4738010919"
+
+
+def test_an_optional_billing_field_is_absent_rather_than_null(provider):
+    """Asaas reads an explicit `null` as "clear this field".
+
+    Args:
+        provider: Fake Asaas provider recording the requests.
+    """
+    client = AsaasClient()
+
+    _run(
+        client.update_customer(
+            customer_id="cus_7",
+            name="ADA L OVELACE",
+            email="ada@cafe.com",
+            cpf_cnpj="24971563792",
+            phone="4738010919",
+            address="Av. Paulista",
+            address_number="150",
+            city="São Paulo",
+            state="SP",
+            postal_code="01310-000",
+            mobile_phone=None,
+        )
+    )
+
+    assert "mobilePhone" not in provider.body()
