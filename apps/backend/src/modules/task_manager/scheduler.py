@@ -383,7 +383,13 @@ class TaskScheduler:
         self._thread: threading.Thread | None = None
 
     def start(self) -> None:
-        """Start Rocketry with a single daily FuncTask at 00:00 UTC."""
+        """Start Rocketry with the daily FuncTasks at 00:00 UTC.
+
+        Two tasks share the scheduler: the existing rule-based task generation
+        and the price reconciliation of the subscriptions plan (Fase 7). Both
+        run on their own DB session and are guarded so one failing cycle never
+        kills the other or the scheduler thread.
+        """
         self.app = Rocketry()
 
         def daily_run():
@@ -392,6 +398,18 @@ class TaskScheduler:
             except Exception as e:
                 log.error(f"Rocketry daily run error: {e}")
 
+        def price_reconcile_run():
+            try:
+                import asyncio
+
+                from src.modules.subscriptions.service import (
+                    run_price_reconciliation,
+                )
+
+                asyncio.run(run_price_reconciliation())
+            except Exception as e:
+                log.error(f"Rocketry price reconciliation error: {e}")
+
         task = FuncTask(
             func=daily_run,
             name="daily_scheduler",
@@ -399,6 +417,13 @@ class TaskScheduler:
             execution="thread",
         )
         self.app.session.add_task(task)
+        price_task = FuncTask(
+            func=price_reconcile_run,
+            name="price_reconciliation",
+            start_cond=cron("0 0 * * *"),
+            execution="thread",
+        )
+        self.app.session.add_task(price_task)
 
         self._thread = threading.Thread(
             target=self.app.run, daemon=True, name="rocketry-scheduler"

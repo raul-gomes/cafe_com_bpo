@@ -300,3 +300,16 @@ class CancelResponse(BaseModel):
     """
 
     current_period_end: datetime | None
+
+
+class PriceSyncResponse(BaseModel):
+    """Answer of `POST /plans/{plan_id}/sync-prices`.
+
+    The Config tab renders the three counts of the resync button: how many
+    subscriptions the provider agreed on, how many refused, and how many were
+    left alone because the provider already knows the current price.
+    """
+
+    synced: int
+    failed: int
+    skipped: int

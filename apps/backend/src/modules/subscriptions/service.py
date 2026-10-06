@@ -27,7 +27,7 @@ import logging
 from calendar import monthrange
 from collections.abc import Awaitable, Callable
 from datetime import UTC, date, datetime, time, timedelta
-from typing import NoReturn
+from typing import NamedTuple, NoReturn
 from uuid import UUID, uuid4
 
 import httpx
@@ -37,11 +37,14 @@ from sqlalchemy.orm import Session
 
 from src.core.asaas_client import AsaasClient, parse_asaas_date
 from src.core.config import get_settings
+from src.core.database import SessionLocal
 from src.core.deadline import BUSINESS_TZ, business_date
 from src.core.entitlements import as_utc, running_beta
 from src.modules.auth.models import User
 from src.modules.auth.schemas import UserResponse
 from src.modules.subscriptions.models import (
+    PRICE_SYNC_FAILED,
+    PRICE_SYNC_PENDING,
     PRICE_SYNC_SYNCED,
     SUBSCRIPTION_STATUS_ACTIVE,
     SUBSCRIPTION_STATUS_CANCELED,
@@ -72,6 +75,25 @@ ROLE_ADMIN = "admin"
 # A session left open expires by itself, so a buyer who walks away does not hold
 # a live checkout forever. Asaas accepts 10..1440 minutes.
 CHECKOUT_MINUTES_TO_EXPIRE = 60
+
+
+class PriceSyncResult(NamedTuple):
+    """The outcome of pushing a plan's price to the provider.
+
+    A named tuple on purpose: the resync endpoint renders it as a `dict`
+    (`asdict` unscramble) and the router/flow tests compare it to a plain
+    `(synced, failed, skipped)` triple.
+
+    Attributes:
+        synced: Rows the provider agreed on.
+        failed: Rows the provider refused (kept `failed` for a retry).
+        skipped: Live rows already `synced` at the current price.
+    """
+
+    synced: int
+    failed: int
+    skipped: int
+
 
 # Route the payer lands on after finishing (or abandoning) the hosted page.
 CHECKOUT_RESULT_PATHS = {
@@ -245,6 +267,22 @@ class PlanService:
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND, detail="Plano não encontrado"
             )
+        # Decision of the product owner (2026-10-06): a plan that already has
+        # live subscribers cannot be zeroed. Propagating `value = 0` is refused
+        # by the provider, so the row would sit in `failed` forever and the
+        # subscription would silently stop being billable — refused here, before
+        # a single provider call. A plan nobody subscribes to is free to be
+        # zeroed: the checkout guard (`open_checkout`) keeps it from ever being
+        # bought.
+        if (
+            data.price is not None
+            and data.price <= 0
+            and self.repo.count_open_subscribers(plan.id) > 0
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail="Não é possível zerar o preço de um plano com assinantes ativos.",
+            )
 
         for field, value in data.model_dump(exclude_unset=True).items():
             setattr(plan, field, value)
@@ -361,6 +399,16 @@ class CheckoutService:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail="Este plano não está disponível para novos assinantes.",
+            )
+        if plan.price is None or plan.price <= 0:
+            # §17.1: the price comes from `plans.price`, so a plan priced zero
+            # (or without a price) has nothing to charge and must not reach the
+            # provider — refusing here, before billing data is consulted, stops
+            # a buyer with no saved data from seeing a 422 about a billing
+            # problem this plan does not have.
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Este plano não tem um preço válido no momento.",
             )
         if self.subscriptions.get_open_for_user(actor.id) is not None:
             # Refused before the provider is called, so nobody ends up with a
@@ -693,6 +741,184 @@ async def _find_provider_subscription(
     )
 
 
+def _price_drifted(subscription: Subscription) -> bool:
+    """Tells whether a live row still owes the plan's current price.
+
+    The rule of §17.1 is that `plans.price` is the authority: a row is done
+    only when the provider was told the value it charges today. `synced` at an
+    older price is drift too — the flag recorded the last good push, not a
+    promise about the future.
+
+    Args:
+        subscription: A live subscription, with its plan eager-loaded.
+
+    Returns:
+        True when the provider still needs the current price.
+    """
+    return not (
+        subscription.price_sync_status == PRICE_SYNC_SYNCED
+        and subscription.price == subscription.plan.price
+    )
+
+
+class PricePropagationService:
+    """Pushes a plan's current price to Asaas and records the result.
+
+    The provider generates the next charge ahead of time, so a price edit must
+    reach it **before** the next cycle starts (§17.1). Every push records its
+    outcome in `price_sync_status` and `price_synced_at`; a row the provider
+    refuses stays `failed` and is retried by the resync button or by the daily
+    reconciliation. The new price itself is applied from the start: the
+    subscription's `price` is the value the next charge must follow, while the
+    already-paid period (`current_period_end`) is never touched — an edit
+    never retroacts.
+
+    The service is deliberately read-write close: `propagate_for_plan_id` walks
+    in and commits only once, on the session it is given.
+
+    Args:
+        session: Database session.
+        client: Provider client, injected so the flow is testable offline.
+    """
+
+    def __init__(self, session: Session, client: AsaasClient) -> None:
+        """Binds the service to a session and to the provider.
+
+        Args:
+            session: Database session.
+            client: Asaas client.
+        """
+        self.session = session
+        self.client = client
+        self.subscriptions = SubscriptionRepository(session)
+        self.plans = PlanRepository(session)
+
+    async def propagate_for_plan_id(
+        self, plan_id: UUID, *, now: datetime
+    ) -> PriceSyncResult:
+        """Pushes the current price of a plan to every live subscription.
+
+        This is the resync path (`POST /plans/{plan_id}/sync-prices`): the
+        plan is named explicitly and every row still owing its price is told
+        about it again.
+
+        Args:
+            plan_id: Plan whose live rows are pushed.
+            now: Instant stamping `price_synced_at`, injected so the tests do
+                not depend on the wall clock.
+
+        Returns:
+            The push outcome.
+        """
+        if self.plans.get_by_id(plan_id) is None:
+            return PriceSyncResult(0, 0, 0)
+        return await self._push(self.subscriptions.list_live_for_plan(plan_id), now)
+
+    async def reconcile_pending(self, *, now: datetime) -> PriceSyncResult:
+        """Daily reconciliation: heals every live row that still owes a price.
+
+        The rows that were `failed` by a temporary outage, marked `pending` by
+        a mid-checkout edit, or silently left at an older price are all pushed
+        with whatever the plan costs today. Rows already `synced` at the
+        current price are left alone and counted as skipped.
+
+        Args:
+            now: Instant stamping `price_synced_at`, injected so the tests do
+                not depend on the wall clock.
+
+        Returns:
+            The push outcome across the whole database.
+        """
+        return await self._push(self.subscriptions.list_all_live(), now)
+
+    async def _push(self, rows: list[Subscription], now: datetime) -> PriceSyncResult:
+        """Pushes the plan price of each row and commits the outcome.
+
+        Each row is skipped when the provider already knows its current price;
+        otherwise the provider is asked once. A refusal or an unreachable
+        provider leaves the row `failed` (never a silent "done") and costs the
+        admin's edit nothing — the failure is retried later, not raised.
+
+        Args:
+            rows: Live rows to reconcile, plan eager-loaded.
+            now: Instant stamping `price_synced_at`.
+
+        Returns:
+            The push outcome.
+        """
+        synced = 0
+        failed = 0
+        skipped = 0
+        for subscription in rows:
+            if not _price_drifted(subscription):
+                skipped += 1
+                continue
+            pushed = await self._push_one(subscription, now)
+            if pushed:
+                synced += 1
+            else:
+                failed += 1
+        self.session.commit()
+        return PriceSyncResult(synced, failed, skipped)
+
+    async def _push_one(self, subscription: Subscription, now: datetime) -> bool:
+        """Asks the provider for one row's new price and records the answer.
+
+        The row's `price` moves to the new value no matter what (that is what
+        the next cycle charges); only the sync status tells whether Asaas
+        already knows it. A row with no stored provider id is looked up by our
+        reference first — absence of the id is drift, not a pass.
+
+        Args:
+            subscription: A live row with drift.
+            now: Instant stamping `price_synced_at` on success.
+
+        Returns:
+            True when the provider agreed, False when it refused or could not
+            be reached (the row is marked `failed`).
+        """
+        price = subscription.plan.price
+        provider_id = subscription.asaas_subscription_id
+        if provider_id is None:
+            try:
+                provider_id, _ = await _find_provider_subscription(
+                    self.client,
+                    subscription.asaas_customer_id,
+                    str(subscription.id),
+                )
+            except httpx.HTTPError:
+                provider_id = None
+        if provider_id is None:
+            logger.warning(
+                "[subscriptions] %s fora do provedor: preço %s marcado para retry",
+                subscription.id,
+                price,
+            )
+            subscription.price = price
+            subscription.price_sync_status = PRICE_SYNC_FAILED
+            return False
+        if subscription.asaas_subscription_id is None:
+            # The lookup only ran because the id was missing: storing it now is
+            # what keeps the next reconciliation (and every later webhook) from
+            # paying for the same search again.
+            subscription.asaas_subscription_id = provider_id
+        try:
+            await self.client.update_subscription(provider_id, value=price)
+        except httpx.HTTPError as error:
+            logger.warning(
+                "[subscriptions] sincronização de preço recusada para %s (%s)",
+                subscription.id,
+                error,
+            )
+            subscription.price = price
+            subscription.price_sync_status = PRICE_SYNC_FAILED
+            return False
+        subscription.price = price
+        subscription.price_sync_status = PRICE_SYNC_SYNCED
+        subscription.price_synced_at = now
+        return True
+
+
 class SubscriptionWebhookService:
     """The state machine that turns Asaas events into subscription state (§17).
 
@@ -840,6 +1066,14 @@ class SubscriptionWebhookService:
         if provider_id and subscription.asaas_subscription_id is None:
             subscription.asaas_subscription_id = provider_id
             changed = True
+        if changed and _price_drifted(subscription):
+            # The plan's price moved while the checkout sat open: the first
+            # charge (already generated by the provider) keeps the price the
+            # session was opened at, so the row is activated and flagged
+            # `pending` — the daily reconciliation pushes the new value before
+            # the next charge is generated. There is no silent "synced": the
+            # flag lives or dies by the provider knowing the current price.
+            subscription.price_sync_status = PRICE_SYNC_PENDING
         return changed
 
     def apply_subscription(
@@ -1218,3 +1452,31 @@ class SubscriptionCancelService:
             status_code=status.HTTP_502_BAD_GATEWAY,
             detail="Não foi possível cancelar. Tente novamente.",
         ) from error
+
+
+async def run_price_reconciliation(*, now: datetime | None = None) -> PriceSyncResult:
+    """Runs the daily price reconciliation on its own session.
+
+    The Rocketry task of the scheduler calls this instead of building a session
+    itself: the service owns the commit and the close, so neither leaks when
+    the provider refuses a row.
+
+    Args:
+        now: Instant stamping `price_synced_at`; defaults to the current UTC
+            time.
+
+    Returns:
+        The push outcome across the whole database.
+    """
+    session = SessionLocal()
+    try:
+        result = await PricePropagationService(
+            session, AsaasClient()
+        ).reconcile_pending(now=now or datetime.now(UTC))
+        logger.info(
+            "[subscriptions] reconciliação diária de preços: %s",
+            result,
+        )
+        return result
+    finally:
+        session.close()

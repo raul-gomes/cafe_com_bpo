@@ -29,10 +29,12 @@ from src.modules.subscriptions.schemas import (
     PlanResponse,
     PlanSummaryResponse,
     PlanUpdate,
+    PriceSyncResponse,
 )
 from src.modules.subscriptions.service import (
     CheckoutService,
     PlanService,
+    PricePropagationService,
     SubscriptionCancelService,
 )
 
@@ -131,13 +133,19 @@ def create_plan(
 
 
 @plans_router.patch("/{plan_id}", response_model=PlanResponse)
-def update_plan(
+async def update_plan(
     plan_id: UUID,
     data: PlanUpdate,
     session: SessionDep,
     current_user: AdminDep,
 ) -> PlanResponse:
     """Edits a plan's name, price, description or active flag.
+
+    A price change is pushed to Asaas as part of the same call (§17.1): the
+    provider generates the next charge ~40 days ahead, so the new value must
+    reach it now, and `price_sync_status` records whether it agreed. Rows the
+    provider refuses keep the edit successful — the failure is retried by the
+    resync button or by the daily reconciliation.
 
     Args:
         plan_id: Plan to edit.
@@ -148,7 +156,45 @@ def update_plan(
     Returns:
         The updated plan.
     """
-    return PlanService(session).update_plan(current_user, plan_id, data)
+    service = PlanService(session)
+    updated = service.update_plan(current_user, plan_id, data)
+    if data.price is not None:
+        # Every price edit ends with a push. Rows the provider already knows
+        # about at the current price are counted as skipped inside the service,
+        # so an unchanged price costs no provider traffic while a name-only
+        # edit never reaches here.
+        await PricePropagationService(session, AsaasClient()).propagate_for_plan_id(
+            plan_id, now=datetime.now(UTC)
+        )
+    return updated
+
+
+@plans_router.post("/{plan_id}/sync-prices", response_model=PriceSyncResponse)
+async def resync_plan_prices(
+    plan_id: UUID,
+    session: SessionDep,
+    current_user: AdminDep,
+) -> PriceSyncResponse:
+    """Resyncs the plan's price: re-pushes every row that still owes it.
+
+    The resync button of the Config tab: an admin asks Asaas again for the rows
+    that sit in `failed` (or whose prices silently drifted), and the answer is
+    the counts the screen renders.
+
+    Args:
+        plan_id: Plan whose live rows are pushed.
+        session: Database session.
+        current_user: Authenticated admin; `require_admin` rejects the others.
+
+    Returns:
+        The counts of the push: sync, refused and skipped.
+    """
+    result = await PricePropagationService(
+        session, AsaasClient()
+    ).propagate_for_plan_id(plan_id, now=datetime.now(UTC))
+    return PriceSyncResponse(
+        synced=result.synced, failed=result.failed, skipped=result.skipped
+    )
 
 
 @router.post(
