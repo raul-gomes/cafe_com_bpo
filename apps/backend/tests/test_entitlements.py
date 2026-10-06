@@ -166,6 +166,28 @@ def test_beta_before_expiry_is_full_access(db_session):
     assert access.expires_at == NOW + timedelta(days=200)
 
 
+def test_beta_banner_shows_on_the_thirtieth_day(db_session):
+    """D12: the panel warns while there are still 30 days left to act."""
+    user = _user(db_session)
+    _beta(db_session, user.id, expires_in=timedelta(days=30))
+
+    access = resolve_access(db_session, user, now=NOW)
+
+    assert access.state is AccessState.BETA
+    assert access.shows_beta_banner is True
+
+
+def test_beta_banner_stays_hidden_outside_the_window(db_session):
+    """31 days out there is nothing to warn about yet."""
+    user = _user(db_session)
+    _beta(db_session, user.id, expires_in=timedelta(days=31))
+
+    access = resolve_access(db_session, user, now=NOW)
+
+    assert access.state is AccessState.BETA
+    assert access.shows_beta_banner is False
+
+
 def test_beta_outranks_an_active_subscription(db_session):
     """A beta user who subscribed is only charged after the beta ends (§17.3)."""
     user = _user(db_session)

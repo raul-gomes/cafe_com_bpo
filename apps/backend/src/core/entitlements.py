@@ -42,7 +42,7 @@ from sqlalchemy.orm import Session
 from src.core.database import get_db_session
 from src.core.logger import log
 from src.core.security import oauth2_scheme
-from src.core.time_utils import as_utc
+from src.core.time_utils import as_utc, days_until
 from src.modules.auth.service import get_current_user
 from src.modules.subscriptions.models import (
     SUBSCRIPTION_STATUS_ACTIVE,
@@ -76,6 +76,11 @@ FREE_WRITABLE_MODULES = (
 )
 
 ROLE_ADMIN = "admin"
+
+# D12: how long before `beta_access.expires_at` the warning is shown — the same
+# window for the panel banner (`shows_beta_banner`) and for the e-mail notices
+# (`subscriptions/beta_notice.py`), so the two never disagree.
+BETA_BANNER_WINDOW_DAYS = 30
 
 
 class AccessState(StrEnum):
@@ -123,6 +128,9 @@ class Access:
         subscription_status: Stored status of the subscription, when there is
             one. Useful for the UI to explain *why* (canceled but still paid).
         shows_dunning_banner: True only inside the tolerance window.
+        shows_beta_banner: True while a running beta is within
+            `BETA_BANNER_WINDOW_DAYS` of expiring (D12); the flag that drives
+            the in-panel warning. Never true outside the `BETA` state.
     """
 
     state: AccessState
@@ -132,6 +140,7 @@ class Access:
     plan: PlanSummary | None = None
     subscription_status: str | None = None
     shows_dunning_banner: bool = False
+    shows_beta_banner: bool = False
 
     @property
     def can_write_everything(self) -> bool:
@@ -168,10 +177,12 @@ def resolve_access(
 
     beta = running_beta(session, user_id=user.id, now=now)
     if beta is not None:
+        days_left = days_until(beta.expires_at, now)
         return Access(
             state=AccessState.BETA,
             read_only_modules=(),
             expires_at=as_utc(beta.expires_at),
+            shows_beta_banner=0 <= days_left <= BETA_BANNER_WINDOW_DAYS,
         )
 
     subscription = _best_subscription(session, user_id=user.id, now=now)

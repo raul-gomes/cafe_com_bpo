@@ -48,6 +48,7 @@ import {
 } from '../../components/ui/avatar'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Alert, AlertTitle, AlertDescription } from '../../components/ui/alert'
+import { BetaEndingBanner } from '../../components/panel/BetaEndingBanner'
 import {
   Dialog,
   DialogTrigger,
@@ -957,6 +958,22 @@ const [skills, setSkills] = useState<string[]>([])
               </AlertDescription>
             </Alert>
           </div>
+        </ComponentCard>
+
+        {/* ── BetaEndingBanner ── */}
+        <ComponentCard
+          name="BetaEndingBanner"
+          description="Aviso de fim de beta no painel (D12) · data em UTC, formato pt-BR"
+          howToUse={`import { BetaEndingBanner } from '../../components/panel/BetaEndingBanner'
+import { useAccess } from '../../api/hooks/useAccess'
+
+const { data: access } = useAccess()
+
+{access?.shows_beta_banner && access.expires_at && (
+  <BetaEndingBanner expiresAt={access.expires_at} />
+)}`}
+        >
+          <BetaEndingBanner expiresAt="2027-10-06T00:00:00Z" />
         </ComponentCard>
 
         {/* ── Dialog ── */}

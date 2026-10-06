@@ -30,3 +30,21 @@ def as_utc(value: dt.datetime | None) -> dt.datetime | None:
     if value.tzinfo is None:
         return value.replace(tzinfo=dt.UTC)
     return value.astimezone(dt.UTC)
+
+
+def days_until(target: dt.datetime, now: dt.datetime) -> int:
+    """Whole calendar days between `now` and `target`, counted on UTC dates.
+
+    The beta notices are labeled "30 days" and "7 days" by calendar day, not by
+    elapsed hours: a warning sent at noon about an expiry at midnight must not
+    flip label because of the time of day the job ran.
+
+    Args:
+        target: Instant being counted down to.
+        now: Instant the count starts from.
+
+    Returns:
+        Calendar days from `now` to `target`: positive ahead, negative behind,
+        `0` when both fall on the same UTC date.
+    """
+    return (as_utc(target).date() - as_utc(now).date()).days

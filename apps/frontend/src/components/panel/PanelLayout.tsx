@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Outlet } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
 import { NotificationBell } from './NotificationBell';
+import { BetaEndingBanner } from './BetaEndingBanner';
+import { useAccess } from '../../api/hooks/useAccess';
 import { Toaster } from '../ui/sonner';
 
 function getInitialTheme(): 'light' | 'dark' {
@@ -31,6 +33,7 @@ function getInitialMode(): string {
 }
 
 export const PanelLayout: React.FC = () => {
+  const { data: access } = useAccess();
   const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
   const [collapsed, setCollapsed] = useState<boolean>(getInitialCollapsed);
   const [mode, setMode] = useState<string>(getInitialMode);
@@ -93,6 +96,9 @@ export const PanelLayout: React.FC = () => {
         <div className="fixed right-0 top-0 z-100 flex items-center gap-2 px-6 py-3">
           <NotificationBell />
         </div>
+        {access?.shows_beta_banner && access.expires_at && (
+          <BetaEndingBanner expiresAt={access.expires_at} />
+        )}
         <Outlet />
         <Toaster />
       </main>

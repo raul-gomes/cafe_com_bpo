@@ -1,0 +1,12 @@
+Café com BPO - Seu acesso beta termina em 30 dias
+
+Olá!
+
+Seu período de acesso beta no Café com BPO termina em $expiry_date.
+
+- Já é assinante? Nada muda: você mantém o acesso total e a primeira cobrança é gerada depois dessa data.
+- Ainda não assinou? Depois da data, sua conta passa para o plano free: você continua vendo tudo e escrevendo em Operacional, Comunidade e Pagamentos.
+
+Guarde a data: $expiry_date. Quem assinar até lá não perde nada.
+
+Equipe Café com BPO

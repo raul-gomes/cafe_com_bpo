@@ -10,6 +10,7 @@ import uuid as uuid_lib
 from src.core.config import get_settings
 from src.core.database import SessionLocal
 from src.core.logger import log
+from src.modules.emails.models import EmailDelivery
 from src.modules.emails.repository import EmailDeliveryRepository
 
 settings = get_settings()
@@ -170,5 +171,40 @@ class EmailService:
                 "message": message,
                 "attachments": attachments or [],
             },
+            idempotency_key=key,
+        )
+
+    @staticmethod
+    def send_beta_notice_email(
+        to_email: str,
+        *,
+        user_id: str,
+        notice_type: str,
+        expiry_date: str,
+    ) -> EmailDelivery:
+        """Queues a beta-expiry notice (§17.6), at most once per user and type.
+
+        The idempotency key is deterministic on purpose: unlike
+        `build_idempotency_key`, which is random because transactional mail is
+        one-shot, the daily beta scan must recognize the row the previous run
+        created and count it as skipped — the key is part of the rule.
+
+        Args:
+            to_email: Recipient address.
+            user_id: User the notice belongs to; scope of the dedupe.
+            notice_type: `30d` or `7d`; also selects the template.
+            expiry_date: Expiry printed in the body, already formatted as
+                DD/MM/YYYY.
+
+        Returns:
+            The queued delivery, or the existing one when the key was already
+            queued.
+        """
+        key = f"beta_notice:{user_id}:{notice_type}"
+        return EmailService._enqueue(
+            kind="beta_notice",
+            recipient=to_email,
+            template=f"beta_notice_{notice_type}",
+            payload={"expiry_date": expiry_date},
             idempotency_key=key,
         )

@@ -368,7 +368,7 @@ def should_pre_generate_next_month() -> bool:
 class TaskScheduler:
     """Manages Rocketry-based daily task generation with 4 rules.
 
-    A single FuncTask runs daily at 00:00 UTC and auto-detects which
+    The rule-based FuncTask runs daily at 00:00 UTC and auto-detects which
     rules to apply based on the current date:
       - Sunday       → weekly rule (batch weekly + Monday daily)
       - Monday–Thu   → daily rule (next business day)
@@ -385,10 +385,11 @@ class TaskScheduler:
     def start(self) -> None:
         """Start Rocketry with the daily FuncTasks at 00:00 UTC.
 
-        Two tasks share the scheduler: the existing rule-based task generation
-        and the price reconciliation of the subscriptions plan (Fase 7). Both
-        run on their own DB session and are guarded so one failing cycle never
-        kills the other or the scheduler thread.
+        Three tasks share the scheduler: the existing rule-based task
+        generation, the price reconciliation of the subscriptions plan (Fase 7)
+        and the beta-expiry notices (Fase 8, §17.6). Each runs on its own DB
+        session and is guarded so one failing cycle never kills the others or
+        the scheduler thread.
         """
         self.app = Rocketry()
 
@@ -410,6 +411,14 @@ class TaskScheduler:
             except Exception as e:
                 log.error(f"Rocketry price reconciliation error: {e}")
 
+        def beta_notice_run():
+            try:
+                from src.modules.subscriptions.beta_notice import run_beta_notices
+
+                run_beta_notices()
+            except Exception as e:
+                log.error(f"Rocketry beta notices error: {e}")
+
         task = FuncTask(
             func=daily_run,
             name="daily_scheduler",
@@ -424,6 +433,13 @@ class TaskScheduler:
             execution="thread",
         )
         self.app.session.add_task(price_task)
+        notice_task = FuncTask(
+            func=beta_notice_run,
+            name="beta_notices",
+            start_cond=cron("0 0 * * *"),
+            execution="thread",
+        )
+        self.app.session.add_task(notice_task)
 
         self._thread = threading.Thread(
             target=self.app.run, daemon=True, name="rocketry-scheduler"

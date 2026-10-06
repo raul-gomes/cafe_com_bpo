@@ -21,6 +21,7 @@ EXPECTED_KEYS = {
     "expires_at",
     "grace_until",
     "shows_dunning_banner",
+    "shows_beta_banner",
     "subscription_status",
     "plan",
     "is_admin",
@@ -71,6 +72,7 @@ def test_free_user_payload(client):
     assert body["expires_at"] is None
     assert body["grace_until"] is None
     assert body["shows_dunning_banner"] is False
+    assert body["shows_beta_banner"] is False
     assert body["subscription_status"] is None
     assert body["plan"] is None
     assert body["is_admin"] is False
@@ -98,3 +100,42 @@ def test_admin_sees_no_locked_module(client):
     assert body["access"] == "admin"
     assert body["read_only_modules"] == []
     assert body["is_admin"] is True
+
+
+def test_beta_user_near_the_end_sees_the_banner(client):
+    """D12: inside the window `GET /access` raises the panel banner flag.
+
+    Args:
+        client: FastAPI test client.
+    """
+    from datetime import UTC, datetime, timedelta
+
+    from src.core.database import SessionLocal
+    from src.modules.auth.models import User
+    from src.modules.subscriptions.models import BetaAccess
+
+    email = f"acc_{uuid4().hex}@cafe.com"
+    create_test_user(email=email, role="user")
+    with SessionLocal() as session:
+        user = session.query(User).filter_by(email=email).one()
+        session.add(
+            BetaAccess(
+                id=uuid4(),
+                user_id=user.id,
+                expires_at=datetime.now(UTC) + timedelta(days=10),
+                source="launch_beta",
+            )
+        )
+        session.commit()
+
+    token = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    assert token.status_code == 200, token.text
+    body = client.get(
+        "/access",
+        headers={"Authorization": f"Bearer {token.json()['access_token']}"},
+    ).json()
+
+    assert body["access"] == "beta"
+    assert body["shows_beta_banner"] is True

@@ -29,6 +29,11 @@ vi.mock('../src/components/panel/NotificationBell', () => ({
   NotificationBell: () => null,
 }))
 
+// GET /access drives the beta banner — mock so the layout test never fetches
+vi.mock('../src/api/hooks/useAccess', () => ({
+  useAccess: () => ({ data: undefined }),
+}))
+
 // PIX_KEY stable for the donation modal (opened via sidebar footer)
 vi.mock('../src/config/env', () => ({
   PIX_KEY: 'cafe@cafecombpo.com.br',

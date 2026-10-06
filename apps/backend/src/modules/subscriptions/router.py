@@ -82,6 +82,7 @@ def _to_response(access: Access, *, is_admin: bool) -> AccessResponse:
         expires_at=access.expires_at,
         grace_until=access.grace_until,
         shows_dunning_banner=access.shows_dunning_banner,
+        shows_beta_banner=access.shows_beta_banner,
         subscription_status=access.subscription_status,
         plan=PlanSummaryResponse(
             code=access.plan.code,

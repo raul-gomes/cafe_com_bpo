@@ -120,6 +120,7 @@ class AccessResponse(BaseModel):
     expires_at: datetime | None = None
     grace_until: datetime | None = None
     shows_dunning_banner: bool = False
+    shows_beta_banner: bool = False
     subscription_status: str | None = None
     plan: PlanSummaryResponse | None = None
     is_admin: bool = False
