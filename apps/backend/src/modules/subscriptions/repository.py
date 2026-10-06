@@ -148,6 +148,36 @@ class SubscriptionRepository:
             .first()
         )
 
+    def get_cancel_target(self, user_id: UUID) -> Subscription | None:
+        """Returns the row a cancel request acts on for this person.
+
+        The live row when there is one (an `incomplete` attempt cancels by
+        being discarded, an active one by stopping its recurrence); otherwise
+        the newest already-canceled row, so a second cancel is answered from
+        history instead of 404.
+
+        Args:
+            user_id: Authenticated user.
+
+        Returns:
+            The row to cancel, or `None` when the person has never subscribed.
+        """
+        open_row = self.get_open_for_user(user_id)
+        if open_row is not None:
+            return open_row
+        return (
+            self.session.query(Subscription)
+            .filter(
+                Subscription.user_id == user_id,
+                Subscription.status == SUBSCRIPTION_STATUS_CANCELED,
+            )
+            .order_by(
+                func.coalesce(Subscription.canceled_at, Subscription.created_at).desc()
+            )
+            .limit(1)
+            .first()
+        )
+
     def add(self, subscription: Subscription) -> Subscription:
         """Registers the local row and flushes it so the id exists.
 

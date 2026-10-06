@@ -289,3 +289,14 @@ class CheckoutResponse(BaseModel):
     price: Decimal
     cycle: str
     status: str
+
+
+class CancelResponse(BaseModel):
+    """Answer of `POST /subscriptions/cancel`.
+
+    The confirmation screen reads one thing: until when the access lasts
+    (§17.5 — who cancels keeps the month already paid). `null` means there was
+    never a paid period: an abandoned checkout was discarded, not cancelled.
+    """
+
+    current_period_end: datetime | None

@@ -22,6 +22,7 @@ from src.modules.subscriptions.repository import BillingProfileRepository
 from src.modules.subscriptions.schemas import (
     AccessResponse,
     BillingProfileResponse,
+    CancelResponse,
     CheckoutCreate,
     CheckoutResponse,
     PlanCreate,
@@ -29,7 +30,11 @@ from src.modules.subscriptions.schemas import (
     PlanSummaryResponse,
     PlanUpdate,
 )
-from src.modules.subscriptions.service import CheckoutService, PlanService
+from src.modules.subscriptions.service import (
+    CheckoutService,
+    PlanService,
+    SubscriptionCancelService,
+)
 
 router = APIRouter(prefix="/subscriptions", tags=["subscriptions"])
 access_router = APIRouter(prefix="/access", tags=["access"])
@@ -172,6 +177,34 @@ async def open_checkout(
     """
     return await CheckoutService(session, AsaasClient()).open_checkout(
         current_user, data
+    )
+
+
+@router.post("/cancel", response_model=CancelResponse)
+async def cancel_subscription(
+    session: SessionDep,
+    current_user: CurrentUserDep,
+) -> CancelResponse:
+    """Cancels the caller's subscription and answers the confirmation screen (§17.5).
+
+    No id in the path and no body: the row is looked up from the session's
+    user, so nobody can cancel somebody else's subscription. Who cancels
+    keeps the month already paid — the answer says until when — and an
+    unpaid abandoned checkout is discarded, not cancelled.
+
+    Args:
+        session: Database session.
+        current_user: Authenticated user cancelling their own subscription.
+
+    Returns:
+        The paid-through instant, or `null` when a checkout was discarded.
+
+    Raises:
+        HTTPException: 404 when there is nothing to cancel; 502 when the
+            provider refuses or cannot be asked.
+    """
+    return await SubscriptionCancelService(session, AsaasClient()).cancel(
+        current_user, now=datetime.now(UTC)
     )
 
 

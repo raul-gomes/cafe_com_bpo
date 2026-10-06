@@ -27,6 +27,7 @@ import logging
 from calendar import monthrange
 from collections.abc import Awaitable, Callable
 from datetime import UTC, date, datetime, time, timedelta
+from typing import NoReturn
 from uuid import UUID, uuid4
 
 import httpx
@@ -56,6 +57,7 @@ from src.modules.subscriptions.repository import (
     SubscriptionRepository,
 )
 from src.modules.subscriptions.schemas import (
+    CancelResponse,
     CheckoutCreate,
     CheckoutResponse,
     PlanCreate,
@@ -633,6 +635,64 @@ class CheckoutService:
         return f"{frontend}{path}"
 
 
+async def _find_provider_subscription(
+    client: AsaasClient, customer_id: str | None, reference: str
+) -> tuple[str | None, date | None]:
+    """Finds our subscription at the provider by our own external reference.
+
+    The `CHECKOUT_*` payload carries no subscription id, so a paid checkout
+    (or a cancel whose stored id never made it) asks the provider for this
+    customer's subscriptions and matches on the reference we sent when
+    opening it.
+
+    Args:
+        client: Provider client to ask.
+        customer_id: Asaas customer to search under, if known.
+        reference: Our subscription id as sent in `externalReference`.
+
+    Returns:
+        `(provider subscription id, next due date)` — either element `None`
+        when the answer carried no subscription matching the reference.
+
+    Raises:
+        httpx.HTTPError: When the provider cannot be asked — the caller
+            decides whether that is best effort (`CHECKOUT_PAID`) or fatal
+            (a cancel that would otherwise stop nothing over there).
+    """
+    if not customer_id:
+        return None, None
+    listing = await client.list_subscriptions(customer=customer_id, limit=100, offset=0)
+    entries = listing.get("data") if isinstance(listing, dict) else None
+    if not isinstance(entries, list):
+        return None, None
+    match = next(
+        (
+            entry
+            for entry in entries
+            if isinstance(entry, dict) and entry.get("externalReference") == reference
+        ),
+        None,
+    )
+    if match is None:
+        match = next(
+            (
+                entry
+                for entry in entries
+                if isinstance(entry, dict) and entry.get("status") == "ACTIVE"
+            ),
+            None,
+        )
+    if match is None:
+        match = next((entry for entry in entries if isinstance(entry, dict)), None)
+    if match is None:
+        return None, None
+    provider_id = match.get("id")
+    return (
+        provider_id if isinstance(provider_id, str) else None,
+        parse_asaas_date(match.get("nextDueDate")),
+    )
+
+
 class SubscriptionWebhookService:
     """The state machine that turns Asaas events into subscription state (§17).
 
@@ -745,10 +805,19 @@ class SubscriptionWebhookService:
         provider_due: date | None = None
         if subscription.asaas_subscription_id is None:
             customer = subscription.asaas_customer_id or checkout.get("customer")
-            provider_id, provider_due = await self._lookup_provider_subscription(
-                customer if isinstance(customer, str) else None,
-                str(subscription.id),
-            )
+            try:
+                provider_id, provider_due = await _find_provider_subscription(
+                    self.client,
+                    customer if isinstance(customer, str) else None,
+                    str(subscription.id),
+                )
+            except httpx.HTTPError:
+                logger.warning(
+                    "[subscriptions] lookup do provedor indisponível: "
+                    "seguindo sem o id do provedor (cliente %s)",
+                    customer,
+                )
+                provider_id, provider_due = None, None
 
         changed = False
         if subscription.status == SUBSCRIPTION_STATUS_INCOMPLETE:
@@ -772,68 +841,6 @@ class SubscriptionWebhookService:
             subscription.asaas_subscription_id = provider_id
             changed = True
         return changed
-
-    async def _lookup_provider_subscription(
-        self, customer_id: str | None, reference: str
-    ) -> tuple[str | None, date | None]:
-        """Finds our subscription at the provider, best effort.
-
-        The `CHECKOUT_*` payload carries no subscription id, so the paid
-        checkout asks the provider for this customer's subscriptions and
-        matches on our own `externalReference`.
-
-        Args:
-            customer_id: Asaas customer to search under, if known.
-            reference: Our subscription id as sent in `externalReference`.
-
-        Returns:
-            `(provider subscription id, next due date)` — either element
-            `None` when the provider was unreachable, answered empty, or had
-            no subscription matching the reference.
-        """
-        if not customer_id:
-            return None, None
-        try:
-            listing = await self.client.list_subscriptions(
-                customer=customer_id, limit=100, offset=0
-            )
-        except httpx.HTTPError:
-            logger.warning(
-                "[subscriptions] lookup do provedor indisponível para %s: "
-                "seguindo sem o id do provedor",
-                customer_id,
-            )
-            return None, None
-        entries = listing.get("data") if isinstance(listing, dict) else None
-        if not isinstance(entries, list):
-            return None, None
-        match = next(
-            (
-                entry
-                for entry in entries
-                if isinstance(entry, dict)
-                and entry.get("externalReference") == reference
-            ),
-            None,
-        )
-        if match is None:
-            match = next(
-                (
-                    entry
-                    for entry in entries
-                    if isinstance(entry, dict) and entry.get("status") == "ACTIVE"
-                ),
-                None,
-            )
-        if match is None:
-            match = next((entry for entry in entries if isinstance(entry, dict)), None)
-        if match is None:
-            return None, None
-        provider_id = match.get("id")
-        return (
-            provider_id if isinstance(provider_id, str) else None,
-            parse_asaas_date(match.get("nextDueDate")),
-        )
 
     def apply_subscription(
         self, event_type: str, payload: dict, *, now: datetime
@@ -1029,3 +1036,185 @@ class SubscriptionWebhookService:
             subscription.grace_until = grace_until
             changed = True
         return changed
+
+
+class SubscriptionCancelService:
+    """Cancels what the caller has open — at the provider first (§17.5).
+
+    The provider owns the recurrence, so it stops before our mirror moves:
+    cancelling only locally would leave Asaas charging someone who was told
+    they stopped paying, and the next settled payment would land on a row
+    that refuses it. The mirror only moves after the provider confirmed —
+    including a 404, which means the recurrence is already gone.
+
+    Args:
+        session: Database session.
+        client: Provider client, injected so the flow is testable offline.
+    """
+
+    def __init__(self, session: Session, client: AsaasClient) -> None:
+        """Binds the service to a session and to the provider.
+
+        Args:
+            session: Database session.
+            client: Asaas client.
+        """
+        self.session = session
+        self.client = client
+        self.subscriptions = SubscriptionRepository(session)
+
+    async def cancel(self, actor: UserResponse, *, now: datetime) -> CancelResponse:
+        """Cancels the caller's subscription, or discards their unpaid checkout.
+
+        There is no id in the request: the row comes from the session's user
+        (§17.7), so no client-sent identity can reach another person's row.
+
+        Args:
+            actor: Authenticated user making the request.
+            now: Frozen clock stamping `canceled_at`.
+
+        Returns:
+            The paid-through instant the confirmation screen shows; `null`
+            when an abandoned checkout was discarded instead.
+
+        Raises:
+            HTTPException: 404 when the user has nothing to cancel, 502 when
+                the provider refuses or cannot be asked.
+        """
+        subscription = self.subscriptions.get_cancel_target(actor.id)
+        if subscription is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Nenhuma assinatura para cancelar.",
+            )
+        if subscription.status == SUBSCRIPTION_STATUS_CANCELED:
+            return CancelResponse(
+                current_period_end=as_utc(subscription.current_period_end)
+            )
+        if subscription.status == SUBSCRIPTION_STATUS_INCOMPLETE:
+            discarded = subscription.asaas_checkout_id or str(subscription.id)
+            await self._discard_checkout(subscription)
+            self.subscriptions.delete(subscription)
+            self.session.commit()
+            logger.info(
+                "[subscriptions] checkout %s descartado pelo usuário", discarded
+            )
+            return CancelResponse(current_period_end=None)
+        await self._stop_recurrence(subscription)
+        subscription.status = SUBSCRIPTION_STATUS_CANCELED
+        subscription.canceled_at = now
+        subscription.grace_until = None
+        self.session.commit()
+        logger.info("[subscriptions] %s cancelada pelo usuário", subscription.id)
+        return CancelResponse(
+            current_period_end=as_utc(subscription.current_period_end)
+        )
+
+    async def _stop_recurrence(self, subscription: Subscription) -> None:
+        """Stops future charges at the provider, however we must find them.
+
+        Args:
+            subscription: The local row being cancelled.
+
+        Raises:
+            HTTPException: 502 when the provider refuses or is unreachable —
+                the local row is never cancelled on a failed stop.
+        """
+        provider_id = subscription.asaas_subscription_id
+        if provider_id is None:
+            provider_id = await self._lookup_provider_id(subscription)
+        if provider_id is None:
+            logger.info(
+                "[subscriptions] %s sem assinatura no provedor: "
+                "cancelamento apenas local",
+                subscription.id,
+            )
+            return
+        try:
+            await self.client.cancel_subscription(provider_id)
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code == 404:
+                logger.info(
+                    "[subscriptions] assinatura %s já removida no provedor",
+                    provider_id,
+                )
+                return
+            self._refuse(error, operation="cancelamento da assinatura")
+        except httpx.HTTPError as error:
+            self._refuse(error, operation="cancelamento da assinatura")
+
+    async def _lookup_provider_id(self, subscription: Subscription) -> str | None:
+        """Asks the provider for the subscription when our stored id is missing.
+
+        Args:
+            subscription: The local row being cancelled.
+
+        Returns:
+            The provider id, or `None` when the provider has nothing matching
+            our reference for this customer.
+
+        Raises:
+            HTTPException: 502 when the provider cannot be asked — cancelling
+                blind is how a recurrence survives a cancel.
+        """
+        try:
+            provider_id, _ = await _find_provider_subscription(
+                self.client,
+                subscription.asaas_customer_id,
+                str(subscription.id),
+            )
+        except httpx.HTTPError as error:
+            self._refuse(error, operation="listagem de assinaturas")
+        return provider_id
+
+    async def _discard_checkout(self, subscription: Subscription) -> None:
+        """Closes the hosted session of an unpaid checkout before dropping it.
+
+        Args:
+            subscription: The `incomplete` local row.
+
+        Raises:
+            HTTPException: 502 when the provider refuses — the session may
+                still be payable, so nothing is discarded.
+        """
+        checkout_id = subscription.asaas_checkout_id
+        if checkout_id is None:
+            logger.info(
+                "[subscriptions] %s sem sessão registrada: descartando localmente",
+                subscription.id,
+            )
+            return
+        try:
+            await self.client.cancel_checkout(checkout_id)
+        except httpx.HTTPStatusError as error:
+            if error.response.status_code == 404:
+                logger.info(
+                    "[subscriptions] sessão %s já não existe no provedor",
+                    checkout_id,
+                )
+                return
+            self._refuse(error, operation="fechamento da sessão de checkout")
+        except httpx.HTTPError as error:
+            self._refuse(error, operation="fechamento da sessão de checkout")
+
+    def _refuse(self, error: Exception, *, operation: str) -> NoReturn:
+        """Rolls back and answers 502 with our words instead of the provider's.
+
+        Args:
+            error: The failure being translated; only its URL and status are
+                ever logged, never a response body (§1).
+            operation: Which call failed, for the log.
+
+        Raises:
+            HTTPException: Always — 502 with the safe cancel message.
+        """
+        logger.warning(
+            "[subscriptions] cancelamento: %s falhou no provedor (%s)",
+            operation,
+            error,
+        )
+        self.session.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail="Não foi possível cancelar. Tente novamente.",
+        ) from error
