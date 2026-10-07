@@ -49,6 +49,7 @@ import {
 import { Skeleton } from '../../components/ui/skeleton'
 import { Alert, AlertTitle, AlertDescription } from '../../components/ui/alert'
 import { BetaEndingBanner } from '../../components/panel/BetaEndingBanner'
+import { UpsellBanner } from '../../components/panel/UpsellBanner'
 import {
   Dialog,
   DialogTrigger,
@@ -1056,6 +1057,20 @@ const { data: access } = useAccess()
 )}`}
         >
           <BetaEndingBanner expiresAt="2027-10-06T00:00:00Z" />
+        </ComponentCard>
+
+        {/* ── UpsellBanner ── */}
+        <ComponentCard
+          name="UpsellBanner"
+          description="Convite para assinar no topo do painel, plano free · descartável por sessão"
+          howToUse={`import { UpsellBanner } from '../../components/panel/UpsellBanner'
+import { useAccess } from '../../api/hooks/useAccess'
+
+const { data: access } = useAccess()
+
+{access?.access === 'free' && <UpsellBanner />}`}
+        >
+          <UpsellBanner />
         </ComponentCard>
 
         {/* ── Dialog ── */}

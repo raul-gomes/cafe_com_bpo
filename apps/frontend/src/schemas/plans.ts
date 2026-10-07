@@ -29,6 +29,21 @@ export const planSchema = z
 /** A lista inteira é validada como lista, senão um objeto solto passa. */
 export const planListSchema = z.array(planSchema);
 
+/**
+ * Resposta de `POST /plans/{id}/sync-prices` (Fase 10).
+ *
+ * O admin re-passa o preço atual de cada assinatura ao provedor de cobrança. O
+ * resultado é exatamente três contagens — não há status persistente por plano;
+ * a tela de Config renderiza os contadores do último sync.
+ */
+export const priceSyncResponseSchema = z
+    .object({
+        synced: z.number().int().nonnegative(),
+        failed: z.number().int().nonnegative(),
+        skipped: z.number().int().nonnegative(),
+    })
+    .strict();
+
 /** Campos que o admin pode editar depois que o plano existe (§17.1). */
 export const planUpdateSchema = z
     .object({
@@ -68,3 +83,4 @@ export const planCreateSchema = planUpdateSchema
 export type Plan = z.infer<typeof planSchema>;
 export type PlanCreateInput = z.infer<typeof planCreateSchema>;
 export type PlanUpdateInput = z.infer<typeof planUpdateSchema>;
+export type PriceSyncResponse = z.infer<typeof priceSyncResponseSchema>;

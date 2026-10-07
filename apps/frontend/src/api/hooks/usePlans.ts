@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
-import { createPlan, listPlans, updatePlan } from '../plans';
+import { createPlan, listPlans, resyncPlanPrices, updatePlan } from '../plans';
 import type { PlanCreateInput, PlanUpdateInput } from '../../schemas/plans';
 
 /**
@@ -45,6 +45,26 @@ export const useUpdatePlan = () => {
         },
         onError: () => {
             toast.error('Não foi possível atualizar o plano.');
+        },
+    });
+};
+
+/**
+ * Ressincroniza os preços de um plano com o provedor (Config → Planos, Fase 10).
+ *
+ * Não observa o `subscriber_count` na tela: o sync muda o que o provedor cobra,
+ * não o catálogo. O invalidate mantém a lista fresca caso outro admin edite.
+ */
+export const useResyncPlanPrices = () => {
+    const queryClient = useQueryClient();
+    return useMutation({
+        mutationFn: (planId: string) => resyncPlanPrices(planId),
+        onSuccess: () => {
+            void queryClient.invalidateQueries({ queryKey: PLANS_KEY });
+            toast.success('Preços sincronizados com o provedor.');
+        },
+        onError: () => {
+            toast.error('Não foi possível sincronizar os preços.');
         },
     });
 };

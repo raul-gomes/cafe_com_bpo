@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { Lock } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { useAccess } from '../../api/hooks/useAccess';
 import logoSide from '../../assets/logo-side.png';
 import { ModalNosAjude } from './ModalNosAjude';
 import { ModalReportarErro } from './ModalReportarErro';
@@ -147,6 +149,8 @@ interface NavItem {
   path: string;
   icon: React.ReactNode;
   label: string;
+  /** Módulo do gate de acesso; quando omitido, usa o `id` do menu pai. */
+  module?: string;
 }
 
 interface MenuConfig {
@@ -196,7 +200,7 @@ const NAV_MENUS: MenuConfig[] = [
       { path: '/painel/projetos', icon: icons.projects, label: 'Projetos' },
       { path: '/painel/gestao-equipes', icon: icons.teams, label: 'Gestão de equipes' },
       { path: '/painel/contatos', icon: icons.contacts, label: 'Contatos' },
-      { path: '/painel/pagamentos', icon: icons.payments, label: 'Pagamentos' },
+      { path: '/painel/pagamentos', icon: icons.payments, label: 'Pagamentos', module: 'pagamentos' },
     ],
   },
   {
@@ -224,6 +228,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
   onModeChange,
 }) => {
   const { user, logout } = useAuth();
+  const { data: access } = useAccess();
   const location = useLocation();
   const navigate = useNavigate();
   const [showDonateModal, setShowDonateModal] = useState(false);
@@ -244,6 +249,10 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
   const isAdmin = user?.role === 'admin';
   const visibleMenus = NAV_MENUS.filter((menu) => !menu.adminOnly || isAdmin);
   const activeMenu = visibleMenus.find((menu) => menu.id === activeMenuId) ?? visibleMenus[0];
+
+  // Modules the gate marks read-only (free: captar and gestao). Navigation stays
+  // alive: the lock is informational, not a block (§5 Fase 10).
+  const readOnlyModules = new Set(access?.read_only_modules ?? []);
 
   // Persist internal (uncontrolled) mode for backward compat / standalone usage
   useEffect(() => {
@@ -457,7 +466,17 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
                 )}
               >
                 {item.icon}
-                {!collapsed && item.label}
+                {!collapsed && (
+                  <>
+                    <span className="flex-1 truncate">{item.label}</span>
+                    {readOnlyModules.has(item.module ?? activeMenu.id) && (
+                      <Lock
+                        aria-label="Somente leitura no plano gratuito"
+                        className="size-3.5 shrink-0 text-muted-foreground/60"
+                      />
+                    )}
+                  </>
+                )}
               </button>
             ))}
           </nav>

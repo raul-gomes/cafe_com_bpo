@@ -3,6 +3,7 @@ import { Outlet } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
 import { NotificationBell } from './NotificationBell';
 import { BetaEndingBanner } from './BetaEndingBanner';
+import { UpsellBanner } from './UpsellBanner';
 import { useAccess } from '../../api/hooks/useAccess';
 import { Toaster } from '../ui/sonner';
 
@@ -99,6 +100,7 @@ export const PanelLayout: React.FC = () => {
         {access?.shows_beta_banner && access.expires_at && (
           <BetaEndingBanner expiresAt={access.expires_at} />
         )}
+        {access?.access === 'free' && <UpsellBanner />}
         <Outlet />
         <Toaster />
       </main>

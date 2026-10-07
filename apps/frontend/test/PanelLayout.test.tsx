@@ -29,9 +29,12 @@ vi.mock('../src/components/panel/NotificationBell', () => ({
   NotificationBell: () => null,
 }))
 
-// GET /access drives the beta banner — mock so the layout test never fetches
+// GET /access drive o banner beta e o upsell — mock com holder para cada teste
+// escolher o perfil. undefined = nenhum dado (testes antigos não veem banner).
+const { mockAccessValue } = vi.hoisted(() => ({ mockAccessValue: { value: null as unknown } }))
+
 vi.mock('../src/api/hooks/useAccess', () => ({
-  useAccess: () => ({ data: undefined }),
+  useAccess: () => ({ data: mockAccessValue.value }),
 }))
 
 // PIX_KEY stable for the donation modal (opened via sidebar footer)
@@ -65,6 +68,7 @@ describe('PanelLayout — modo de trabalho com cor', () => {
   beforeEach(() => {
     vi.restoreAllMocks()
     localStorage.clear()
+    mockAccessValue.value = null
   })
 
   it('aplica data-mode operacional por padrão', () => {
@@ -92,5 +96,66 @@ describe('PanelLayout — modo de trabalho com cor', () => {
 
     expect(document.querySelector('.panel-mode-grid[data-mode]')).toHaveAttribute('data-mode', 'comunidade')
     expect(screen.getByTestId('page')).toHaveTextContent('Forum')
+  })
+})
+
+describe('PanelLayout — banner de upsell do plano free', () => {
+  const FREE_ACCESS = {
+    access: 'free',
+    read_only_modules: ['captar', 'gestao'],
+    writable_modules: ['comunidade', 'operacional', 'pagamentos'],
+    expires_at: null,
+    grace_until: null,
+    shows_dunning_banner: false,
+    shows_beta_banner: false,
+    subscription_status: null,
+    plan: null,
+    is_admin: false,
+  }
+
+  const ACTIVE_ACCESS = {
+    ...FREE_ACCESS,
+    access: 'active',
+    read_only_modules: [],
+    writable_modules: ['comunidade', 'operacional', 'pagamentos', 'captar', 'gestao'],
+    plan: { code: 'monthly', name: 'Mensal', price: '27.90', cycle: 'MONTHLY' },
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    localStorage.clear()
+    mockAccessValue.value = null
+  })
+
+  it('mostra o upsell só para quem está no plano free', async () => {
+    mockAccessValue.value = FREE_ACCESS
+    renderLayout('/painel')
+
+    expect(await screen.findByText('Você está no plano gratuito')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /assinar/i })).toHaveAttribute(
+      'href',
+      '/painel/pagamentos',
+    )
+  })
+
+  it('não mostra o upsell para assinante ativo', () => {
+    mockAccessValue.value = ACTIVE_ACCESS
+    renderLayout('/painel')
+
+    expect(screen.queryByText('Você está no plano gratuito')).not.toBeInTheDocument()
+  })
+
+  it('dispensado, o aviso não volta ao trocar de página na mesma sessão', async () => {
+    mockAccessValue.value = FREE_ACCESS
+    renderLayout('/painel')
+
+    fireEvent.click(await screen.findByLabelText('Fechar aviso'))
+    expect(screen.queryByText('Você está no plano gratuito')).not.toBeInTheDocument()
+
+    // Navegar dentro do painel mantém o PanelLayout montado → o descarte persiste.
+    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Captar' }))
+
+    expect(screen.queryByText('Você está no plano gratuito')).not.toBeInTheDocument()
   })
 })

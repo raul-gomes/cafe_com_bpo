@@ -10,11 +10,20 @@ import type { Plan } from '../src/schemas/plans'
 const mockListPlans = vi.hoisted(() => vi.fn())
 const mockCreatePlan = vi.hoisted(() => vi.fn())
 const mockUpdatePlan = vi.hoisted(() => vi.fn())
+const mockResyncPlanPrices = vi.hoisted(() => vi.fn())
+
+const mockToastSuccess = vi.hoisted(() => vi.fn())
+const mockToastError = vi.hoisted(() => vi.fn())
+
+vi.mock('sonner', () => ({
+  toast: { success: mockToastSuccess, error: mockToastError },
+}))
 
 vi.mock('../src/api/plans', () => ({
   listPlans: mockListPlans,
   createPlan: mockCreatePlan,
   updatePlan: mockUpdatePlan,
+  resyncPlanPrices: mockResyncPlanPrices,
 }))
 
 const MENSAL: Plan = {
@@ -60,6 +69,7 @@ describe('PlansPage', () => {
     mockListPlans.mockResolvedValue([MENSAL, PRO])
     mockCreatePlan.mockResolvedValue(PRO)
     mockUpdatePlan.mockResolvedValue(MENSAL)
+    mockResyncPlanPrices.mockResolvedValue({ synced: 3, failed: 1, skipped: 2 })
   })
 
   it('mostra o catálogo com o preço editável em reais e o ciclo em português', async () => {
@@ -164,5 +174,31 @@ describe('PlansPage', () => {
     renderPage()
 
     expect(await screen.findByText('Não foi possível carregar os planos.')).toBeInTheDocument()
+  })
+
+  it('ressincroniza os preços de um plano e mostra os contadores do provedor', async () => {
+    renderPage()
+    fireEvent.click(await screen.findByTestId('plan-sync-plan-1'))
+
+    await waitFor(() => {
+      expect(mockResyncPlanPrices).toHaveBeenCalledWith('plan-1')
+    })
+
+    // A tela renderiza os três contadores do POST /plans/{id}/sync-prices.
+    expect(await screen.findByTestId('plan-sync-status-plan-1')).toHaveTextContent(
+      '3 sincronizadas · 1 falha · 2 já atualizadas',
+    )
+    expect(mockToastSuccess).toHaveBeenCalledWith('Preços sincronizados com o provedor.')
+  })
+
+  it('não mostra contadores quando o provedor recusa a ressincronização', async () => {
+    mockResyncPlanPrices.mockRejectedValue(new Error('provider down'))
+    renderPage()
+    fireEvent.click(await screen.findByTestId('plan-sync-plan-1'))
+
+    await waitFor(() => {
+      expect(mockToastError).toHaveBeenCalledWith('Não foi possível sincronizar os preços.')
+    })
+    expect(screen.queryByTestId('plan-sync-status-plan-1')).not.toBeInTheDocument()
   })
 })

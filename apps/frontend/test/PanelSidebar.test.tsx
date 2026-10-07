@@ -1,8 +1,17 @@
-import { screen, fireEvent } from '@testing-library/react'
+import { screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useLocation } from 'react-router-dom'
 import { PanelSidebar } from '../src/components/panel/PanelSidebar'
 import { renderWithProviders } from './test-utils'
+
+// Permissão de módulos entra na sidebar (cadeado de somente leitura, Fase 10).
+// O valor vive fora do mock para cada teste escolher o perfil: undefined = sem
+// acesso resolvido, exercitando o caminho sem cadeados.
+const { mockAccessValue } = vi.hoisted(() => ({ mockAccessValue: { value: null as unknown } }))
+
+vi.mock('../src/api/hooks/useAccess', () => ({
+  useAccess: () => ({ data: mockAccessValue.value }),
+}))
 
 // Mock getClients to avoid API calls
 vi.mock('../src/api/clients', () => ({
@@ -251,5 +260,101 @@ describe('PanelSidebar — dropdown de menus', () => {
     fireEvent.click(screen.getByRole('button', { name: menuLabel }))
 
     expect(screen.getByTestId('route-probe')).toHaveTextContent(expectedPath)
+  })
+})
+
+describe('PanelSidebar — cadeado de módulos somente leitura', () => {
+  const renderSidebar = (isOpen = true) => {
+    return renderWithProviders(
+      <PanelSidebar isOpen={isOpen} onClose={vi.fn()} />,
+      { initialEntries: ['/painel'] }
+    )
+  }
+
+  const FREE_ACCESS = {
+    access: 'free',
+    read_only_modules: ['captar', 'gestao'],
+    writable_modules: ['comunidade', 'operacional', 'pagamentos'],
+    expires_at: null,
+    grace_until: null,
+    shows_dunning_banner: false,
+    shows_beta_banner: false,
+    subscription_status: null,
+    plan: null,
+    is_admin: false,
+  }
+
+  const ACTIVE_ACCESS = {
+    ...FREE_ACCESS,
+    access: 'active',
+    read_only_modules: [],
+    writable_modules: ['comunidade', 'operacional', 'pagamentos', 'captar', 'gestao'],
+    plan: { code: 'monthly', name: 'Mensal', price: '27.90', cycle: 'MONTHLY' },
+  }
+
+  beforeEach(() => {
+    vi.restoreAllMocks()
+    mockAccessValue.value = null
+    localStorage.clear()
+  })
+
+  it('mostra cadeado nos itens de menu somente leitura e mantém a navegação', () => {
+    mockAccessValue.value = FREE_ACCESS
+    const RouteProbe = () => {
+      const location = useLocation()
+      return <span data-testid="route-probe">{location.pathname}</span>
+    }
+
+    renderWithProviders(
+      <>
+        <RouteProbe />
+        <PanelSidebar isOpen onClose={vi.fn()} />
+      </>,
+      { initialEntries: ['/painel'] }
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Captar' }))
+
+    // Os quatro itens de Captar são somente leitura no free → cadeados.
+    expect(screen.getAllByLabelText('Somente leitura no plano gratuito')).toHaveLength(4)
+
+    // Mesmo trancado, o item continua navegável (§5 Fase 10: cadeado visível, link vivo).
+    fireEvent.click(screen.getByRole('button', { name: 'Prospectos' }))
+    expect(screen.getByTestId('route-probe')).toHaveTextContent('/painel/prospectos')
+  })
+
+  it('não tranca módulos escrevíveis no plano free', () => {
+    mockAccessValue.value = FREE_ACCESS
+    renderSidebar()
+
+    // Operacional é escrevível no free → nenhum cadeado.
+    expect(screen.queryByLabelText('Somente leitura no plano gratuito')).not.toBeInTheDocument()
+  })
+
+  it('não tranca Pagamentos (módulo escrevível) dentro do menu Gestão', () => {
+    mockAccessValue.value = FREE_ACCESS
+    renderSidebar()
+
+    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Gestão' }))
+
+    // Projetos, Gestão de equipes e Contatos são gestao (somente leitura)…
+    const locks = screen.getAllByLabelText('Somente leitura no plano gratuito')
+    expect(locks).toHaveLength(3)
+
+    // …mas Pagamentos pertence ao módulo pagamentos, escrevível no free.
+    const pagamentos = screen.getByRole('button', { name: 'Pagamentos' })
+    expect(within(pagamentos).queryByLabelText('Somente leitura no plano gratuito')).toBeNull()
+  })
+
+  it('não tranca quando o acesso é completo', () => {
+    mockAccessValue.value = ACTIVE_ACCESS
+    renderSidebar()
+
+    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Captar' }))
+
+    expect(screen.queryByLabelText('Somente leitura no plano gratuito')).not.toBeInTheDocument()
   })
 })

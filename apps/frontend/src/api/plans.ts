@@ -4,8 +4,10 @@ import {
     type Plan,
     type PlanCreateInput,
     type PlanUpdateInput,
+    type PriceSyncResponse,
     planListSchema,
     planSchema,
+    priceSyncResponseSchema,
 } from '../schemas/plans';
 
 /**
@@ -14,7 +16,7 @@ import {
  * acuse. O preço atravessa como string justamente para não ser reinterpretado.
  */
 
-export type { Plan, PlanCreateInput, PlanUpdateInput };
+export type { Plan, PlanCreateInput, PlanUpdateInput, PriceSyncResponse };
 export { planCreateSchema, planUpdateSchema } from '../schemas/plans';
 
 /** Lista o catálogo visível para quem está logado. */
@@ -36,4 +38,13 @@ export const updatePlan = async (
 ): Promise<Plan> => {
     const response = await apiClient.patch(`/plans/${planId}`, data);
     return planSchema.parse(response.data);
+};
+
+/**
+ * Re-envia ao provedor de cobrança o preço atual de cada assinatura do plano
+ * (Fase 10). Permissão de admin; o resultado são três contagens.
+ */
+export const resyncPlanPrices = async (planId: string): Promise<PriceSyncResponse> => {
+    const response = await apiClient.post(`/plans/${planId}/sync-prices`);
+    return priceSyncResponseSchema.parse(response.data);
 };

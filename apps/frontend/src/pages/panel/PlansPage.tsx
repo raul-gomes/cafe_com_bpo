@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { toast } from 'sonner';
 
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { Badge } from '../../components/ui/badge';
@@ -13,8 +12,8 @@ import {
 } from '../../components/ui/input-group';
 import { Label } from '../../components/ui/label';
 import { Textarea } from '../../components/ui/textarea';
-import { useCreatePlan, usePlans, useUpdatePlan } from '../../api/hooks/usePlans';
-import { planCreateSchema, planUpdateSchema, type Plan } from '../../schemas/plans';
+import { useCreatePlan, usePlans, useResyncPlanPrices, useUpdatePlan } from '../../api/hooks/usePlans';
+import { planCreateSchema, planUpdateSchema, type Plan, type PriceSyncResponse } from '../../schemas/plans';
 
 /**
  * Admin Config → Planos: a única tela que escreve em `plans` (§17.1).
@@ -50,6 +49,26 @@ const CYCLE_LABEL: Record<string, string> = {
 const toDecimalString = (raw: string): string | null => {
   const normalized = raw.trim().replace(',', '.');
   return /^\d+(\.\d{1,2})?$/.test(normalized) ? normalized : null;
+};
+
+/**
+ * Texto do resultado de uma ressincronização em pt-BR, com concordância.
+ *
+ * Zero no contador não entra: só os que interessam aparecem. A tela mostra o
+ * mesmo dado que o `POST /plans/{id}/sync-prices` devolveu, sem reinterpretar.
+ *
+ * @param result Contadores do último sync do plano.
+ * @returns Frase como "3 sincronizadas · 1 falha · 2 já atualizadas".
+ */
+const describeSyncResult = (result: PriceSyncResponse): string => {
+  const parts: string[] = [`${result.synced} ${result.synced === 1 ? 'sincronizada' : 'sincronizadas'}`];
+  if (result.failed > 0) {
+    parts.push(`${result.failed} ${result.failed === 1 ? 'falha' : 'falhas'}`);
+  }
+  if (result.skipped > 0) {
+    parts.push(`${result.skipped} ${result.skipped === 1 ? 'já atualizada' : 'já atualizadas'}`);
+  }
+  return parts.join(' · ');
 };
 
 const PlanPriceEditor: React.FC<{ plan: Plan }> = ({ plan }) => {
@@ -217,7 +236,9 @@ const NewPlanForm: React.FC<{ onDone: () => void }> = ({ onDone }) => {
 
 const PlanCard: React.FC<{ plan: Plan }> = ({ plan }) => {
   const updatePlan = useUpdatePlan();
+  const resync = useResyncPlanPrices();
   const confirm = useConfirm();
+  const [syncResult, setSyncResult] = useState<PriceSyncResponse | null>(null);
 
   const toggleActive = async () => {
     const activating = !plan.is_active;
@@ -232,6 +253,12 @@ const PlanCard: React.FC<{ plan: Plan }> = ({ plan }) => {
       return;
     }
     updatePlan.mutate({ planId: plan.id, data: { is_active: activating } });
+  };
+
+  const syncPrices = () => {
+    resync.mutate(plan.id, {
+      onSuccess: (result) => setSyncResult(result),
+    });
   };
 
   return (
@@ -268,16 +295,35 @@ const PlanCard: React.FC<{ plan: Plan }> = ({ plan }) => {
         </div>
         <div className="flex items-center gap-2">
           <PlanPriceEditor plan={plan} />
-          <Button
-            variant="outline"
-            size="sm"
-            data-testid={`plan-toggle-${plan.id}`}
-            onClick={toggleActive}
-            disabled={updatePlan.isPending}
-          >
-            {plan.is_active ? 'Desativar' : 'Ativar'}
-          </Button>
         </div>
+      </div>
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid={`plan-sync-${plan.id}`}
+          onClick={syncPrices}
+          disabled={resync.isPending}
+        >
+          Ressincronizar preços
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          data-testid={`plan-toggle-${plan.id}`}
+          onClick={toggleActive}
+          disabled={updatePlan.isPending}
+        >
+          {plan.is_active ? 'Desativar' : 'Ativar'}
+        </Button>
+        {syncResult && (
+          <p
+            className="text-xs text-muted-foreground"
+            data-testid={`plan-sync-status-${plan.id}`}
+          >
+            {describeSyncResult(syncResult)}
+          </p>
+        )}
       </div>
     </Card>
   );
@@ -330,7 +376,8 @@ export function PlansPage() {
 
       <p className="mt-4 text-xs text-muted-foreground">
         Desativar tira o plano do catálogo. Quem já assina mantém o acesso até o
-        fim do ciclo pago. <span onClick={() => toast.info('Em breve: reprocessar cobranças.')} className="underline cursor-pointer">Alterar o preço de quem já assina</span> chega com a integração de cobrança.
+        fim do ciclo pago. O botão Ressincronizar preços atualiza no provedor de
+        cobrança o valor de quem já assina neste plano.
       </p>
     </div>
   );
