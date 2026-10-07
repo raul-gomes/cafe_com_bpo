@@ -134,6 +134,12 @@ import { DealCard } from '../../components/governanca/DealCard'
 import { DealTimeline } from '../../components/governanca/DealTimeline'
 import { MemberProfileView } from '../../components/network/MemberProfileView'
 import { MemberLink } from '../../components/network/MemberLink'
+import { SubscriptionStatusCard } from '../../components/payments/SubscriptionStatusCard'
+import { BillingProfileForm } from '../../components/payments/BillingProfileForm'
+import { BillingHistoryList } from '../../components/payments/BillingHistoryList'
+import type { Access } from '../../schemas/access'
+import type { Plan } from '../../schemas/plans'
+import type { BillingHistoryRow, BillingProfile } from '../../schemas/subscription'
 import { NewIndicator } from '../../components/network/NewIndicator'
 import type { Deal } from '../../api/governanca'
 import { dealInMonth } from './governancaMonth'
@@ -151,6 +157,7 @@ const sections = [
   { id: 'governanca', icon: '📈', label: 'Governança' },
   { id: 'navigation', icon: '🧭', label: 'Navegação' },
   { id: 'comunidade', icon: '👥', label: 'Comunidade' },
+  { id: 'pagamentos', icon: '💳', label: 'Pagamentos' },
   { id: 'modes', icon: '🎨', label: 'Modos' },
 ]
 
@@ -292,6 +299,81 @@ const MemberProfileDemo = () => (
     currentUserId="user-2"
   />
 )
+
+// ─── Demo data: Pagamentos (Fase 9) ────────────────────────────────────
+const DEMO_SUBSCRIBER_ACCESS: Access = {
+  access: 'active',
+  read_only_modules: [],
+  writable_modules: ['captar', 'comunidade', 'gestao', 'operacional', 'pagamentos'],
+  expires_at: '2026-12-04T00:00:00Z',
+  grace_until: null,
+  shows_dunning_banner: false,
+  shows_beta_banner: false,
+  subscription_status: 'active',
+  plan: { code: 'mensal', name: 'Mensal', price: '27.90', cycle: 'MONTHLY' },
+  is_admin: false,
+}
+
+const DEMO_PAYMENTS_PLANS: Plan[] = [
+  {
+    id: '00000000-0000-4000-8000-000000000001',
+    code: 'mensal',
+    name: 'Mensal',
+    price: '27.90',
+    cycle: 'MONTHLY',
+    is_active: true,
+    description: 'Acesso completo, cobrado todo mês',
+    subscriber_count: 214,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000002',
+    code: 'anual',
+    name: 'Anual',
+    price: '279.00',
+    cycle: 'YEARLY',
+    is_active: true,
+    description: 'Mesmo acesso com dois meses grátis',
+    subscriber_count: 37,
+  },
+]
+
+const DEMO_BILLING_PROFILE: BillingProfile = {
+  cpf_cnpj: '24971563792',
+  phone: '4738010919',
+  address: 'Av. Paulista, 150',
+  address_number: '150',
+  complement: 'Apto 12',
+  city: 'São Paulo',
+  state: 'SP',
+  postal_code: '01310000',
+}
+
+const DEMO_BILLING_HISTORY: BillingHistoryRow[] = [
+  {
+    id: '00000000-0000-4000-8000-000000000101',
+    cycle_month: '2026-09',
+    amount: '27.90',
+    status: 'confirmed',
+    paid_at: '2026-09-05T12:00:00Z',
+    invoice_url: 'https://sandbox.asaas.com/invoice/inv_101',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000102',
+    cycle_month: '2026-08',
+    amount: '27.90',
+    status: 'confirmed',
+    paid_at: '2026-08-05T12:00:00Z',
+    invoice_url: 'https://sandbox.asaas.com/invoice/inv_102',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000103',
+    cycle_month: '2026-06',
+    amount: '27.90',
+    status: 'refunded',
+    paid_at: null,
+    invoice_url: null,
+  },
+]
 
 // ─── Demo data: Governança ──────────────────────────────────────────────
 const DEMO_GOVERNANCA: Deal[] = [
@@ -1861,6 +1943,64 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
               created_at: '2026-09-08T00:00:00Z',
             }}
           />
+        </ComponentCard>
+      </Section>
+
+      {/* ═══════════ 8. PAGAMENTOS (Fase 9) ═══════════ */}
+      <Section id="pagamentos" icon="💳" title="Pagamentos">
+        <ComponentCard
+          name="SubscriptionStatusCard"
+          description="Bloco de plano + ações da seção Pagamentos: catálogo com Assinar para free/beta, o plano vigente com Cancelar para active, alerta de dunning para past_due e nota para admin"
+          howToUse={`import { SubscriptionStatusCard } from '../../components/payments/SubscriptionStatusCard'
+
+<SubscriptionStatusCard
+  access={access}                      // GET /access
+  plans={plans}                        // GET /plans
+  isCheckingPlans={isLoadingPlans}
+  hasSavedProfile={!!profile}          // GET /subscriptions/billing (404 => false)
+  onSubscribe={(planId) => abrirCheckout(planId)}   // POST /subscriptions/checkout + redirect
+  onCancel={() => confirmarCancelamento()}          // POST /subscriptions/cancel
+/>`}
+        >
+          <SubscriptionStatusCard
+            access={DEMO_SUBSCRIBER_ACCESS}
+            plans={DEMO_PAYMENTS_PLANS}
+            isCheckingPlans={false}
+            hasSavedProfile
+            onSubscribe={(planId) => toast.info(`Assinar ${planId}`)}
+            onCancel={() => toast.info('Cancelar assinatura')}
+          />
+        </ComponentCard>
+
+        <ComponentCard
+          name="BillingProfileForm"
+          description="Dados de cobrança enviados ao checkout da Asaas: campos com máscara gerando dígitos, validação de forma no cliente e dígito verificador do CPF/CNPJ no servidor"
+          howToUse={`import { BillingProfileForm } from '../../components/payments/BillingProfileForm'
+
+<BillingProfileForm
+  profile={profile}        // null quando o usuário nunca salvou
+  isLoading={isLoading}
+  isSaving={isSaving}
+  onSave={(data) => saveProfile.mutate(data)}   // PUT /subscriptions/billing
+/>`}
+        >
+          <BillingProfileForm
+            profile={DEMO_BILLING_PROFILE}
+            isLoading={false}
+            isSaving={false}
+            onSave={(data) => toast.success(`Salvar: ${data.address}, ${data.state}`)}
+          />
+        </ComponentCard>
+
+        <ComponentCard
+          name="BillingHistoryList"
+          description="Histórico mês a mês das cobranças da assinatura: rótulo do mês em pt-BR, valor em real, status e link da fatura quando ela existe"
+          howToUse={`import { BillingHistoryList } from '../../components/payments/BillingHistoryList'
+
+<BillingHistoryList rows={rows} isLoading={isLoading} />
+// rows = GET /payments/, já na ordem do mês mais recente`}
+        >
+          <BillingHistoryList rows={DEMO_BILLING_HISTORY} isLoading={false} />
         </ComponentCard>
       </Section>
 
