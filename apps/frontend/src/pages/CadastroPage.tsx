@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Navbar } from '../components/ui/Navbar';
 import { RegisterForm } from '../components/auth/RegisterForm';
 import { LoginForm } from '../components/auth/LoginForm';
@@ -7,18 +7,37 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { Alert } from '../components/ui/alert';
 import { Dialog, DialogContent } from '../components/ui/dialog';
+import { usePlans } from '../api/hooks/usePlans';
+import { SignupPlanOffer } from '../components/payments/SignupPlanOffer';
 
 export default function CadastroPage() {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const [showLogin, setShowLogin] = useState(false);
   const [showForgotPw, setShowForgotPw] = useState(false);
+  const [showOffer, setShowOffer] = useState(false);
+  const { data: plans, isLoading: plansLoading } = usePlans();
+
+  const activePlan = plans?.find(p => p.is_active) ?? plans?.[0] ?? null;
+
+  const handleRegistered = useCallback(() => setShowOffer(true), []);
+  const handleContinue = useCallback(() => {
+    setShowOffer(false);
+    navigate('/painel');
+  }, [navigate]);
 
   useEffect(() => {
-    if (!isLoading && isAuthenticated) {
+    if (!isLoading && isAuthenticated && !showOffer) {
       navigate('/painel/tarefas');
     }
-  }, [isAuthenticated, isLoading, navigate]);
+  }, [isAuthenticated, isLoading, navigate, showOffer]);
+
+  useEffect(() => {
+    // Sem plano ativo não há investimento a mostrar: segue direto para o painel.
+    if (showOffer && !plansLoading && !activePlan) {
+      navigate('/painel');
+    }
+  }, [showOffer, plansLoading, activePlan, navigate]);
 
   return (
     <div className="min-h-screen bg-black flex flex-col">
@@ -36,7 +55,17 @@ export default function CadastroPage() {
             </Alert>
           )}
           
-          <RegisterForm />
+          {showOffer ? (
+            plansLoading || !activePlan ? (
+              <div className="flex h-44 items-center justify-center text-[14px] text-muted-foreground">
+                Preparando seu espaço…
+              </div>
+            ) : (
+              <SignupPlanOffer plan={activePlan} onContinue={handleContinue} />
+            )
+          ) : (
+            <RegisterForm onRegistered={handleRegistered} />
+          )}
           
           <div className="text-center mt-6 text-[13px] text-muted-foreground">
             Já possui conta?{' '}

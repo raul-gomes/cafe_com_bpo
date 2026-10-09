@@ -99,7 +99,7 @@ describe('PanelLayout — modo de trabalho com cor', () => {
   })
 })
 
-describe('PanelLayout — banner de upsell do plano free', () => {
+describe('PanelLayout — sem upsell no painel (só trava/cadeado)', () => {
   const FREE_ACCESS = {
     access: 'free',
     read_only_modules: ['captar', 'gestao'],
@@ -113,49 +113,18 @@ describe('PanelLayout — banner de upsell do plano free', () => {
     is_admin: false,
   }
 
-  const ACTIVE_ACCESS = {
-    ...FREE_ACCESS,
-    access: 'active',
-    read_only_modules: [],
-    writable_modules: ['comunidade', 'operacional', 'pagamentos', 'captar', 'gestao'],
-    plan: { code: 'monthly', name: 'Mensal', price: '27.90', cycle: 'MONTHLY' },
-  }
-
   beforeEach(() => {
     vi.restoreAllMocks()
     localStorage.clear()
     mockAccessValue.value = null
   })
 
-  it('mostra o upsell só para quem está no plano free', async () => {
+  it('usuário free não vê mais o convite de assinatura em nenhum ponto do painel', async () => {
     mockAccessValue.value = FREE_ACCESS
     renderLayout('/painel')
 
-    expect(await screen.findByText('Você está no plano gratuito')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: /assinar/i })).toHaveAttribute(
-      'href',
-      '/painel/pagamentos',
-    )
-  })
-
-  it('não mostra o upsell para assinante ativo', () => {
-    mockAccessValue.value = ACTIVE_ACCESS
-    renderLayout('/painel')
-
     expect(screen.queryByText('Você está no plano gratuito')).not.toBeInTheDocument()
-  })
-
-  it('dispensado, o aviso não volta ao trocar de página na mesma sessão', async () => {
-    mockAccessValue.value = FREE_ACCESS
-    renderLayout('/painel')
-
-    fireEvent.click(await screen.findByLabelText('Fechar aviso'))
-    expect(screen.queryByText('Você está no plano gratuito')).not.toBeInTheDocument()
-
-    // Navegar dentro do painel mantém o PanelLayout montado → o descarte persiste.
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Captar' }))
-
-    expect(screen.queryByText('Você está no plano gratuito')).not.toBeInTheDocument()
+    // O write gate continua sendo o único convite: nunca um banner.
+    expect(screen.queryByRole('link', { name: /assinar/i })).not.toBeInTheDocument()
   })
 })

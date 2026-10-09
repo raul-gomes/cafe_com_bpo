@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, FileText, Info, Plus } from 'lucide-react';
+import { Eye, FileText, Info, Lock, Plus } from 'lucide-react';
 import {
   getContracts,
   getContractTemplate,
@@ -30,7 +30,7 @@ const PLACEHOLDER_GROUPS: string[][] = [
 
 export const ContratosPage: React.FC = () => {
   const navigate = useNavigate();
-  const canWriteContracts = useWriteGate('captar');
+  const { canWrite: canWriteContracts, locked: contractsLocked } = useWriteGate('captar');
 
   const [activeTab, setActiveTab] = useState('contracts');
   const [contracts, setContracts] = useState<ContractData[]>([]);
@@ -124,6 +124,7 @@ export const ContratosPage: React.FC = () => {
           </p>
         </div>
         <Button onClick={() => { if (canWriteContracts()) setNewContractOpen(true); }} data-testid="new-contract-button">
+          {contractsLocked && <Lock className="size-4" />}
           <Plus className="size-4" /> Novo contrato
         </Button>
       </div>
@@ -154,7 +155,8 @@ export const ContratosPage: React.FC = () => {
               <p className="mt-3 text-sm text-muted-foreground">Nenhum contrato criado ainda.</p>
               <div className="mt-4 flex justify-center gap-2">
                 <Button onClick={() => { if (canWriteContracts()) setNewContractOpen(true); }} data-testid="empty-new-contract">
-                  <Plus className="size-4" /> Novo contrato
+                  {contractsLocked && <Lock className="size-4" />}
+          <Plus className="size-4" /> Novo contrato
                 </Button>
                 <Button variant="outline" onClick={() => setActiveTab('template')}>
                   Definir modelo padrão

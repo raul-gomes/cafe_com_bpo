@@ -49,7 +49,6 @@ import {
 import { Skeleton } from '../../components/ui/skeleton'
 import { Alert, AlertTitle, AlertDescription } from '../../components/ui/alert'
 import { BetaEndingBanner } from '../../components/panel/BetaEndingBanner'
-import { UpsellBanner } from '../../components/panel/UpsellBanner'
 import { useUpgrade } from '../../components/ui/UpgradeModal'
 import {
   Dialog,
@@ -139,6 +138,7 @@ import { MemberLink } from '../../components/network/MemberLink'
 import { SubscriptionStatusCard } from '../../components/payments/SubscriptionStatusCard'
 import { BillingProfileForm } from '../../components/payments/BillingProfileForm'
 import { BillingHistoryList } from '../../components/payments/BillingHistoryList'
+import { SignupPlanOffer } from '../../components/payments/SignupPlanOffer'
 import type { Access } from '../../schemas/access'
 import type { Plan } from '../../schemas/plans'
 import type { BillingHistoryRow, BillingProfile } from '../../schemas/subscription'
@@ -1061,20 +1061,6 @@ const { data: access } = useAccess()
           <BetaEndingBanner expiresAt="2027-10-06T00:00:00Z" />
         </ComponentCard>
 
-        {/* ── UpsellBanner ── */}
-        <ComponentCard
-          name="UpsellBanner"
-          description="Convite para assinar no topo do painel, plano free · descartável por sessão"
-          howToUse={`import { UpsellBanner } from '../../components/panel/UpsellBanner'
-import { useAccess } from '../../api/hooks/useAccess'
-
-const { data: access } = useAccess()
-
-{access?.access === 'free' && <UpsellBanner />}`}
-        >
-          <UpsellBanner />
-        </ComponentCard>
-
         {/* ── UpgradeModal ── */}
         <ComponentCard
           name="UpgradeModal"
@@ -1082,7 +1068,7 @@ const { data: access } = useAccess()
           howToUse={`import { UpgradeProvider } from '../../components/ui/UpgradeModal'
 import { notifyPlanGate } from '../../api/planGate'
 
-// O provider é montado UMA vez na raiz (App.tsx, dentro do Router).
+// O provider é montado UMA vez na raiz das rotas (router.tsx, dentro do Router).
 // O apiClient dispara notifyPlanGate() sozinho quando o backend
 // responde 403 "Seu plano não permite esta ação"; o modal abre sozinho.
 // Para abrir manualmente (demonstração / chamadas fora do apiClient):
@@ -1092,6 +1078,30 @@ open()`}
           <Button variant="outline" onClick={openUpgrade}>
             Abrir UpgradeModal
           </Button>
+        </ComponentCard>
+
+        {/* ── SignupPlanOffer ── */}
+        <ComponentCard
+          name="SignupPlanOffer"
+          description="Oferta mostrada logo após o cadastro de um novo usuário: o investimento do plano ativo com 'Assinar' e 'Continuar sem assinar'."
+          howToUse={`import { SignupPlanOffer } from '../../components/payments/SignupPlanOffer'
+
+// Presentacional: o CadastroPage resolve o plano ativo (usePlans) e passa aqui.
+<SignupPlanOffer plan={activePlan} onContinue={() => navigate('/painel')} />`}
+        >
+          <SignupPlanOffer
+            plan={{
+              id: 'demo',
+              code: 'pro',
+              name: 'Pro',
+              price: '49.90',
+              cycle: 'MONTHLY',
+              is_active: true,
+              description: 'Acesso total com escrita em todos os módulos.',
+              subscriber_count: 3,
+            }}
+            onContinue={() => {}}
+          />
         </ComponentCard>
 
         {/* ── Dialog ── */}

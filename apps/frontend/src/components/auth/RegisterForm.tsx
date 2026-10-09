@@ -14,9 +14,12 @@ import logo from '../../assets/logo.png';
 
 interface RegisterFormProps {
   onClose?: () => void;
+  /** Chamada após o cadastro self-service (sem convite) para a página decidir
+   *  o próximo passo — ex.: exibir a oferta de assinatura antes do painel. */
+  onRegistered?: () => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistered }) => {
   const { register: authRegister } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -50,7 +53,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
         return;
       }
 
-      navigate('/painel');
+      if (onRegistered) {
+        onRegistered();
+      } else {
+        navigate('/painel');
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.detail ?? 'Erro ao criar conta. Tente novamente.';
       setServerError(Array.isArray(msg) ? msg[0]?.msg ?? String(msg) : String(msg));

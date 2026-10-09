@@ -402,10 +402,27 @@ describe('ContatosPage', () => {
   it('usuário free: clicar em "Novo contato" abre o modal de upgrade e não abre o formulário', async () => {
     mockAccess.value = { access: 'free', read_only_modules: ['captar', 'gestao'] }
     renderPage()
-    fireEvent.click(await screen.findByRole('button', { name: /novo contato/i }))
+    const btn = await screen.findByRole('button', { name: /novo contato/i })
+
+    // O cadeado identifica que a ação está trancada (só trava + cadeado, sem banner).
+    expect(btn.querySelector('.lucide-lock')).toBeInTheDocument()
+
+    fireEvent.click(btn)
 
     const dialog = await screen.findByRole('dialog')
     expect(dialog).toHaveTextContent('Assine para liberar a escrita')
     expect(screen.queryByPlaceholderText('Quem é o contato')).toBeNull()
+  })
+
+  it('usuário com acesso pleno: botão "Novo contato" sem cadeado e abre o formulário', async () => {
+    mockAccess.value = { access: 'active', read_only_modules: [] }
+    renderPage()
+    const btn = await screen.findByRole('button', { name: /novo contato/i })
+
+    expect(btn.querySelector('.lucide-lock')).toBeNull()
+
+    fireEvent.click(btn)
+
+    expect(await screen.findByPlaceholderText('Quem é o contato')).toBeInTheDocument()
   })
 })

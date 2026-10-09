@@ -22,13 +22,14 @@ type AccessShape = { access: string; read_only_modules: string[] }
 const FREE_READ_ONLY = ['captar', 'gestao']
 
 const Probe: React.FC<{ module: WriteGateModule }> = ({ module }) => {
-  const canWrite = useWriteGate(module)
+  const { canWrite, locked } = useWriteGate(module)
   const [result, setResult] = useState<'allowed' | 'blocked' | null>(null)
   const run = useCallback(() => setResult(canWrite() ? 'allowed' : 'blocked'), [canWrite])
   return (
     <>
       <button onClick={run}>guard</button>
       <span data-testid="result">{result ?? 'idle'}</span>
+      <span data-testid="locked">{locked ? 'true' : 'false'}</span>
     </>
   )
 }
@@ -59,6 +60,7 @@ describe('useWriteGate', () => {
     act(() => screen.getByRole('button', { name: 'guard' }).click())
 
     expect(screen.getByTestId('result')).toHaveTextContent('blocked')
+    expect(screen.getByTestId('locked')).toHaveTextContent('true')
     expect(await screen.findByRole('dialog')).toBeInTheDocument()
   })
 
@@ -69,6 +71,7 @@ describe('useWriteGate', () => {
     act(() => screen.getByRole('button', { name: 'guard' }).click())
 
     expect(screen.getByTestId('result')).toHaveTextContent('allowed')
+    expect(screen.getByTestId('locked')).toHaveTextContent('false')
     expect(screen.queryByRole('dialog')).toBeNull()
   })
 

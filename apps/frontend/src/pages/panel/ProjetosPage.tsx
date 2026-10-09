@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Briefcase, Plus } from 'lucide-react';
+import { Briefcase, Lock, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Button } from '../../components/ui/button';
@@ -33,7 +33,7 @@ type Aba = 'meus' | 'participo';
 export function ProjetosPage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
-  const canWriteProjects = useWriteGate('gestao');
+  const { canWrite: canWriteProjects, locked: projectsLocked } = useWriteGate('gestao');
   const { useNotificationsList } = useAppNotifications();
   const { data: naoLidas } = useNotificationsList(undefined, true);
 
@@ -135,6 +135,7 @@ export function ProjetosPage() {
           </p>
         </div>
         <Button onClick={() => { if (canWriteProjects()) setFormAberto(true); }}>
+          {projectsLocked && <Lock className="mr-2 size-4" />}
           <Plus className="mr-2 size-4" />
           Novo projeto
         </Button>

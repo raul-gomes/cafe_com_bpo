@@ -3,6 +3,13 @@ import { useCallback } from 'react';
 import { useAccess } from './useAccess';
 import { useUpgrade } from '../../components/ui/UpgradeModal';
 
+export interface WriteGate {
+  /** `true` quando o módulo está em `read_only_modules` (botão recebe o cadeado). */
+  locked: boolean;
+  /** `true` para seguir o fluxo; `false` bloqueado + modal de upgrade aberto. */
+  canWrite: () => boolean;
+}
+
 /**
  * Nomes de módulo do write gate (mesmo vocabulário de `GET /access`
  * `read_only_modules` — `src/core/entitlements.py`).
@@ -30,17 +37,22 @@ export type WriteGateModule =
  * (ex.: `operacional`, gravável por free).
  *
  * @param module Módulo do write gate que o botão escreve (`captar`/`gestao`).
- * @returns função-teste: `true` para seguir o fluxo, `false` bloqueado.
+ * @returns guard: `canWrite()` segue (`true`) ou bloqueia abrindo o modal; `locked`
+ *   indica se o módulo está trancado (a página marca o botão com o cadeado).
  */
-export const useWriteGate = (module: WriteGateModule): (() => boolean) => {
+export const useWriteGate = (module: WriteGateModule): WriteGate => {
   const { open } = useUpgrade();
   const { data: access } = useAccess();
 
-  return useCallback(() => {
-    if (!access || !access.read_only_modules.includes(module)) {
+  const locked = Boolean(access?.read_only_modules.includes(module));
+
+  const canWrite = useCallback(() => {
+    if (!locked) {
       return true;
     }
     open();
     return false;
-  }, [access, module, open]);
+  }, [locked, open]);
+
+  return { canWrite, locked };
 };

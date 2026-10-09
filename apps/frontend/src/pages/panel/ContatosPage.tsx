@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Button } from '../../components/ui/button';
@@ -41,7 +41,7 @@ const FILTROS: { value: OrigemContato | 'todos'; label: string }[] = [
  */
 export function ContatosPage() {
   const confirm = useConfirm();
-  const canWriteContacts = useWriteGate('gestao');
+  const { canWrite: canWriteContacts, locked: contactsLocked } = useWriteGate('gestao');
   const [contatos, setContatos] = useState<ContactResponse[]>([]);
   const [busca, setBusca] = useState('');
   const [origem, setOrigem] = useState<OrigemContato | 'todos'>('todos');
@@ -175,6 +175,7 @@ export function ContatosPage() {
           </p>
         </div>
         <Button onClick={abrirNovo}>
+          {contactsLocked && <Lock className="h-4 w-4" />}
           <UserPlus className="h-4 w-4" />
           Novo contato
         </Button>
