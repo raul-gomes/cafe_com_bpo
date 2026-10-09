@@ -9,6 +9,11 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
+import { Checkbox } from '../../components/ui/checkbox';
+import { Label } from '../../components/ui/label';
+import { LegalDocumentModal } from '../ui/LegalDocumentModal';
+import { TERMOS_USO_HTML } from '../../content/termos-uso';
+import { POLITICA_PRIVACIDADE_HTML } from '../../content/politica-privacidade';
 import { AlertCircle, X } from 'lucide-react';
 import logo from '../../assets/logo.png';
 
@@ -27,10 +32,15 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
   const [showPw, setShowPw] = useState(false);
   const [showCPw, setShowCPw] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
+  const [openTerms, setOpenTerms] = useState(false);
+  const [openPrivacy, setOpenPrivacy] = useState(false);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema) as any,
+    defaultValues: { terms: false },
   });
+
+  const termsAccepted = watch('terms');
 
   const onSubmit = async (data: RegisterFormData) => {
     setServerError(null);
@@ -40,6 +50,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
         email: data.email,
         company: data.company || '',
         password: data.password,
+        terms_accepted: data.terms,
       });
 
       if (inviteToken) {
@@ -65,6 +76,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
   };
 
   return (
+    <>
     <Card className="relative mx-auto w-full max-w-[768px]">
       <CardContent className="pt-7 px-8 pb-7">
         {onClose && (
@@ -129,7 +141,35 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
             {errors.confirmPassword && <p className="ds-error-text">{errors.confirmPassword.message}</p>}
           </div>
 
-          <div className="mt-6 border-t border-border pt-5">
+          <div className="flex items-start gap-2 pt-2">
+            <Checkbox
+              id="terms"
+              checked={termsAccepted}
+              onCheckedChange={(v) => setValue('terms', Boolean(v))}
+              disabled={isSubmitting}
+              className="mt-0.5 shrink-0"
+            />
+            <div className="text-[12px] text-muted-foreground leading-relaxed">
+              <Label htmlFor="terms" className="cursor-pointer">
+                Li e concordo com os{' '}
+              </Label>
+              <button type="button" onClick={() => setOpenTerms(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
+                Termos de Uso
+              </button>
+              <Label htmlFor="terms" className="cursor-pointer">
+                {' '}e{' '}
+              </Label>
+              <button type="button" onClick={() => setOpenPrivacy(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
+                Política de Privacidade
+              </button>
+              <Label htmlFor="terms" className="cursor-pointer">
+                {' '}(LGPD).
+              </Label>
+            </div>
+          </div>
+          {errors.terms && <p className="ds-error-text -mt-1">{errors.terms.message}</p>}
+
+          <div className="mt-2 border-t border-border pt-5">
             <Button type="submit" disabled={isSubmitting} className="w-full">
               {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
             </Button>
@@ -137,5 +177,9 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
         </form>
       </CardContent>
     </Card>
+
+    <LegalDocumentModal open={openTerms} onOpenChange={setOpenTerms} title="Termos de Uso" content={TERMOS_USO_HTML} />
+    <LegalDocumentModal open={openPrivacy} onOpenChange={setOpenPrivacy} title="Política de Privacidade" content={POLITICA_PRIVACIDADE_HTML} />
+    </>
   );
 };

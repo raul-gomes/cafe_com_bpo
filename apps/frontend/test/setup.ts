@@ -1,8 +1,12 @@
 import '@testing-library/jest-dom'
 
-// jsdom não implementa IntersectionObserver, ResizeObserver nem EventSource.
-// Mocks globais: FadeIn (IO), Carousel (RO) e hooks de SSE (ES).
+// jsdom não implementa IntersectionObserver, ResizeObserver, EventSource nem
+// PointerEvent. Mocks globais: FadeIn (IO), Carousel (RO), hooks de SSE (ES) e
+// PointerEvent (o Checkbox base-ui constrói `new PointerEvent('click', …)` ao
+// confirmar a marcação; sem o construtor o clique em um checkbox estoura).
 const globalAny = globalThis as any
+
+globalAny.PointerEvent = class PointerEvent extends globalThis.MouseEvent {}
 
 globalAny.IntersectionObserver = class {
   disconnect() {}

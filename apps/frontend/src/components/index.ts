@@ -8,7 +8,6 @@
 export { LoginForm } from './auth/LoginForm'
 export { RegisterForm } from './auth/RegisterForm'
 export { ProtectedRoute } from './auth/ProtectedRoute'
-export { RegisterModal } from './auth/RegisterModal'
 
 // Panel components
 export { PanelLayout } from './panel/PanelLayout'

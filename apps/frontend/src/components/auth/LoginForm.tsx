@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { LoginFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
@@ -193,6 +193,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
               : <><span>Entrar</span><LogIn size={15} /></>
             }
           </Button>
+
+          <div className="text-center mt-5 text-[13px] text-muted-foreground">
+            Ainda não tem conta?{' '}
+            <Link
+              to={inviteToken ? `/cadastro?invite_token=${encodeURIComponent(inviteToken)}` : '/cadastro'}
+              className="text-primary-strong no-underline font-medium hover:underline"
+            >
+              Cadastre-se
+            </Link>
+          </div>
         </form>
       </CardContent>
     </Card>

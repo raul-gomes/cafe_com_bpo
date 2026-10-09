@@ -69,6 +69,7 @@ interface RegisterPayload {
   email: string;
   company?: string;
   password: string;
+  terms_accepted: boolean;
 }
 
 interface AuthContextType {

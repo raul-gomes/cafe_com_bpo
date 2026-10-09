@@ -272,6 +272,9 @@ def test_grant_beta_skips_users_created_after_the_launch(db_session: Session):
     launch_moment = dt.datetime(2026, 10, 9, 9, 0, tzinfo=dt.UTC)
     before = _make_user(db_session)
     after = _make_user(db_session)
+    db_session.query(User).filter(User.id == before.id).update(
+        {User.created_at: launch_moment - dt.timedelta(days=1)}
+    )
     db_session.query(User).filter(User.id == after.id).update(
         {User.created_at: launch_moment + dt.timedelta(days=1)}
     )

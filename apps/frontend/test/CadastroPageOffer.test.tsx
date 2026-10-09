@@ -82,6 +82,7 @@ const submitCadastro = async () => {
   fireEvent.change(screen.getByPlaceholderText('seu@email.com'), { target: { value: 'joao@teste.com' } })
   fireEvent.change(screen.getByPlaceholderText('Mínimo 8 caracteres'), { target: { value: '12345678' } })
   fireEvent.change(screen.getByPlaceholderText('Repita a senha'), { target: { value: '12345678' } })
+  fireEvent.click(screen.getByRole('checkbox', { name: /li e concordo com os/i }))
   fireEvent.click(screen.getByRole('button', { name: /^Cadastrar$/i }))
 }
 
@@ -115,5 +116,18 @@ describe('CadastroPage — oferta de assinatura para novos usuários', () => {
 
     expect(await screen.findByTestId('page')).toHaveTextContent('Painel')
     expect(screen.queryByText(/investimento/i)).not.toBeInTheDocument()
+  })
+
+  it('bloqueia o cadastro sem aceitar os termos LGPD e não chama register', async () => {
+    renderCadastro()
+
+    fireEvent.change(screen.getByPlaceholderText('Ex: João Silva'), { target: { value: 'João' } })
+    fireEvent.change(screen.getByPlaceholderText('seu@email.com'), { target: { value: 'joao@teste.com' } })
+    fireEvent.change(screen.getByPlaceholderText('Mínimo 8 caracteres'), { target: { value: '12345678' } })
+    fireEvent.change(screen.getByPlaceholderText('Repita a senha'), { target: { value: '12345678' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Cadastrar$/i }))
+
+    expect(await screen.findByText(/aceitar os Termos de Uso e Política de Privacidade/i)).toBeInTheDocument()
+    expect(mockRegister).not.toHaveBeenCalled()
   })
 })

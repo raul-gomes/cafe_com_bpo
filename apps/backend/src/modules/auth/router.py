@@ -22,6 +22,7 @@ from src.core.rate_limit import (
     AUTH_FORGOT_PASSWORD_LIMIT,
     AUTH_LOGIN_LIMIT,
     AUTH_REFRESH_LIMIT,
+    AUTH_REGISTER_LIMIT,
     limiter,
 )
 
@@ -32,6 +33,7 @@ from .schemas import (
     RefreshTokenRequest,
     ResetPasswordRequest,
     TokenResponse,
+    UserCreate,
     UserCreateAdmin,
     UserLookupItem,
     UserLookupRequest,
@@ -54,6 +56,39 @@ def get_auth_service(
 
 AuthServiceDep = Annotated[AuthService, Depends(get_auth_service)]
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
+
+
+@router.post(
+    "/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED
+)
+@limiter.limit(AUTH_REGISTER_LIMIT)
+def register(
+    user_data: UserCreate, service: AuthServiceDep, request: Request
+) -> UserResponse:
+    """Cria uma conta self-service.
+
+    O aceite dos Termos de Uso e Política de Privacidade (LGPD) é exigido no
+    schema (`terms_accepted=True`, obrigatório) — registros sem aceite falham
+    na validação com 422, nunca gravam.
+
+    Args:
+        user_data: Dados do novo usuário (e-mail, senha, nome, empresa, LGPD).
+        service: Serviço de autenticação injetado.
+        request: Requisição HTTP (usada pelo rate limiter global).
+
+    Returns:
+        O novo usuário no formato de resposta pública (sem hash de senha).
+
+    Raises:
+        HTTPException: 400 quando o e-mail já está em uso na base.
+    """
+    try:
+        new_user = service.register_user(user_data)
+        log.info("New user registered: %s", user_data.email)
+        return new_user
+    except ValueError as e:
+        log.warning("Registration validation failed (%s): %s", user_data.email, e)
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post("/login", response_model=TokenResponse)

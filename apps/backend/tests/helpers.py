@@ -1,7 +1,8 @@
 """Utilitários compartilhados dos testes.
 
-O endpoint público /auth/register foi removido (registro desativado):
-usuários de teste são criados diretamente no banco via UserRepository.
+O registro público voltou (POST /auth/register, LGPD obrigatória — ver
+`test_auth.py`); este helper continua criando usuários direto no banco para
+os testes de fluxos que não exercitam a rota em si.
 """
 
 from datetime import datetime, timedelta, timezone
