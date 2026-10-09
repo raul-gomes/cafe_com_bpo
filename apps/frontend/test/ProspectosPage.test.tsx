@@ -4,7 +4,22 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
+import { UpgradeProvider } from '../src/components/ui/UpgradeModal'
 import { ProspectosPage } from '../src/pages/panel/ProspectosPage'
+
+const toast = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+  warning: vi.fn(),
+  info: vi.fn(),
+}))
+
+vi.mock('sonner', () => ({ toast }))
+
+const mockAccess = vi.hoisted(() => ({
+  value: undefined as { access: string; read_only_modules: string[] } | undefined,
+}))
+vi.mock('../src/api/hooks/useAccess', () => ({ useAccess: () => ({ data: mockAccess.value }) }))
 
 const queryClient = new QueryClient({
   defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -38,6 +53,7 @@ import { getClientSegments } from '../src/api/clients'
 describe('ProspectosPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAccess.value = undefined
     ;(getProspects as ReturnType<typeof vi.fn>).mockResolvedValue([
       { id: '1', name: 'Lead A', cnpj: '12.345.678/0001-99', segment: 'B2B - Consultoria & Assessoria' },
       { id: '2', name: 'Lead B', cnpj: '98.765.432/0001-10' },
@@ -54,9 +70,11 @@ describe('ProspectosPage', () => {
     return render(
       <QueryClientProvider client={queryClient}>
         <MemoryRouter initialEntries={['/painel/prospectos']}>
-          <ConfirmProvider>
-            <ProspectosPage />
-          </ConfirmProvider>
+          <UpgradeProvider>
+            <ConfirmProvider>
+              <ProspectosPage />
+            </ConfirmProvider>
+          </UpgradeProvider>
         </MemoryRouter>
       </QueryClientProvider>
     )
@@ -326,6 +344,33 @@ describe('ProspectosPage', () => {
         })
       )
     })
+  })
+
+  it('falha de criação pelo write gate: NÃO mostra toast genérico (modal de upgrade assume)', async () => {
+    (createProspect as ReturnType<typeof vi.fn>).mockRejectedValue({
+      response: { status: 403, data: { detail: 'Seu plano não permite esta ação' } },
+    })
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(await screen.findByText('Novo Prospecto'))
+    await user.type(screen.getByPlaceholderText('Nome do prospecto'), 'Empresa Bloqueada')
+    await user.click(screen.getByRole('button', { name: 'Criar Prospecto' }))
+
+    await waitFor(() => {
+      expect(createProspect).toHaveBeenCalled()
+    })
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('usuário free: clicar em "Novo Prospecto" abre o modal de upgrade e não abre o formulário', async () => {
+    mockAccess.value = { access: 'free', read_only_modules: ['captar', 'gestao'] }
+    renderPage()
+    const user = userEvent.setup()
+    await user.click(await screen.findByText('Novo Prospecto'))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Assine para liberar a escrita')
+    expect(screen.queryByPlaceholderText('Nome do prospecto')).toBeNull()
   })
 
   it('marca um prospecto como não captado e o remove da listagem', async () => {

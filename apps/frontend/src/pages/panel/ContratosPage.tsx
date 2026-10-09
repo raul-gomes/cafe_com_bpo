@@ -18,6 +18,7 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { toast } from 'sonner';
+import { useWriteGate } from '../../api/hooks/useWriteGate';
 
 const PLACEHOLDER_GROUPS: string[][] = [
   ['{{empresa_contratada}}', '{{cnpj_contratada}}', '{{endereco_contratada}}', '{{socio_contratada}}', '{{email_contratada}}'],
@@ -29,6 +30,7 @@ const PLACEHOLDER_GROUPS: string[][] = [
 
 export const ContratosPage: React.FC = () => {
   const navigate = useNavigate();
+  const canWriteContracts = useWriteGate('captar');
 
   const [activeTab, setActiveTab] = useState('contracts');
   const [contracts, setContracts] = useState<ContractData[]>([]);
@@ -121,7 +123,7 @@ export const ContratosPage: React.FC = () => {
             Gere contratos a partir do modelo padrão e finalize para converter o prospecto em cliente.
           </p>
         </div>
-        <Button onClick={() => setNewContractOpen(true)} data-testid="new-contract-button">
+        <Button onClick={() => { if (canWriteContracts()) setNewContractOpen(true); }} data-testid="new-contract-button">
           <Plus className="size-4" /> Novo contrato
         </Button>
       </div>
@@ -151,7 +153,7 @@ export const ContratosPage: React.FC = () => {
               <FileText className="mx-auto size-10 text-muted-foreground/50" />
               <p className="mt-3 text-sm text-muted-foreground">Nenhum contrato criado ainda.</p>
               <div className="mt-4 flex justify-center gap-2">
-                <Button onClick={() => setNewContractOpen(true)} data-testid="empty-new-contract">
+                <Button onClick={() => { if (canWriteContracts()) setNewContractOpen(true); }} data-testid="empty-new-contract">
                   <Plus className="size-4" /> Novo contrato
                 </Button>
                 <Button variant="outline" onClick={() => setActiveTab('template')}>

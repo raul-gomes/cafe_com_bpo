@@ -19,6 +19,7 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { toast } from 'sonner';
 import { cn } from '../../lib/utils';
 import { CLIENT_DECISION_LABELS, ClientDecision } from '../../api/proposals';
+import { useWriteGate } from '../../api/hooks/useWriteGate';
 
 interface Proposal {
   id: string;
@@ -40,6 +41,7 @@ export const OrcamentosPage: React.FC = () => {
   const [selectedProposal, setSelectedProposal] = useState<Proposal | null>(null);
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const canWriteProposals = useWriteGate('captar');
 
   const fetchProposals = async () => {
     try {
@@ -151,7 +153,7 @@ export const OrcamentosPage: React.FC = () => {
           <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Orçamentos</h1>
           <p className="text-[14px] text-muted-foreground">Gerencie e visualize todos os seus orçamentos salvos.</p>
         </div>
-        <Button variant="default" onClick={() => navigate('/painel/novo-orcamento')}>
+        <Button variant="default" onClick={() => { if (canWriteProposals()) navigate('/painel/novo-orcamento'); }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
@@ -219,7 +221,7 @@ export const OrcamentosPage: React.FC = () => {
                 </svg>
                 <h3 className="mb-2 text-[16px] font-bold text-foreground">Nenhum orçamento encontrado</h3>
                 <p className="mb-5 text-[14px] text-muted-foreground">Comece criando uma simulação na calculadora de preços.</p>
-                <Button variant="default" onClick={() => navigate('/painel/novo-orcamento')}>Nova Precificação</Button>
+                <Button variant="default" onClick={() => { if (canWriteProposals()) navigate('/painel/novo-orcamento'); }}>Nova Precificação</Button>
               </Card>
             ) : (
               proposals.map(p => (

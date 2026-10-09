@@ -1,9 +1,10 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 import React, { Suspense } from 'react'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PanelLayout } from './components/panel/PanelLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AdminRoute } from './components/auth/AdminRoute'
+import { UpgradeProvider } from './components/ui/UpgradeModal'
 
 // ── Lazy-loaded pages (default exports — use React.lazy) ─────────
 const HomePage = React.lazy(() => import('./pages/HomePage'))
@@ -30,7 +31,16 @@ function SuspenseWrapper({ children }: { children: React.ReactNode }) {
 }
 
 // ── Router definition ────────────────────────────────────────────
-export async function buildRouter() {
+/**
+ * Monta o array de rotas aplicação. O `UpgradeProvider` vive na raiz (layout
+ * sem path) — DENTRO do Router — porque o modal renderiza um `<Link>` "Assinar"
+ * que precisa do contexto de Router; fora dele (ex.: wrapper no `App.tsx`) o
+ * modal abre em um erro `Cannot destructure property 'basename'...` (tela preta
+ * ao clicar em criar, ver regressão em `test/UpgradeModalRouter.test.tsx`).
+ *
+ * @returns array de rotas para `createBrowserRouter`/`createMemoryRouter`
+ */
+export async function buildRoutes() {
   // Named-export pages are loaded dynamically inside the async function
   const { OAuthCallbackPage } = await import('./pages/OAuthCallbackPage')
   const { InvitationAcceptPage } = await import('./pages/InvitationAcceptPage')
@@ -62,7 +72,14 @@ export async function buildRouter() {
   const { ProjetosPage } = await import('./pages/panel/ProjetosPage')
   const { ProjetoDetalhePage } = await import('./pages/panel/ProjetoDetalhePage')
 
-  return createBrowserRouter([
+  return [
+    {
+      element: (
+        <UpgradeProvider>
+          <Outlet />
+        </UpgradeProvider>
+      ),
+      children: [
     {
       path: '/',
       element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
@@ -241,5 +258,16 @@ export async function buildRouter() {
       path: '*',
       element: <div data-testid="not-found">Página não encontrada</div>,
     }
-  ])
+      ],
+    },
+  ]
+}
+
+/**
+ * Cria o router de produção a partir das rotas montadas por `buildRoutes()`.
+ *
+ * @returns router do `createBrowserRouter`, pronto para o `RouterProvider`
+ */
+export async function buildRouter() {
+  return createBrowserRouter(await buildRoutes())
 }

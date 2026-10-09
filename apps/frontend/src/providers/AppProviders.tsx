@@ -1,17 +1,8 @@
 import React, { ReactNode } from 'react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryClientProvider } from '@tanstack/react-query';
+import { queryClient } from '../api/queryClient';
 import { AuthProvider } from '../context/AuthContext';
 import { ConfirmProvider } from '../components/ui/ConfirmDialog';
-
-// We instantiate QueryClient once here.
-const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      retry: 1,
-      refetchOnWindowFocus: false,
-    },
-  },
-});
 
 export const AppProviders: React.FC<{ children: ReactNode }> = ({ children }) => {
   return (

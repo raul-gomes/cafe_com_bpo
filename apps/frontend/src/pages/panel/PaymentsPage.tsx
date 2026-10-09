@@ -38,8 +38,20 @@ const periodEndLabel = (iso: string): string =>
         timeZone: 'UTC',
     }).format(new Date(iso));
 
-const errorDetail = (error: unknown): string | null =>
-    (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail ?? null;
+const firstApiError = (error: unknown): string | null => {
+    const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data
+        ?.detail;
+    if (typeof detail === 'string') {
+        return detail;
+    }
+    if (Array.isArray(detail) && detail.length > 0) {
+        const msg = (detail[0] as { msg?: unknown })?.msg;
+        if (typeof msg === 'string') {
+            return msg.replace(/^Value error, /, '');
+        }
+    }
+    return null;
+};
 
 export function PaymentsPage() {
     const { data: access } = useAccess();
@@ -83,7 +95,7 @@ export function PaymentsPage() {
             const checkout = await openCheckout.mutateAsync(planId);
             window.location.assign(checkout.link);
         } catch (error) {
-            toast.error(errorDetail(error) ?? 'Não foi possível abrir o checkout.');
+            toast.error(firstApiError(error) ?? 'Não foi possível abrir o checkout.');
         }
     };
 
@@ -108,14 +120,20 @@ export function PaymentsPage() {
                 toast.info('Checkout abandonado descartado. Nada foi cobrado.');
             }
         } catch (error) {
-            toast.error(errorDetail(error) ?? 'Não foi possível cancelar a assinatura.');
+            toast.error(firstApiError(error) ?? 'Não foi possível cancelar a assinatura.');
         }
     };
 
     const handleSaveProfile = (data: BillingDataInput) => {
         saveProfile.mutate(data, {
-            onError: () => {
-                toast.error('Não foi possível salvar os dados de cobrança.');
+            // A mensagem de produto do 422 (ex.: "Informe um CPF ou CNPJ válido")
+            // vai para o formulário pela prop `apiError` — regra §17.8: "erro de
+            // validação aparece no formulário". O toast genérico fica só para
+            // erros sem mensagem (rede, servidor).
+            onError: (error) => {
+                if (!firstApiError(error)) {
+                    toast.error('Não foi possível salvar os dados de cobrança.');
+                }
             },
         });
     };
@@ -155,6 +173,7 @@ export function PaymentsPage() {
                     profile={profile}
                     isLoading={isProfileLoading}
                     isSaving={saveProfile.isPending}
+                    apiError={saveProfile.error ? firstApiError(saveProfile.error) : null}
                     onSave={handleSaveProfile}
                 />
 

@@ -31,6 +31,9 @@ interface BillingProfileFormProps {
     isLoading: boolean;
     /** `true` enquanto o PUT está em voo — desabilita o botão. */
     isSaving: boolean;
+    /** Mensagem de produto do backend (§17.8: o dígito verificador é validado
+     *  no servidor e o erro de validação aparece no formulário). */
+    apiError?: string | null;
     /** Grava o payload validado; o toast de sucesso é esperado do caller. */
     onSave: (data: BillingDataInput) => void;
 }
@@ -39,6 +42,7 @@ export const BillingProfileForm: React.FC<BillingProfileFormProps> = ({
     profile,
     isLoading,
     isSaving,
+    apiError,
     onSave,
 }) => {
     const [cpfCnpj, setCpfCnpj] = useState('');
@@ -181,7 +185,9 @@ export const BillingProfileForm: React.FC<BillingProfileFormProps> = ({
                 </div>
             </div>
 
-            {error && <p className="mt-3 text-sm text-destructive">{error}</p>}
+            {error || apiError ? (
+                <p className="mt-3 text-sm text-destructive">{apiError ?? error}</p>
+            ) : null}
 
             <div className="mt-4 flex justify-end">
                 <Button onClick={handleSubmit} disabled={isSaving} aria-label="Salvar dados">

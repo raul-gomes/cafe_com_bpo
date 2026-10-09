@@ -19,6 +19,7 @@ import {
   type OrigemContato,
 } from '../../api/contacts';
 import { toContactPayload, type ContactFormData } from '../../schemas/contacts';
+import { useWriteGate } from '../../api/hooks/useWriteGate';
 
 const VAZIO = '—';
 
@@ -40,6 +41,7 @@ const FILTROS: { value: OrigemContato | 'todos'; label: string }[] = [
  */
 export function ContatosPage() {
   const confirm = useConfirm();
+  const canWriteContacts = useWriteGate('gestao');
   const [contatos, setContatos] = useState<ContactResponse[]>([]);
   const [busca, setBusca] = useState('');
   const [origem, setOrigem] = useState<OrigemContato | 'todos'>('todos');
@@ -97,6 +99,7 @@ export function ContatosPage() {
   }, [carregar, busca, origem]);
 
   const abrirNovo = () => {
+    if (!canWriteContacts()) return;
     setEmEdicao(null);
     setFormAberto(true);
   };

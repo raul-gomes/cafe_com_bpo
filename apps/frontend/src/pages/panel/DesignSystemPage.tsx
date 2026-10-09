@@ -50,6 +50,7 @@ import { Skeleton } from '../../components/ui/skeleton'
 import { Alert, AlertTitle, AlertDescription } from '../../components/ui/alert'
 import { BetaEndingBanner } from '../../components/panel/BetaEndingBanner'
 import { UpsellBanner } from '../../components/panel/UpsellBanner'
+import { useUpgrade } from '../../components/ui/UpgradeModal'
 import {
   Dialog,
   DialogTrigger,
@@ -444,6 +445,7 @@ export default function DesignSystemPage() {
   const [contatoDialogOpen, setContatoDialogOpen] = useState(false)
   const [projetoDialogOpen, setProjetoDialogOpen] = useState(false)
   const [searchDemo, setSearchDemo] = useState('contabilidade')
+  const { open: openUpgrade } = useUpgrade()
 
   // Controlled state for Checkbox examples
   const [chkTerms, setChkTerms] = useState(true)
@@ -1071,6 +1073,25 @@ const { data: access } = useAccess()
 {access?.access === 'free' && <UpsellBanner />}`}
         >
           <UpsellBanner />
+        </ComponentCard>
+
+        {/* ── UpgradeModal ── */}
+        <ComponentCard
+          name="UpgradeModal"
+          description="Modal de assinatura aberto pelo write gate do plano (403 · plano free) · CTA Assinar → /painel/pagamentos"
+          howToUse={`import { UpgradeProvider } from '../../components/ui/UpgradeModal'
+import { notifyPlanGate } from '../../api/planGate'
+
+// O provider é montado UMA vez na raiz (App.tsx, dentro do Router).
+// O apiClient dispara notifyPlanGate() sozinho quando o backend
+// responde 403 "Seu plano não permite esta ação"; o modal abre sozinho.
+// Para abrir manualmente (demonstração / chamadas fora do apiClient):
+const { open } = useUpgrade()
+open()`}
+        >
+          <Button variant="outline" onClick={openUpgrade}>
+            Abrir UpgradeModal
+          </Button>
         </ComponentCard>
 
         {/* ── Dialog ── */}
@@ -1996,6 +2017,7 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
   profile={profile}        // null quando o usuário nunca salvou
   isLoading={isLoading}
   isSaving={isSaving}
+  apiError={saveError}     // opcional: mensagem de produto do 422 (ex.: CNPJ inválido)
   onSave={(data) => saveProfile.mutate(data)}   // PUT /subscriptions/billing
 />`}
         >

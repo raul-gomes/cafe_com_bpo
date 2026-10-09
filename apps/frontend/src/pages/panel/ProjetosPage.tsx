@@ -19,6 +19,7 @@ import {
   type ProjectResponse,
 } from '../../api/network';
 import { toProjetoPayload, type ProjetoFormData } from '../../schemas/projects';
+import { useWriteGate } from '../../api/hooks/useWriteGate';
 
 type Aba = 'meus' | 'participo';
 
@@ -32,6 +33,7 @@ type Aba = 'meus' | 'participo';
 export function ProjetosPage() {
   const navigate = useNavigate();
   const confirm = useConfirm();
+  const canWriteProjects = useWriteGate('gestao');
   const { useNotificationsList } = useAppNotifications();
   const { data: naoLidas } = useNotificationsList(undefined, true);
 
@@ -132,7 +134,7 @@ export function ProjetosPage() {
             e a equipe de cada um.
           </p>
         </div>
-        <Button onClick={() => setFormAberto(true)}>
+        <Button onClick={() => { if (canWriteProjects()) setFormAberto(true); }}>
           <Plus className="mr-2 size-4" />
           Novo projeto
         </Button>

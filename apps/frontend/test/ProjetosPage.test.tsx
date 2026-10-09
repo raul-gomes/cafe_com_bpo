@@ -1,8 +1,14 @@
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { UpgradeProvider } from '../src/components/ui/UpgradeModal'
 import { ProjetosPage } from '../src/pages/panel/ProjetosPage'
 import { ProjectResponse } from '../src/api/network'
+
+const mockAccess = vi.hoisted(() => ({
+  value: undefined as { access: string; read_only_modules: string[] } | undefined,
+}))
+vi.mock('../src/api/hooks/useAccess', () => ({ useAccess: () => ({ data: mockAccess.value }) }))
 
 const mockGetMyProjects = vi.hoisted(() => vi.fn())
 const mockGetProjects = vi.hoisted(() => vi.fn())
@@ -73,7 +79,14 @@ function renderPage() {
   return render(
     <MemoryRouter initialEntries={['/painel/projetos']}>
       <Routes>
-        <Route path="/painel/projetos" element={<ProjetosPage />} />
+        <Route
+          path="/painel/projetos"
+          element={
+            <UpgradeProvider>
+              <ProjetosPage />
+            </UpgradeProvider>
+          }
+        />
         <Route path="/painel/projetos/:id" element={<div>detalhe</div>} />
       </Routes>
     </MemoryRouter>
@@ -83,6 +96,7 @@ function renderPage() {
 describe('ProjetosPage — Gestão › Projetos', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAccess.value = undefined
     mockConfirm.mockResolvedValue(true)
     mockUseNotificationsList.mockReturnValue([])
     mockGetMyProjects.mockResolvedValue([MEU, PARTICIPO])
@@ -299,5 +313,15 @@ describe('ProjetosPage — Gestão › Projetos', () => {
     fireEvent.click(aviso)
 
     expect(await screen.findByText('detalhe')).toBeInTheDocument()
+  })
+
+  it('usuário free: clicar em "Novo projeto" abre o modal de upgrade e não abre o formulário', async () => {
+    mockAccess.value = { access: 'free', read_only_modules: ['captar', 'gestao'] }
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /novo projeto/i }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Assine para liberar a escrita')
+    expect(screen.queryByPlaceholderText('Ex: Implantação de BPO financeiro')).toBeNull()
   })
 })

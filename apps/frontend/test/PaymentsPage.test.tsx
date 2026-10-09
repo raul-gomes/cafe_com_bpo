@@ -223,6 +223,55 @@ describe('PaymentsPage', () => {
     replaceSpy.mockRestore()
   })
 
+  it('salvar cobrança com CNPJ inválido: mostra a mensagem do backend no formulário, não o toast genérico', async () => {
+    subscriptionApi.saveBillingProfile.mockRejectedValue({
+      response: {
+        status: 422,
+        data: {
+          detail: [
+            {
+              loc: ['body', 'cpf_cnpj'],
+              msg: 'Value error, Informe um CPF ou CNPJ válido',
+              type: 'value_error',
+            },
+          ],
+        },
+      },
+    })
+    renderPage()
+
+    const cpfInput = await screen.findByLabelText(/CPF\/CNPJ/)
+    fireEvent.change(cpfInput, {
+      target: { value: '12345678000190' },
+    })
+    fireEvent.change(screen.getByLabelText(/Telefone/), {
+      target: { value: '47999998888' },
+    })
+    fireEvent.change(screen.getByLabelText(/Endereço/), {
+      target: { value: 'Av. Paulista' },
+    })
+    fireEvent.change(screen.getByLabelText(/Número/), {
+      target: { value: '100' },
+    })
+    fireEvent.change(screen.getByLabelText(/Cidade/), {
+      target: { value: 'São Paulo' },
+    })
+    fireEvent.change(screen.getByLabelText(/UF/), {
+      target: { value: 'SP' },
+    })
+    fireEvent.change(screen.getByLabelText(/CEP/), {
+      target: { value: '01310000' },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Salvar dados' }))
+
+    // §17.8: "Erro de validação aparece no formulário" — o 422 do servidor é uma
+    // lista de erros, e o frontend deve mostrar a mensagem do campo, não o toast
+    // genérico "Não foi possível salvar os dados de cobrança."
+    await screen.findByText('Informe um CPF ou CNPJ válido')
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
   it('bloco de histórico: renderiza as cobranças do mês com valor e link da fatura em texto', async () => {
     subscriptionApi.listBillingHistory.mockResolvedValue([
       {

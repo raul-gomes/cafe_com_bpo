@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import axios, { type AxiosResponse, type InternalAxiosRequestConfig } from 'axios';
 
 import { apiClient, tokenStorage } from '../src/api/client';
+import { PLAN_GATE_DETAIL, subscribePlanGate } from '../src/api/planGate';
 
 describe('interceptor 401 do apiClient', () => {
   afterEach(() => {
@@ -80,5 +81,29 @@ describe('interceptor 401 do apiClient', () => {
       expect.objectContaining({ withCredentials: true }),
     );
     expect(tokenStorage.getToken()).toBe('novo-token');
+  });
+
+  it('403 do write gate notifica o modal de upgrade', async () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribePlanGate(listener);
+    try {
+      apiClient.defaults.adapter = respondWith(403, { detail: PLAN_GATE_DETAIL });
+      await expect(apiClient.post('/prospects', {})).rejects.toThrow('Request failed');
+      expect(listener).toHaveBeenCalledTimes(1);
+    } finally {
+      unsubscribe();
+    }
+  });
+
+  it('403 com outro detail NÃO notifica o modal de upgrade', async () => {
+    const listener = vi.fn();
+    const unsubscribe = subscribePlanGate(listener);
+    try {
+      apiClient.defaults.adapter = respondWith(403, { detail: 'Você não tem permissão' });
+      await expect(apiClient.get('/prospects')).rejects.toThrow('Request failed');
+      expect(listener).not.toHaveBeenCalled();
+    } finally {
+      unsubscribe();
+    }
   });
 });

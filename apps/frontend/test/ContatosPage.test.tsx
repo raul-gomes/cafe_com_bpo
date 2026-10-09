@@ -2,8 +2,14 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
+import { UpgradeProvider } from '../src/components/ui/UpgradeModal'
 import { ContatosPage } from '../src/pages/panel/ContatosPage'
 import { ContactResponse } from '../src/api/contacts'
+
+const mockAccess = vi.hoisted(() => ({
+  value: undefined as { access: string; read_only_modules: string[] } | undefined,
+}))
+vi.mock('../src/api/hooks/useAccess', () => ({ useAccess: () => ({ data: mockAccess.value }) }))
 
 const mockListContacts = vi.hoisted(() => vi.fn())
 const mockCreateContact = vi.hoisted(() => vi.fn())
@@ -61,9 +67,11 @@ const SEM_PESSOA: ContactResponse = {
 function renderPage() {
   return render(
     <MemoryRouter>
-      <ConfirmProvider>
-        <ContatosPage />
-      </ConfirmProvider>
+      <UpgradeProvider>
+        <ConfirmProvider>
+          <ContatosPage />
+        </ConfirmProvider>
+      </UpgradeProvider>
     </MemoryRouter>
   )
 }
@@ -84,6 +92,7 @@ const busca = () => screen.getByLabelText('Buscar contatos')
 describe('ContatosPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAccess.value = undefined
     mockListContacts.mockResolvedValue([])
   })
 
@@ -388,5 +397,15 @@ describe('ContatosPage', () => {
     renderPage()
 
     expect(await screen.findByText(/não foi possível carregar/i)).toBeInTheDocument()
+  })
+
+  it('usuário free: clicar em "Novo contato" abre o modal de upgrade e não abre o formulário', async () => {
+    mockAccess.value = { access: 'free', read_only_modules: ['captar', 'gestao'] }
+    renderPage()
+    fireEvent.click(await screen.findByRole('button', { name: /novo contato/i }))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Assine para liberar a escrita')
+    expect(screen.queryByPlaceholderText('Quem é o contato')).toBeNull()
   })
 })
