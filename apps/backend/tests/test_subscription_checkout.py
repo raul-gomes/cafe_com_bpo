@@ -28,6 +28,7 @@ ships only if the page reads it.
 """
 
 import json
+import logging
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 from uuid import UUID, uuid4
@@ -618,6 +619,60 @@ def test_the_callbacks_come_from_the_configured_frontend_url(
     frontend = get_settings().frontend_url.rstrip("/")
     assert callback["successUrl"].startswith(frontend)
     assert callback["cancelUrl"].startswith(frontend)
+
+
+def test_a_localhost_frontend_url_warns_loudly(
+    db_session: Session, monkeypatch, caplog
+):
+    """A `localhost` callback host is refused by Asaas, so it must not be silent.
+
+    The provider answers 400 `"O campo successUrl é inválido"` for `localhost`,
+    which the user sees only as the opaque 502 from `_call_provider`. The URL is
+    still built (the guard never changes behavior), but the log carries a warning
+    that names the misconfiguration instead of reading as a provider outage.
+
+    Args:
+        db_session: Database session.
+        monkeypatch: pytest monkeypatch fixture.
+        caplog: pytest captured-log records.
+    """
+    settings = get_settings()
+    monkeypatch.setattr(
+        # `get_settings()` is lru_cached; the attribute swap is undone by
+        # monkeypatch so no other test inherits a localhost frontend.
+        settings,
+        "frontend_url",
+        "http://localhost",
+    )
+    service = CheckoutService(db_session, AsaasClient())
+    with caplog.at_level(logging.WARNING, logger="src.modules.subscriptions.service"):
+        url = service._callback_url("/painel/pagamentos?checkout=paid")
+
+    assert url == "http://localhost/painel/pagamentos?checkout=paid"
+    assert any(
+        "localhost" in record.message and "FRONTEND_URL" in record.message
+        for record in caplog.records
+    )
+
+
+def test_a_non_localhost_frontend_url_is_silent(
+    db_session: Session, monkeypatch, caplog
+):
+    """Only the `localhost` hostname is refused by Asaas — IPv4 and public hosts pass.
+
+    Args:
+        db_session: Database session.
+        monkeypatch: pytest monkeypatch fixture.
+        caplog: pytest captured-log records.
+    """
+    settings = get_settings()
+    monkeypatch.setattr(settings, "frontend_url", "http://127.0.0.1")
+    service = CheckoutService(db_session, AsaasClient())
+    with caplog.at_level(logging.WARNING, logger="src.modules.subscriptions.service"):
+        url = service._callback_url("/painel/pagamentos?checkout=paid")
+
+    assert url == "http://127.0.0.1/painel/pagamentos?checkout=paid"
+    assert not caplog.records
 
 
 def test_a_subscription_id_is_never_taken_from_the_body(

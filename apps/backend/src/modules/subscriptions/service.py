@@ -28,6 +28,7 @@ from calendar import monthrange
 from collections.abc import Awaitable, Callable
 from datetime import UTC, date, datetime, time, timedelta
 from typing import NamedTuple, NoReturn
+from urllib.parse import urlsplit
 from uuid import UUID, uuid4
 
 import httpx
@@ -673,6 +674,13 @@ class CheckoutService:
     def _callback_url(self, path: str) -> str:
         """Builds a redirect the payer lands on after the hosted page.
 
+        Asaas refuses callback URLs hosted on `localhost` (the provider cannot
+        route to it) and answers 400 `"O campo successUrl é inválido"`, which
+        the user sees only as the opaque 502 returned by `_call_provider`. The
+        URL is still built and sent — the warning exists so a misconfigured
+        `FRONTEND_URL` shows up in the log instead of looking like a provider
+        outage.
+
         Args:
             path: Path and query the frontend reads.
 
@@ -680,6 +688,13 @@ class CheckoutService:
             The absolute URL, taken from the configured frontend.
         """
         frontend = get_settings().frontend_url.rstrip("/")
+        if urlsplit(frontend).hostname == "localhost":
+            logger.warning(
+                "FRONTEND_URL is %s, which the Asaas provider refuses for "
+                "checkout callbacks: every checkout will answer 502. "
+                "Use 127.0.0.1 (or a public host) in non-production.",
+                frontend,
+            )
         return f"{frontend}{path}"
 
 
