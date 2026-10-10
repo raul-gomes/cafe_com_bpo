@@ -1,6 +1,6 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
@@ -109,7 +109,15 @@ import { getContract, previewContract } from '../src/api/contracts'
 import { apiClient } from '../src/api/client'
 
 describe('GovernancaPage', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
   beforeEach(() => {
+    // Os fixtures vivem em 2026-09 e a página abre no mês atual: congela só o
+    // Date (timers reais para não travar userEvent/waitFor).
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(new Date('2026-09-20T12:00:00'))
     vi.clearAllMocks()
     ;(getGovernanca as ReturnType<typeof vi.fn>).mockResolvedValue({
       months: ['2026-09', '2026-08'],

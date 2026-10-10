@@ -193,28 +193,27 @@ class TestMultiActivity:
                 headers=auth,
             )
 
-        assign_resp = client.post(
-            "/tasks/client-templates/",
-            json={
-                "client_id": cli["id"],
-                "template_id": tmpl_id,
-            },
-            headers=auth,
-        )
+        # Relógio congelado em 20/07 (depois do due_day=15): o vínculo não gera
+        # a task do mês corrente e ela fica para o scheduler. Sem o congelamento,
+        # rodar o teste até o dia 15 gerava as tasks no vínculo e o card
+        # pendente bloqueava o scheduler (regra §1.2), quebrando a asserção.
+        with freeze_assignments_clock():
+            assign_resp = client.post(
+                "/tasks/client-templates/",
+                json={
+                    "client_id": cli["id"],
+                    "template_id": tmpl_id,
+                },
+                headers=auth,
+            )
         assert assign_resp.status_code == 201
         data = assign_resp.json()
-
-        # Monthly: se o due_day ainda está por vir neste mês, o vínculo já
-        # cria a task do mês corrente; se já passou, fica para o scheduler.
-        today = datetime.now(timezone.utc).day
-        expected_on_assign = 2 if 15 >= today else 0
-        assert data["tasks_generated"] == expected_on_assign, (
-            f"Expected {expected_on_assign} monthly tasks on assignment "
-            f"(due_day=15, today={today}), got {data['tasks_generated']}"
+        assert data["tasks_generated"] == 0, (
+            f"Expected 0 monthly tasks on assignment after due_day, "
+            f"got {data['tasks_generated']}"
         )
 
-        # Scheduler mensal gera as tasks do PRÓXIMO mês (período distinto) —
-        # sempre 2 novas (1 por atividade), independente da branch acima.
+        # Scheduler mensal gera as tasks do PRÓXIMO mês — 1 por atividade.
         sched_resp = client.post("/tasks/scheduler/run-monthly", headers=auth)
         assert sched_resp.status_code == 200
         result = sched_resp.json()
