@@ -99,7 +99,7 @@
   color: var(--ds-text-muted);
   font-size: 11px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   padding: 5px 14px;
   cursor: pointer;
   transition: all 0.15s ease;
@@ -132,7 +132,7 @@
   color: var(--ds-text);
   font-size: 13px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   cursor: pointer;
   transition: all 0.15s ease;
   text-align: left;
@@ -207,7 +207,7 @@
   color: var(--ds-text-muted);
   font-size: 13px;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   cursor: pointer;
   text-align: left;
   transition: all 0.15s ease;
@@ -273,7 +273,7 @@
   color: var(--ds-text-muted);
   font-size: 13px;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   cursor: pointer;
   transition: all 0.15s ease;
   background: transparent;
@@ -360,7 +360,7 @@
   color: #ff453a;
   font-size: 13px;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   cursor: pointer;
   transition: background 0.15s ease;
   background: transparent;

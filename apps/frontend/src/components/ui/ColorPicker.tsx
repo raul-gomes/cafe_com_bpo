@@ -124,7 +124,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({
                   className={cn(
                     'aspect-square cursor-pointer rounded-md border-2 transition-transform hover:scale-110',
                     value.toLowerCase() === swatch.hex
-                      ? 'border-white shadow-[0_0_0_2px_hsl(var(--primary))]'
+                      ? 'border-white shadow-[0_0_0_2px_var(--primary)]'
                       : 'border-border',
                   )}
                   style={{ background: swatch.hex }}

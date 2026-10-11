@@ -1,101 +1,96 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
-import { NotificationBell } from './NotificationBell';
+import { PanelTopBar } from './PanelTopBar';
 import { Toaster } from '../ui/sonner';
+import { sectionForPath } from './navigation';
 
-function getInitialTheme(): 'light' | 'dark' {
-    try {
-      const stored = localStorage.getItem('cafe_bpo_theme');
-      if (stored === 'light' || stored === 'dark') return stored;
-    } catch {
-      // localStorage may be unavailable
-    }
-  return 'dark';
-}
+const COLLAPSED_KEY = 'cafe_bpo_sidebar_collapsed';
 
 function getInitialCollapsed(): boolean {
   try {
-    return localStorage.getItem('cafe_bpo_sidebar_collapsed') === '1';
+    return localStorage.getItem(COLLAPSED_KEY) === '1';
   } catch {
     return false;
   }
 }
 
-function getInitialMode(): string {
-  try {
-    return localStorage.getItem('cafe_bpo_active_menu') || 'operacional';
-  } catch {
-    return 'operacional';
-  }
-}
-
+/**
+ * Casca do painel no padrão .cafe-workspace do kit V4. A área da rota atual
+ * define o módulo (data-cafe-module): ao trocar de área, muda a cor de
+ * orientação sem trocar a atmosfera escolhida pelo usuário.
+ */
 export const PanelLayout: React.FC = () => {
-  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
+  const { pathname } = useLocation();
   const [collapsed, setCollapsed] = useState<boolean>(getInitialCollapsed);
-  const [mode, setMode] = useState<string>(getInitialMode);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('cafe_bpo_theme', theme);
-    } catch {
-      // localStorage may be unavailable
-    }
-    document.documentElement.classList.toggle('light-theme', theme === 'light');
-  }, [theme]);
-
-  useEffect(() => {
-    try {
-      localStorage.setItem('cafe_bpo_active_menu', mode);
-    } catch {
-      // localStorage may be unavailable
-    }
-    document.body.setAttribute('data-mode', mode);
-    return () => {
-      document.body.removeAttribute('data-mode');
-    };
-  }, [mode]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
-  }, []);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const drawerRef = useRef<HTMLDialogElement>(null);
+  const section = sectionForPath(pathname);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed(prev => {
       const next = !prev;
       try {
-        localStorage.setItem('cafe_bpo_sidebar_collapsed', next ? '1' : '0');
+        localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
       } catch {
-        // localStorage may be unavailable
+        // armazenamento indisponível: vale só nesta sessão
       }
       return next;
     });
   }, []);
 
+  // Gaveta do celular: <dialog> nativo (Escape e foco preso vêm do navegador).
+  useEffect(() => {
+    const dialog = drawerRef.current;
+    if (!dialog) return;
+    if (mobileNavOpen && !dialog.open) dialog.showModal?.();
+    if (!mobileNavOpen && dialog.open) dialog.close?.();
+  }, [mobileNavOpen]);
+
   return (
     <div
-      data-mode={mode}
-      className={`panel-mode-grid grid h-screen w-screen overflow-hidden mode-transition${theme === 'light' ? ' light-theme' : ''}`}
-      style={{ gridTemplateColumns: collapsed ? '72px 1fr' : '260px 1fr', gridTemplateRows: '1fr' }}>
-      <aside className="col-start-1 row-start-1">
-        <PanelSidebar 
-          isOpen={false} 
-          onClose={() => {}}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          collapsed={collapsed}
-          onToggleCollapsed={toggleCollapsed}
-          mode={mode}
-          onModeChange={setMode}
+      // Linha única com altura da tela: sem isso a linha "auto" cresce com o menu e ele não rola.
+      className="cafe-workspace panel-shell h-screen w-screen grid-rows-[minmax(0,100vh)] overflow-hidden border-0"
+      data-nav={collapsed ? 'collapsed' : 'expanded'}
+      data-cafe-module={section?.module}
+    >
+      <PanelSidebar collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+
+      <div className="flex h-screen min-w-0 flex-col overflow-hidden">
+        <PanelTopBar
+          sectionLabel={section?.label ?? null}
+          onOpenMobileNav={() => setMobileNavOpen(true)}
+          mobileNavOpen={mobileNavOpen}
         />
-      </aside>
-      <main className="panel-main relative col-start-2 row-start-1 overflow-y-auto bg-background p-7 text-foreground">
-        <div className="fixed right-0 top-0 z-100 flex items-center gap-2 px-6 py-3">
-          <NotificationBell />
+        <main className="panel-main relative min-w-0 flex-1 overflow-y-auto bg-background px-[clamp(16px,3vw,40px)] py-[28px] text-foreground">
+          {/* A chave muda só ao trocar de módulo: a ficha sobe ao entrar numa área nova. */}
+          <div key={section?.id ?? 'inicio'} className="panel-module-enter">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+
+      <dialog
+        ref={drawerRef}
+        id="painel-menu-celular"
+        aria-label="Menu do painel"
+        onClose={() => setMobileNavOpen(false)}
+        className="m-0 h-dvh max-h-none w-[min(320px,86vw)] max-w-none border-0 bg-transparent p-0 backdrop:bg-black/50"
+      >
+        <div className="relative h-full" data-cafe-module={section?.module}>
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(false)}
+            className="absolute right-[12px] top-[12px] z-10 grid size-[44px] place-items-center rounded-full text-muted-foreground hover:bg-accent"
+            aria-label="Fechar menu"
+          >
+            <svg className="size-[20px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+          <PanelSidebar variant="drawer" onNavigate={() => setMobileNavOpen(false)} />
         </div>
-        <Outlet />
-        <Toaster />
-      </main>
+      </dialog>
+
+      <Toaster />
     </div>
   );
 };

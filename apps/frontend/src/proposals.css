@@ -280,7 +280,7 @@
   color: var(--ds-text-muted);
   font-size: 13px;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   cursor: pointer;
   padding: 6px 0;
   transition: color 0.15s ease;
@@ -308,7 +308,7 @@
   border-radius: var(--radius-md);
   font-size: 12px;
   font-weight: 600;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   cursor: pointer;
   transition: all 0.15s ease;
   border: 1px solid;

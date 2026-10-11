@@ -1883,12 +1883,12 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
                 data-mode={m.mode}
                 className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3"
               >
-                <span className="size-4 shrink-0 rounded-full" style={{ background: 'hsl(var(--primary))' }} />
+                <span className="size-4 shrink-0 rounded-full" style={{ background: 'var(--primary)' }} />
                 <div className="flex-1">
                   <div className="text-[13px] font-bold text-foreground">{m.label}</div>
                   <div className="text-[11px] text-muted-foreground">{m.desc}</div>
                 </div>
-                <span className="text-[11px] font-semibold text-primary-strong">hsl(var(--primary))</span>
+                <span className="text-[11px] font-semibold text-primary-strong">var(--primary)</span>
               </div>
             ))}
           </div>

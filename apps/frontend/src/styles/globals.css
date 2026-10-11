@@ -1,270 +1,140 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@tailwind base;
+/* O reset do Tailwind (preflight) fica numa camada própria, declarada antes do
+   kit em index.html, para não anular os componentes cafe-* — estilos fora de
+   camada sempre vencem os de dentro de uma camada, independente de especificidade. */
+@layer tw-base {
+  @tailwind base;
+}
 @tailwind components;
 @tailwind utilities;
 
+/* ════════════════════════════════════════════════════════════════════
+   Ponte Café com BPO V4 → tokens do app (shadcn + --ds-* legados)
+
+   Fonte da verdade: public/brand/kit-v4/cafe-design-system.css e
+   cafe-themes.css (seis atmosferas: data-cafe-palette × data-cafe-mode no
+   <html>). Aqui só apontamos os nomes que as telas já usam para os tokens
+   do kit — nenhuma cor nova é inventada. Como os valores vêm do kit, a troca
+   de atmosfera vale para todas as telas sem tocar nelas.
+
+   Os tokens agora são cores completas (não mais trincas HSL): o Tailwind
+   aplica opacidade com color-mix (ver tailwind.config.js).
+   ════════════════════════════════════════════════════════════════════ */
+
 @layer base {
   :root {
-    /* ── Dark theme (default) ── */
-    --background: 0 0% 7%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 13%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 43 87% 56%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 16%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 13%;
-    --muted-foreground: 0 0% 55%;
-    --accent: 43 87% 56%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 100% / 0.08;
-    --input: 0 0% 100% / 0.08;
-    --ring: 43 87% 56%;
-    --radius: 0.25rem;
-    --chart-1: 43 87% 56%;
-    --chart-2: 0 0% 55%;
-    --chart-3: 0 0% 35%;
-    --chart-4: 0 0% 20%;
-    --chart-5: 0 0% 13%;
-    --sidebar: 0 0% 10%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 43 87% 56%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 16%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 100% / 0.08;
-    --sidebar-ring: 43 87% 56%;
+    --background: var(--cafe-canvas);
+    --foreground: var(--cafe-ink);
+    --card: var(--cafe-paper);
+    --card-foreground: var(--cafe-ink);
+    --popover: var(--cafe-paper);
+    --popover-foreground: var(--cafe-ink);
+    /* Ação principal = acento da família (amarelo da marca na família Café). */
+    --primary: var(--cafe-accent);
+    --primary-foreground: var(--cafe-on-accent);
+    /* Texto/ícone de destaque: o acento amarelo não tem contraste como texto no
+       claro, então o kit usa o tom de foco (dourado escuro / verde / azul). */
+    --primary-strong: var(--cafe-focus);
+    --primary-dark: var(--cafe-accent-hover);
+    --secondary: var(--cafe-panel);
+    --secondary-foreground: var(--cafe-ink);
+    --muted: var(--cafe-panel);
+    --muted-foreground: var(--cafe-muted);
+    --accent: var(--cafe-accent-soft);
+    --accent-foreground: var(--cafe-ink);
+    --destructive: var(--cafe-danger);
+    --destructive-foreground: var(--cafe-paper);
+    --success: var(--cafe-success);
+    --warning: var(--cafe-warning);
+    --border: var(--cafe-line);
+    --input: var(--cafe-line-strong);
+    --ring: var(--cafe-focus);
+    --radius: var(--cafe-radius-sm);
+    --chart-1: var(--cafe-accent);
+    --chart-2: var(--cafe-module-captacao);
+    --chart-3: var(--cafe-module-comunidade);
+    --chart-4: var(--cafe-module-negocios);
+    --chart-5: var(--cafe-module-notas);
 
-    /* ── Legacy --ds-* aliases (for backward compat during migration) ── */
-    --ds-black:        hsl(var(--background));
-    --ds-surface:      hsl(var(--card));
-    --ds-surface-1:    #1a1a1a;
-    --ds-surface-2:    #222222;
-    --ds-surface-3:    #2a2a2a;
-    --ds-primary:      hsl(var(--primary));
-    --ds-primary-strong: #fbbf24;
-    --ds-primary-soft: rgba(251,191,36,0.10);
-    --ds-primary-dark: #d4a017;
-    --ds-primary-text: hsl(var(--primary-foreground));
-    --ds-border:       hsl(var(--border));
-    --ds-text:         hsl(var(--foreground));
-    --ds-text-muted:   hsl(var(--muted-foreground));
-    --ds-text-subtle:  rgba(255,255,255,0.35);
-    --ds-error:        hsl(var(--destructive));
-    --ds-success:      #22c55e;
-    --ds-success-strong: #4ade80;
-    --ds-warning:      hsl(var(--primary));
-    --ds-info:         #3b82f6;
-    --ds-overlay:      rgba(0, 0, 0, 0.75);
-    --radius-sm:       2px;
-    --radius-md:       4px;
-    --radius-lg:       8px;
-    --ds-primary-btn-text:      #fbbf24;
-    --ds-primary-btn-border:    rgba(251, 191, 36, 0.2);
-    --ds-primary-btn-hover-bg:  rgba(251, 191, 36, 0.1);
+    /* ── Aliases --ds-* das telas antigas ── */
+    --ds-black:        var(--cafe-canvas);
+    --ds-surface:      var(--cafe-paper);
+    --ds-surface-1:    var(--cafe-panel);
+    --ds-surface-2:    var(--cafe-panel-strong);
+    --ds-surface-3:    var(--cafe-panel-strong);
+    --ds-primary:      var(--cafe-accent);
+    --ds-primary-strong: var(--cafe-focus);
+    --ds-primary-soft: var(--cafe-accent-soft);
+    --ds-primary-dark: var(--cafe-accent-hover);
+    --ds-primary-text: var(--cafe-on-accent);
+    --ds-border:       var(--cafe-line);
+    --ds-text:         var(--cafe-ink);
+    --ds-text-muted:   var(--cafe-muted);
+    --ds-text-subtle:  var(--cafe-quiet);
+    --ds-error:        var(--cafe-danger);
+    --ds-success:      var(--cafe-success);
+    --ds-success-strong: var(--cafe-success);
+    --ds-warning:      var(--cafe-warning);
+    --ds-info:         var(--cafe-focus);
+    --ds-overlay:      rgb(20 16 12 / 0.55);
+    --ds-primary-btn-text:     var(--cafe-focus);
+    --ds-primary-btn-border:   var(--cafe-line-strong);
+    --ds-primary-btn-hover-bg: var(--cafe-accent-soft);
 
-    /* Typography scale */
-    --font-heading: 'Inter', sans-serif;
-    --font-sans: 'Inter', sans-serif;
-  }
-
-  /* ── Painel por modo de trabalho ──
-     O wrapper do painel recebe `data-mode` e sobrescreve os tokens de acento
-     (dark por padrão). Operacional mantém o dourado da marca. */
-
-  [data-mode="captar"] {
-    --primary: 152 62% 45%;
-    --accent: 152 62% 45%;
-    --ring: 152 62% 45%;
-    --chart-1: 152 62% 45%;
-    --ds-primary-strong: #4ade80;
-    --ds-primary-soft: rgba(74, 222, 128, 0.10);
-    --ds-primary-dark: #22c55e;
-    --ds-primary-btn-text: #4ade80;
-    --ds-primary-btn-border: rgba(74, 222, 128, 0.2);
-    --ds-primary-btn-hover-bg: rgba(74, 222, 128, 0.1);
-  }
-
-  [data-mode="comunidade"] {
-    --primary: 262 83% 68%;
-    --accent: 262 83% 68%;
-    --ring: 262 83% 68%;
-    --chart-1: 262 83% 68%;
-    --ds-primary-strong: #a78bfa;
-    --ds-primary-soft: rgba(167, 139, 250, 0.10);
-    --ds-primary-dark: #8b5cf6;
-    --ds-primary-btn-text: #a78bfa;
-    --ds-primary-btn-border: rgba(167, 139, 250, 0.2);
-    --ds-primary-btn-hover-bg: rgba(167, 139, 250, 0.1);
-  }
-
-  [data-mode="gestao"] {
-    --primary: 217 91% 60%;
-    --accent: 217 91% 60%;
-    --ring: 217 91% 60%;
-    --chart-1: 217 91% 60%;
-    --ds-primary-strong: #60a5fa;
-    --ds-primary-soft: rgba(96, 165, 250, 0.10);
-    --ds-primary-dark: #3b82f6;
-    --ds-primary-btn-text: #60a5fa;
-    --ds-primary-btn-border: rgba(96, 165, 250, 0.2);
-    --ds-primary-btn-hover-bg: rgba(96, 165, 250, 0.1);
-  }
-
-  [data-mode="config"] {
-    --primary: 0 0% 55%;
-    --accent: 0 0% 55%;
-    --ring: 0 0% 55%;
-    --chart-1: 0 0% 55%;
-    --ds-primary-strong: #a1a1aa;
-    --ds-primary-soft: rgba(161, 161, 170, 0.10);
-    --ds-primary-dark: #71717a;
-    --ds-primary-btn-text: #a1a1aa;
-    --ds-primary-btn-border: rgba(161, 161, 170, 0.2);
-    --ds-primary-btn-hover-bg: rgba(161, 161, 170, 0.1);
-  }
-
-  /* ── Tema claro por modo ── */
-  .light-theme [data-mode="captar"] {
-    --primary: 152 65% 38%;
-    --accent: 152 65% 38%;
-    --ring: 152 65% 38%;
-    --chart-1: 152 65% 38%;
-    --ds-primary-strong: #15803d;
-    --ds-primary-soft: rgba(21, 128, 61, 0.10);
-    --ds-primary-dark: #16a34a;
-    --ds-primary-btn-text: #15803d;
-    --ds-primary-btn-border: rgba(21, 128, 61, 0.3);
-    --ds-primary-btn-hover-bg: rgba(21, 128, 61, 0.1);
-  }
-
-  .light-theme [data-mode="comunidade"] {
-    --primary: 262 83% 52%;
-    --accent: 262 83% 52%;
-    --ring: 262 83% 52%;
-    --chart-1: 262 83% 52%;
-    --ds-primary-strong: #6d28d9;
-    --ds-primary-soft: rgba(109, 40, 217, 0.10);
-    --ds-primary-dark: #7c3aed;
-    --ds-primary-btn-text: #6d28d9;
-    --ds-primary-btn-border: rgba(109, 40, 217, 0.3);
-    --ds-primary-btn-hover-bg: rgba(109, 40, 217, 0.1);
-  }
-
-  .light-theme [data-mode="gestao"] {
-    --primary: 217 91% 50%;
-    --accent: 217 91% 50%;
-    --ring: 217 91% 50%;
-    --chart-1: 217 91% 50%;
-    --ds-primary-strong: #1d4ed8;
-    --ds-primary-soft: rgba(29, 78, 216, 0.10);
-    --ds-primary-dark: #2563eb;
-    --ds-primary-btn-text: #1d4ed8;
-    --ds-primary-btn-border: rgba(29, 78, 216, 0.3);
-    --ds-primary-btn-hover-bg: rgba(29, 78, 216, 0.1);
-  }
-
-  .light-theme [data-mode="config"] {
-    --primary: 0 0% 45%;
-    --accent: 0 0% 45%;
-    --ring: 0 0% 45%;
-    --chart-1: 0 0% 45%;
-    --ds-primary-strong: #52525b;
-    --ds-primary-soft: rgba(82, 82, 91, 0.10);
-    --ds-primary-dark: #71717a;
-    --ds-primary-btn-text: #52525b;
-    --ds-primary-btn-border: rgba(82, 82, 91, 0.3);
-    --ds-primary-btn-hover-bg: rgba(82, 82, 91, 0.1);
-  }
-
-  .light-theme {
-    /* ── Light theme ── */
-    --background: 0 0% 96%;
-    --foreground: 240 4% 12%;
-    --card: 0 0% 93%;
-    --card-foreground: 240 4% 12%;
-    --popover: 0 0% 88%;
-    --popover-foreground: 240 4% 12%;
-    --primary: 43 87% 56%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 84%;
-    --secondary-foreground: 240 4% 12%;
-    --muted: 0 0% 88%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 43 87% 56%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 0% / 0.08;
-    --input: 0 0% 0% / 0.08;
-    --ring: 43 87% 56%;
-    --chart-1: 43 87% 56%;
-    --chart-2: 0 0% 55%;
-    --chart-3: 0 0% 75%;
-    --chart-4: 0 0% 85%;
-    --chart-5: 0 0% 92%;
-    --sidebar: 0 0% 93%;
-    --sidebar-foreground: 240 4% 12%;
-    --sidebar-primary: 43 87% 56%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 84%;
-    --sidebar-accent-foreground: 240 4% 12%;
-    --sidebar-border: 0 0% 0% / 0.08;
-    --sidebar-ring: 43 87% 56%;
-
-    /* ── Legacy --ds-* aliases (light theme) ── */
-    --ds-black:         #e8e8e8;
-    --ds-surface:       #f5f5f5;
-    --ds-surface-1:     #ececec;
-    --ds-surface-2:     #e0e0e0;
-    --ds-surface-3:     #d5d5d5;
-    --ds-text:          #1d1d1f;
-    --ds-text-muted:    rgba(0,0,0,0.55);
-    --ds-text-subtle:   rgba(0,0,0,0.35);
-    --ds-primary:       hsl(var(--primary));
-    --ds-primary-strong: #a16207;
-    --ds-primary-soft: rgba(161,98,7,0.10);
-    --ds-primary-dark:  #d4a017;
-    --ds-primary-text:  #000000;
-    --ds-border:        rgba(0,0,0,0.08);
-    --ds-error:         #ef4444;
-    --ds-success:       #22c55e;
-    --ds-success-strong: #15803d;
-    --ds-warning:       hsl(var(--primary));
-    --ds-info:          #3b82f6;
-    --ds-overlay:      rgba(0, 0, 0, 0.6);
-    --ds-primary-btn-text:      #c49000;
-    --ds-primary-btn-border:    rgba(196, 144, 0, 0.3);
-    --ds-primary-btn-hover-bg:  rgba(196, 144, 0, 0.1);
+    --font-heading: var(--cafe-font-editorial);
+    --font-sans: var(--cafe-font-text);
   }
 
   * {
     @apply border-border outline-ring/50;
   }
 
-  .mode-transition,
-  .mode-transition * {
-    transition:
-      background-color 0.3s ease,
-      border-color 0.3s ease,
-      color 0.3s ease,
-      fill 0.3s ease,
-      stroke 0.3s ease;
-  }
-
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-family: var(--cafe-font-text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+}
+
+/* O kit limita <p> a 68ch para leitura editorial; dentro de cards, tabelas e
+   formulários do app isso quebra o layout. Fora de camada para vencer o kit. */
+p {
+  max-width: none;
+}
+
+/* Utilitário legado de texto em destaque: no claro o amarelo vira ilegível como
+   texto, então segue o tom de foco do kit (mesmo critério de --primary-strong). */
+.text-primary {
+  color: var(--primary-strong);
+}
+
+/* ── Transição entre módulos: a ficha sobe do arquivo ──
+   Só ao trocar de área (PanelLayout troca a chave). Duração entre a resposta
+   de controle (120–180 ms) e a entrada de camada (800 ms) do manual: troca de
+   módulo é frequente e não pode cansar. */
+@keyframes panel-ficha-sobe {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes panel-faixa-modulo {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.panel-module-enter {
+  animation: panel-ficha-sobe 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.panel-module-stripe {
+  transform-origin: left center;
+  animation: panel-faixa-modulo 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Troca de atmosfera atômica (D04 do kit): sem transição de cor entre temas. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
   }
 }

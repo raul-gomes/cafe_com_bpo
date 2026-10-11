@@ -1,13 +1,34 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-cafe-palette="cafe" data-cafe-mode="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+    <!-- Identidade Café com BPO V4: servida sem alteração a partir de public/brand/kit-v4
+         (ordem do GUIA-DE-USO). Fica fora do PostCSS porque o kit usa @layer base/components/
+         utilities, nomes que o Tailwind v3 tentaria processar. -->
+    <!-- Ordem de camadas: o reset do Tailwind (tw-base) fica abaixo de todas as do kit. -->
+    <style>@layer tw-base;</style>
+    <link rel="preload" href="/brand/kit-v4/fonts/DM-Sans.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="/brand/kit-v4/cafe-design-system.css" />
+    <link rel="stylesheet" href="/brand/kit-v4/cafe-themes.css" />
+    <link rel="stylesheet" href="/brand/kit-v4/cafe-expression.css" />
+    <link rel="stylesheet" href="/brand/kit-v4/cafe-navigation.css" />
+    <script>
+      /* Aplica a atmosfera salva antes da primeira pintura (evita piscar o tema errado).
+         Mesma chave e formato de src/brand/appearance.ts. */
+      (function () {
+        try {
+          var v = JSON.parse(localStorage.getItem('cafe-appearance') || '{}') || {};
+          var root = document.documentElement;
+          if (['cafe', 'verde', 'azul'].indexOf(v.palette) >= 0) root.dataset.cafePalette = v.palette;
+          if (['light', 'dark'].indexOf(v.mode) >= 0) root.dataset.cafeMode = v.mode;
+        } catch (e) { /* armazenamento indisponível: fica o padrão */ }
+      })();
+    </script>
     <title>Café com BPO</title>
   </head>
-  <body>
+  <body class="cafe-theme">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

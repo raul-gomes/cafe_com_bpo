@@ -86,7 +86,7 @@
   background: var(--ds-surface-2);
   border: 1.5px solid var(--ds-border);
   border-radius: var(--radius-md);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   font-size: 13px;
   color: var(--ds-text);
   transition: border-color 0.15s;
@@ -241,7 +241,7 @@
   border: 1.5px solid var(--ds-border);
   border-radius: var(--radius-sm);
   font-size: 12px; text-align: center;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   color: var(--ds-text);
   transition: border-color 0.15s;
   outline: none;
@@ -276,7 +276,7 @@
 /* ── BUTTONS (used inline calculator) ── */
 .btn {
   padding: 9px 16px; border-radius: var(--radius-md);
-  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 600;
+  font-family: var(--cafe-font-text); font-size: 13px; font-weight: 600;
   cursor: pointer; border: none; transition: all 0.15s;
   display: inline-flex; align-items: center; gap: 6px; white-space: nowrap;
 }
@@ -330,7 +330,7 @@
   padding: 12px;
   background: var(--ds-primary); color: #000;
   border: none; border-radius: var(--radius-md);
-  font-family: 'Inter', sans-serif; font-size: 13px; font-weight: 700;
+  font-family: var(--cafe-font-text); font-size: 13px; font-weight: 700;
   cursor: pointer; transition: background 0.15s;
   display: flex; align-items: center; justify-content: center; gap: 8px;
 }

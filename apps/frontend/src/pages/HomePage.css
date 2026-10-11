@@ -802,7 +802,7 @@ html {
 }
 
 .donate-pix-key {
-  font-family: 'Inter', monospace;
+  font-family: var(--cafe-font-text);
   font-size: 14px;
   color: var(--white);
   flex: 1;
@@ -906,7 +906,7 @@ html {
   padding: 14px 16px;
   color: var(--white);
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   outline: none;
   transition: border-color 0.2s ease;
   width: 100%;
@@ -931,7 +931,7 @@ html {
   padding: 14px 16px;
   color: var(--white);
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   outline: none;
   cursor: pointer;
   transition: border-color 0.2s ease;

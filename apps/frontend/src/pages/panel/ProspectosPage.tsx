@@ -391,7 +391,7 @@ export const ProspectosPage: React.FC = () => {
 
       {error ? (
         <Card className="p-12 text-center">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--destructive))" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-4 opacity-50">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--destructive)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-4 opacity-50">
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <h3 className="mb-2 text-[16px] font-bold text-foreground">Erro ao carregar</h3>

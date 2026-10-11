@@ -63,7 +63,7 @@
   pointer-events: none;
   user-select: none;
   z-index: 0;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
 }
 
 /* ── FOOTER NOTE ── */

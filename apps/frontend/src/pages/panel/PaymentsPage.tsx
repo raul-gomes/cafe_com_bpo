@@ -232,7 +232,7 @@ export const PaymentsPage: React.FC = () => {
               height="48"
               viewBox="0 0 24 24"
               fill="none"
-              stroke="hsl(var(--destructive))"
+              stroke="var(--destructive)"
               strokeWidth="1.5"
               className="mx-auto mb-4 opacity-50"
             >

@@ -1,0 +1,208 @@
+/* CAFÉ COM BPO · Laboratório V3.1
+   D01: família visual e luminosidade são escolhas independentes.
+   D02: amarelo da marca fica preservado; acento da interface pode variar.
+   D03: sucesso/alerta/erro mantêm significados; módulo não é tema.
+   D04: superfícies escuras têm a tonalidade da família, sem inversão automática.
+   Justificativas, hipóteses e testes: AUDITORIA.md. */
+@layer cafeThemes {
+  :root {
+    --cafe-brand-yellow: #FFC72C;
+    --cafe-accent: #FFC72C;
+    --cafe-accent-hover: #F0B91A;
+    --cafe-accent-soft: #FFF1C6;
+    --cafe-on-accent: #322800;
+    --cafe-deep: #35291F;
+    --cafe-deep-hover: #4B3A2C;
+    --cafe-on-deep: #FFF9F1;
+    --cafe-feedback-danger-hover: #F4D5CE;
+    --cafe-table-hover: #F4F0E8;
+    --cafe-canvas: #F8F5EF;
+    --cafe-paper: #FFFDFA;
+    --cafe-panel: #F0EAE1;
+    --cafe-panel-strong: #E4DCCF;
+    --cafe-ink: #29241F;
+    --cafe-ink-soft: #494039;
+    --cafe-muted: #66594E;
+    --cafe-quiet: #706254;
+    --cafe-line: #DCD3C6;
+    --cafe-line-strong: #8E8070;
+    --cafe-espresso: var(--cafe-deep);
+    --cafe-espresso-soft: #665449;
+    --cafe-focus: #785611;
+    --cafe-radius-md: 6px;
+    --cafe-radius-lg: 8px;
+    color-scheme: light;
+  }
+  :root[data-cafe-palette="verde"] {
+    --cafe-accent: #245941;
+    --cafe-accent-hover: #19442F;
+    --cafe-accent-soft: #E1EDE1;
+    --cafe-on-accent: #FFFFFF;
+    --cafe-deep: #173A2B;
+    --cafe-deep-hover: #24523C;
+    --cafe-on-deep: #F4FBF4;
+    --cafe-table-hover: #EDF4EA;
+    --cafe-canvas: #F1F5F0;
+    --cafe-paper: #FCFEFB;
+    --cafe-panel: #E6EDE4;
+    --cafe-panel-strong: #D5E1D2;
+    --cafe-ink: #1D3026;
+    --cafe-ink-soft: #354B3D;
+    --cafe-muted: #526456;
+    --cafe-quiet: #596D5D;
+    --cafe-line: #CDDACC;
+    --cafe-line-strong: #7A8C7C;
+    --cafe-focus: #245941;
+    --cafe-espresso-soft: #405C45;
+  }
+  :root[data-cafe-palette="azul"] {
+    --cafe-accent: #2A5579;
+    --cafe-accent-hover: #1B405F;
+    --cafe-accent-soft: #E1EBF4;
+    --cafe-on-accent: #FFFFFF;
+    --cafe-deep: #203D53;
+    --cafe-deep-hover: #2C506B;
+    --cafe-on-deep: #F5F9FC;
+    --cafe-table-hover: #ECF2F7;
+    --cafe-canvas: #F1F4F7;
+    --cafe-paper: #FCFDFF;
+    --cafe-panel: #E6EDF3;
+    --cafe-panel-strong: #D4DFE9;
+    --cafe-ink: #233442;
+    --cafe-ink-soft: #3C5062;
+    --cafe-muted: #526579;
+    --cafe-quiet: #536779;
+    --cafe-line: #CCD8E3;
+    --cafe-line-strong: #7D8C9C;
+    --cafe-focus: #2A5579;
+    --cafe-espresso-soft: #496176;
+  }
+  :root[data-cafe-mode="dark"] {
+    color-scheme: dark;
+    --cafe-accent: #FFD268;
+    --cafe-accent-hover: #FFE098;
+    --cafe-accent-soft: #483B22;
+    --cafe-on-accent: #30240F;
+    --cafe-canvas: #211A16;
+    --cafe-paper: #2C241E;
+    --cafe-panel: #352B24;
+    --cafe-panel-strong: #493C30;
+    --cafe-ink: #F3EEE7;
+    --cafe-ink-soft: #DED2C4;
+    --cafe-muted: #C6B9A7;
+    --cafe-quiet: #B9AD9E;
+    --cafe-line: #584A3D;
+    --cafe-line-strong: #A08C77;
+    --cafe-focus: #FFD268;
+    --cafe-table-hover: #3D3229;
+    --cafe-espresso-soft: #D6BDA4;
+    --cafe-on-dark: #FFF9F1;
+    --cafe-success: #A2DAB3;
+    --cafe-success-bg: #193D28;
+    --cafe-warning: #F3D088;
+    --cafe-warning-bg: #41351D;
+    --cafe-danger: #FFC0B4;
+    --cafe-danger-bg: #502C28;
+    --cafe-feedback-danger-hover: #603730;
+    --cafe-module-gestao: #DBC0A1;
+    --cafe-module-gestao-bg: #3D3328;
+    --cafe-module-captacao: #A6CFAE;
+    --cafe-module-captacao-bg: #253D2A;
+    --cafe-module-tarefas: #E8C58D;
+    --cafe-module-tarefas-bg: #42331F;
+    --cafe-module-comunidade: #DDBBD2;
+    --cafe-module-comunidade-bg: #3E2B3B;
+    --cafe-module-negocios: #F1B9A4;
+    --cafe-module-negocios-bg: #482E26;
+    --cafe-module-notas: #CAD2B8;
+    --cafe-module-notas-bg: #303729;
+  }
+  :root[data-cafe-palette="verde"][data-cafe-mode="dark"] {
+    --cafe-canvas: #10281E;
+    --cafe-paper: #17372A;
+    --cafe-panel: #204332;
+    --cafe-panel-strong: #2D5540;
+    --cafe-ink: #E7F0E9;
+    --cafe-ink-soft: #CFE0D2;
+    --cafe-muted: #B3C9BB;
+    --cafe-quiet: #AAC0B1;
+    --cafe-line: #42634C;
+    --cafe-line-strong: #88A68E;
+    --cafe-accent: #9DC7A8;
+    --cafe-accent-hover: #B7D8BE;
+    --cafe-accent-soft: #284C36;
+    --cafe-on-accent: #10261A;
+    --cafe-focus: #AEDDAB;
+    --cafe-table-hover: #244734;
+    --cafe-espresso-soft: #B0CEB3;
+  }
+  :root[data-cafe-palette="azul"][data-cafe-mode="dark"] {
+    --cafe-canvas: #142432;
+    --cafe-paper: #1C3143;
+    --cafe-panel: #253F53;
+    --cafe-panel-strong: #35546B;
+    --cafe-ink: #E8EFF5;
+    --cafe-ink-soft: #D2DFEA;
+    --cafe-muted: #B5C7D8;
+    --cafe-quiet: #ACBFD2;
+    --cafe-line: #47647B;
+    --cafe-line-strong: #91A9BF;
+    --cafe-accent: #A8C9E0;
+    --cafe-accent-hover: #C5DDEA;
+    --cafe-accent-soft: #304E66;
+    --cafe-on-accent: #142D40;
+    --cafe-focus: #BAD8ED;
+    --cafe-table-hover: #2A455C;
+    --cafe-espresso-soft: #BAD0E3;
+  }
+  /* D02: acento se aplica a ação e orientação, não à arte do logo. */
+  /* D04: troca atômica evita texto de um tema sobre fundo transitório de outro. */
+  .cafe-button,.btn-cafe { transition: none; }
+  /* V3.3: ação destrutiva discreta; ocupado não é indisponível. */
+  .cafe-button-danger { background:var(--cafe-paper); color:var(--cafe-ink); border-color:var(--cafe-line-strong); border-left:3px solid var(--cafe-danger); }
+  .cafe-button-danger:hover { background:var(--cafe-panel); border-color:var(--cafe-danger); }
+  .cafe-button:disabled[aria-busy="true"] { opacity:1; cursor:progress; background:var(--cafe-accent); color:var(--cafe-on-accent); border-color:var(--cafe-accent); }
+  .cafe-button-primary,.btn-cafe-primary { background: var(--cafe-accent); border-color: var(--cafe-accent); color: var(--cafe-on-accent); }
+  :is(.cafe-button-primary,.btn-cafe-primary):hover { background: var(--cafe-accent-hover); border-color: var(--cafe-accent-hover); }
+  .cafe-mark,.cafe-dot { background: var(--cafe-accent); }
+  .cafe-card-accent { border-top-color: var(--cafe-accent); }
+  .cafe-tab[aria-selected="true"],.cafe-tab[aria-current="page"] { border-bottom-color: var(--cafe-accent); }
+  .cafe-hero-aside,.cafe-quote,.cafe-document-header { border-color: var(--cafe-accent); }
+  .cafe-pagination [aria-current="page"] { background: var(--cafe-accent-soft); border-color: var(--cafe-accent); }
+  .cafe-skip-link { background: var(--cafe-accent); color: var(--cafe-on-accent); }
+  .cafe-cta { background: var(--cafe-accent); color: var(--cafe-on-accent); }
+  .cafe-cta .cafe-caption { color: inherit; }
+  .cafe-cta .cafe-button-primary { background: var(--cafe-deep); color: var(--cafe-on-deep); border-color: var(--cafe-on-deep); }
+  .cafe-cta .cafe-button-primary:hover { background: var(--cafe-deep-hover); border-color: var(--cafe-on-deep); }
+  ::selection { background: var(--cafe-accent-soft); color: var(--cafe-ink); }
+  /* D03: o fundo do botão contextual é separado da tinta do módulo. */
+  .cafe-button-module { background: var(--cafe-module-bg); color: var(--cafe-module); border-color: var(--cafe-module); }
+  .cafe-button-module:hover { background: var(--cafe-panel); filter: none; }
+  .cafe-button-danger:hover { background:var(--cafe-panel); }
+  .cafe-table th { background: var(--cafe-panel); }
+  .cafe-table tbody tr:hover { background: var(--cafe-table-hover); }
+  .cafe-icon-box { background: var(--cafe-accent-soft); color: var(--cafe-ink); }
+  .cafe-check input { accent-color: var(--cafe-accent); }
+  .cafe-community-avatar { background: var(--cafe-module-bg); color: var(--cafe-module); }
+  .cafe-community-note { color: var(--cafe-module-comunidade); }
+  :root[data-cafe-mode="dark"] .cafe-logo { background: transparent; padding: 0; border-radius: 0; }
+  /* D09: documentos impressos têm perfil próprio, independente da tela. */
+  @media print {
+    :root[data-cafe-palette][data-cafe-mode] {
+      color-scheme: light;
+      --cafe-canvas: #FFFFFF;
+      --cafe-paper: #FFFFFF;
+      --cafe-panel: #F1F1EB;
+      --cafe-panel-strong: #E3E3DA;
+      --cafe-ink: #22251F;
+      --cafe-ink-soft: #44483E;
+      --cafe-muted: #606459;
+      --cafe-quiet: #66685F;
+      --cafe-line: #CDD0C6;
+      --cafe-line-strong: #858C7D;
+      --cafe-accent: var(--cafe-brand-yellow);
+      --cafe-on-accent: #322800;
+    }
+    .cafe-theme-bar { display:none !important; }
+  }
+}

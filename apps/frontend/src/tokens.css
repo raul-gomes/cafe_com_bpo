@@ -4,18 +4,17 @@
    This file will be removed once all pages adopt the Design System.
    ============================================== */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
+/* margin/padding zerados ficam a cargo do reset do Tailwind (camada tw-base):
+   zerar aqui, fora de camada, anulava o espaçamento de todos os componentes do kit. */
 *, *::before, *::after {
   box-sizing: border-box;
-  margin: 0;
-  padding: 0;
 }
 
 html { scroll-behavior: smooth; }
 
 body {
-  font-family: 'Inter', -apple-system, sans-serif;
+  font-family: var(--cafe-font-text);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
@@ -47,10 +46,10 @@ a:hover { opacity: 0.8; }
 .bg-black { background-color: var(--ds-black); color: var(--ds-text); }
 .bg-light { background-color: #f5f5f7; color: #1d1d1f; }
 
-h1.apple-display { font: 800 48px/1.1 'Inter', sans-serif; margin-bottom: 24px; }
-h2.apple-heading  { font: 700 32px/1.2 'Inter', sans-serif; margin-bottom: 24px; }
-h3.apple-subheading { font: 600 20px/1.35 'Inter', sans-serif; margin-bottom: 16px; }
-p.apple-body { font: 400 16px/1.5 'Inter', sans-serif; max-width: 650px; margin: 0 auto 24px auto; }
+h1.apple-display { font: 800 48px/1.1 var(--cafe-font-text); margin-bottom: 24px; }
+h2.apple-heading  { font: 700 32px/1.2 var(--cafe-font-text); margin-bottom: 24px; }
+h3.apple-subheading { font: 600 20px/1.35 var(--cafe-font-text); margin-bottom: 16px; }
+p.apple-body { font: 400 16px/1.5 var(--cafe-font-text); max-width: 650px; margin: 0 auto 24px auto; }
 
 /* ── Legacy animations ── */
 
