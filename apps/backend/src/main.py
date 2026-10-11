@@ -15,6 +15,7 @@ from src.core.database import engine
 from src.core.logger import log, setup_logging
 from src.core.rate_limit import limiter
 from src.modules.auth.router import router as auth_router
+from src.modules.beta.router import router as beta_router
 from src.modules.calendar.router import router as calendar_router
 from src.modules.clients.router import router as clients_router
 from src.modules.contacts.router import router as contacts_router
@@ -155,6 +156,7 @@ def create_app() -> FastAPI:
     app.include_router(feedback_router)
     app.include_router(team_router)
     app.include_router(emails_router)
+    app.include_router(beta_router)
 
     os.makedirs("storage/avatars", exist_ok=True)
     app.mount("/avatars", StaticFiles(directory="storage/avatars"), name="avatars")

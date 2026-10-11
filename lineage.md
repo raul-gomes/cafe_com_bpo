@@ -9,8 +9,8 @@ Alembic. Todos os modelos vivem em `apps/backend/src/modules/{modulo}/models.py`
 O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 
 **Snapshot do banco real (`docker compose exec db psql -U postgres -d cafe_bpo`):**
-44 tabelas aplicadas, 74 foreign keys (recontado em 2026-09-28, com
-`contacts`). 3 modelos **não migrados** (ver seção
+45 tabelas aplicadas, 74 foreign keys (recontado em 2026-09-28, com
+`contacts`; +`beta_signups` em 2026-10-11, sem FK). 3 modelos **não migrados** (ver seção
 "Tabelas de modelo sem tabela no banco").
 
 ---
@@ -21,6 +21,7 @@ O `Base` de SQLAlchemy é definido em `apps/backend/src/core/database.py`.
 |--------|-----------------------------|-------|
 | `auth` | `users` (inclui `asaas_customer_id`), `user_files`, `password_reset_tokens` | Identidade, perfil, senha, avatares |
 | `clients` | `clients` | Portfólio de clientes do usuário ("Empresas") |
+| `beta` | `beta_signups` | Inscrições de interessados em ser Beta (página inicial na fase beta); não são usuários |
 | `contacts` | `contacts` | Agenda de contatos do usuário (contatos livres; o contato do prospecto/cliente é o representante em `prospects`, sem cópia) |
 | `prospects` | `prospects` | Leads com dados cadastrais; convertible em Cliente |
 | `contracts` | `contract_templates`, `contracts` | Modelo padrão de contrato (único por usuário) + contratos gerados/finalizados |
@@ -296,6 +297,20 @@ Legenda: **R** = leitura (SELECT) · **W** = escrita (INSERT/UPDATE/DELETE, incl
 | R | `contacts/repository.py:list_prospect_contacts()` / `list_direct_clients()` — leem `prospects` + `clients` (sem escrita) |
 | R/W | `contacts/service.py` (autorização por `user_id`; CRUD do contato livre) |
 | W | `contacts/repository.py:update_source_contact()` — escreve `prospects.representante_*` |
+
+### `beta_signups` — dono: `beta` (criada em 2026-10-11, rev `b7e1c0a9f2d4`)
+> Lista de quem quer ser Beta, captada pelo formulário da página inicial:
+> `nome`, `email` (**único**, minúsculo — `ix_beta_signups_email`), `whatsapp`
+> (só dígitos), `perfil` (`comecando`/`crescendo`/`escritorio_contabil`/`outro`),
+> `faixa_clientes` (`0`/`1-5`/`6-15`/`16-30`/`30+`), `desafio`, `origem` (ex.:
+> `home`) e `consentimento_em` (aceite da LGPD, obrigatório). **Sem FK**: não é
+> usuário do sistema. Nova inscrição com o mesmo e-mail atualiza a linha (a API
+> responde igual nos dois casos para não revelar quem já se inscreveu); envio de
+> robô (campo-armadilha `website`) é descartado sem gravar.
+| Direção | Quem |
+|---------|------|
+| W | `beta/repository.py:upsert()` ← `POST /beta/inscricoes` (público, `BETA_SIGNUP_LIMIT` por IP) ← `components/home/BetaSignupForm.tsx` |
+| R | `beta/repository.py:list_recent()` ← `GET /beta/inscricoes` (somente admin) |
 
 ### `governanca` — agregação (sem tabela)
 > Módulo de agregação (como o dashboard): `GET /governanca/deals` une prospectos
