@@ -32,6 +32,16 @@ TEMPLATES: dict[str, dict[str, str]] = {
         "txt": "task_delivery.txt",
         "subject": "Entrega de documento",
     },
+    "beta_notice_30d": {
+        "html": "beta_notice_30d.html",
+        "txt": "beta_notice_30d.txt",
+        "subject": "Seu acesso beta termina em 30 dias – Café com BPO",
+    },
+    "beta_notice_7d": {
+        "html": "beta_notice_7d.html",
+        "txt": "beta_notice_7d.txt",
+        "subject": "Seu acesso beta está no fim – Café com BPO",
+    },
     "custom": {
         "subject": "",  # assunto vem do payload em render_template
     },

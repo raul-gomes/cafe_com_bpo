@@ -5,10 +5,12 @@ from sqlalchemy import (
     JSON,
     UUID,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     String,
     Text,
@@ -18,6 +20,7 @@ from sqlalchemy import (
 from sqlalchemy.orm import relationship
 
 from src.core.database import Base
+from src.core.deadline import days_remaining, is_overdue
 
 DEFAULT_PHASES = [
     {"name": "a fazer", "color": "#6b7280", "order": 0, "is_done": False},
@@ -67,6 +70,17 @@ class Task(Base):
     """
 
     __tablename__ = "tasks"
+    __table_args__ = (
+        # "Só cliente tem equipe/rotina/SLA/tarefa" garantida pelo banco: a FK
+        # composta só casa com companies.type = 'client'.
+        CheckConstraint("company_type = 'client'", name="ck_tasks_company_type"),
+        ForeignKeyConstraint(
+            ["company_id", "company_type"],
+            ["companies.id", "companies.type"],
+            name="fk_tasks_company",
+            ondelete="NO ACTION",
+        ),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     user_id = Column(
@@ -74,6 +88,13 @@ class Task(Base):
     )
     client_id = Column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    # Escrita dupla: `client_id` continua valendo até a release de limpeza, e
+    # é daqui que a leitura passa a sair. Nullable nesta fase — vira NOT NULL
+    # em R3, depois que o backfill for conferido linha a linha.
+    company_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    company_type = Column(
+        String(20), nullable=False, server_default="client", default="client"
     )
 
     title = Column(String(255), nullable=False)
@@ -93,6 +114,21 @@ class Task(Base):
     process_type = Column(String(50), nullable=True)
 
     deadline = Column(DateTime(timezone=True), nullable=True)
+
+    @property
+    def days_remaining(self) -> int | None:
+        """Dias de calendário até o prazo (regra única em `src/core/deadline`)."""
+        return days_remaining(self.deadline)
+
+    @property
+    def is_overdue(self) -> bool:
+        """Prazo **já passou** — "vence hoje" ainda não está atrasado.
+
+        Vive no model (e não no service) porque a resposta é montada por
+        `from_attributes`: assim lista, detalhe e dashboard falam do mesmo
+        jeito sem cada rota remembering de preencher o campo.
+        """
+        return is_overdue(self.deadline)
 
     # Scheduling
     time_estimate_minutes = Column(Integer, nullable=True)
@@ -215,7 +251,9 @@ class ActivityTemplate(Base):
     recurrence = Column(
         String(50), nullable=False, default="monthly"
     )  # once, daily, weekly, monthly, quarterly, yearly
-    weekday_mask = Column(String(20), nullable=True)  # ex: "0,2,4" (dom=0, seg=1, ...)
+    # P-5: dígitos separados por vírgula, 1=segunda ... 7=domingo (ex: "1,3").
+    # O "0" (domingo) só é aceito na leitura, por compatibilidade com linhas antigas.
+    weekday_mask = Column(String(20), nullable=True)
     due_day = Column(
         Integer, nullable=True
     )  # dia do mês para recorrência mensal (1-31)
@@ -319,10 +357,28 @@ class ClientTemplateAssignment(Base):
     """
 
     __tablename__ = "client_template_assignments"
+    __table_args__ = (
+        # "Só cliente tem equipe/rotina/SLA/tarefa" garantida pelo banco: a FK
+        # composta só casa com companies.type = 'client'.
+        CheckConstraint(
+            "company_type = 'client'",
+            name="ck_client_template_assignments_company_type",
+        ),
+        ForeignKeyConstraint(
+            ["company_id", "company_type"],
+            ["companies.id", "companies.type"],
+            name="fk_client_template_assignments_company",
+            ondelete="NO ACTION",
+        ),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
+    )
+    company_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    company_type = Column(
+        String(20), nullable=False, server_default="client", default="client"
     )
     template_id = Column(
         UUID(as_uuid=True),
@@ -333,7 +389,12 @@ class ClientTemplateAssignment(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
     start_date = Column(DateTime(timezone=True), nullable=True)  # quando começa a gerar
-    is_active = Column(Boolean, server_default="true", nullable=False)
+    # `default=True` junto do `server_default`: sem o default do lado Python a
+    # linha nasce com o literal do servidor, e a cascata (§16) — que filtra por
+    # `is_active is true` — não encontra a linha em SQLite.
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    # Regra §16: a rotina é desativada junto com a empresa (e quando).
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
     last_generated_at = Column(DateTime(timezone=True), nullable=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -356,14 +417,32 @@ class ClientSLA(Base):
     """
 
     __tablename__ = "client_slas"
+    __table_args__ = (
+        # "Só cliente tem equipe/rotina/SLA/tarefa" garantida pelo banco: a FK
+        # composta só casa com companies.type = 'client'.
+        CheckConstraint("company_type = 'client'", name="ck_client_slas_company_type"),
+        ForeignKeyConstraint(
+            ["company_id", "company_type"],
+            ["companies.id", "companies.type"],
+            name="fk_client_slas_company",
+            ondelete="NO ACTION",
+        ),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(
         UUID(as_uuid=True), ForeignKey("clients.id", ondelete="CASCADE"), nullable=False
     )
+    company_id = Column(UUID(as_uuid=True), nullable=True, index=True)
+    company_type = Column(
+        String(20), nullable=False, server_default="client", default="client"
+    )
     user_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
+    # Regra §16: SLA também é desativado em cascata, nunca apagado.
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
     process_type = Column(String(50), nullable=False)
     sla_days = Column(Integer, nullable=False, default=5)  # dias corridos
     warning_threshold = Column(

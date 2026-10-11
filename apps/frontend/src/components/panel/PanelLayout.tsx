@@ -3,6 +3,8 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
 import { PanelTopBar } from './PanelTopBar';
 import { Toaster } from '../ui/sonner';
+import { BetaEndingBanner } from './BetaEndingBanner';
+import { useAccess } from '../../api/hooks/useAccess';
 import { NAV_SECTIONS, sectionForPath, type NavSection } from './navigation';
 
 const NAV_KEY = 'cafe_bpo_sidebar_nav';
@@ -47,6 +49,7 @@ function sectionById(id: string | null): NavSection {
  */
 export const PanelLayout: React.FC = () => {
   const { pathname } = useLocation();
+  const { data: access } = useAccess();
   const [nav, setNav] = useState<NavState>(() => {
     const stored = readStorage(NAV_KEY);
     return NAV_CYCLE.includes(stored as NavState) ? (stored as NavState) : 'expanded';
@@ -128,6 +131,9 @@ export const PanelLayout: React.FC = () => {
           mobileNavOpen={mobileNavOpen}
         />
         <main className="app-main panel-thin-scroll relative min-w-0 flex-1 overflow-y-auto bg-background px-[clamp(16px,3vw,40px)] py-[28px] text-foreground">
+          {access?.shows_beta_banner && access.expires_at && (
+            <BetaEndingBanner expiresAt={access.expires_at} />
+          )}
           {/* A chave muda só ao trocar de módulo: a ficha sobe ao entrar numa área nova. */}
           <div key={routeSection?.id ?? 'inicio'} className="panel-module-enter">
             <Outlet />

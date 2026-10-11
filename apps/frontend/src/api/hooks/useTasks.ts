@@ -2,13 +2,14 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../client';
 import {
   TaskResponse, TaskCreate, TaskUpdate,
-  TaskPhaseResponse, TaskPhaseCreate, TaskPhaseUpdate,
+  TaskPhaseResponse,
   TimelineResponse, ConflictsResponse,
   ActivityTemplateListItem, ActivityTemplateResponse,
   ActivityTemplateCreate, ActivityTemplateUpdate,
   TemplateActivityCreate, TemplateActivityUpdate,
-  ClientTemplateAssignmentCreate, ClientTemplateAssignmentResponse,
-  ClientTemplateAssignmentUpdate,
+  ClientTemplateAssignResponse, ClientTemplateAssignmentCreate,
+  ClientTemplateAssignmentResponse, ClientTemplateAssignmentUpdate,
+  ClientTemplateRegenerateResponse,
   RoutineTypeResponse, RoutineTypeCreate, RoutineTypeUpdate,
   ClientSLAResponse, ClientSLACreate, ClientSLAUpdate,
   TaskAttachmentResponse,
@@ -139,54 +140,6 @@ export const useTasks = () => {
       queryFn: async () => {
         const { data } = await apiClient.get('/tasks/phases/');
         return data;
-      },
-    });
-  };
-
-  const useCreatePhase = () => {
-    return useMutation({
-      mutationFn: async (phase: TaskPhaseCreate) => {
-        const { data } = await apiClient.post('/tasks/phases/', phase);
-        return data;
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['task-phases'] });
-      },
-    });
-  };
-
-  const useUpdatePhase = () => {
-    return useMutation({
-      mutationFn: async ({ id, ...phase }: TaskPhaseUpdate & { id: string }) => {
-        const { data } = await apiClient.put(`/tasks/phases/${id}`, phase);
-        return data;
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['task-phases'] });
-      },
-    });
-  };
-
-  const useDeletePhase = () => {
-    return useMutation({
-      mutationFn: async (id: string) => {
-        await apiClient.delete(`/tasks/phases/${id}`);
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['task-phases'] });
-        queryClient.invalidateQueries({ queryKey: ['tasks'] });
-      },
-    });
-  };
-
-  const useReorderPhases = () => {
-    return useMutation({
-      mutationFn: async (phases: { id: string; order: number }[]) => {
-        const { data } = await apiClient.post('/tasks/phases/reorder', { phases });
-        return data;
-      },
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: ['task-phases'] });
       },
     });
   };
@@ -338,7 +291,10 @@ export const useTasks = () => {
   const useAssignTemplate = () => {
     return useMutation({
       mutationFn: async (assignment: ClientTemplateAssignmentCreate) => {
-        const { data } = await apiClient.post('/tasks/client-templates/', assignment);
+        const { data } = await apiClient.post<ClientTemplateAssignResponse>(
+          '/tasks/client-templates/',
+          assignment,
+        );
         return data;
       },
       onSuccess: () => {
@@ -373,7 +329,10 @@ export const useTasks = () => {
   const useUpdateAssignment = () => {
     return useMutation({
       mutationFn: async ({ id, ...assignment }: ClientTemplateAssignmentUpdate & { id: string }) => {
-        const { data } = await apiClient.patch(`/tasks/client-templates/${id}`, assignment);
+        const { data } = await apiClient.patch<ClientTemplateAssignmentResponse>(
+          `/tasks/client-templates/${id}`,
+          assignment,
+        );
         return data;
       },
       onSuccess: () => {
@@ -386,7 +345,9 @@ export const useTasks = () => {
   const useRegenerateClientTasks = () => {
     return useMutation({
       mutationFn: async (id: string) => {
-        const { data } = await apiClient.post(`/tasks/client-templates/${id}/regenerate`);
+        const { data } = await apiClient.post<ClientTemplateRegenerateResponse>(
+          `/tasks/client-templates/${id}/regenerate`,
+        );
         return data;
       },
       onSuccess: () => {
@@ -537,10 +498,6 @@ export const useTasks = () => {
     useDeleteTask,
     useCancelTask,
     usePhases,
-    useCreatePhase,
-    useUpdatePhase,
-    useDeletePhase,
-    useReorderPhases,
     useTimeline,
     useConflicts,
     useTemplatesList,

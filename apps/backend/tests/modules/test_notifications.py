@@ -70,8 +70,6 @@ class TestNotificationAPI:
         """Should create a notification for the authenticated user."""
         email = f"notif_user_{uuid4()}@cafe.com"
         auth = self._get_auth_header(client, email)
-        user_resp = client.get("/auth/me", headers=auth)
-        user_id = user_resp.json()["id"]
 
         resp = client.post(
             "/notifications/",
@@ -87,7 +85,9 @@ class TestNotificationAPI:
         data = resp.json()
         assert data["title"] == "Nova tarefa atribuída"
         assert data["is_read"] is False
-        assert data["user_id"] == user_id
+        # `user_id` is not in the payload (nothing renders it): ownership is
+        # proven by the list being scoped to the caller, below.
+        assert "user_id" not in data
 
     def test_get_user_notifications(self, client):
         """Should return all notifications for the authenticated user."""

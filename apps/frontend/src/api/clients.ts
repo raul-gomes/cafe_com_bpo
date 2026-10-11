@@ -1,28 +1,11 @@
 import { apiClient } from './client';
+import { clientSchema, type ClientData, type ClientWrite } from '../schemas/clients';
 
-export interface ClientData {
-  id: string;
-  name: string;
-  cnpj?: string;
-  phone?: string;
-  email?: string;
-  color?: string;
-  description?: string;
-  segment?: string;
-  street?: string;
-  number?: string;
-  complement?: string;
-  neighborhood?: string;
-  city?: string;
-  state?: string;
-  cep?: string;
-  created_at?: string;
-  updated_at?: string;
-}
+export type { ClientData, ClientWrite };
 
 export const getClients = async () => {
   const response = await apiClient.get('/clients/');
-  return response.data as ClientData[];
+  return (response.data as unknown[]).map((row) => clientSchema.parse(row));
 };
 
 export const getClientSegments = async () => {
@@ -30,14 +13,14 @@ export const getClientSegments = async () => {
   return response.data as string[];
 };
 
-export const createClient = async (data: Omit<ClientData, 'id'>) => {
+export const createClient = async (data: ClientWrite) => {
   const response = await apiClient.post('/clients/', data);
-  return response.data as ClientData;
+  return clientSchema.parse(response.data);
 };
 
 export const updateClient = async (id: string, data: Partial<ClientData>) => {
   const response = await apiClient.put(`/clients/${id}`, data);
-  return response.data as ClientData;
+  return clientSchema.parse(response.data);
 };
 
 export const deleteClient = async (id: string) => {

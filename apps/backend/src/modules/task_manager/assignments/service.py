@@ -26,10 +26,13 @@ from ..schemas import (
     ClientTemplateAssignmentCreate,
     ClientTemplateAssignmentResponse,
     ClientTemplateAssignmentUpdate,
+    ClientTemplateAssignResponse,
+    ClientTemplateRegenerateResponse,
     TaskCreate,
 )
 from ..task.repository import TaskRepository
 from ..templates.repository import TemplateRepository
+from ..weekdays import parse_weekday_mask
 
 
 class AssignmentService:
@@ -162,9 +165,7 @@ class AssignmentService:
             # o scheduler (rocketry) cuida das semanas seguintes.
             if tmpl.weekday_mask:
                 marked_days = {
-                    int(d.strip()) - 1
-                    for d in tmpl.weekday_mask.split(",")
-                    if d.strip()
+                    day.python_weekday for day in parse_weekday_mask(tmpl.weekday_mask)
                 }
                 # Busca o primeiro dia marcado dentro da semana atual (hoje..domingo)
                 days_left_in_week = 6 - now.weekday()
@@ -251,10 +252,17 @@ class AssignmentService:
 
     def assign_template_to_client(
         self, assignment_in: ClientTemplateAssignmentCreate, user_id: UUID
-    ) -> dict:
-        """Assign a template to a client and auto-generate tasks."""
-        # Validate template exists
-        # Validate template exists (rotinas gerais são vinculáveis por todos)
+    ) -> ClientTemplateAssignResponse:
+        """Assign a template to a client and auto-generate tasks.
+
+        Args:
+            assignment_in: The client and template to link.
+            user_id: The caller, owner of the new link.
+
+        Returns:
+            The new link id and how many tasks it generated.
+        """
+        # Validate the template exists (general templates are linkable by all).
         tmpl = self.template_repo.get_template_by_id(
             assignment_in.template_id, user_id, include_general=True
         )
@@ -284,11 +292,10 @@ class AssignmentService:
             f"{len(generated_tasks)} tarefas geradas"
         )
 
-        return {
-            "assignment_id": str(assignment.id),
-            "tasks_generated": len(generated_tasks),
-            "template_name": tmpl.name,
-        }
+        return ClientTemplateAssignResponse(
+            assignment_id=assignment.id,
+            tasks_generated=len(generated_tasks),
+        )
 
     def generate_tasks_for_new_activities(
         self, tmpl, activities: list, user_id: UUID
@@ -411,8 +418,18 @@ class AssignmentService:
                 )
         self.assignment_repo.delete_assignment(assignment)
 
-    def regenerate_client_tasks(self, assignment_id: UUID, user_id: UUID) -> dict:
-        """Regenerate tasks for a client assignment (next period)."""
+    def regenerate_client_tasks(
+        self, assignment_id: UUID, user_id: UUID
+    ) -> ClientTemplateRegenerateResponse:
+        """Regenerate the tasks of a client link, for the next period.
+
+        Args:
+            assignment_id: The link to regenerate.
+            user_id: The caller, used to resolve a general template.
+
+        Returns:
+            How many tasks were created.
+        """
         assignment = self.assignment_repo.get_assignment_by_id(assignment_id)
         if not assignment:
             raise ValueError(f"Assignment {assignment_id} not found")
@@ -439,4 +456,4 @@ class AssignmentService:
             for t in generated_tasks:
                 self.assignment_repo.session.refresh(t)
 
-        return {"tasks_generated": len(generated_tasks)}
+        return ClientTemplateRegenerateResponse(tasks_generated=len(generated_tasks))

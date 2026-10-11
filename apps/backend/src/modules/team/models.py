@@ -3,9 +3,12 @@ import uuid
 from sqlalchemy import (
     UUID,
     Boolean,
+    CheckConstraint,
     Column,
     DateTime,
     ForeignKey,
+    ForeignKeyConstraint,
+    Index,
     String,
     func,
 )
@@ -42,6 +45,23 @@ class Team(Base):
     """
 
     __tablename__ = "teams"
+    __table_args__ = (
+        # "Só cliente tem equipe/rotina/SLA/tarefa" garantida pelo banco: a FK
+        # composta só casa com companies.type = 'client'.
+        CheckConstraint("company_type = 'client'", name="ck_teams_company_type"),
+        ForeignKeyConstraint(
+            ["company_id", "company_type"],
+            ["companies.id", "companies.type"],
+            name="fk_teams_company",
+            ondelete="NO ACTION",
+        ),
+        # O time é 1:1 com a empresa, então a unicidade se repete aqui. Declarado
+        # como índice nomeado (e não `unique=True` na coluna) porque é assim que a
+        # R2 cria: um UNIQUE INDEX chamado `ix_teams_company_id`. Se o model
+        # declarasse uma UNIQUE constraint, o autogenerate proporia trocar uma
+        # pela outra a cada revisão.
+        Index("ix_teams_company_id", "company_id", unique=True),
+    )
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(
@@ -50,6 +70,18 @@ class Team(Base):
         unique=True,
         nullable=False,
         index=True,
+    )
+    # Escrita dupla: `client_id` continua valendo até a release de limpeza, e
+    # é daqui que a leitura passa a sair. Nullable nesta fase — vira NOT NULL
+    # em R3, depois que o backfill for conferido linha a linha. A unicidade vem
+    # do índice `ix_teams_company_id` declarado em `__table_args__`.
+    company_id = Column(UUID(as_uuid=True), nullable=True)
+    # Regra §16: o time é desativado junto com a empresa (e quando) — nunca
+    # apagado, para o histórico de quem operava a empresa continuar legível.
+    is_active = Column(Boolean, server_default="true", default=True, nullable=False)
+    deleted_at = Column(DateTime(timezone=True), nullable=True)
+    company_type = Column(
+        String(20), nullable=False, server_default="client", default="client"
     )
     owner_id = Column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False

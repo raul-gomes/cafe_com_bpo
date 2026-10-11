@@ -1,6 +1,12 @@
 import React, { useState } from 'react';
 import { Plus, Settings, X, ChevronRight, FileText, AlertTriangle, LayoutList, Search, Globe, Archive } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
+import {
+  SELECTABLE_WEEKDAYS,
+  WEEKDAY_LABELS,
+  type ActivityTemplateListItem,
+  type Weekday,
+} from '../../schemas/tasks';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { RoutineDrawer } from '../../components/tasks/RoutineDrawer';
@@ -23,13 +29,10 @@ const RECURRENCE_LABELS: Record<string, string> = {
   yearly: 'Anual',
 };
 
-const WEEKDAY_LABELS: { value: number; label: string }[] = [
-  { value: 1, label: 'Seg' },
-  { value: 2, label: 'Ter' },
-  { value: 3, label: 'Qua' },
-  { value: 4, label: 'Qui' },
-  { value: 5, label: 'Sex' },
-];
+const WEEKDAY_OPTIONS = SELECTABLE_WEEKDAYS.map(day => ({
+  value: day,
+  label: WEEKDAY_LABELS[day],
+}));
 
 const MONTH_OPTIONS = [
   { value: 1, label: 'Janeiro' },
@@ -47,14 +50,12 @@ const MONTH_OPTIONS = [
 ];
 
 /* ── Recurrence config chips ── */
-function RecurrenceChip({ tmpl }: { tmpl: any }) {
+function RecurrenceChip({ tmpl }: { tmpl: ActivityTemplateListItem }) {
   if (tmpl.recurrence === 'once' && tmpl.due_days_from_start) {
     return <span className="text-[12px] text-muted-foreground">{tmpl.due_days_from_start} dias</span>;
   }
-  if (tmpl.recurrence === 'weekly' && tmpl.weekday_mask) {
-    const days = tmpl.weekday_mask.split(',').map((d: string) =>
-      ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'][Number(d)]
-    ).join(', ');
+  if (tmpl.recurrence === 'weekly' && tmpl.weekdays && tmpl.weekdays.length > 0) {
+    const days = tmpl.weekdays.map(day => WEEKDAY_LABELS[day]).join(', ');
     return <span className="text-[12px] text-muted-foreground">{days}</span>;
   }
   if (tmpl.recurrence === 'monthly' && tmpl.due_day) {
@@ -86,7 +87,7 @@ export const TemplateListPage: React.FC = () => {
   const [newDaysFromStart, setNewDaysFromStart] = useState<number | ''>('');
   const [newDueDay, setNewDueDay] = useState<number | ''>('');
   const [newDueMonth, setNewDueMonth] = useState<number | ''>('');
-  const [newWeekdays, setNewWeekdays] = useState<number[]>([1, 2, 3, 4, 5]);
+  const [newWeekdays, setNewWeekdays] = useState<Weekday[]>([...SELECTABLE_WEEKDAYS]);
   const [showTypeManager, setShowTypeManager] = useState(false);
   const [createAsGeneral, setCreateAsGeneral] = useState(false);
   const [typeEdit, setTypeEdit] = useState<{ id?: string; name: string; color: string }>({ name: '', color: '#3b82f6' });
@@ -111,7 +112,7 @@ export const TemplateListPage: React.FC = () => {
     });
   };
 
-  const toggleWeekday = (day: number) => {
+  const toggleWeekday = (day: Weekday) => {
     setNewWeekdays(prev =>
       prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day].sort()
     );
@@ -130,7 +131,7 @@ export const TemplateListPage: React.FC = () => {
       payload.due_days_from_start = newDaysFromStart === '' ? undefined : Number(newDaysFromStart);
     }
     if (newRecurrence === 'weekly') {
-      payload.weekday_mask = newWeekdays.join(',');
+      payload.weekdays = newWeekdays;
     }
     if (newRecurrence === 'monthly') {
       payload.due_day = newDueDay === '' ? undefined : Number(newDueDay);
@@ -147,7 +148,7 @@ export const TemplateListPage: React.FC = () => {
     setNewDaysFromStart('');
     setNewDueDay('');
     setNewDueMonth('');
-    setNewWeekdays([1, 2, 3, 4, 5]);
+    setNewWeekdays([...SELECTABLE_WEEKDAYS]);
     setCreateAsGeneral(false);
     setShowCreate(false);
   };
@@ -231,7 +232,7 @@ export const TemplateListPage: React.FC = () => {
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Periodicidade</label>
-                <select value={newRecurrence} onChange={(e) => { setNewRecurrence(e.target.value); setNewDaysFromStart(''); setNewDueDay(''); setNewDueMonth(''); setNewWeekdays([1, 2, 3, 4, 5]); }}
+                <select value={newRecurrence} onChange={(e) => { setNewRecurrence(e.target.value); setNewDaysFromStart(''); setNewDueDay(''); setNewDueMonth(''); setNewWeekdays([...SELECTABLE_WEEKDAYS]); }}
                   className="flex h-9 w-full rounded-lg border border-input bg-transparent px-2.5 py-1 text-sm text-foreground transition-colors outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 dark:bg-input/30 [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-zinc-900">
                   {Object.entries(RECURRENCE_LABELS).map(([k, v]) => (
                     <option key={k} value={k}>{v}</option>
@@ -251,7 +252,7 @@ export const TemplateListPage: React.FC = () => {
               <div>
                 <label className="text-xs font-semibold text-muted-foreground block mb-1">Dias da semana</label>
                 <div className="flex gap-1.5 pt-1">
-                  {WEEKDAY_LABELS.map(({ value, label }) => (
+                  {WEEKDAY_OPTIONS.map(({ value, label }) => (
                     <label key={value} className={cn(
                       "flex items-center gap-1 px-3 py-1.5 rounded-md text-xs font-semibold cursor-pointer border transition-all",
                       newWeekdays.includes(value) ? "bg-primary/10 border-primary text-primary-strong" : "bg-muted border-border text-muted-foreground"

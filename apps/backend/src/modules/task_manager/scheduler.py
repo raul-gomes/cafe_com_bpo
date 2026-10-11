@@ -32,6 +32,8 @@ from src.modules.task_manager.schemas import TaskCreate
 from src.modules.task_manager.task.repository import TaskRepository
 from src.modules.task_manager.templates.repository import TemplateRepository
 
+from .weekdays import parse_weekday_mask
+
 # Silence Rocketry internal debug spam
 logging.getLogger("rocketry").setLevel(logging.WARNING)
 logging.getLogger("rocketry.session").setLevel(logging.WARNING)
@@ -62,12 +64,27 @@ def get_weekly_deadlines_for_year_month(
     max_day: int | None = None,
 ) -> list[datetime]:
     """Generate deadlines for marked weekdays in a given year/month.
+
     Returns deadlines at 18:00 UTC, adjusted to next business day.
-    weekday_mask frontend format: 1=Seg, 2=Ter, ..., 5=Sex, 6=Sáb, 7=Dom
+
+    Args:
+        year: Ano da janela.
+        month: Mês da janela.
+        weekday_mask: Coluna de dígitos (`"1,3"`), lida por
+            :func:`parse_weekday_mask` — que valida o formato e recusa valor fora
+            do contrato.
+        min_day: Primeiro dia considerado na janela.
+        max_day: Último dia considerado; quando ``None``, usa o fim do mês.
+
+    Returns:
+        Prazos (18:00 UTC, empurrados para o próximo dia útil) dos dias marcados.
+
+    Raises:
+        ValueError: Se a máscara não for dígitos separados por vírgula.
     """
     if not weekday_mask:
         return []
-    marked_days = [int(d.strip()) - 1 for d in weekday_mask.split(",") if d.strip()]
+    marked_days = [day.python_weekday for day in parse_weekday_mask(weekday_mask)]
     if max_day is None:
         max_day = calendar.monthrange(year, month)[1]
 
@@ -159,60 +176,27 @@ def calculate_activity_deadline(
     return deadline
 
 
-def should_generate_today(
-    tmpl: ActivityTemplate,
-    activity: TemplateActivity,
-) -> datetime | None:
-    """Check if a task should be generated today for the given template+activity.
-    Returns the deadline datetime if it should generate, None otherwise.
+def weekly_target_monday(current: datetime) -> datetime:
+    """Monday of the week a weekly run should generate.
 
-    NOTE: This function is preserved for backward compatibility with service.py.
-    The scheduler class uses its own 4-rule logic instead.
+    Sunday generates the week **ahead** (the historical behaviour: Sunday night
+    prepares the coming week). Any other day generates the **current** week, which
+    is what the P-3 catch-up needs: the missed week is the one already in
+    progress, not the one starting tomorrow.
+
+    Args:
+        current: The moment the scheduler is running.
+
+    Returns:
+        Midnight of the Monday that anchors the target week.
     """
-    now = datetime.now(timezone.utc)
-
-    if tmpl.recurrence == "once":
-        return None
-
-    if tmpl.recurrence == "daily":
-        if now.weekday() < 5:  # Mon-Fri
-            deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-            return next_business_day(deadline)
-        return None
-
-    if tmpl.recurrence == "weekly":
-        if not tmpl.weekday_mask:
-            return None
-        weekdays = [int(d.strip()) for d in tmpl.weekday_mask.split(",") if d.strip()]
-        if now.weekday() in weekdays:
-            deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-            return next_business_day(deadline)
-        return None
-
-    if tmpl.recurrence == "monthly":
-        effective_due_day = get_effective_due_day(activity, tmpl)
-        if effective_due_day is None:
-            return None
-        max_day = calendar.monthrange(now.year, now.month)[1]
-        day = min(effective_due_day, max_day)
-        if now.day == day:
-            deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-            return next_business_day(deadline)
-        return None
-
-    if tmpl.recurrence in ("yearly", "annual"):
-        if tmpl.due_month and now.month == tmpl.due_month:
-            effective_due_day = get_effective_due_day(activity, tmpl)
-            if effective_due_day is None:
-                return None
-            max_day = calendar.monthrange(now.year, now.month)[1]
-            day = min(effective_due_day, max_day)
-            if now.day == day:
-                deadline = now.replace(hour=18, minute=0, second=0, microsecond=0)
-                return next_business_day(deadline)
-        return None
-
-    return None
+    if current.weekday() == 6:  # Sunday
+        return (current + timedelta(days=1)).replace(
+            hour=0, minute=0, second=0, microsecond=0
+        )
+    return (current - timedelta(days=current.weekday())).replace(
+        hour=0, minute=0, second=0, microsecond=0
+    )
 
 
 # ================================================================
@@ -384,7 +368,7 @@ def should_pre_generate_next_month() -> bool:
 class TaskScheduler:
     """Manages Rocketry-based daily task generation with 4 rules.
 
-    A single FuncTask runs daily at 00:00 UTC and auto-detects which
+    The rule-based FuncTask runs daily at 00:00 UTC and auto-detects which
     rules to apply based on the current date:
       - Sunday       → weekly rule (batch weekly + Monday daily)
       - Monday–Thu   → daily rule (next business day)
@@ -399,7 +383,14 @@ class TaskScheduler:
         self._thread: threading.Thread | None = None
 
     def start(self) -> None:
-        """Start Rocketry with a single daily FuncTask at 00:00 UTC."""
+        """Start Rocketry with the daily FuncTasks at 00:00 UTC.
+
+        Three tasks share the scheduler: the existing rule-based task
+        generation, the price reconciliation of the subscriptions plan (Fase 7)
+        and the beta-expiry notices (Fase 8, §17.6). Each runs on its own DB
+        session and is guarded so one failing cycle never kills the others or
+        the scheduler thread.
+        """
         self.app = Rocketry()
 
         def daily_run():
@@ -408,6 +399,26 @@ class TaskScheduler:
             except Exception as e:
                 log.error(f"Rocketry daily run error: {e}")
 
+        def price_reconcile_run():
+            try:
+                import asyncio
+
+                from src.modules.subscriptions.service import (
+                    run_price_reconciliation,
+                )
+
+                asyncio.run(run_price_reconciliation())
+            except Exception as e:
+                log.error(f"Rocketry price reconciliation error: {e}")
+
+        def beta_notice_run():
+            try:
+                from src.modules.subscriptions.beta_notice import run_beta_notices
+
+                run_beta_notices()
+            except Exception as e:
+                log.error(f"Rocketry beta notices error: {e}")
+
         task = FuncTask(
             func=daily_run,
             name="daily_scheduler",
@@ -415,6 +426,20 @@ class TaskScheduler:
             execution="thread",
         )
         self.app.session.add_task(task)
+        price_task = FuncTask(
+            func=price_reconcile_run,
+            name="price_reconciliation",
+            start_cond=cron("0 0 * * *"),
+            execution="thread",
+        )
+        self.app.session.add_task(price_task)
+        notice_task = FuncTask(
+            func=beta_notice_run,
+            name="beta_notices",
+            start_cond=cron("0 0 * * *"),
+            execution="thread",
+        )
+        self.app.session.add_task(notice_task)
 
         self._thread = threading.Thread(
             target=self.app.run, daemon=True, name="rocketry-scheduler"
@@ -479,6 +504,14 @@ class TaskScheduler:
             elif 0 <= current.weekday() <= 4:  # Mon–Fri (dias úteis)
                 # Sexta gera os cards de segunda (next_business_day pula o fim de semana)
                 apply_daily = True
+                # Regate P-3: a rodada semanal só rodava no domingo, então uma
+                # queda naquela janela deixava a rotina semanal sem card a semana
+                # inteira, sem erro em log. Em dia útil a regra semanal roda
+                # também, ancorada na semana corrente; o que já foi gerado cai no
+                # dedup por `routine_instance_id`, que é o próprio mecanismo de
+                # idempotência. `weekly_from_auto` segue False de propósito: o
+                # bônus das dailies de segunda é exclusivo do domingo.
+                apply_weekly = True
             # Saturday (5) → no daily/weekly
 
             if is_last_business_day_of_month(current):
@@ -659,16 +692,32 @@ class TaskScheduler:
         activities: list[TemplateActivity],
         candidates: list[tuple[datetime, str]],
     ) -> None:
-        """Build candidates for weekly rule: all marked weekdays in the week ahead."""
+        """Build candidates for weekly rule: all marked weekdays of the target week.
+
+        The target week is anchored on its Monday, never on ``current``: the
+        original code assumed Sunday and computed ``current + (wd + 1)``, which
+        silently produces the *wrong* week when the rule runs on a weekday (the
+        P-3 catch-up). Anchoring on the Monday keeps the ``period_key`` — and
+        therefore the ``routine_instance_id`` — identical whether the week was
+        generated on Sunday or caught up mid-week, so the dedup recognizes cards
+        that already exist.
+        """
         if not tmpl.weekday_mask:
             return
         marked_days = [
-            int(d.strip()) - 1 for d in tmpl.weekday_mask.split(",") if d.strip()
+            day.python_weekday for day in parse_weekday_mask(tmpl.weekday_mask)
         ]
-        # current is Sunday (weekday=6), so week runs from Mon(+1) to Sun(+7)
+        week_monday = weekly_target_monday(current)
         for wd in marked_days:
             # wd: 0=Mon … 6=Sun
-            target_day = current + timedelta(days=wd + 1)
+            target_day = week_monday + timedelta(days=wd)
+            # Regra P-6 (dono, 2026-10-04): só o dia de hoje em diante. Um dia já
+            # passado geraria card atrasado no momento da recuperação, sem
+            # ninguém able a cumpri-lo. A comparação é por **data**: `target_day`
+            # é meia-noite, então comparar datetime com `current` (que tem hora)
+            # descartaria o próprio dia de hoje.
+            if target_day.date() < current.date():
+                continue
             deadline = target_day.replace(hour=18, minute=0, second=0, microsecond=0)
             deadline = next_business_day(deadline)
             period_key = target_day.strftime("%Y-%m-%d")

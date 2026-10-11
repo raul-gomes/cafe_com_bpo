@@ -17,6 +17,14 @@ const mockUser: { id: string; email: string; name: string; role?: string } = {
 }
 const mockLogout = vi.fn()
 
+// GET /access drives the read-only locks (plan write gate). null = access not
+// resolved yet, which exercises the path without locks.
+const { mockAccessValue } = vi.hoisted(() => ({ mockAccessValue: { value: null as unknown } }))
+
+vi.mock('../src/api/hooks/useAccess', () => ({
+  useAccess: () => ({ data: mockAccessValue.value }),
+}))
+
 vi.mock('../src/context/AuthContext', () => ({
   useAuth: () => ({
     user: mockUser,
@@ -59,9 +67,9 @@ describe('PanelSidebar — um módulo de trabalho por vez', () => {
     const tabs = within(screen.getByRole('tablist', { name: 'Módulo de trabalho' })).getAllByRole('tab')
     expect(tabs.map(t => t.getAttribute('aria-label'))).toEqual([
       'Operacional',
-      'Captar (assinatura para criar e enviar)',
+      'Captar',
       'Comunidade',
-      'Gestão (assinatura para criar e enviar)',
+      'Gestão',
       'Aulas',
       'Notas Fiscais',
       'Certificados Digitais',
@@ -121,5 +129,61 @@ describe('PanelSidebar — um módulo de trabalho por vez', () => {
   it('o café leva ao painel principal', () => {
     renderSidebar()
     expect(screen.getByRole('link', { name: /painel principal/i })).toHaveAttribute('href', '/painel')
+  })
+})
+
+
+describe('PanelSidebar — read-only locks from the plan (GET /access)', () => {
+  const FREE_ACCESS = {
+    access: 'free',
+    read_only_modules: ['captar', 'gestao'],
+    writable_modules: ['comunidade', 'operacional', 'pagamentos'],
+    expires_at: null,
+    grace_until: null,
+    shows_dunning_banner: false,
+    shows_beta_banner: false,
+    subscription_status: null,
+    plan: null,
+    is_admin: false,
+  }
+  const ACTIVE_ACCESS = {
+    ...FREE_ACCESS,
+    access: 'active',
+    read_only_modules: [],
+    writable_modules: ['comunidade', 'operacional', 'pagamentos', 'captar', 'gestao'],
+    plan: { code: 'monthly', name: 'Mensal', price: '27.90', cycle: 'MONTHLY' },
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    delete mockUser.role
+    mockAccessValue.value = null
+  })
+
+  it('free plan: Captar and Gestão tabs show the lock, Operacional does not', () => {
+    mockAccessValue.value = FREE_ACCESS
+    renderSidebar()
+    expect(screen.getByRole('tab', { name: 'Captar (assinatura para criar e enviar)' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Gestão (assinatura para criar e enviar)' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Operacional' })).toBeInTheDocument()
+  })
+
+  it('free plan: navigation stays open on a read-only module', () => {
+    mockAccessValue.value = FREE_ACCESS
+    renderSidebar('captar')
+    fireEvent.click(screen.getByRole('link', { name: 'Prospectos' }))
+    expect(screen.getByTestId('route-probe')).toHaveTextContent('/painel/prospectos')
+  })
+
+  it('subscriber: no locks anywhere', () => {
+    mockAccessValue.value = ACTIVE_ACCESS
+    renderSidebar()
+    expect(screen.queryByRole('tab', { name: /assinatura/ })).not.toBeInTheDocument()
+  })
+
+  it('admin sees the Planos page in the Admin module', () => {
+    mockUser.role = 'admin'
+    renderSidebar('config')
+    expect(screen.getByRole('link', { name: 'Planos' })).toHaveAttribute('href', '/painel/planos')
   })
 })

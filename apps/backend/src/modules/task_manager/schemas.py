@@ -1,7 +1,10 @@
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+
+from src.modules.task_manager.weekdays import Weekday
 
 
 class TaskBase(BaseModel):
@@ -54,6 +57,11 @@ class TaskResponse(TaskBase):
     assignee_name: str | None = None
     client_name: str | None = None
     client_color: str | None = None
+    # Estado derivado no servidor (read-to-render): a regra de prazo é de
+    # calendário e o front a re-derivava em `deadline.ts` — mesma tarefa, dois
+    # vereditos conforme a tela.
+    days_remaining: int | None = None
+    is_overdue: bool = False
     created_at: datetime
     updated_at: datetime
     cancelled_at: datetime | None = None
@@ -65,25 +73,16 @@ class TaskResponse(TaskBase):
 
 
 class TaskPhaseBase(BaseModel):
+    """Shape of a canonical phase. Read-only: there is no create/update payload.
+
+    Decisão do produto owner (2026-10-04): as 3 fases canônicas são fixas e
+    globais, então a API não aceita criar, renomear, reordenar nem excluir fase.
+    """
+
     name: str
     color: str = "#6b7280"
     order: int = 0
     is_done: bool = False
-
-
-class TaskPhaseCreate(TaskPhaseBase):
-    pass
-
-
-class TaskPhaseUpdate(BaseModel):
-    name: str | None = None
-    color: str | None = None
-    order: int | None = None
-    is_done: bool | None = None
-
-
-class TaskPhaseReorder(BaseModel):
-    phases: list[dict]
 
 
 class TaskPhaseResponse(TaskPhaseBase):
@@ -202,20 +201,40 @@ class TemplateActivityUpdate(BaseModel):
     phase_id: UUID | None = None
 
 
-class TemplateActivityResponse(TemplateActivityBase):
+class TemplateActivityResponse(BaseModel):
+    """One activity of a template, as the detail page and drawer render it.
+
+    Out, because no screen reads them: `template_id` (the activities are nested
+    under the template that owns them), `due_day`/`due_days` (the schedule is
+    write-only — it reaches the card through the generated deadline, so no
+    component needs to re-read it), `phase_id` (phases belong to tasks, not to
+    the template activities) and `created_at`.
+    """
+
     id: UUID
-    template_id: UUID
-    created_at: datetime
+    name: str
+    description: str | None = None
+    priority: str
+    estimated_minutes: int | None = None
+    order: int = 0
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class ActivityTemplateBase(BaseModel):
+    """Dados de criação da rotina, com os dias no enum do contrato (P-5).
+
+    O dia da semana entra como :class:`Weekday` (`["monday", "wednesday"]`) e é
+    convertido para dígitos na gravação — o cliente nunca vê o número. Enviar o
+    antigo `weekday_mask` é recusado em vez de ignorado, para que um cliente
+    desatualizado não receba 201 e fique com rotina sem dia nenhum.
+    """
+
     name: str
     description: str | None = None
     process_type: str | None = None
     recurrence: str = "monthly"
-    weekday_mask: str | None = None  # ex: "0,2,4" (dom=0, seg=1, ...)
+    weekdays: list[Weekday] = Field(default_factory=list)
     due_day: int | None = None  # dia do mês p/ mensal (1-31)
     due_month: int | None = None  # 1-12, para recorrência anual
     due_days_from_start: int | None = None  # dias p/ "once"
@@ -228,17 +247,47 @@ class ActivityTemplateBase(BaseModel):
     is_archived: bool = False  # rotina arquivada: fica no final da página
     routine_type_id: UUID | None = None
 
+    @field_validator("weekdays")
+    @classmethod
+    def _reject_duplicated_days(cls, days: list[Weekday]) -> list[Weekday]:
+        """Recusa dia repetido em vez de gravar a lista deduplicada em silêncio.
+
+        `["monday", "monday"]` viraria `"1"`: o cliente pediria dois dias e leria um.
+        Como o seletor da tela nunca repete dia, a repetição só pode ser bug de
+        cliente — e erro de cliente deve aparecer como erro.
+        """
+        if len(set(days)) != len(days):
+            raise ValueError("weekdays não pode repetir o mesmo dia")
+        return days
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_legacy_mask(cls, data: Any) -> Any:
+        """Recusa `weekday_mask` em vez de ignorá-lo (P-5).
+
+        Sem esta recusa, um cliente antigo receberia 201 e a rotina ficaria sem dia
+        da semana — o usuário veria "salvo" e nunca veria card.
+        """
+        if isinstance(data, dict) and "weekday_mask" in data:
+            raise ValueError(
+                "weekday_mask não existe mais na API: envie weekdays "
+                '(ex.: ["monday", "wednesday"])'
+            )
+        return data
+
 
 class ActivityTemplateCreate(ActivityTemplateBase):
     pass
 
 
 class ActivityTemplateUpdate(BaseModel):
+    """Patch da rotina: os dias entram como enum, nunca como `weekday_mask`."""
+
     name: str | None = None
     description: str | None = None
     process_type: str | None = None
     recurrence: str | None = None
-    weekday_mask: str | None = None
+    weekdays: list[Weekday] | None = None
     due_day: int | None = None
     due_month: int | None = None
     due_days_from_start: int | None = None
@@ -248,36 +297,88 @@ class ActivityTemplateUpdate(BaseModel):
     is_archived: bool | None = None
     routine_type_id: UUID | None = None
 
+    @field_validator("weekdays")
+    @classmethod
+    def _reject_duplicated_days(cls, days: list[Weekday]) -> list[Weekday]:
+        """Recusa dia repetido em vez de gravar a lista deduplicada em silêncio.
 
-class ActivityTemplateResponse(ActivityTemplateBase):
+        `["monday", "monday"]` viraria `"1"`: o cliente pediria dois dias e leria um.
+        Como o seletor da tela nunca repete dia, a repetição só pode ser bug de
+        cliente — e erro de cliente deve aparecer como erro.
+        """
+        if len(set(days)) != len(days):
+            raise ValueError("weekdays não pode repetir o mesmo dia")
+        return days
+
+    @model_validator(mode="before")
+    @classmethod
+    def _reject_legacy_mask(cls, data: Any) -> Any:
+        """Recusa `weekday_mask` em vez de ignorá-lo (P-5).
+
+        Sem esta recusa, um cliente antigo receberia 201 e a rotina ficaria sem dia
+        da semana — o usuário veria "salvo" e nunca veria card.
+        """
+        if isinstance(data, dict) and "weekday_mask" in data:
+            raise ValueError(
+                "weekday_mask não existe mais na API: envie weekdays "
+                '(ex.: ["monday", "wednesday"])'
+            )
+        return data
+
+
+class ActivityTemplateResponse(BaseModel):
+    """A template with its activities, as the detail page and drawer render it.
+
+    Carries the schedule fields (`ActivityTemplateBase`) plus the owner, since
+    the list only offers archive/delete on a personal template to its creator,
+    and the resolved routine type name and color of the badges.
+
+    Out, because no screen reads them: `parent_template_id` (the fork is
+    created server-side, the UI never links back to the general template),
+    `due_date`/`recurrence_end_date` (the recurrence is described by
+    `recurrence` + `weekdays` + `due_day`/`due_month`/`due_days_from_start`
+    and the edit form prefills from those) and `created_at`/`updated_at`.
+    """
+
     id: UUID
     user_id: UUID
-    parent_template_id: UUID | None = None
-    created_at: datetime
-    updated_at: datetime
-    activities: list[TemplateActivityResponse] = []
+    name: str
+    description: str | None = None
+    process_type: str | None = None
+    recurrence: str
+    weekdays: list[Weekday] = Field(default_factory=list)
+    due_day: int | None = None
+    due_month: int | None = None
+    due_days_from_start: int | None = None
+    is_active: bool = True
+    is_general: bool = False
+    is_archived: bool = False
+    routine_type_id: UUID | None = None
     routine_type_name: str | None = None
     routine_type_color: str | None = None
+    activities: list[TemplateActivityResponse] = []
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class ActivityTemplateListItem(BaseModel):
-    """List item without nested activities for performance."""
+    """One row of the template list, without the nested activities.
+
+    `ActivityTemplateResponse` plus the three values the list computes on its
+    own — `is_overdue`, `days_overdue` and `activity_count` — which the overdue
+    filter, the badge and the sort by urgency read.
+    """
 
     id: UUID
     user_id: UUID
-    parent_template_id: UUID | None = None
     name: str
     description: str | None = None
     process_type: str | None = None
     recurrence: str
-    weekday_mask: str | None = None
+    weekdays: list[Weekday] = Field(default_factory=list)
     due_day: int | None = None
     due_month: int | None = None
     due_days_from_start: int | None = None
-    due_date: datetime | None = None
-    recurrence_end_date: datetime | None = None
     is_active: bool
     is_general: bool = False
     is_archived: bool = False
@@ -287,30 +388,23 @@ class ActivityTemplateListItem(BaseModel):
     routine_type_id: UUID | None = None
     routine_type_name: str | None = None
     routine_type_color: str | None = None
-    created_at: datetime
-    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
 
 
 class OverdueTemplateResponse(BaseModel):
-    """Overdue template info for dashboard alerts."""
+    """One overdue template, as the dashboard alert renders it.
+
+    The alert only shows the name, the recurrence label, how many activities the
+    template has and how many days late it is, plus the id it navigates with.
+    Everything else the full template DTO carries is dead weight here.
+    """
 
     id: UUID
     name: str
-    description: str | None = None
-    process_type: str | None = None
     recurrence: str
-    weekday_mask: str | None = None
-    due_month: int | None = None
-    due_date: datetime | None = None
-    recurrence_end_date: datetime | None = None
-    is_active: bool
     days_overdue: int
     activity_count: int = 0
-    routine_type_id: UUID | None = None
-    routine_type_name: str | None = None
-    routine_type_color: str | None = None
 
 
 # ──────────────────────────────────────────────
@@ -329,17 +423,37 @@ class ClientTemplateAssignmentUpdate(BaseModel):
 
 
 class ClientTemplateAssignmentResponse(BaseModel):
+    """One template linked to a client, as the company page renders it.
+
+    The page shows the active toggle and removes or refreshes the link by id,
+    and matches the linked templates by `template_id`. Out, because nothing
+    renders them: `user_id` (the link list is already scoped to the caller),
+    `start_date`, `last_generated_at`, `created_at` and `updated_at`.
+    """
+
     id: UUID
     client_id: UUID
     template_id: UUID
-    user_id: UUID
-    start_date: datetime | None = None
     is_active: bool
-    last_generated_at: datetime | None = None
-    created_at: datetime
-    updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ClientTemplateAssignResponse(BaseModel):
+    """What linking a template to a client answers: the link and the task count.
+
+    `template_name` is out — the page refetches the list, which already carries
+    the template rows it renders.
+    """
+
+    assignment_id: UUID
+    tasks_generated: int
+
+
+class ClientTemplateRegenerateResponse(BaseModel):
+    """What regenerating a client's tasks answers: how many were created."""
+
+    tasks_generated: int
 
 
 # ──────────────────────────────────────────────

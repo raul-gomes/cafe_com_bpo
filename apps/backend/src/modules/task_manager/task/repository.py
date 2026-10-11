@@ -4,8 +4,10 @@ from uuid import UUID
 from sqlalchemy import or_, update
 from sqlalchemy.orm import Session, joinedload
 
+from src.core.deadline import business_day_bounds
+
 from ..models import Task, TaskPhase
-from ..schemas import TaskCreate, TaskPhaseUpdate, TaskUpdate
+from ..schemas import TaskCreate, TaskUpdate
 
 
 class TaskRepository:
@@ -75,17 +77,16 @@ class TaskRepository:
             query = query.filter(Task.process_type == process_type_filter)
 
         if today_filter:
-            now = datetime.now(timezone.utc)
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            day_end = day_start + timedelta(days=1)
+            # Dia de negócio (03:00 UTC em São Paulo), não meia-noite UTC:
+            # é o mesmo dia que o usuário vê e o mesmo que `is_overdue` mede.
+            day_start, day_end = business_day_bounds(datetime.now(timezone.utc))
             query = query.filter(
                 Task.deadline >= day_start,
                 Task.deadline < day_end,
             )
 
         if overdue_filter:
-            now = datetime.now(timezone.utc)
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_start, _ = business_day_bounds(datetime.now(timezone.utc))
             query = query.filter(
                 Task.deadline < day_start,
                 Task.completed_at.is_(None),
@@ -114,16 +115,15 @@ class TaskRepository:
             .filter(Task.is_active, cond)
         )
         if today_filter:
-            now = datetime.now(timezone.utc)
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
-            day_end = day_start + timedelta(days=1)
+            # Dia de negócio (03:00 UTC em São Paulo), não meia-noite UTC:
+            # é o mesmo dia que o usuário vê e o mesmo que `is_overdue` mede.
+            day_start, day_end = business_day_bounds(datetime.now(timezone.utc))
             query = query.filter(
                 Task.deadline >= day_start,
                 Task.deadline < day_end,
             )
         if overdue_filter:
-            now = datetime.now(timezone.utc)
-            day_start = now.replace(hour=0, minute=0, second=0, microsecond=0)
+            day_start, _ = business_day_bounds(datetime.now(timezone.utc))
             query = query.filter(
                 Task.deadline < day_start,
                 Task.completed_at.is_(None),
@@ -254,24 +254,6 @@ class TaskRepository:
             self.session.refresh(p)
         return result
 
-    def get_phase_by_id(self, phase_id: UUID) -> TaskPhase | None:
-        """Retorna uma fase global pelo id."""
-        return self.session.query(TaskPhase).filter(TaskPhase.id == phase_id).first()
-
-    def update_phase(self, phase: TaskPhase, phase_in: TaskPhaseUpdate) -> TaskPhase:
-        """Update a phase."""
-        update_data = phase_in.model_dump(exclude_unset=True)
-        for field, value in update_data.items():
-            setattr(phase, field, value)
-        self.session.commit()
-        self.session.refresh(phase)
-        return phase
-
-    def delete_phase(self, phase: TaskPhase) -> None:
-        """Delete a phase."""
-        self.session.delete(phase)
-        self.session.commit()
-
     def create_default_phases(self) -> list[TaskPhase]:
         """Create the 3 global canonical phases."""
         from ..models import DEFAULT_PHASES
@@ -341,42 +323,56 @@ class TaskRepository:
 
     # ── SLA Alert Queries ──
 
-    def _get_done_phase_ids(self) -> list[str]:
-        """Return phase IDs for the done (final) global phase: explicit
-        ``is_done`` flag preferred, falling back to the highest ``order``."""
+    def _get_done_phase_ids(self) -> list[UUID]:
+        """IDs da fase global de conclusao: `is_done` explicito, ou a de maior
+        `order` como reserva.
+
+        Devolve `UUID`, nao `str`: `Task.phase_id` e uma coluna UUID e o
+        comparador espera o tipo da coluna, nao o texto.
+        """
         done_phase = self.session.query(TaskPhase).filter(TaskPhase.is_done).first()
         if done_phase is None:
             done_phase = (
                 self.session.query(TaskPhase).order_by(TaskPhase.order.desc()).first()
             )
-        return [str(done_phase.id)] if done_phase else []
+        return [done_phase.id] if done_phase else []
 
     def get_tasks_overdue(self, user_id: UUID) -> list[Task]:
-        """Get tasks past their deadline, excluding completed/cancelled."""
+        """Tarefas cujo dia de prazo ja passou, excluindo concluidas/canceladas.
+
+        O corte e o inicio do dia de negocio, nao `datetime.now()`: uma tarefa que
+        vence hoje as 07:00 continua valendo quando o alerta e lido as 17:00. E
+        a mesma janela que a lista de tarefas usa, para os dois nunca discordar.
+        """
         done_ids = self._get_done_phase_ids()
+        day_start, _ = business_day_bounds(datetime.now(timezone.utc))
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
             Task.is_active,
-            not Task.is_cancelled,
+            Task.is_cancelled.is_(False),
             Task.deadline.isnot(None),
-            Task.deadline < datetime.now(timezone.utc),
+            Task.deadline < day_start,
         )
         if done_ids:
             query = query.filter(~Task.phase_id.in_(done_ids))
         return query.order_by(Task.deadline.asc()).all()
 
     def get_tasks_near_deadline(self, user_id: UUID, days_ahead: int = 2) -> list[Task]:
-        """Get tasks with deadline within the next N days, excluding completed/cancelled."""
+        """Tarefas com prazo nos proximos N dias, excluindo concluidas/canceladas.
+
+        A janela conta dias de calendario a partir do inicio do dia de negocio,
+        pelo mesmo motivo de `get_tasks_overdue`.
+        """
         done_ids = self._get_done_phase_ids()
-        now = datetime.now(timezone.utc)
-        cutoff = now + timedelta(days=days_ahead)
+        day_start, _ = business_day_bounds(datetime.now(timezone.utc))
+        cutoff = day_start + timedelta(days=days_ahead)
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
             Task.is_active,
-            not Task.is_cancelled,
+            Task.is_cancelled.is_(False),
             Task.deadline.isnot(None),
-            Task.deadline >= now,
-            Task.deadline <= cutoff,
+            Task.deadline >= day_start,
+            Task.deadline < cutoff,
         )
         if done_ids:
             query = query.filter(~Task.phase_id.in_(done_ids))
@@ -390,7 +386,7 @@ class TaskRepository:
         query = self.session.query(Task).filter(
             Task.user_id == user_id,
             Task.is_active,
-            not Task.is_cancelled,
+            Task.is_cancelled.is_(False),
             Task.completed_at.isnot(None),
             Task.completed_at >= start_date,
             Task.completed_at <= end_date,

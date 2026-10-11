@@ -2,20 +2,24 @@ import { render, screen, fireEvent, waitFor, within } from '@testing-library/rea
 import { MemoryRouter } from 'react-router-dom'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
+import { UpgradeProvider } from '../src/components/ui/UpgradeModal'
 import { ContatosPage } from '../src/pages/panel/ContatosPage'
 import { ContactResponse } from '../src/api/contacts'
+
+const mockAccess = vi.hoisted(() => ({
+  value: undefined as { access: string; read_only_modules: string[] } | undefined,
+}))
+vi.mock('../src/api/hooks/useAccess', () => ({ useAccess: () => ({ data: mockAccess.value }) }))
 
 const mockListContacts = vi.hoisted(() => vi.fn())
 const mockCreateContact = vi.hoisted(() => vi.fn())
 const mockUpdateContact = vi.hoisted(() => vi.fn())
-const mockUpdateSourceContact = vi.hoisted(() => vi.fn())
 const mockDeleteContact = vi.hoisted(() => vi.fn())
 
 vi.mock('../src/api/contacts', () => ({
   listContacts: mockListContacts,
   createContact: mockCreateContact,
   updateContact: mockUpdateContact,
-  updateSourceContact: mockUpdateSourceContact,
   deleteContact: mockDeleteContact,
 }))
 
@@ -27,9 +31,6 @@ const LIVRE: ContactResponse = {
   empresa: 'Empresa Beta',
   origem: 'livre',
   tem_pessoa: true,
-  client_id: null,
-  prospect_id: null,
-  updated_at: '2026-09-28T10:00:00Z',
 }
 
 const DO_CLIENTE: ContactResponse = {
@@ -40,9 +41,6 @@ const DO_CLIENTE: ContactResponse = {
   empresa: 'Contabilidade Alfa',
   origem: 'cliente',
   tem_pessoa: true,
-  client_id: 'cl1',
-  prospect_id: 'p9',
-  updated_at: '2026-09-28T10:00:00Z',
 }
 
 const PROSPECTO: ContactResponse = {
@@ -53,9 +51,6 @@ const PROSPECTO: ContactResponse = {
   empresa: 'Lead Aberto Ltda',
   origem: 'prospecto',
   tem_pessoa: true,
-  client_id: null,
-  prospect_id: 'p10',
-  updated_at: '2026-09-28T10:00:00Z',
 }
 
 /** Empresa sem representante: a linha traz o contato da própria empresa. */
@@ -67,17 +62,16 @@ const SEM_PESSOA: ContactResponse = {
   empresa: 'Cliente Sem Pessoa',
   origem: 'cliente',
   tem_pessoa: false,
-  client_id: 'cl7',
-  prospect_id: null,
-  updated_at: '2026-09-28T10:00:00Z',
 }
 
 function renderPage() {
   return render(
     <MemoryRouter>
-      <ConfirmProvider>
-        <ContatosPage />
-      </ConfirmProvider>
+      <UpgradeProvider>
+        <ConfirmProvider>
+          <ContatosPage />
+        </ConfirmProvider>
+      </UpgradeProvider>
     </MemoryRouter>
   )
 }
@@ -98,6 +92,7 @@ const busca = () => screen.getByLabelText('Buscar contatos')
 describe('ContatosPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAccess.value = undefined
     mockListContacts.mockResolvedValue([])
   })
 
@@ -298,8 +293,8 @@ describe('ContatosPage', () => {
     )
   })
 
-  it('edita o contato do cliente no cadastro de origem, sem empresa', async () => {
-    mockUpdateSourceContact.mockResolvedValue({ ...DO_CLIENTE, nome: 'Marina R. Costa' })
+  it('edita o contato do cliente pelo id do contato, sem empresa', async () => {
+    mockUpdateContact.mockResolvedValue({ ...DO_CLIENTE, nome: 'Marina R. Costa' })
     await renderWith([LIVRE, DO_CLIENTE])
 
     fireEvent.click(within(row('Marina Reis')).getByRole('button', { name: /editar/i }))
@@ -309,7 +304,7 @@ describe('ContatosPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() =>
-      expect(mockUpdateSourceContact).toHaveBeenCalledWith('p9', {
+      expect(mockUpdateContact).toHaveBeenCalledWith('p9', {
         nome: 'Marina R. Costa',
         telefone: '11988771234',
         email: 'marina@alfa.com.br',
@@ -317,8 +312,8 @@ describe('ContatosPage', () => {
     )
   })
 
-  it('edita o contato do prospecto que ainda não virou cliente', async () => {
-    mockUpdateSourceContact.mockResolvedValue({ ...PROSPECTO, nome: 'Nina Nova' })
+  it('edita o contato do prospecto pelo id do contato', async () => {
+    mockUpdateContact.mockResolvedValue({ ...PROSPECTO, nome: 'Nina Nova' })
     await renderWith([PROSPECTO])
 
     fireEvent.click(within(row('Nina Prospecto')).getByRole('button', { name: /editar/i }))
@@ -328,7 +323,7 @@ describe('ContatosPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Salvar' }))
 
     await waitFor(() =>
-      expect(mockUpdateSourceContact).toHaveBeenCalledWith('p10', {
+      expect(mockUpdateContact).toHaveBeenCalledWith('p10', {
         nome: 'Nina Nova',
         telefone: '2132221111',
         email: 'nina@aberto.com.br',
@@ -402,5 +397,32 @@ describe('ContatosPage', () => {
     renderPage()
 
     expect(await screen.findByText(/não foi possível carregar/i)).toBeInTheDocument()
+  })
+
+  it('usuário free: clicar em "Novo contato" abre o modal de upgrade e não abre o formulário', async () => {
+    mockAccess.value = { access: 'free', read_only_modules: ['captar', 'gestao'] }
+    renderPage()
+    const btn = await screen.findByRole('button', { name: /novo contato/i })
+
+    // O cadeado identifica que a ação está trancada (só trava + cadeado, sem banner).
+    expect(btn.querySelector('.lucide-lock')).toBeInTheDocument()
+
+    fireEvent.click(btn)
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Assine para liberar a escrita')
+    expect(screen.queryByPlaceholderText('Quem é o contato')).toBeNull()
+  })
+
+  it('usuário com acesso pleno: botão "Novo contato" sem cadeado e abre o formulário', async () => {
+    mockAccess.value = { access: 'active', read_only_modules: [] }
+    renderPage()
+    const btn = await screen.findByRole('button', { name: /novo contato/i })
+
+    expect(btn.querySelector('.lucide-lock')).toBeNull()
+
+    fireEvent.click(btn)
+
+    expect(await screen.findByPlaceholderText('Quem é o contato')).toBeInTheDocument()
   })
 })

@@ -7,12 +7,13 @@ para marcar o que já foi visto.
 
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import grant_user_beta, register_user
 
 
 def auth_for(client, email, name="Sinal User"):
     payload = {"email": email, "password": "StrongPassword123!", "name": name}
     register_user(payload=payload)
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -71,7 +72,8 @@ def test_new_private_message_notifies_the_other_participant(client):
     assert len(new_msgs) == 1
     assert new_msgs[0]["related_entity_type"] == "conversation"
     assert new_msgs[0]["related_entity_id"] == conv_id
-    assert new_msgs[0]["triggered_by_user_id"] == guest["uid"]
+    # The sender's identity travels in the text, not as `triggered_by_user_id`
+    # (no screen renders the id).
     assert "Bia" in new_msgs[0]["title"]
     assert "revisar a planilha" in new_msgs[0]["message"]
     assert new_msgs[0]["is_read"] is False
@@ -182,7 +184,6 @@ def test_project_application_notification_tells_who_applied(client):
     )
     assert notif["related_entity_type"] == "project"
     assert notif["related_entity_id"] == project_id
-    assert notif["triggered_by_user_id"] == candidate["uid"]
     assert "Bia Candidata" in notif["message"]
 
 

@@ -3,6 +3,87 @@ from uuid import uuid4
 from tests.helpers import create_test_user, register_user
 
 
+def test_register_creates_user_with_lgpd_acceptance(client):
+    email = f"register_{uuid4()}@cafe.com"
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": email,
+            "password": "StrongPassword123!",
+            "name": "João Silva",
+            "company": "BPO Teste",
+            "terms_accepted": True,
+        },
+    )
+    assert response.status_code == 201
+    data = response.json()
+    assert data["email"] == email
+    assert data["name"] == "João Silva"
+    assert data["terms_accepted"] is True
+    assert "id" in data
+
+
+def test_register_requires_lgpd_terms_acceptance(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": f"lgpd_{uuid4()}@cafe.com",
+            "password": "StrongPassword123!",
+            "terms_accepted": False,
+        },
+    )
+    assert response.status_code == 422
+    assert "LGPD" in response.text
+
+
+def test_register_rejects_duplicate_email(client):
+    email = f"duplicate_{uuid4()}@cafe.com"
+    payload = {"email": email, "password": "StrongPassword123!", "terms_accepted": True}
+    assert client.post("/auth/register", json=payload).status_code == 201
+    response = client.post("/auth/register", json=payload)
+    assert response.status_code == 400
+    assert "uso" in response.text
+
+
+def test_register_rejects_weak_password(client):
+    response = client.post(
+        "/auth/register",
+        json={
+            "email": f"weak_{uuid4()}@cafe.com",
+            "password": "123",
+            "terms_accepted": True,
+        },
+    )
+    assert response.status_code == 422
+
+
+def test_register_never_returns_password_fields(client):
+    email = f"safe_{uuid4()}@cafe.com"
+    response = client.post(
+        "/auth/register",
+        json={"email": email, "password": "StrongPassword123!", "terms_accepted": True},
+    )
+    assert response.status_code == 201
+    assert "password" not in response.text
+    assert "password_hash" not in response.text
+    assert "hash" not in response.text
+
+
+def test_register_then_login_returns_token(client):
+    email = f"postreg_{uuid4()}@cafe.com"
+    response = client.post(
+        "/auth/register",
+        json={"email": email, "password": "StrongPassword123!", "terms_accepted": True},
+    )
+    assert response.status_code == 201
+
+    login_response = client.post(
+        "/auth/login", data={"username": email, "password": "StrongPassword123!"}
+    )
+    assert login_response.status_code == 200
+    assert "access_token" in login_response.json()
+
+
 def test_login_returns_access_token(client):
     email = f"login_{uuid4()}@cafe.com"
     payload = {"email": email, "password": "StrongPassword123!"}

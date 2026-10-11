@@ -9,14 +9,19 @@ import { Card, CardContent } from '../../components/ui/card';
 import { Input } from '../../components/ui/input';
 import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
+import { Checkbox } from '../../components/ui/checkbox';
+import { Label } from '../../components/ui/label';
 import { AlertCircle, X } from 'lucide-react';
 import logo from '../../assets/logo.png';
 
 interface RegisterFormProps {
   onClose?: () => void;
+  /** Chamada após o cadastro self-service (sem convite) para a página decidir
+   *  o próximo passo — ex.: exibir a oferta de assinatura antes do painel. */
+  onRegistered?: () => void;
 }
 
-export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
+export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistered }) => {
   const { register: authRegister } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -25,9 +30,12 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
   const [showCPw, setShowCPw] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
-  const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
+  const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema) as any,
+    defaultValues: { terms: false },
   });
+
+  const termsAccepted = watch('terms');
 
   const onSubmit = async (data: RegisterFormData) => {
     setServerError(null);
@@ -37,6 +45,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
         email: data.email,
         company: data.company || '',
         password: data.password,
+        terms_accepted: data.terms,
       });
 
       if (inviteToken) {
@@ -50,7 +59,11 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
         return;
       }
 
-      navigate('/painel');
+      if (onRegistered) {
+        onRegistered();
+      } else {
+        navigate('/painel');
+      }
     } catch (err: any) {
       const msg = err?.response?.data?.detail ?? 'Erro ao criar conta. Tente novamente.';
       setServerError(Array.isArray(msg) ? msg[0]?.msg ?? String(msg) : String(msg));
@@ -58,6 +71,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
   };
 
   return (
+    <>
     <Card className="relative mx-auto w-full max-w-[768px]">
       <CardContent className="pt-7 px-8 pb-7">
         {onClose && (
@@ -122,7 +136,36 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
             {errors.confirmPassword && <p className="ds-error-text">{errors.confirmPassword.message}</p>}
           </div>
 
-          <div className="mt-6 border-t border-border pt-5">
+          <div className="flex items-start gap-2 pt-2">
+            <Checkbox
+              id="terms"
+              checked={termsAccepted}
+              onCheckedChange={(v) => setValue('terms', Boolean(v))}
+              disabled={isSubmitting}
+              className="mt-0.5 shrink-0"
+            />
+            <div className="text-[12px] text-muted-foreground leading-relaxed">
+              <Label htmlFor="terms" className="cursor-pointer">
+                Li e concordo com os{' '}
+              </Label>
+              {/* Opens in a new tab so the half-filled sign-up form is not lost. */}
+              <a href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline text-[12px] leading-relaxed font-medium">
+                Termos de Uso
+              </a>
+              <Label htmlFor="terms" className="cursor-pointer">
+                {' '}e{' '}
+              </Label>
+              <a href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline text-[12px] leading-relaxed font-medium">
+                Política de Privacidade
+              </a>
+              <Label htmlFor="terms" className="cursor-pointer">
+                {' '}(LGPD).
+              </Label>
+            </div>
+          </div>
+          {errors.terms && <p className="ds-error-text -mt-1">{errors.terms.message}</p>}
+
+          <div className="mt-2 border-t border-border pt-5">
             <Button type="submit" disabled={isSubmitting} className="w-full">
               {isSubmitting ? 'Cadastrando...' : 'Cadastrar'}
             </Button>
@@ -130,5 +173,7 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose }) => {
         </form>
       </CardContent>
     </Card>
+
+    </>
   );
 };

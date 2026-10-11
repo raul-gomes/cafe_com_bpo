@@ -8,7 +8,8 @@ export interface ContractSection {
 export interface ContractData {
   id: string;
   number: number | null;
-  prospect_id: string | null;
+  /** Empresa dona do negócio do contrato — o identificador que a geração usa. */
+  company_id: string | null;
   proposal_id: string | null;
   client_name: string;
   sections: ContractSection[];
@@ -53,7 +54,7 @@ export interface ContractFinalizeResponse {
 }
 
 export interface ContractGeneratePayload {
-  prospect_id: string;
+  company_id: string;
   proposal_id?: string | null;
   fields?: Record<string, unknown>;
 }
@@ -64,11 +65,11 @@ export const getContractTemplate = async () => {
 };
 
 export const getContractMissingFields = async (
-  prospectId: string,
+  companyId: string,
   proposalId?: string | null,
 ) => {
   const response = await apiClient.post('/contracts/missing-fields', {
-    prospect_id: prospectId,
+    company_id: companyId,
     proposal_id: proposalId ?? null,
   });
   return response.data as ContractMissingFieldsData;

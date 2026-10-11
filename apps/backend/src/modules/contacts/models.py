@@ -37,6 +37,19 @@ class Contact(Base):
     email = Column(String(255), nullable=True)
     empresa = Column(String(255), nullable=True)
 
+    # Vínculo com a empresa (1:N). Vem do `prospects.representante_*` hoje e
+    # passa a ser a única fonte de pessoa: N contatos por empresa, um deles
+    # apontado por `companies.primary_contact_id`.
+    # Regra §16: nada de hard delete — o contato da empresa é desativado em
+    # cascata (`is_active = false`), nunca apagado.
+    company_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("companies.id", ondelete="NO ACTION"),
+        nullable=True,
+    )
+    cpf = Column(String(20), nullable=True)
+    cargo = Column(String(100), nullable=True)
+
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )

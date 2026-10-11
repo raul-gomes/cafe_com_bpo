@@ -10,14 +10,20 @@ import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
+from pydantic import ValidationError
+
 from src.core.config import get_settings
 from src.core.email import EmailService
+from src.core.logger import log
 from src.modules.auth.models import User
+from src.modules.companies.models import Company
+from src.modules.companies.repository import CompanyRepository
+from src.modules.pricing.schemas import PricingCalculateRequest
+from src.modules.pricing.service import PricingService
 from src.modules.proposals.repository import PricingScenarioRepository
 from src.modules.proposals.schemas import (
     ProposalCreate,
     ProposalResponse,
-    ProposalUpdate,
     PublicProposalResponse,
     PublicProviderInfo,
 )
@@ -31,11 +37,34 @@ class ProposalShareError(ValueError):
     """Erro de link público inválido ou expirado."""
 
 
+class ProposalPricingError(ValueError):
+    """Dados de precificação inválidos: o orçamento não pode ser gravado."""
+
+
+class ProposalNotFoundError(ValueError):
+    """Orçamento inexistente ou pertencente a outro usuário."""
+
+
+class ProposalCompanyNotFoundError(ValueError):
+    """Empresa do corpo não existe ou é de outro usuário."""
+
+
 class ProposalService:
     """Service layer for proposal operations."""
 
-    def __init__(self, repository: PricingScenarioRepository):
+    def __init__(
+        self,
+        repository: PricingScenarioRepository,
+        pricing_service: PricingService | None = None,
+        companies: CompanyRepository | None = None,
+    ):
         self.repository = repository
+        self.pricing_service = pricing_service or PricingService()
+        # A empresa é a fonte única do vínculo e da posse do negócio (Fase 3,
+        # item 1). A checagem de posse mora aqui, e não no router: o
+        # `company_id` chega do corpo, e empresa alheia tem de dar o mesmo erro
+        # de inexistente.
+        self.companies = companies or CompanyRepository(repository.session)
 
     @staticmethod
     def _safe_float(value, default=0.0):
@@ -67,19 +96,6 @@ class ProposalService:
 
         return sanitize_value(result_payload)
 
-    def get_user_proposals(
-        self, user_id: UUID, status: str | None = None
-    ) -> list[ProposalResponse]:
-        """Get all proposals for a user."""
-        proposals = self.repository.get_by_user(user_id, status_filter=status)
-        # Sanitize NaN values from result_payloads
-        for proposal in proposals:
-            if proposal.result_payload:
-                proposal.result_payload = self._sanitize_result_payload(
-                    proposal.result_payload
-                )
-        return proposals
-
     def get_proposal(self, proposal_id: UUID, user_id: UUID) -> ProposalResponse:
         """Get a specific proposal."""
         proposal = self.repository.get_scenario_by_id(
@@ -94,38 +110,84 @@ class ProposalService:
             )
         return proposal
 
+    def _resolve_company(
+        self, company_id: UUID | None, user_id: UUID
+    ) -> Company | None:
+        """Empresa dona do orçamento, ou `None` quando o corpo não manda id.
+
+        A posse é verificada aqui porque o id chega do corpo da requisição: uma
+        empresa de outro usuário precisa dar o mesmo erro de inexistente, senão o
+        endpoint confirmaria a existência de um negócio alheio.
+        """
+        if company_id is None:
+            return None
+        company = self.companies.get_owned_company(user_id, company_id)
+        if company is None:
+            raise ProposalCompanyNotFoundError("Empresa não encontrada")
+        return company
+
+    def _calculate_result_payload(self, input_payload: dict) -> dict:
+        """Recalcula o resultado do orçamento pela Metodologia v4 do servidor.
+
+        O preço persistido é sempre derivado dos dados de entrada, nunca do que
+        o navegador enviou. Entrada que não descreve uma precificação válida
+        (ou que viola a regra de negócio) impede a gravação.
+        """
+        try:
+            request = PricingCalculateRequest.model_validate(input_payload)
+        except ValidationError as exc:
+            raise ProposalPricingError(
+                "Os dados de precificação enviados não descrevem uma simulação "
+                "válida. Refaça o orçamento com a metodologia atual."
+            ) from exc
+
+        try:
+            return self.pricing_service.build_result_payload(request)
+        except ValueError as exc:
+            raise ProposalPricingError(str(exc)) from exc
+
+    @staticmethod
+    def _warn_ignored_result_payload(client_name: str | None) -> None:
+        target = f"'{client_name}'" if client_name else "sem nome"
+        log.warning(
+            f"⚠️ result_payload enviado pelo cliente foi descartado; o preço do "
+            f"orçamento {target} é recalculado no servidor."
+        )
+
     def create_proposal(
         self, proposal_data: ProposalCreate, user_id: UUID
     ) -> ProposalResponse:
-        """Create a new proposal."""
+        """Create a new proposal with a server-calculated price."""
+        company = self._resolve_company(proposal_data.company_id, user_id)
         if proposal_data.result_payload:
-            proposal_data.result_payload = self._sanitize_result_payload(
-                proposal_data.result_payload
-            )
+            self._warn_ignored_result_payload(proposal_data.client_name)
+        result_payload = self._calculate_result_payload(proposal_data.input_payload)
         return self.repository.create_scenario(
             user_id=user_id,
             client_name=proposal_data.client_name,
             input_payload=proposal_data.input_payload,
-            result_payload=proposal_data.result_payload,
+            result_payload=result_payload,
+            company=company,
         )
 
     def update_proposal(
-        self, proposal_id: UUID, user_id: UUID, proposal_data: ProposalUpdate
+        self, proposal_id: UUID, user_id: UUID, proposal_data: ProposalCreate
     ) -> ProposalResponse:
-        """Update an existing proposal."""
+        """Update an existing proposal with a server-calculated price."""
+        company = self._resolve_company(proposal_data.company_id, user_id)
         if proposal_data.result_payload:
-            proposal_data.result_payload = self._sanitize_result_payload(
-                proposal_data.result_payload
-            )
+            self._warn_ignored_result_payload(proposal_data.client_name)
+        result_payload = self._calculate_result_payload(proposal_data.input_payload)
         updated = self.repository.update_scenario(
             user_id=user_id,
             scenario_id=proposal_id,
             client_name=proposal_data.client_name,
             input_payload=proposal_data.input_payload,
-            result_payload=proposal_data.result_payload,
+            result_payload=result_payload,
+            company=company,
         )
         if not updated:
-            raise ValueError(f"Proposal {proposal_id} not found")
+            raise ProposalNotFoundError(f"Proposal {proposal_id} not found")
         return updated
 
     def delete_proposal(self, proposal_id: UUID, user_id: UUID) -> None:

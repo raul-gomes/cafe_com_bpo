@@ -6,16 +6,18 @@ from sqlalchemy import and_, or_
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
+from src.core.deadline import days_remaining, is_overdue
 from src.modules.auth.models import User
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
-from src.modules.clients.models import Client
+from src.modules.companies.models import Company
 from src.modules.notifications.models import AppNotification
 from src.modules.task_manager.models import Task
 from src.modules.team.models import Team, TeamInvitation
 
 from .schemas import (
     ActivityResponse,
+    DashboardStats,
     DashboardSummary,
     PendingInvitation,
     UrgentTaskResponse,
@@ -26,30 +28,34 @@ router = APIRouter(prefix="/dashboard", tags=["dashboard"])
 CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 SessionDep = Annotated[Session, Depends(get_db_session)]
 
-try:  # pragma: no cover - depende da presença de tzdata na imagem
-    from zoneinfo import ZoneInfo
-
-    _BUSINESS_TZ = ZoneInfo("America/Sao_Paulo")
-except Exception:
-    _BUSINESS_TZ = timezone(timedelta(hours=-3))
-
-
-def _deadline_business_date(deadline: datetime):
-    """Data de calendário do prazo no fuso de negócio."""
-    if deadline.tzinfo is None:
-        deadline = deadline.replace(tzinfo=timezone.utc)
-    return deadline.astimezone(_BUSINESS_TZ).date()
-
 
 @router.get("/summary", response_model=DashboardSummary)
-def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
+def get_dashboard_summary(
+    current_user: CurrentUserDep, db: SessionDep
+) -> DashboardSummary:
+    """Aggregates what the panel landing page shows on its first paint.
+
+    Args:
+        current_user: The caller; every read is scoped to them.
+        db: The database session.
+
+    Returns:
+        The greeting, the urgent tasks, the activity feed, the pending team
+        invitations and the two sidebar counters.
+    """
+    # 1. Tarefas urgentes. O nome da empresa vem de `companies`, pelo
+    # `company_id` da tarefa (Fase 3, item 7) — era o último join do módulo
+    # pendurado em `tasks.client_id → clients`. Sem `Company.is_active` no
+    # filtro, de propósito: o join legado também não filtrava, e com a cascata
+    # de desativação (§16) acrescentar o filtro apagaria do painel justamente o
+    # que está vencendo. Mudar isso é regra nova, não migração de origem.
     # 1. Fetch urgent tasks
     now = datetime.now(timezone.utc)
     three_days_from_now = now + timedelta(days=3)
 
     tasks_query = (
-        db.query(Task, Client.name.label("client_name"))
-        .join(Client, Task.client_id == Client.id)
+        db.query(Task, Company.name.label("client_name"))
+        .join(Company, Task.company_id == Company.id)
         .filter(
             and_(
                 Task.user_id == current_user.id,
@@ -65,21 +71,11 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
         .all()
     )
 
-    def _compute_days_remaining(deadline: datetime | None) -> int | None:
-        """Dias de calendário até o prazo (fuso America/Sao_Paulo).
-
-        O prazo é uma DATA de negócio: vence hoje => 0, ontem => -1.
-        """
-        if deadline is None:
-            return None
-        deadline_date = _deadline_business_date(deadline)
-        today = datetime.now(_BUSINESS_TZ).date()
-        return (deadline_date - today).days
-
-    def _is_overdue(deadline: datetime | None) -> bool:
-        if deadline is None:
-            return False
-        return (_compute_days_remaining(deadline) or 0) < 0
+    # Fonte única da regra de prazo (`src/core/deadline.py`): a mesma que a
+    # lista de tarefas e o front usam, para a mesma tarefa não ter três
+    # vereditos diferentes.
+    _compute_days_remaining = days_remaining
+    _is_overdue = is_overdue
 
     urgent_tasks = [
         UrgentTaskResponse(
@@ -87,8 +83,6 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             title=t.Task.title,
             client_name=t.client_name,
             deadline=t.Task.deadline,
-            priority=t.Task.priority,
-            phase_id=t.Task.phase_id,
             days_remaining=_compute_days_remaining(t.Task.deadline),
             is_overdue=_is_overdue(t.Task.deadline),
         )
@@ -122,7 +116,6 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
                 if n.AppNotification.related_entity_type == "discussion_post"
                 else None
             ),
-            comment_id=None,
             triggered_by_name=n.triggerer_name,
             message_snippet=(
                 n.AppNotification.message[:100] if n.AppNotification.message else None
@@ -132,8 +125,8 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
     ]
 
     # 3. Stats
-    stats = {
-        "pending_tasks_count": db.query(Task)
+    stats = DashboardStats(
+        pending_tasks_count=db.query(Task)
         .filter(
             Task.user_id == current_user.id,
             Task.completed_at.is_(None),
@@ -142,20 +135,30 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
             Task.cancelled_at.is_(None),
         )
         .count(),
-        "unread_notifications_count": len(activities),
-    }
+        # Counted on the table, not as `len(activities)`: the feed above is
+        # capped at 20 rows, and the sidebar must show the real total.
+        unread_notifications_count=db.query(AppNotification)
+        .filter(
+            AppNotification.user_id == current_user.id,
+            AppNotification.is_read.is_(False),
+        )
+        .count(),
+    )
 
     # 4. Pending team invitations for this user's email
+    # The company name comes from `companies` (Fase 3, item 5), joined through
+    # the team's `company_id`: `teams` is only ever linked to the company
+    # facade now, so reaching for the legacy `clients` row here would break the
+    # card the moment that row is gone.
     now = datetime.now(timezone.utc)
     pending_invitations = (
         db.query(
             TeamInvitation,
-            Client.id.label("client_id"),
-            Client.name.label("client_name"),
+            Company.name.label("client_name"),
             User.name.label("inviter_name"),
         )
         .join(Team, Team.id == TeamInvitation.team_id)
-        .join(Client, Client.id == Team.client_id)
+        .join(Company, Company.id == Team.company_id)
         .join(User, User.id == TeamInvitation.invited_by)
         .filter(
             TeamInvitation.invited_email == current_user.email.strip().lower(),
@@ -169,13 +172,11 @@ def get_dashboard_summary(current_user: CurrentUserDep, db: SessionDep):
     pending = [
         PendingInvitation(
             invitation_id=inv.id,
-            client_id=client_id,
             client_name=client_name,
             inviter_name=inviter_name,
             created_at=inv.created_at,
-            expires_at=inv.expires_at,
         )
-        for inv, client_id, client_name, inviter_name in pending_invitations
+        for inv, client_name, inviter_name in pending_invitations
     ]
 
     return DashboardSummary(

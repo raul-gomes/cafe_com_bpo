@@ -1,8 +1,9 @@
 import re
-from datetime import datetime
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, field_validator
+
+from src.core.validators import validate_cep, validate_cnpj
 
 
 class ClientBase(BaseModel):
@@ -34,12 +35,12 @@ class ClientBase(BaseModel):
     @field_validator("cnpj")
     @classmethod
     def sanitize_cnpj(cls, v: str | None) -> str | None:
-        if v is None or not v.strip():
-            return v
-        cleaned = re.sub(r"\D", "", v)
-        if not cleaned:
-            raise ValueError("Informe um CNPJ válido")
-        return cleaned
+        return validate_cnpj(v)
+
+    @field_validator("cep")
+    @classmethod
+    def sanitize_cep(cls, v: str | None) -> str | None:
+        return validate_cep(v)
 
 
 class ClientCreate(ClientBase):
@@ -51,11 +52,15 @@ class ClientUpdate(ClientBase):
 
 
 class ClientResponse(ClientBase):
+    """Cliente do usuário, lido da `companies` (facade).
+
+    Contrato §6: só o que a tela de empresas renderiza. `user_id`,
+    `created_at` e `updated_at` saíram — o dono já está implícito (o endpoint
+    devolve apenas as empresas do próprio usuário) e nenhum componente exibe
+    data de cadastro da empresa.
+    """
+
     id: UUID
-    user_id: UUID
-    role: str = "owner"  # "owner" | "member"
-    created_at: datetime
-    updated_at: datetime
 
     class Config:
         from_attributes = True

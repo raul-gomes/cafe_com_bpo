@@ -4,7 +4,10 @@ from uuid import UUID
 from src.core.config import get_settings
 from src.core.email import EmailService
 from src.core.logger import log
+from src.modules.companies.models import Company
+from src.modules.companies.repository import CompanyRepository
 
+from .models import TeamInvitation
 from .repository import TeamRepository
 from .schemas import (
     AcceptResponse,
@@ -22,18 +25,36 @@ settings = get_settings()
 
 
 class TeamService:
-    def __init__(self, repository: TeamRepository):
+    def __init__(self, repository: TeamRepository, companies: CompanyRepository):
+        """Monta o serviço com o repositório do time e a facade de empresas.
+
+        `companies` é a `CompanyRepository` — a fonte única do vínculo e da
+        posse (Fase 3, item 5). A checagem de posse mora aqui, e não no router:
+        o id da rota é do cliente, mas quem responde "este é o seu cliente" é a
+        empresa, não a linha legada.
+        """
         self.repo = repository
+        self.companies = companies
+
+    def _company(self, client_id: UUID) -> Company | None:
+        """Empresa (estágio `client`) por trás do id da rota, ou `None`.
+
+        Time, rotina, SLA e tarefa só existem para cliente — a garantia é do
+        banco (FK composta). Esta leitura carrega a mesma premissa para o
+        serviço, que responde "não encontrado" em vez de montar payload para uma
+        empresa em prospecção.
+        """
+        return self.companies.get_client_by_id(client_id)
 
     def invite_collaborator(
         self, client_id: UUID, data: InviteCreate, invited_by: UUID
     ) -> InviteBatchResponse:
         """Send invitations to multiple collaborators."""
         # Verify client exists and belongs to inviter
-        client = self.repo.get_client_by_id(client_id)
-        if not client:
+        company = self._company(client_id)
+        if not company:
             raise ValueError("Cliente não encontrado")
-        if client.user_id != invited_by:
+        if company.user_id != invited_by:
             raise ValueError("Apenas o gestor do cliente pode convidar")
 
         # Verify templates exist
@@ -59,7 +80,7 @@ class TeamService:
                 email_clean,
                 data.template_ids,
                 invited_by,
-                client.name,
+                company.name,
             )
             results.append(result)
 
@@ -141,13 +162,13 @@ class TeamService:
             raise ValueError("Convite inválido ou expirado")
 
         client_id = self.repo.get_client_id_by_team_id(invitation.team_id)
+        company = self._company(client_id) if client_id else None
 
         if user_id is None:
             # User not logged in — return info for redirect
-            client = self.repo.get_client_by_id(client_id)
             return AcceptResponse(
                 status="redirect",
-                client_name=client.name if client else None,
+                client_name=company.name if company else None,
             )
 
         # Verify the user's email matches the invitation
@@ -171,16 +192,14 @@ class TeamService:
         else:
             self.repo.accept_invitation_for_user(invitation, user_id)
 
-        client = self.repo.get_client_by_id(client_id)
-
         log.info(
             f"👥 Colaborador {user.email} aceitou convite para cliente "
-            f"{client.name if client else client_id}"
+            f"{company.name if company else client_id}"
         )
 
         return AcceptResponse(
             status="accepted",
-            client_name=client.name if client else None,
+            client_name=company.name if company else None,
             client_id=client_id,
         )
 
@@ -220,14 +239,14 @@ class TeamService:
         else:
             self.repo.accept_invitation_for_user(invitation, user_id)
 
-        client = self.repo.get_client_by_id(client_id)
+        company = self._company(client_id) if client_id else None
         log.info(
             f"👥 Colaborador {user.email} aceitou convite para cliente "
-            f"{client.name if client else client_id}"
+            f"{company.name if company else client_id}"
         )
         return AcceptResponse(
             status="accepted",
-            client_name=client.name if client else None,
+            client_name=company.name if company else None,
             client_id=client_id,
         )
 
@@ -251,86 +270,120 @@ class TeamService:
         self, client_id: UUID, current_user_id: UUID
     ) -> TeamListResponse:
         """List team members for a client."""
-        client = self.repo.get_client_by_id(client_id)
-        if not client:
+        company = self._company(client_id)
+        if not company:
             raise ValueError("Cliente não encontrado")
 
         # Only owner and members can view
-        if client.user_id != current_user_id and not self.repo.is_team_member(
+        if company.user_id != current_user_id and not self.repo.is_team_member(
             client_id, current_user_id
         ):
             raise ValueError("Acesso negado")
 
-        members_raw = self.repo.get_team_members(client_id)
-        members = []
-        for m in members_raw:
-            user = self.repo.get_user_by_id(m.user_id)
-            routines = self.repo.get_routines_for_member(client_id, m.user_id)
-            role_name = self.repo.get_role_name_by_id(m.role_id)
+        team = self.repo.get_team_by_client_id(client_id)
+        if not team:
+            return TeamListResponse(members=[])
+
+        return TeamListResponse(members=self._build_members(team.id, client_id))
+
+    def _build_members(
+        self, team_id: UUID, client_id: UUID
+    ) -> list[TeamMemberResponse]:
+        """Monta os cards de membro com um número **fixo** de consultas.
+
+        O caminho antigo fazia, por membro: 1 query do usuário, 1 da role, 1 do
+        time, 1 do convite aceito, 1 das rotinas do convite, 1 de **toda** a
+        tabela de vínculos de rotina e 1 dos templates — 8 por linha, 24 numa
+        equipe de 3. Aqui são 4 no total, independentemente do tamanho da equipe:
+
+        1. membros + usuário + role (um join);
+        2. convites aceitos do time (o e-mail é a chave que liga ao membro);
+        3. rotinas de todos esses convites, com o nome (um join);
+        4. estado dos vínculos dessas rotinas no cliente.
+        """
+        rows = self.repo.get_members_with_identity(team_id)
+        if not rows:
+            return []
+
+        accepted = self.repo.get_accepted_invitations_by_email(team_id)
+        routines_by_invitation = self.repo.get_routine_names_by_invitation_ids(
+            [invitation.id for invitation in accepted.values()]
+        )
+        template_ids = sorted(
+            {
+                template_id
+                for routines in routines_by_invitation.values()
+                for template_id in routines
+            },
+            key=str,
+        )
+        visible = self.repo.get_active_template_ids_for_client(client_id, template_ids)
+
+        members: list[TeamMemberResponse] = []
+        for member, name, email, _role in rows:
+            invitation = accepted.get((email or "").lower().strip())
+            granted = (
+                routines_by_invitation.get(invitation.id, {}) if invitation else {}
+            )
             members.append(
                 TeamMemberResponse(
-                    user_id=m.user_id,
-                    name=user.name if user else None,
-                    email=user.email if user else "",
-                    joined_at=m.created_at,
-                    role=role_name,
-                    is_active=m.is_active,
+                    user_id=member.user_id,
+                    name=name,
+                    email=email or "",
                     routines=[
-                        RoutineAccess(template_id=r.id, name=r.name) for r in routines
+                        RoutineAccess(template_id=template_id, name=routine_name)
+                        for template_id, routine_name in granted.items()
+                        if template_id in visible
                     ],
                 )
             )
-
-        return TeamListResponse(members=members)
+        return members
 
     def list_invitations(
         self, client_id: UUID, current_user_id: UUID
     ) -> InvitationListResponse:
         """Lista os convites do cliente (pendente, aceito, declinado, expirado)."""
-        client = self.repo.get_client_by_id(client_id)
-        if not client:
+        company = self._company(client_id)
+        if not company:
             raise ValueError("Cliente não encontrado")
-        if client.user_id != current_user_id:
+        if company.user_id != current_user_id:
             raise ValueError("Acesso negado")
 
         team = self.repo.get_team_by_client_id(client_id)
         if not team:
             return InvitationListResponse(invitations=[])
 
-        invitations = []
-        for inv in self.repo.list_invitations(team.id):
-            routines = self.repo.get_routines_for_invitation(inv.id)
-            invitations.append(
-                InvitationResponse(
-                    invitation_id=inv.id,
-                    email=inv.invited_email,
-                    status=inv.status,
-                    expires_at=inv.expires_at,
-                    accepted_at=inv.accepted_at,
-                    created_at=inv.created_at,
-                    routines=[
-                        RoutineAccess(
-                            template_id=r.template_id,
-                            name=(
-                                self.repo.get_template_by_id(r.template_id).name or ""
-                            )
-                            if self.repo.get_template_by_id(r.template_id)
-                            else "",
-                        )
-                        for r in routines
-                    ],
-                )
-            )
-        return InvitationListResponse(invitations=invitations)
+        return InvitationListResponse(
+            invitations=[
+                self._to_invitation_response(invitation)
+                for invitation in self.repo.list_invitations(team.id)
+            ]
+        )
+
+    def _to_invitation_response(self, invitation: TeamInvitation) -> InvitationResponse:
+        """DTO do convite: identidade, status e as duas datas que o card mostra.
+
+        `routines` e `created_at` saíram daqui: o card de "Convites enviados"
+        mostra email, status e expiração, e as rotinas eram montadas com duas
+        queries por rotina (`get_template_by_id` chamado duas vezes no mesmo
+        comprehension) para não aparecer em lugar nenhum (regra §6).
+        """
+        return InvitationResponse(
+            invitation_id=invitation.id,
+            email=invitation.invited_email,
+            status=invitation.status,
+            expires_at=invitation.expires_at,
+            accepted_at=invitation.accepted_at,
+        )
 
     def resend_invitation(
         self, client_id: UUID, invitation_id: UUID, current_user_id: UUID
     ) -> InvitationResponse:
         """Reenvia o email de um convite, renovando o token e a expiração."""
-        client = self.repo.get_client_by_id(client_id)
-        if not client:
+        company = self._company(client_id)
+        if not company:
             raise ValueError("Cliente não encontrado")
-        if client.user_id != current_user_id:
+        if company.user_id != current_user_id:
             raise ValueError("Acesso negado")
 
         team = self.repo.get_team_by_client_id(client_id)
@@ -351,39 +404,22 @@ class TeamService:
         invitation, raw_token = self.repo.refresh_invitation(invitation)
         self._send_invite_email(
             to_email=invitation.invited_email,
-            client_name=client.name,
+            client_name=company.name,
             inviter_name=inviter_name,
             token=raw_token,
             user_exists=user_exists,
         )
 
-        routines = self.repo.get_routines_for_invitation(invitation.id)
-        return InvitationResponse(
-            invitation_id=invitation.id,
-            email=invitation.invited_email,
-            status=invitation.status,
-            expires_at=invitation.expires_at,
-            accepted_at=invitation.accepted_at,
-            created_at=invitation.created_at,
-            routines=[
-                RoutineAccess(
-                    template_id=r.template_id,
-                    name=(self.repo.get_template_by_id(r.template_id).name or "")
-                    if self.repo.get_template_by_id(r.template_id)
-                    else "",
-                )
-                for r in routines
-            ],
-        )
+        return self._to_invitation_response(invitation)
 
     def cancel_invitation(
         self, client_id: UUID, invitation_id: UUID, current_user_id: UUID
     ) -> None:
         """Cancela (remove) um convite enviado pelo gestor."""
-        client = self.repo.get_client_by_id(client_id)
-        if not client:
+        company = self._company(client_id)
+        if not company:
             raise ValueError("Cliente não encontrado")
-        if client.user_id != current_user_id:
+        if company.user_id != current_user_id:
             raise ValueError("Acesso negado")
 
         team = self.repo.get_team_by_client_id(client_id)
@@ -400,22 +436,22 @@ class TeamService:
         self.repo.cancel_invitation(invitation)
         log.info(
             f"🚫 Convite {invitation_id} cancelado para {invitation.invited_email} "
-            f"no cliente {client_id}"
+            f"na empresa {client_id}"
         )
 
     def remove_member(
         self, client_id: UUID, user_id: UUID, current_user_id: UUID
     ) -> None:
         """Remove a team member."""
-        client = self.repo.get_client_by_id(client_id)
-        if not client:
+        company = self._company(client_id)
+        if not company:
             raise ValueError("Cliente não encontrado")
-        if client.user_id != current_user_id:
+        if company.user_id != current_user_id:
             raise ValueError("Apenas o gestor pode remover membros")
         if user_id == current_user_id:
             raise ValueError("Você não pode remover a si mesmo")
 
-        team = self.repo.get_or_create_team(client_id, client.user_id)
+        team = self.repo.get_or_create_team(client_id, company.user_id)
         if not self.repo.remove_member(team.id, user_id):
             raise ValueError("Membro não encontrado")
 
@@ -427,10 +463,10 @@ class TeamService:
         current_user_id: UUID,
     ) -> None:
         """Remove o acesso de um membro a uma rotina do cliente."""
-        client = self.repo.get_client_by_id(client_id)
-        if not client:
+        company = self._company(client_id)
+        if not company:
             raise ValueError("Cliente não encontrado")
-        if client.user_id != current_user_id:
+        if company.user_id != current_user_id:
             raise ValueError("Apenas o gestor pode revogar o acesso a rotinas")
 
         invitation = self.repo.get_accepted_invitation_for_user(client_id, user_id)
@@ -457,10 +493,10 @@ class TeamService:
         current_user_id: UUID,
     ) -> None:
         """Concede o acesso de um membro a uma rotina do cliente."""
-        client = self.repo.get_client_by_id(client_id)
-        if not client:
+        company = self._company(client_id)
+        if not company:
             raise ValueError("Cliente não encontrado")
-        if client.user_id != current_user_id:
+        if company.user_id != current_user_id:
             raise ValueError("Apenas o gestor pode conceder o acesso a rotinas")
 
         invitation = self.repo.get_accepted_invitation_for_user(client_id, user_id)

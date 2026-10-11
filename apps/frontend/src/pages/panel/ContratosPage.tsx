@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Eye, FileText, Info, Plus } from 'lucide-react';
+import { Eye, FileText, Info, Lock, Plus } from 'lucide-react';
 import {
   getContracts,
   getContractTemplate,
@@ -19,6 +19,7 @@ import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Badge } from '../../components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../components/ui/tabs';
 import { toast } from 'sonner';
+import { useWriteGate } from '../../api/hooks/useWriteGate';
 
 const PLACEHOLDER_GROUPS: string[][] = [
   ['{{empresa_contratada}}', '{{cnpj_contratada}}', '{{endereco_contratada}}', '{{socio_contratada}}', '{{email_contratada}}'],
@@ -30,6 +31,7 @@ const PLACEHOLDER_GROUPS: string[][] = [
 
 export const ContratosPage: React.FC = () => {
   const navigate = useNavigate();
+  const { canWrite: canWriteContracts, locked: contractsLocked } = useWriteGate('captar');
 
   const [activeTab, setActiveTab] = useState('contracts');
   const [contracts, setContracts] = useState<ContractData[]>([]);
@@ -122,7 +124,8 @@ export const ContratosPage: React.FC = () => {
             Gere contratos a partir do modelo padrão e finalize para converter o prospecto em cliente.
           </p>
         </div>
-        <FichaButton onClick={() => setNewContractOpen(true)} data-testid="new-contract-button">
+        <FichaButton onClick={() => { if (canWriteContracts()) setNewContractOpen(true); }} data-testid="new-contract-button">
+          {contractsLocked && <Lock className="size-4" />}
           <Plus className="size-4" /> Novo contrato
         </FichaButton>
       </div>
@@ -152,8 +155,9 @@ export const ContratosPage: React.FC = () => {
               <FileText className="mx-auto size-10 text-muted-foreground/50" />
               <p className="mt-3 text-sm text-muted-foreground">Nenhum contrato criado ainda.</p>
               <div className="mt-4 flex justify-center gap-2">
-                <Button onClick={() => setNewContractOpen(true)} data-testid="empty-new-contract">
-                  <Plus className="size-4" /> Novo contrato
+                <Button onClick={() => { if (canWriteContracts()) setNewContractOpen(true); }} data-testid="empty-new-contract">
+                  {contractsLocked && <Lock className="size-4" />}
+          <Plus className="size-4" /> Novo contrato
                 </Button>
                 <Button variant="outline" onClick={() => setActiveTab('template')}>
                   Definir modelo padrão

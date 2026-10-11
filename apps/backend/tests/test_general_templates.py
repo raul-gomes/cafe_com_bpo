@@ -117,7 +117,9 @@ def test_only_creator_can_edit_the_master_general(client):
     assert op_edit.status_code == 200
     op_fork = op_edit.json()
     assert op_fork["id"] != general["id"]
-    assert op_fork["parent_template_id"] == general["id"]
+    # The copy is private, not a general routine (the origin link
+    # `parent_template_id` is internal and no screen renders it).
+    assert op_fork["is_general"] is False
 
     # mestre permanece intacto (nome original preservado)
     master = client.get(f"/tasks/templates/{general['id']}", headers=adm).json()
@@ -243,7 +245,6 @@ def test_operator_editing_general_creates_private_fork(client):
     assert fork["id"] != general["id"]
     assert fork["is_general"] is False
     assert fork["user_id"] == op_uid
-    assert fork["parent_template_id"] == general["id"]
     assert fork["name"] == "Minha versão"
     # A rotina geral original permanece intacta para os demais.
     still = client.get(f"/tasks/templates/{general['id']}", headers=adm).json()
@@ -263,13 +264,12 @@ def test_general_removed_from_list_when_user_has_fork(client):
         f"/tasks/templates/{general['id']}", json={"name": "Minha versão"}, headers=op
     )
 
-    ids_after = {t["id"] for t in client.get("/tasks/templates/", headers=op).json()}
-    # a cópia (fork) aparece e o mestre geral desaparece da lista desse usuário
-    fork_ids = [
-        t["id"]
-        for t in client.get("/tasks/templates/", headers=op).json()
-        if t.get("parent_template_id") == general["id"]
-    ]
+    items_after = client.get("/tasks/templates/", headers=op).json()
+    ids_after = {t["id"] for t in items_after}
+    # The private copy is on the list as a personal routine, and the general one
+    # is gone from this user's list.
+    assert general["id"] not in ids_after
+    fork_ids = [t["id"] for t in items_after if t["is_general"] is False]
     assert fork_ids
     for _id in fork_ids:
         assert _id in ids_after
@@ -309,7 +309,7 @@ def test_operator_adding_activity_to_general_forks_and_only_affects_own(client):
 
     # o fork da cópia (para o OP) tem a atividade nova
     op_list = client.get("/tasks/templates/", headers=op).json()
-    fork = next(t for t in op_list if t.get("parent_template_id") == general["id"])
+    fork = next(t for t in op_list if t["is_general"] is False)
     fork_detail = client.get(f"/tasks/templates/{fork['id']}", headers=op).json()
     assert {a["name"] for a in fork_detail["activities"]} >= {
         "Atividade padrão",

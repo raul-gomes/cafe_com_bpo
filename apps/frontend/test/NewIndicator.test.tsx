@@ -28,7 +28,6 @@ function renderIndicator(category: 'private' | 'public' | 'projects' | 'profile'
 function notif(over: Partial<AppNotificationResponse>): AppNotificationResponse {
   return {
     id: 'n1',
-    user_id: 'u1',
     title: 'Nova mensagem de Bia',
     message: 'consegue revisar?',
     type: 'conversation_message',

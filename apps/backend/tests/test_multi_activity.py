@@ -11,7 +11,11 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from tests.helpers import freeze_assignments_clock, register_user
+from tests.helpers import (
+    freeze_assignments_clock,
+    freeze_scheduler_clock,
+    register_user,
+)
 
 
 def get_auth_header(client: TestClient, email: str) -> dict:
@@ -193,11 +197,13 @@ class TestMultiActivity:
                 headers=auth,
             )
 
-        # Relógio congelado em 20/07 (depois do due_day=15): o vínculo não gera
-        # a task do mês corrente e ela fica para o scheduler. Sem o congelamento,
-        # rodar o teste até o dia 15 gerava as tasks no vínculo e o card
-        # pendente bloqueava o scheduler (regra §1.2), quebrando a asserção.
-        with freeze_assignments_clock():
+        # §3 determinismo: com due_day=15 quem decide se o vínculo já gera é o
+        # dia do relógio — do dia 1 ao 15 ele cria os cards e o scheduler depois
+        # os pula por já estar pendentes; do dia 16 em diante quem cria é o
+        # scheduler. Sem um instante fixo, este teste mede o dia em que roda.
+        # 31/07/2026: dia 31 > 15, então o vínculo não gera nada.
+        now = datetime(2026, 7, 31, 12, 0, 0, tzinfo=timezone.utc)
+        with freeze_assignments_clock(now), freeze_scheduler_clock(now):
             assign_resp = client.post(
                 "/tasks/client-templates/",
                 json={
@@ -206,20 +212,21 @@ class TestMultiActivity:
                 },
                 headers=auth,
             )
-        assert assign_resp.status_code == 201
-        data = assign_resp.json()
-        assert data["tasks_generated"] == 0, (
-            f"Expected 0 monthly tasks on assignment after due_day, "
-            f"got {data['tasks_generated']}"
-        )
+            assert assign_resp.status_code == 201
+            data = assign_resp.json()
 
-        # Scheduler mensal gera as tasks do PRÓXIMO mês — 1 por atividade.
-        sched_resp = client.post("/tasks/scheduler/run-monthly", headers=auth)
-        assert sched_resp.status_code == 200
-        result = sched_resp.json()
-        assert result["tasks_generated"] == 2, (
-            f"Expected 2 monthly tasks from scheduler, got {result['tasks_generated']}"
-        )
+            assert data["tasks_generated"] == 0, (
+                "due_day=15 já passou em 31/07 → o vínculo não deve gerar cards"
+            )
+
+            # Scheduler mensal gera as tasks do PRÓXIMO mês (período distinto):
+            # 2 novas (1 por atividade).
+            sched_resp = client.post("/tasks/scheduler/run-monthly", headers=auth)
+            assert sched_resp.status_code == 200
+            result = sched_resp.json()
+            assert result["tasks_generated"] == 2, (
+                f"Expected 2 monthly tasks from scheduler, got {result['tasks_generated']}"
+            )
 
     def test_scheduler_skips_activities_when_pending(self, client: TestClient):
         """Scheduler nao duplica tasks ja existentes (dedup via routine_instance_id)."""

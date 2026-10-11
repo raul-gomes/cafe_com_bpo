@@ -13,9 +13,13 @@ export const registerSchema = z.object({
   company: z.string().optional(),
   password: z.string().min(8, 'A senha deve ter no mínimo 8 caracteres'),
   confirmPassword: z.string(),
+  terms: z.boolean().default(false),
 }).refine((data) => data.password === data.confirmPassword, {
   message: "As senhas não coincidem",
   path: ["confirmPassword"],
+}).refine((data) => data.terms, {
+  message: 'É necessário aceitar os Termos de Uso e Política de Privacidade (LGPD).',
+  path: ['terms'],
 });
 
 export type RegisterFormData = z.infer<typeof registerSchema>;

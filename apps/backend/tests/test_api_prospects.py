@@ -1,12 +1,13 @@
 import uuid
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import grant_user_beta, pricing_input_for_total, register_user
 
 
 def get_auth_header(client, email):
     payload = {"email": email, "password": "StrongPassword123!", "name": "Test User"}
     register_user(payload=payload)
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -37,8 +38,11 @@ def test_create_prospect_success(client):
     assert data["name"] == "Empresa Potencial"
     assert data["cnpj"] == "12345678000199"
     assert data["phone"] == "11988887777"
-    assert data["converted_client_id"] is None
     assert "id" in data
+    # Nasce em aberto: aparece na listagem de prospects (a flag de conversão
+    # saiu do payload §6 — quem filtra a listagem é o servidor).
+    listed = client.get("/prospects/", headers=auth).json()
+    assert [p["id"] for p in listed] == [data["id"]]
 
 
 def test_create_prospect_with_normalized_address(client):
@@ -150,9 +154,8 @@ def test_delete_prospect_removes_linked_proposals_and_contracts(client):
         "/proposals/",
         json={
             "client_name": prospect["name"],
-            "input_payload": {"p": 1},
-            "result_payload": {"price": 500},
-            "prospect_id": prospect["id"],
+            "input_payload": pricing_input_for_total(500.0),
+            "company_id": prospect["id"],
         },
         headers=auth,
     )
@@ -162,7 +165,7 @@ def test_delete_prospect_removes_linked_proposals_and_contracts(client):
     # Contrato vinculado ao prospecto + orçamento
     resp_contract = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect["id"], "proposal_id": proposal["id"]},
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
         headers=auth,
     )
     assert resp_contract.status_code == 201
@@ -202,15 +205,14 @@ def test_delete_prospect_cascade_is_user_scoped(client):
         "/proposals/",
         json={
             "client_name": prospect_a["name"],
-            "input_payload": {"p": 1},
-            "result_payload": {"price": 500},
-            "prospect_id": prospect_a["id"],
+            "input_payload": pricing_input_for_total(500.0),
+            "company_id": prospect_a["id"],
         },
         headers=auth_a,
     ).json()
     contract_a = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect_a["id"], "proposal_id": proposal_a["id"]},
+        json={"company_id": prospect_a["id"], "proposal_id": proposal_a["id"]},
         headers=auth_a,
     ).json()
 
@@ -221,15 +223,14 @@ def test_delete_prospect_cascade_is_user_scoped(client):
         "/proposals/",
         json={
             "client_name": prospect_b["name"],
-            "input_payload": {"p": 1},
-            "result_payload": {"price": 300},
-            "prospect_id": prospect_b["id"],
+            "input_payload": pricing_input_for_total(300.0),
+            "company_id": prospect_b["id"],
         },
         headers=auth_b,
     ).json()
     contract_b = client.post(
         "/contracts/generate",
-        json={"prospect_id": prospect_b["id"], "proposal_id": proposal_b["id"]},
+        json={"company_id": prospect_b["id"], "proposal_id": proposal_b["id"]},
         headers=auth_b,
     ).json()
 
@@ -402,7 +403,9 @@ def test_update_prospect_representante_fields(client):
     assert data["representante_telefone"] is None
 
 
-def test_proposal_can_reference_prospect(client):
+def test_proposal_can_reference_the_company_of_the_prospect(client):
+    """O orçamento aponta para a **empresa**: o prospecto é a empresa em
+    prospecção, então o id é o mesmo e o contrato não conhece mais `prospect_id`."""
     email = f"prospect_prop_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
     prospect = create_prospect(client, auth, name="Para Orçamento").json()
@@ -411,37 +414,45 @@ def test_proposal_can_reference_prospect(client):
         "/proposals/",
         json={
             "client_name": prospect["name"],
-            "input_payload": {"prospecto": True},
-            "result_payload": {"price": 500},
-            "prospect_id": prospect["id"],
+            "input_payload": pricing_input_for_total(500.0),
+            "company_id": prospect["id"],
         },
         headers=auth,
     )
     assert resp.status_code == 201
-    assert resp.json()["prospect_id"] == prospect["id"]
+    assert resp.json()["company_id"] == prospect["id"]
 
 
-def test_reprove_prospect_sets_binary_flag(client):
+def test_reprove_prospect_takes_it_out_of_the_list(client):
+    """Reprovar tira o prospecto da listagem e o devolve à negociação.
+
+    As flags do ciclo de vida (`reproved_at`, `converted_at`) saíram do payload
+    §6 — quem filtra a listagem é o servidor. O que a tela faz é o que este
+    teste mede: o prospecto desaparece de Prospectos, aparece como Perdido na
+    Governança e volta quando a negociação é retomada.
+    """
     email = f"prospect_reprove_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
     prospect = create_prospect(client, auth, name="Empresa Reprovada").json()
-    assert prospect["reproved_at"] is None
 
     resp = client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
 
     assert resp.status_code == 200
-    data = resp.json()
-    assert data["reproved_at"] is not None
-    assert data["converted_client_id"] is None
+    assert resp.json()["id"] == prospect["id"]
 
     # Sai da listagem de Prospectos (vira Perdido na Governança)
     listed = client.get("/prospects/", headers=auth).json()
     assert all(p["id"] != prospect["id"] for p in listed)
 
+    governanca = client.get("/governanca/deals", headers=auth).json()
+    perdido = [d for d in governanca["deals"] if d["id"] == prospect["id"]]
+    # A tag é do mês em que o negócio aparece, não do negócio
+    # (`appearances`, regra do dono 2026-10-01).
+    assert perdido and perdido[0]["appearances"][-1]["status"] == "perdido", governanca
+
     # Volta à negociação → reaparece na listagem
     resp = client.post(f"/prospects/{prospect['id']}/unreprove", headers=auth)
     assert resp.status_code == 200
-    assert resp.json()["reproved_at"] is None
 
     listed = client.get("/prospects/", headers=auth).json()
     assert any(p["id"] == prospect["id"] for p in listed)
@@ -456,7 +467,9 @@ def test_unreprove_returns_to_negotiation(client):
     resp = client.post(f"/prospects/{prospect['id']}/unreprove", headers=auth)
 
     assert resp.status_code == 200
-    assert resp.json()["reproved_at"] is None
+    assert resp.json()["id"] == prospect["id"]
+    listed = client.get("/prospects/", headers=auth).json()
+    assert any(p["id"] == prospect["id"] for p in listed)
 
 
 def test_reprove_keeps_prospect_creatable_again(client):
@@ -466,10 +479,13 @@ def test_reprove_keeps_prospect_creatable_again(client):
 
     resp = client.post(f"/prospects/{prospect['id']}/reprove", headers=auth)
     assert resp.status_code == 200
+    assert all(
+        p["id"] != prospect["id"]
+        for p in client.get("/prospects/", headers=auth).json()
+    )
 
     resp = client.post(f"/prospects/{prospect['id']}/unreprove", headers=auth)
     assert resp.status_code == 200
-    assert resp.json()["reproved_at"] is None
 
     listed = client.get("/prospects/", headers=auth).json()
     assert any(p["id"] == prospect["id"] for p in listed)

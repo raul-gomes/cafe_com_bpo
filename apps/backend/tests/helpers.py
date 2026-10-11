@@ -1,17 +1,192 @@
 """Utilitários compartilhados dos testes.
 
-O endpoint público /auth/register foi removido (registro desativado):
-usuários de teste são criados diretamente no banco via UserRepository.
+O registro público voltou (POST /auth/register, LGPD obrigatória — ver
+`test_auth.py`); este helper continua criando usuários direto no banco para
+os testes de fluxos que não exercitam a rota em si.
 """
 
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from unittest import mock
+from uuid import uuid4
+
+from sqlalchemy import select
 
 from src.core.database import SessionLocal
 from src.core.security import PasswordService
 from src.modules.auth.models import User
 from src.modules.auth.repository import UserRepository
+from src.modules.governanca import service as governanca_service
+from src.modules.subscriptions.models import BetaAccess
 from src.modules.task_manager.assignments import service as assignments_service
+from src.modules.task_manager.task import repository as task_repository
+from src.modules.task_manager.task import service as task_service
+
+TEST_PASSWORD = "StrongPassword123!"
+
+
+def valid_pricing_input(
+    tax_rate: float = 0,
+    commission_rate: float = 0,
+    margin: float = 0,
+    term_discount: float = 0,
+) -> dict:
+    """`input_payload` de precificação válido (Metodologia v4).
+
+    Reproduz o formato que o formulário do simulador envia, já que o preço
+    gravado no orçamento é recalculado pelo servidor a partir deste payload.
+    Com os valores padrão o total é R$ 25,00 (9600 / (2*160*60) = 0,50 por
+    minuto, 10 minutos × 5 execuções, sem margem e sem alíquota).
+    """
+    return {
+        "operation": {
+            "total_cost": 9600,
+            "people_count": 2,
+            "hours_per_month": 160,
+            "tax_rate": tax_rate,
+            "commission_rate": commission_rate,
+        },
+        "services": [
+            {
+                "name": "Atendimento",
+                "type": "time",
+                "minutes_per_execution": 10,
+                "monthly_quantity": 5,
+                "fixed_value": 0,
+                "active": True,
+            }
+        ],
+        "desired_profit_margin": margin,
+        "term_discount": term_discount,
+    }
+
+
+def pricing_input_for_service_cost(
+    service_cost: float,
+    *,
+    margin: float = 0,
+    term_discount: float = 0,
+) -> dict:
+    """`input_payload` com um único serviço de valor fixo que custa `service_cost`.
+
+    Sem margem, alíquota ou desconto, o preço final é igual ao custo informado —
+    assim o teste declara o total do orçamento diretamente. Com margem e/ou
+    desconto, o preço final passa a ser o valor com mark-up, e o custo dos
+    serviços continua disponível em `breakdown.total_service_cost`.
+    """
+    payload = valid_pricing_input(margin=margin, term_discount=term_discount)
+    payload["services"] = [
+        {
+            "name": "BPO Financeiro",
+            "type": "fixed",
+            "minutes_per_execution": 0,
+            "monthly_quantity": 1,
+            "fixed_value": service_cost,
+            "active": True,
+        }
+    ]
+    return payload
+
+
+def pricing_input_for_total(total: float) -> dict:
+    """Atalho: `input_payload` cujo preço final é exatamente `total`."""
+    return pricing_input_for_service_cost(total)
+
+
+def valid_proposal_payload(client_name: str = "Cliente do Teste", **overrides) -> dict:
+    """Corpo de `POST /proposals/` com precificação válida e o resultado omitido.
+
+    O resultado não é enviado porque o preço é sempre recalculado pelo backend.
+    """
+    payload = {
+        "client_name": client_name,
+        "input_payload": valid_pricing_input(),
+    }
+    payload.update(overrides)
+    return payload
+
+
+def auth_header(client, email: str) -> dict:
+    """Cria o usuário de teste, faz login e devolve o header de autorização."""
+    register_user(payload={"email": email, "password": TEST_PASSWORD})
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": TEST_PASSWORD}
+    )
+    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
+def grant_user_beta(email: str) -> None:
+    """Grants a 30-day beta to an existing user, looked up by email.
+
+    Used by tests that exercise business behavior under the §4 write gate
+    (Fase 6): the user needs full access, but the grant must never touch a test
+    session's savepoint (P-19), so it runs on a dedicated session of its own.
+    The email is used instead of a user object because `register_user` returns a
+    detached ORM instance whose attributes cannot be read after the commit.
+
+    Args:
+        email: Email of an already persisted user.
+    """
+    session = SessionLocal()
+    try:
+        user = session.scalar(select(User).where(User.email == email.lower()))
+        if user is None:
+            raise ValueError(f"grant_user_beta: user {email} not found")
+        session.add(
+            BetaAccess(
+                id=uuid4(),
+                user_id=user.id,
+                expires_at=datetime.now(timezone.utc) + timedelta(days=30),
+                source="test_seed",
+            )
+        )
+        session.commit()
+    finally:
+        session.close()
+
+
+def paid_auth_header(client, email: str) -> dict:
+    """Registers a user with full access and logs in.
+
+    Same contract as `auth_header`, plus a beta grant, so the §4 write gate
+    (Fase 6) lets the test mutate every module. Use this when a test exercises
+    business behavior rather than plan entitlement.
+
+    Args:
+        client: FastAPI test client.
+        email: Unique email for the new user.
+
+    Returns:
+        The Authorization header of the new user.
+    """
+    register_user(payload={"email": email, "password": TEST_PASSWORD})
+    grant_user_beta(email)
+    resp = client.post(
+        "/auth/login", data={"username": email, "password": TEST_PASSWORD}
+    )
+    return {"Authorization": f"Bearer {resp.json()['access_token']}"}
+
+
+def unique_email(prefix: str) -> str:
+    return f"{prefix}_{uuid4()}@cafe.com"
+
+
+def freeze_governance_clock(fixed: datetime | None = None):
+    """Congela o relógio da Governança num instante fixo.
+
+    A regra das aparições (dono, 2026-10-02) estende o negócio em negociação até
+    o **mês corrente**, então o payload depende de `datetime.now()`. Sem congelar,
+    um teste que espera "set, out" passaria em outubro e falharia em novembro — e
+    o CI rodaria a cada dia do ano. O módulo alvo é `governanca.service`, onde o
+    `datetime` é usado só para o mês corrente.
+    """
+    moment = fixed or datetime(2026, 10, 15, 12, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment if tz is None else moment.astimezone(tz)
+
+    return mock.patch.object(governanca_service, "datetime", _FixedClock)
 
 
 def freeze_assignments_clock(weekday: datetime | None = None):
@@ -32,6 +207,67 @@ def freeze_assignments_clock(weekday: datetime | None = None):
             return fixed if tz is None else fixed.astimezone(tz)
 
     return mock.patch.object(assignments_service, "datetime", _FixedClock)
+
+
+def freeze_scheduler_clock(fixed: datetime | None = None):
+    """Congela o relógio do scheduler.
+
+    O ``TaskScheduler.run_daily_check`` recebe ``now`` opcional, mas os
+    endpoints de gatilho não o repassam. Congelar ``datetime.now`` no módulo
+    ``src.modules.task_manager.scheduler`` deixa tanto o run direto quanto o
+    gatilho HTTP determinísticos, como prescreve a §3.
+    """
+    from src.modules.task_manager import scheduler as scheduler_module
+
+    moment = fixed or datetime(2026, 7, 20, 15, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment if tz is None else moment.astimezone(tz)
+
+    return mock.patch.object(scheduler_module, "datetime", _FixedClock)
+
+
+def freeze_deadline_clock(fixed: datetime | None = None):
+    """Congela o relógio da regra de prazo (`src/core/deadline`).
+
+    `is_overdue`/`days_remaining` leem "hoje" no fuso de negócio. Sem congelar,
+    um teste que monta prazo de ontem/hoje/amanhã passaria quase sempre e
+    falharia na noite em que a suíte cruzasse a meia-noite de São Paulo — o tipo
+    de flake que só aparece no CI. Segunda-feira fixa, como no gerador de
+    cards.
+    """
+    moment = fixed or datetime(2026, 7, 20, 15, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment if tz is None else moment.astimezone(tz)
+
+    return mock.patch("src.core.deadline.datetime", _FixedClock)
+
+
+def freeze_sla_clock(fixed: datetime | None = None):
+    """Congela o relógio do SLA, na regra de prazo e no serviço de tarefas.
+
+    O SLA lia o prazo com o próprio relógio (`datetime.now()`), então os testes
+    precisam fixar os dois lados da mesma vez: a regra de calendário
+    (`src/core.deadline`) e o serviço. Fixar só um deixa a asserção depender do
+    relógio real.
+    """
+    moment = fixed or datetime(2026, 7, 20, 15, 0, 0, tzinfo=timezone.utc)
+
+    class _FixedClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return moment if tz is None else moment.astimezone(tz)
+
+    return (
+        mock.patch.multiple("src.core.deadline", datetime=_FixedClock),
+        mock.patch.multiple(task_service, datetime=_FixedClock),
+        mock.patch.multiple(task_repository, datetime=_FixedClock),
+    )
 
 
 def create_test_user(

@@ -9,6 +9,8 @@ export interface NavItem {
   label: string;
   /** Outras rotas que contam como "dentro" deste item (detalhe, edição...). */
   matches?: string[];
+  /** Módulo do write gate quando difere do da seção (ex.: "pagamentos" dentro de Gestão). */
+  gate?: string;
 }
 
 export interface NavSection {
@@ -20,17 +22,10 @@ export interface NavSection {
   /** Frase curta que orienta "você está neste ambiente". */
   tagline: string;
   adminOnly?: boolean;
-  /**
-   * Módulo que no plano gratuito é só para ver: navega e explora tudo, mas criar,
-   * editar e enviar exige assinatura. Espelha a regra do write gate do Raul
-   * (branch feat/fase1-preco-autoritativo: free = captar e gestão read-only);
-   * quando ela entrar, o cadeado passa a vir do acesso real do usuário.
-   */
-  assinatura?: boolean;
   items: NavItem[];
 }
 
-/** Preço da assinatura que libera os módulos marcados com `assinatura`. */
+/** Preço da assinatura que libera os módulos só-leitura do plano gratuito. */
 export const PRECO_ASSINATURA = 'R$ 27,90/mês';
 
 /** Início fica fora dos módulos: é o ponto de partida do dia. */
@@ -57,7 +52,6 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'captar',
     label: 'Captar',
     module: 'captacao',
-    assinatura: true,
     icon: 'coador',
     tagline: 'Do primeiro contato ao contrato',
     items: [
@@ -92,14 +86,13 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'gestao',
     label: 'Gestão',
     module: 'gestao',
-    assinatura: true,
     icon: 'negocios',
     tagline: 'Equipe, contatos e o escritório',
     items: [
       { path: '/painel/projetos', icon: 'negocios', label: 'Projetos' },
       { path: '/painel/gestao-equipes', icon: 'pessoas', label: 'Gestão de equipes' },
       { path: '/painel/contatos', icon: 'mensagem', label: 'Contatos' },
-      { path: '/painel/pagamentos', icon: 'pagamentos', label: 'Pagamentos' },
+      { path: '/painel/pagamentos', icon: 'pagamentos', label: 'Pagamentos', gate: 'pagamentos' },
       { path: '/painel/configuracoes', icon: 'ajustes', label: 'Configurações' },
     ],
   },
@@ -145,7 +138,10 @@ export const NAV_SECTIONS: NavSection[] = [
     icon: 'ajustes',
     tagline: 'Ferramentas de administração',
     adminOnly: true,
-    items: [{ path: '/painel/design-system', icon: 'nota', label: 'Design System' }],
+    items: [
+      { path: '/painel/design-system', icon: 'nota', label: 'Design System' },
+      { path: '/painel/planos', icon: 'carteira', label: 'Planos' },
+    ],
   },
 ];
 

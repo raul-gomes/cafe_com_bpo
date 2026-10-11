@@ -1,12 +1,19 @@
 """
 TaskPhase Tests — TDD Approach
 Tests for the global canonical Kanban columns/phases.
+
+Decisão do produto owner (2026-10-04): o kanban tem **exatamente** três colunas
+— a fazer, fazendo (em andamento) e concluído. Não existe criar, renomear,
+recolorir, reordenar nem excluir fase; a API não expõe rota para nenhuma dessas
+operações.
 """
 
 from uuid import uuid4
 
 from src.modules.task_manager.models import Task, TaskPhase
 from tests.helpers import register_user
+
+CANONICAL_NAMES = ["a fazer", "em andamento", "concluido"]
 
 
 class TestTaskPhaseModel:
@@ -69,8 +76,13 @@ class TestTaskPhaseRepository:
         assert resp.status_code == 200
         assert len(resp.json()) == 3
 
-    def test_create_custom_phase_blocked(self, client):
-        """Custom phases are no longer allowed — only the 3 canonical ones."""
+    def test_create_phase_endpoint_does_not_exist(self, client):
+        """Decisão do PO (2026-10-04): só existem as 3 fases canônicas.
+
+        A funcionalidade de criar fase foi removida, não bloqueada: o endpoint não
+        existe mais. Um POST autenticado tem que receber 405, e nada pode ser
+        criado na tabela.
+        """
         email = f"phase_user3_{uuid4()}@cafe.com"
         auth = self._get_auth_header(client, email)
 
@@ -80,43 +92,34 @@ class TestTaskPhaseRepository:
             headers=auth,
         )
 
-        assert resp.status_code == 400
+        # 405: o path `/tasks/phases/` existe (GET), mas não aceita POST.
+        assert resp.status_code == 405
+        # Nada foi criado: o conjunto canônico segue com as mesmas 3 fases.
+        after = client.get("/tasks/phases/", headers=auth).json()
+        assert [p["name"] for p in after] == CANONICAL_NAMES
 
-    def test_update_phase(self, client):
-        """Should allow updating a phase name and color."""
+    def test_update_phase_endpoint_does_not_exist(self, client):
+        """Renomear/alterar cor deixou de existir — nem para o dono."""
         email = f"phase_user4_{uuid4()}@cafe.com"
-        auth = self._get_auth_header(client, email)
-
-        # Get phases to find the ID
-        resp = client.get("/tasks/phases/", headers=auth)
-        phase_id = resp.json()[0]["id"]
-
-        resp = client.put(
-            f"/tasks/phases/{phase_id}",
-            json={"name": "Novo Nome", "color": "#ef4444"},
-            headers=auth,
-        )
-
-        assert resp.status_code == 200
-        assert resp.json()["name"] == "Novo Nome"
-        assert resp.json()["color"] == "#ef4444"
-
-    def test_update_phase_blocks_order_and_done(self, client):
-        """order/is_done are fixed on canonical phases."""
-        email = f"phase_user5_{uuid4()}@cafe.com"
         auth = self._get_auth_header(client, email)
 
         phase_id = client.get("/tasks/phases/", headers=auth).json()[0]["id"]
 
-        resp = client.put(f"/tasks/phases/{phase_id}", json={"order": 5}, headers=auth)
-        assert resp.status_code == 400
         resp = client.put(
-            f"/tasks/phases/{phase_id}", json={"is_done": True}, headers=auth
+            f"/tasks/phases/{phase_id}",
+            json={"name": "Backlog", "color": "#ef4444"},
+            headers=auth,
         )
-        assert resp.status_code == 400
 
-    def test_reorder_phases_blocked(self, client):
-        """Reordering canonical phases is not allowed."""
+        # 404: não existe rota com esse path para PUT.
+        assert resp.status_code == 404
+        # A fase canônica continua intacta, com o nome original.
+        after = client.get("/tasks/phases/", headers=auth).json()
+        renamed = next(p for p in after if p["id"] == phase_id)
+        assert renamed["name"] == "a fazer"
+
+    def test_reorder_endpoint_does_not_exist(self, client):
+        """Reordenar não existe mais; a ordem canônica 0/1/2 é fixa."""
         email = f"phase_user6_{uuid4()}@cafe.com"
         auth = self._get_auth_header(client, email)
 
@@ -128,13 +131,22 @@ class TestTaskPhaseRepository:
         resp = client.post(
             "/tasks/phases/reorder", json={"phases": new_order}, headers=auth
         )
-        assert resp.status_code == 400
 
-    def test_delete_phase_blocked(self, client):
-        """Canonical phases cannot be deleted."""
+        # 404: não existe rota com esse path para POST.
+        assert resp.status_code == 404
+        after = client.get("/tasks/phases/", headers=auth).json()
+        assert [p["order"] for p in after] == [0, 1, 2]
+
+    def test_delete_phase_endpoint_does_not_exist(self, client):
+        """Excluir fase não existe mais."""
         email = f"phase_user7_{uuid4()}@cafe.com"
         auth = self._get_auth_header(client, email)
 
         phases = client.get("/tasks/phases/", headers=auth).json()
         resp = client.delete(f"/tasks/phases/{phases[0]['id']}", headers=auth)
-        assert resp.status_code == 400
+
+        # 404: não existe rota com esse path para DELETE.
+        assert resp.status_code == 404
+        assert [
+            p["name"] for p in client.get("/tasks/phases/", headers=auth).json()
+        ] == (CANONICAL_NAMES)

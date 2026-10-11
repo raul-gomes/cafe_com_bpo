@@ -1,60 +1,24 @@
 import { apiClient } from './client';
 
-export interface DealProposal {
-  id: string;
-  client_name?: string | null;
-  number?: number | null;
-  final_price?: number | null;
-  created_at?: string;
-}
+import {
+    type Deal,
+    type DealStatus,
+    type GovernancaResponse,
+    governancaResponseSchema,
+} from '../schemas/governanca';
 
-export interface DealContract {
-  id: string;
-  number?: number | null;
-  status: string;
-  finalized_at?: string | null;
-  created_at?: string;
-}
-
-export interface TimelineEvent {
-  type: 'created' | 'sent' | 'approved' | 'rejected' | 'changes' | 'pending';
-  label: string;
-  date?: string | null;
-  mock?: boolean;
-}
-
-export type DealStatus = 'conquistado' | 'em_negociacao' | 'perdido';
-
-export interface Deal {
-  id: string;
-  name: string;
-  cnpj?: string | null;
-  segment?: string | null;
-  color?: string | null;
-  city?: string | null;
-  state?: string | null;
-  email?: string | null;
-  phone?: string | null;
-  description?: string | null;
-  representante_nome?: string | null;
-  representante_cargo?: string | null;
-  representante_email?: string | null;
-  representante_telefone?: string | null;
-  representante_cpf?: string | null;
-  status: DealStatus;
-  reference_date: string;
-  client_id?: string | null;
-  proposal?: DealProposal | null;
-  contract?: DealContract | null;
-  timeline: TimelineEvent[];
-}
-
-export interface GovernancaResponse {
-  months: string[];
-  deals: Deal[];
-}
+/** O contrato vive em `schemas/governanca.ts`, com validação em runtime: o tipo
+ *  sai do schema pelo `z.infer`, então a tela e o servidor não podem divergir sem
+ *  que o teste acuse. As interfaces estavam aqui e conferiam só o palpite do
+ *  autor contra ele mesmo. */
+export type {
+    Deal,
+    DealStatus,
+    GovernancaResponse,
+};
+export type { DealAppearance, DealContract, DealProposal, TimelineEvent } from '../schemas/governanca';
 
 export const getGovernanca = async () => {
-  const response = await apiClient.get<GovernancaResponse>('/governanca/deals');
-  return response.data;
+    const response = await apiClient.get('/governanca/deals');
+    return governancaResponseSchema.parse(response.data);
 };

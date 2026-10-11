@@ -1,9 +1,9 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from src.modules.proposals.models import PricingScenario
-from src.modules.task_manager.models import Task
+from src.modules.companies.deactivation import deactivate_company
 
 from .models import Client
 from .schemas import ClientCreate, ClientUpdate
@@ -73,23 +73,16 @@ class ClientRepository:
         return client
 
     def delete(self, client: Client) -> None:
-        from datetime import datetime, timezone
+        """Deactivates the client and every row that belongs to its company.
 
+        Rule §16 (product owner, 2026-09-30): nothing is hard deleted. The
+        client and its whole tree go to `is_active = false` with the same
+        `deleted_at`, which is what keeps the history of "what existed while the
+        company was active" answerable. The cascade is by `company_id`, in
+        `companies.deactivation`, so prospect and client share one implementation.
+        """
         now = datetime.now(timezone.utc)
-
-        # Soft delete do cliente
         client.is_active = False
         client.deleted_at = now
-
-        # Cascade: soft delete de todas as tarefas vinculadas
-        self.session.query(Task).filter(
-            Task.client_id == client.id, Task.is_active
-        ).update({"is_active": False, "deleted_at": now}, synchronize_session="fetch")
-
-        # Cascade: soft delete de todos os orçamentos vinculados via FK
-        self.session.query(PricingScenario).filter(
-            PricingScenario.client_id == client.id,
-            PricingScenario.is_active,
-        ).update({"is_active": False, "deleted_at": now}, synchronize_session="fetch")
-
+        deactivate_company(self.session, client.id)
         self.session.commit()

@@ -24,8 +24,8 @@ const PROSPECTS = [
   { id: 'p3', name: 'Sem Orçamento Ltda' },
 ]
 const PROPOSALS = [
-  { id: 'o1', client_name: 'Alpha Consultoria', prospect_id: 'p1', created_at: '2026-01-01T00:00:00Z', number: 7, client_decision: 'approved' },
-  { id: 'o2', client_name: 'Beta Ltda', prospect_id: 'p2', created_at: '2026-01-02T00:00:00Z', number: 8, client_decision: 'changes' },
+  { id: 'o1', client_name: 'Alpha Consultoria', company_id: 'p1', created_at: '2026-01-01T00:00:00Z', number: 7, client_decision: 'approved' },
+  { id: 'o2', client_name: 'Beta Ltda', company_id: 'p2', created_at: '2026-01-02T00:00:00Z', number: 8, client_decision: 'changes' },
 ]
 const DESCRIPTORS = [
   { key: 'sistema_gestao', label: 'Sistema de gestão', kind: 'text', default: '', group: 'Operação' },
@@ -34,7 +34,7 @@ const DESCRIPTORS = [
 const GENERATED = {
   id: 'c1',
   number: 1,
-  prospect_id: 'p1',
+  company_id: 'p1',
   proposal_id: 'o1',
   client_name: 'Alpha Consultoria',
   sections: [],
@@ -44,6 +44,13 @@ const GENERATED = {
   created_at: '2026-01-03T00:00:00Z',
   updated_at: '2026-01-03T00:00:00Z',
 }
+
+// The select only becomes enabled after both async loads (prospects and proposals)
+// resolve, and the default `waitFor` budget of 1s was not enough when vitest runs the
+// suite in parallel and the machine is loaded: the assertion then failed depending on
+// how files happened to be distributed across workers, not on the component. These
+// assertions describe an eventual state, so they get an explicit budget.
+const ASYNC_TIMEOUT = { timeout: 5000 }
 
 describe('NovoContratoModal', () => {
   beforeEach(() => {
@@ -78,7 +85,7 @@ describe('NovoContratoModal', () => {
     await screen.findByText('Dados do contrato')
     await waitFor(() => {
       expect(mockGetMissingFields).toHaveBeenCalled()
-    })
+    }, ASYNC_TIMEOUT)
   }
 
   it('carrega prospectos e orçamentos ao abrir', async () => {
@@ -95,7 +102,7 @@ describe('NovoContratoModal', () => {
     const proposalSelect = await pickProspect('p1')
     await waitFor(() => {
       expect(proposalSelect).toBeEnabled()
-    })
+    }, ASYNC_TIMEOUT)
 
     const options = Array.from(proposalSelect.querySelectorAll('option')).map((o) => o.textContent)
     expect(options).toContain('Orçamento 0007 - Aprovado')
@@ -107,7 +114,7 @@ describe('NovoContratoModal', () => {
     await user.click(screen.getByRole('button', { name: /gerar contrato/i }))
 
     expect(mockGenerateContract).toHaveBeenCalledWith({
-      prospect_id: 'p1',
+      company_id: 'p1',
       proposal_id: 'o1',
       fields: expect.objectContaining({ dia_vencimento: '10' }),
     })
@@ -121,14 +128,14 @@ describe('NovoContratoModal', () => {
     const proposalSelect = await pickProspect('p1')
     await waitFor(() => {
       expect(proposalSelect).toBeEnabled()
-    })
+    }, ASYNC_TIMEOUT)
     await fireEvent.change(proposalSelect, { target: { value: '' } })
     await goToFields()
 
     await user.click(screen.getByRole('button', { name: /gerar contrato/i }))
 
     expect(mockGenerateContract).toHaveBeenCalledWith({
-      prospect_id: 'p1',
+      company_id: 'p1',
       proposal_id: null,
       fields: expect.objectContaining({ dia_vencimento: '10' }),
     })
@@ -155,7 +162,7 @@ describe('NovoContratoModal', () => {
     await user.click(screen.getByRole('button', { name: /continuar/i }))
     await waitFor(() => {
       expect(mockGetMissingFields).toHaveBeenCalledWith('p1', null)
-    })
+    }, ASYNC_TIMEOUT)
     expect(await screen.findByLabelText(/sistema de gestão/i)).toBeInTheDocument()
   })
 })

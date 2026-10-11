@@ -5,6 +5,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field, field_validator
 
+from src.core.validators import validate_cnpj
+
 if TYPE_CHECKING:
     from .models import User
 
@@ -167,12 +169,7 @@ class ProfileUpdate(BaseModel):
     @field_validator("company_cnpj")
     @classmethod
     def sanitize_cnpj(cls, v: str | None) -> str | None:
-        if v is None or not v.strip():
-            return v
-        cleaned = re.sub(r"\D", "", v)
-        if not cleaned:
-            raise ValueError("Informe um CNPJ válido")
-        return cleaned
+        return validate_cnpj(v)
 
     @field_validator("cpf")
     @classmethod

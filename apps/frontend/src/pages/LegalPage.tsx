@@ -4,6 +4,7 @@ import { Navbar } from '../components/ui/Navbar';
 import { TERMOS_USO_HTML } from '../content/termos-uso';
 import { POLITICA_PRIVACIDADE_HTML } from '../content/politica-privacidade';
 import { usePageMeta } from '../lib/seo';
+import { RichText } from '../components/ui/RichText';
 import './home.css';
 
 const DOCUMENTOS = {
@@ -19,8 +20,8 @@ interface LegalPageProps {
  * Termos de Uso e Política de Privacidade em página própria (antes abriam numa
  * janela que ficava atrás do login). O topo mantém o logo para voltar ao início.
  *
- * O HTML vem de constantes do próprio código (src/content), nunca da API ou do
- * usuário — por isso pode ser renderizado como HTML.
+ * O HTML vem de constantes do próprio código (src/content) e é exibido pelo
+ * RichText do Raul, que monta elementos React em vez de usar innerHTML.
  */
 const LegalPage: React.FC<LegalPageProps> = ({ documento }) => {
   const { titulo, html } = DOCUMENTOS[documento];
@@ -42,7 +43,7 @@ const LegalPage: React.FC<LegalPageProps> = ({ documento }) => {
       <Navbar />
       <main className="hb-legal">
         <p className="hb-kicker">Documento</p>
-        <div className="hb-legal-texto" dangerouslySetInnerHTML={{ __html: html }} />
+        <RichText html={html} className="hb-legal-texto" />
         <nav className="hb-legal-outros" aria-label="Outros documentos">
           {documento === 'termos' ? (
             <Link to="/politica-de-privacidade" className="hb-link">Ler a Política de Privacidade</Link>

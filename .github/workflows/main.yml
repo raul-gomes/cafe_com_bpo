@@ -55,6 +55,68 @@ jobs:
         run: pytest
 
   # ────────────────────────────────────────────
+  # CI: rehearsal da migração em PostgreSQL real
+  # ────────────────────────────────────────────
+  # A cadeia de migrations NÃO roda em SQLite (a primeira revision já declara
+  # uma coluna ARRAY), então a garantia da Fase 2.1 — "os dados de produção
+  # permanecem no banco" — só pode ser provada aqui. Usa uma fixture só com
+  # clientes, que é a premissa de produção, e roda B1/B2/B3 + V1–V5 + idempotência.
+  migration-ci:
+    name: Migration Rehearsal (PostgreSQL)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/backend
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-dev.txt
+
+      - name: Run the migration rehearsal
+        env:
+          # Credencial descartável do container efêmero do CI, não um segredo.
+          TEST_MIGRATION_DATABASE_URL: "postgresql+psycopg://postgres:postgres@localhost:5432/postgres"
+          DATABASE_URL: "sqlite:///:memory:"
+          JWT_SECRET: "test-secret-key-at-least-32-chars-long"
+          JWT_ALGORITHM: "HS256"
+          MODE: "test"
+          GOOGLE_CLIENT_ID: "dummy"
+          GOOGLE_CLIENT_SECRET: "dummy"
+          GOOGLE_AUTH_URL: "https://accounts.google.com/o/oauth2/v2/auth"
+          GOOGLE_TOKEN_URL: "https://oauth2.googleapis.com/token"
+          GOOGLE_USERINFO_URL: "https://www.googleapis.com/oauth2/v3/userinfo"
+          OAUTH_REDIRECT_URI: "http://localhost:8000/auth"
+          CLOUDINARY_CLOUD_NAME: "test"
+          CLOUDINARY_API_KEY: "test"
+          CLOUDINARY_API_SECRET: "test"
+        # Só este arquivo: os demais testes de integração (Cloudinary, Resend)
+        # precisam de credenciais reais e não têm o que ver com migração.
+        run: pytest tests/integration/test_migrations_postgres.py -m integration
+
+  # ────────────────────────────────────────────
   # CI: Frontend
   # ────────────────────────────────────────────
   frontend-ci:
@@ -90,12 +152,12 @@ jobs:
   # ────────────────────────────────────────────
   ci-passed:
     name: CI Gate
-    needs: [backend-ci, frontend-ci]
+    needs: [backend-ci, frontend-ci, migration-ci]
     if: success()
     runs-on: ubuntu-latest
     steps:
       - name: All checks passed
-        run: echo "✅ CI passed — backend + frontend OK"
+        run: echo "✅ CI passed — backend + frontend + rehearsal de migração OK"
 
   # ────────────────────────────────────────────
   # CD: Build Docker images e push para GHCR

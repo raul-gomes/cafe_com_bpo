@@ -10,6 +10,14 @@ const mockUser: { id: string; email: string; name: string; role?: string } = {
   name: 'Test User',
 }
 
+// GET /access drives the read-only locks (plan write gate). null = access not
+// resolved yet, which exercises the path without locks.
+const { mockAccessValue } = vi.hoisted(() => ({ mockAccessValue: { value: null as unknown } }))
+
+vi.mock('../src/api/hooks/useAccess', () => ({
+  useAccess: () => ({ data: mockAccessValue.value }),
+}))
+
 vi.mock('../src/context/AuthContext', () => ({
   useAuth: () => ({
     user: mockUser,

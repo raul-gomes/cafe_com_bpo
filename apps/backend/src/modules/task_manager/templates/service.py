@@ -22,6 +22,7 @@ from ..schemas import (
     TemplateActivityUpdate,
 )
 from ..templates.repository import TemplateRepository
+from ..weekdays import parse_weekday_mask
 
 
 class TemplateService:
@@ -89,17 +90,14 @@ class TemplateService:
                 ActivityTemplateListItem(
                     id=tmpl.id,
                     user_id=tmpl.user_id,
-                    parent_template_id=tmpl.parent_template_id,
                     name=tmpl.name,
                     description=tmpl.description,
                     process_type=tmpl.process_type,
                     recurrence=tmpl.recurrence,
-                    weekday_mask=tmpl.weekday_mask,
+                    weekdays=parse_weekday_mask(tmpl.weekday_mask),
                     due_day=tmpl.due_day,
                     due_month=tmpl.due_month,
                     due_days_from_start=tmpl.due_days_from_start,
-                    due_date=tmpl.due_date,
-                    recurrence_end_date=tmpl.recurrence_end_date,
                     is_active=tmpl.is_active,
                     is_general=tmpl.is_general,
                     is_archived=is_archived_for_user,
@@ -109,8 +107,6 @@ class TemplateService:
                     routine_type_id=tmpl.routine_type_id,
                     routine_type_name=rt_name,
                     routine_type_color=rt_color,
-                    created_at=tmpl.created_at,
-                    updated_at=tmpl.updated_at,
                 )
             )
         return result
@@ -128,12 +124,7 @@ class TemplateService:
                 OverdueTemplateResponse(
                     id=tmpl.id,
                     name=tmpl.name,
-                    description=tmpl.description,
-                    process_type=tmpl.process_type,
                     recurrence=tmpl.recurrence,
-                    due_date=tmpl.due_date,
-                    recurrence_end_date=tmpl.recurrence_end_date,
-                    is_active=tmpl.is_active,
                     days_overdue=days_overdue,
                     activity_count=len(activities),
                 )
@@ -168,25 +159,20 @@ class TemplateService:
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
-            parent_template_id=tmpl.parent_template_id,
             name=tmpl.name,
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
-            weekday_mask=tmpl.weekday_mask,
+            weekdays=parse_weekday_mask(tmpl.weekday_mask),
             due_day=tmpl.due_day,
             due_month=tmpl.due_month,
             due_days_from_start=tmpl.due_days_from_start,
-            due_date=tmpl.due_date,
-            recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
             is_general=tmpl.is_general,
             is_archived=is_archived,
             routine_type_id=tmpl.routine_type_id,
             routine_type_name=rt_name,
             routine_type_color=rt_color,
-            created_at=tmpl.created_at,
-            updated_at=tmpl.updated_at,
             activities=[TemplateActivityResponse.model_validate(a) for a in activities],
         )
 
@@ -210,24 +196,19 @@ class TemplateService:
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
-            parent_template_id=tmpl.parent_template_id,
             name=tmpl.name,
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
-            weekday_mask=tmpl.weekday_mask,
+            weekdays=parse_weekday_mask(tmpl.weekday_mask),
             due_day=tmpl.due_day,
             due_month=tmpl.due_month,
             due_days_from_start=tmpl.due_days_from_start,
-            due_date=tmpl.due_date,
-            recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
             is_general=tmpl.is_general,
             routine_type_id=tmpl.routine_type_id,
             routine_type_name=rt_name,
             routine_type_color=rt_color,
-            created_at=tmpl.created_at,
-            updated_at=tmpl.updated_at,
             activities=[],
         )
 
@@ -272,25 +253,20 @@ class TemplateService:
         return ActivityTemplateResponse(
             id=updated.id,
             user_id=updated.user_id,
-            parent_template_id=updated.parent_template_id,
             name=updated.name,
             description=updated.description,
             process_type=updated.process_type,
             recurrence=updated.recurrence,
-            weekday_mask=updated.weekday_mask,
+            weekdays=parse_weekday_mask(updated.weekday_mask),
             due_day=updated.due_day,
             due_month=updated.due_month,
             due_days_from_start=updated.due_days_from_start,
-            due_date=updated.due_date,
-            recurrence_end_date=updated.recurrence_end_date,
             is_active=updated.is_active,
             is_general=updated.is_general,
             is_archived=updated.is_archived,
             routine_type_id=updated.routine_type_id,
             routine_type_name=rt_name,
             routine_type_color=rt_color,
-            created_at=updated.created_at,
-            updated_at=updated.updated_at,
             activities=[TemplateActivityResponse.model_validate(a) for a in activities],
         )
 
@@ -344,25 +320,20 @@ class TemplateService:
         return ActivityTemplateResponse(
             id=tmpl.id,
             user_id=tmpl.user_id,
-            parent_template_id=tmpl.parent_template_id,
             name=tmpl.name,
             description=tmpl.description,
             process_type=tmpl.process_type,
             recurrence=tmpl.recurrence,
-            weekday_mask=tmpl.weekday_mask,
+            weekdays=parse_weekday_mask(tmpl.weekday_mask),
             due_day=tmpl.due_day,
             due_month=tmpl.due_month,
             due_days_from_start=tmpl.due_days_from_start,
-            due_date=tmpl.due_date,
-            recurrence_end_date=tmpl.recurrence_end_date,
             is_active=tmpl.is_active,
             is_general=tmpl.is_general,
             is_archived=is_now_archived,
             routine_type_id=tmpl.routine_type_id,
             routine_type_name=rt_name,
             routine_type_color=rt_color,
-            created_at=tmpl.created_at,
-            updated_at=tmpl.updated_at,
             activities=[TemplateActivityResponse.model_validate(a) for a in activities],
         )
 

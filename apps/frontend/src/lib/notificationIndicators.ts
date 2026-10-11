@@ -22,6 +22,10 @@ export const CATEGORY_BY_TYPE: Record<string, NotificationCategory> = {
   project_application: 'projects',
   application_accepted: 'projects',
   profile_comment: 'profile',
+  task_assigned: 'projects',
+  task_deadline: 'projects',
+  task_overdue: 'projects',
+  phase_change: 'projects',
 }
 
 export function emptyCategoryCounts(): CategoryCounts {

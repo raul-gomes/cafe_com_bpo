@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPosts, createPost, PaginatedPosts } from '../../api/network';
+import { getPosts, createPost, PaginatedPosts, PostResponse } from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { NotificationBell } from '../../components/panel/NotificationBell';
 import { MemberLink } from '../../components/network/MemberLink';
@@ -17,6 +17,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
+import { useAuth } from '../../context/AuthContext';
 
 type FilterType = 'all' | 'my' | 'answered';
 type ScopeType = 'public' | 'private';
@@ -28,7 +29,22 @@ function latestOf(
   return [...notifications].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
 }
 
+/** Um tópico entra no filtro "Meus Tópicos" quando é do usuário logado, e no
+ *  "Respondidos" quando tem ao menos uma resposta. O card já mostra autor e
+ *  contagem de respostas, então a lista inteira dá para filtrar na tela — sem
+ *  pedir outra pagina ao servidor. */
+function matchesFilter(
+  post: PostResponse,
+  filter: FilterType,
+  currentUserId: string | undefined
+): boolean {
+  if (filter === 'my') return post.author.id === currentUserId;
+  if (filter === 'answered') return post.comments_count > 0;
+  return true;
+}
+
 export const NetworkPage: React.FC = () => {
+  const { user } = useAuth();
   const { useNotificationsList } = useAppNotifications();
   const { data: unreadNotifications } = useNotificationsList(undefined, true);
   const newReplies = groupUnreadByEntity(
@@ -119,6 +135,10 @@ export const NetworkPage: React.FC = () => {
       {label}
       <NewIndicator category={key === 'private' ? 'private' : 'public'} />
     </Button>
+  );
+
+  const visiblePosts = (data?.items ?? []).filter(post =>
+    matchesFilter(post, activeFilter, user?.id)
   );
 
   return (
@@ -268,17 +288,19 @@ export const NetworkPage: React.FC = () => {
                   </div>
                 ) : (
                   <div className="flex flex-col gap-3">
-                    {data?.items.length === 0 && (
+                    {visiblePosts.length === 0 && (
                       <Card className="p-12 text-center">
                         <h3 className="mb-2 text-[16px] font-bold text-foreground">
                           Nenhum tópico encontrado
                         </h3>
                         <p className="text-[14px] text-muted-foreground">
-                          Seja o primeiro a puxar um assunto!
+                          {activeFilter === 'all'
+                            ? 'Seja o primeiro a puxar um assunto!'
+                            : 'Nenhum tópico corresponde a este filtro.'}
                         </p>
                       </Card>
                     )}
-                    {data?.items.map(post => (
+                    {visiblePosts.map(post => (
                       <Card
                         key={post.id}
                         className="cursor-pointer p-4 transition-colors hover:bg-muted/50"

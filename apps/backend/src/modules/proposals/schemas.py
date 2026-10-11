@@ -6,17 +6,31 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ProposalCreate(BaseModel):
+    """Corpo de escrita do orçamento.
+
+    O preço não vem do cliente: `result_payload` é recalculado pelo servidor a
+    partir de `input_payload`. O campo é aceito só por compatibilidade com
+    clientes antigos e seu conteúdo é descartado.
+
+    O vínculo do orçamento é a **empresa** (`company_id`), não o prospecto: o
+    dono do negócio pode ser um prospecto ou um cliente, e é a empresa que a
+    Governança agrupa. Sem `company_id` o orçamento é de nome livre.
+    """
+
     client_name: str
     input_payload: dict
-    result_payload: dict
-    prospect_id: UUID | None = None
+    company_id: UUID | None = None
+    result_payload: dict | None = Field(
+        default=None,
+        description="Ignorado — o preço é recalculado pelo servidor.",
+    )
 
 
 class ProposalResponse(BaseModel):
     id: UUID
     client_name: str
     number: int | None = None
-    prospect_id: UUID | None = None
+    company_id: UUID | None = None
     input_payload: dict
     result_payload: dict
     created_at: datetime
@@ -29,13 +43,6 @@ class ProposalResponse(BaseModel):
     decision_history: list[dict] | None = None
 
     model_config = ConfigDict(from_attributes=True)
-
-
-class ProposalUpdate(BaseModel):
-    client_name: str | None = None
-    input_payload: dict | None = None
-    result_payload: dict | None = None
-    prospect_id: UUID | None = None
 
 
 class ShareLinkResponse(BaseModel):

@@ -1,19 +1,22 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom'
 import React, { Suspense } from 'react'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PanelLayout } from './components/panel/PanelLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AdminRoute } from './components/auth/AdminRoute'
+import { UpgradeProvider } from './components/ui/UpgradeModal'
 import { PublicShell } from './components/auth/LoginDialogContext'
 
 // ── Lazy-loaded pages (default exports — use React.lazy) ─────────
 const HomePage = React.lazy(() => import('./pages/HomePage'))
 const LoginPage = React.lazy(() => import('./pages/LoginPage'))
+const CadastroPage = React.lazy(() => import('./pages/CadastroPage'))
 const SimulatorPage = React.lazy(() => import('./pages/SimulatorPage'))
 const UnderConstructionPage = React.lazy(() => import('./pages/UnderConstructionPage'))
 const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage'))
 const PublicProposalPage = React.lazy(() => import('./pages/PublicProposalPage'))
 const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
+const PlansPage = React.lazy(() => import('./pages/panel/PlansPage'))
 const CafesPage = React.lazy(() => import('./pages/CafesPage'))
 const ProdutosPage = React.lazy(() => import('./pages/ProdutosPage'))
 const LegalPage = React.lazy(() => import('./pages/LegalPage'))
@@ -33,7 +36,16 @@ function SuspenseWrapper({ children }: { children: React.ReactNode }) {
 }
 
 // ── Router definition ────────────────────────────────────────────
-export async function buildRouter() {
+/**
+ * Monta o array de rotas aplicação. O `UpgradeProvider` vive na raiz (layout
+ * sem path) — DENTRO do Router — porque o modal renderiza um `<Link>` "Assinar"
+ * que precisa do contexto de Router; fora dele (ex.: wrapper no `App.tsx`) o
+ * modal abre em um erro `Cannot destructure property 'basename'...` (tela preta
+ * ao clicar em criar, ver regressão em `test/UpgradeModalRouter.test.tsx`).
+ *
+ * @returns array de rotas para `createBrowserRouter`/`createMemoryRouter`
+ */
+export async function buildRoutes() {
   // Named-export pages are loaded dynamically inside the async function
   const { OAuthCallbackPage } = await import('./pages/OAuthCallbackPage')
   const { InvitationAcceptPage } = await import('./pages/InvitationAcceptPage')
@@ -67,9 +79,16 @@ export async function buildRouter() {
   const { ConfiguracoesPage } = await import('./pages/panel/ConfiguracoesPage')
   const { AulasPage } = await import('./pages/panel/AulasPage')
 
-  return createBrowserRouter([
+  return [
     {
-      // Páginas públicas: topo comum e login em janela suspensa (PublicShell).
+      element: (
+        <UpgradeProvider>
+          <Outlet />
+        </UpgradeProvider>
+      ),
+      children: [
+    {
+      // Public pages: shared header and the login dialog (PublicShell).
       element: <PublicShell />,
       children: [
         {
@@ -81,12 +100,11 @@ export async function buildRouter() {
           element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
         },
         {
-          path: '/simulador',
-          element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
+          path: '/cadastro',
+          element: <SuspenseWrapper><CadastroPage /></SuspenseWrapper>,
         },
         {
-          // Nome novo da página (o endereço antigo /simulador continua valendo).
-          path: '/precificacao',
+          path: '/simulador',
           element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
         },
         {
@@ -100,6 +118,11 @@ export async function buildRouter() {
         {
           path: '/em-construcao',
           element: <SuspenseWrapper><UnderConstructionPage /></SuspenseWrapper>,
+        },
+        {
+          // Nome novo da calculadora (o endereço antigo /simulador continua valendo).
+          path: '/precificacao',
+          element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
         },
         {
           path: '/cafes',
@@ -251,25 +274,32 @@ export async function buildRouter() {
               path: 'projetos/:id',
               element: <SuspenseWrapper><ProjetoDetalhePage /></SuspenseWrapper>,
             },
-            // Aulas: primeiros passos na ferramenta, BPO para iniciantes e mentorias.
+            {
+              path: 'configuracoes',
+              element: <SuspenseWrapper><ConfiguracoesPage /></SuspenseWrapper>,
+            },
+            // Aulas: first steps in the tool, BPO for beginners and mentoring.
             { path: 'aulas', element: <Navigate to="/painel/aulas/primeiros-passos" replace /> },
             { path: 'aulas/primeiros-passos', element: <SuspenseWrapper><AulasPage secao="primeiros-passos" /></SuspenseWrapper> },
             { path: 'aulas/bpo-primeiros-passos', element: <SuspenseWrapper><AulasPage secao="bpo-primeiros-passos" /></SuspenseWrapper> },
             { path: 'aulas/mentorias', element: <SuspenseWrapper><AulasPage secao="mentorias" /></SuspenseWrapper> },
-            // Módulos de exemplo: Notas Fiscais e Certificados Digitais (em construção).
+            // Placeholder modules (under construction): Notas Fiscais and Certificados Digitais.
             { path: 'notas-fiscais', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'notas-fiscais/emitir', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'certificados', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'certificados/vencimentos', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             {
-              path: 'configuracoes',
-              element: <SuspenseWrapper><ConfiguracoesPage /></SuspenseWrapper>,
-            },
-            {
               path: 'design-system',
               element: <AdminRoute />,
               children: [
                 { path: '', element: <SuspenseWrapper><DesignSystemPage /></SuspenseWrapper> },
+              ],
+            },
+            {
+              path: 'planos',
+              element: <AdminRoute />,
+              children: [
+                { path: '', element: <SuspenseWrapper><PlansPage /></SuspenseWrapper> },
               ],
             },
           ]
@@ -280,5 +310,16 @@ export async function buildRouter() {
       path: '*',
       element: <div data-testid="not-found">Página não encontrada</div>,
     }
-  ])
+      ],
+    },
+  ]
+}
+
+/**
+ * Cria o router de produção a partir das rotas montadas por `buildRoutes()`.
+ *
+ * @returns router do `createBrowserRouter`, pronto para o `RouterProvider`
+ */
+export async function buildRouter() {
+  return createBrowserRouter(await buildRoutes())
 }

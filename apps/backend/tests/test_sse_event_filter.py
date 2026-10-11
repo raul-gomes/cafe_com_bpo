@@ -79,7 +79,7 @@ def _setup(client):
             "name": f"Rotina {suf}",
             "process_type": "fiscal",
             "recurrence": "weekly",
-            "weekday_mask": "1,4",
+            "weekdays": ["monday", "thursday"],
         },
         headers=owner_auth,
     )

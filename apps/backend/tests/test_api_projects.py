@@ -1,6 +1,6 @@
 from uuid import uuid4
 
-from tests.helpers import register_user
+from tests.helpers import grant_user_beta, register_user
 
 
 def get_auth_header(client, email):
@@ -10,6 +10,7 @@ def get_auth_header(client, email):
         "name": "Projects User",
     }
     register_user(payload=payload)
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )

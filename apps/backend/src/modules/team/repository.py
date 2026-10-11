@@ -6,7 +6,7 @@ from uuid import UUID
 from sqlalchemy.orm import Session
 
 from src.modules.auth.models import User
-from src.modules.clients.models import Client
+from src.modules.companies.repository import CompanyRepository
 from src.modules.task_manager.models import ActivityTemplate, ClientTemplateAssignment
 
 from .models import (
@@ -47,21 +47,24 @@ class TeamRepository:
 
     def get_or_create_team(self, client_id: UUID, owner_id: UUID) -> Team:
         """Recupera o time de um cliente, criando-o se não existir (1:1)."""
-        team = self.session.query(Team).filter(Team.client_id == client_id).first()
+        team = self.session.query(Team).filter(Team.company_id == client_id).first()
         if not team:
+            # `company_id` fica por conta do listener de escrita dupla
+            # (`companies.sync._fill_company_id`), dono único dessa coluna.
             team = Team(client_id=client_id, owner_id=owner_id)
             self.session.add(team)
             self.session.flush()
         return team
 
     def get_team_by_client_id(self, client_id: UUID) -> Team | None:
-        return self.session.query(Team).filter(Team.client_id == client_id).first()
+        """Time da empresa, lido por `company_id` (fonte única do vínculo)."""
+        return self.session.query(Team).filter(Team.company_id == client_id).first()
 
     def get_team_by_id(self, team_id: UUID) -> Team | None:
         return self.session.query(Team).filter(Team.id == team_id).first()
 
     def get_client_id_by_team_id(self, team_id: UUID) -> UUID | None:
-        team = self.session.query(Team.client_id).filter(Team.id == team_id).first()
+        team = self.session.query(Team.company_id).filter(Team.id == team_id).first()
         return team[0] if team else None
 
     def get_team_id_by_client_id(self, client_id: UUID) -> UUID | None:
@@ -218,7 +221,7 @@ class TeamRepository:
     # ── Team Members ──
 
     def get_team_members(self, client_id: UUID) -> list[TeamMember]:
-        """Members ativos de um time (resolvido pelo client_id do time)."""
+        """Members ativos de um time (resolvido pelo company_id do time)."""
         team = self.get_team_by_client_id(client_id)
         if not team:
             return []
@@ -227,6 +230,102 @@ class TeamRepository:
             .filter(TeamMember.team_id == team.id, TeamMember.is_active)
             .all()
         )
+
+    def get_members_with_identity(
+        self, team_id: UUID
+    ) -> list[tuple[TeamMember, str | None, str | None, str | None]]:
+        """Membros ativos do time com nome, e-mail e role em **uma** consulta.
+
+        Devolve tuplas `(membro, nome, e-mail, role)`. Antes a montagem do payload
+        buscava usuário e role em uma query por membro; o join resolve o mesmo
+        dado em uma só, sem `lazy="select"` (que também faria uma query por
+        acesso). A ordem é fixa (nome, depois id) para a listagem não depender da
+        ordem em que o banco devolve as linhas.
+        """
+        return (
+            self.session.query(TeamMember, User.name, User.email, Role.role)
+            .join(User, User.id == TeamMember.user_id)
+            .join(Role, Role.id == TeamMember.role_id)
+            .filter(TeamMember.team_id == team_id, TeamMember.is_active)
+            .order_by(User.name, TeamMember.user_id)
+            .all()
+        )
+
+    def get_accepted_invitations_by_email(
+        self, team_id: UUID
+    ) -> dict[str, TeamInvitation]:
+        """Convites aceitos do time, indexados pelo e-mail convidado.
+
+        A chave é o e-mail porque é ele que liga o convite ao membro — a mesma
+        regra de `get_accepted_invitation_for_user`, resolvida para o time inteiro
+        em uma consulta em vez de uma por membro.
+        """
+        rows = (
+            self.session.query(TeamInvitation)
+            .filter(
+                TeamInvitation.team_id == team_id, TeamInvitation.status == "accepted"
+            )
+            .all()
+        )
+        return {row.invited_email.lower().strip(): row for row in rows}
+
+    def get_routine_names_by_invitation_ids(
+        self, invitation_ids: list[UUID]
+    ) -> dict[UUID, dict[UUID, str]]:
+        """Rotinas liberadas por vários convites, em **uma** consulta.
+
+        Devolve `{invitation_id: {template_id: nome}}`. O `order_by` no nome é o
+        que torna os chips de rotina estáveis entre chamadas (a consulta
+        anterior vinha sem ordenação, então a ordem na tela podia mudar).
+        """
+        if not invitation_ids:
+            return {}
+        rows = (
+            self.session.query(
+                InvitationRoutine.invitation_id,
+                InvitationRoutine.template_id,
+                ActivityTemplate.name,
+            )
+            .join(
+                ActivityTemplate,
+                ActivityTemplate.id == InvitationRoutine.template_id,
+            )
+            .filter(InvitationRoutine.invitation_id.in_(invitation_ids))
+            .order_by(ActivityTemplate.name)
+            .all()
+        )
+        grouped: dict[UUID, dict[UUID, str]] = {}
+        for invitation_id, template_id, name in rows:
+            grouped.setdefault(invitation_id, {})[template_id] = name
+        return grouped
+
+    def get_active_template_ids_for_client(
+        self, client_id: UUID, template_ids: list[UUID]
+    ) -> set[UUID]:
+        """Quais das rotinas dadas aparecem para o cliente.
+
+        Substitui o `query(ClientTemplateAssignment).all()` que o serviço usava
+        para filtrar em Python: ele carregava a tabela inteira de vínculos por
+        membro para descartar tudo menos os templates daquela empresa. A regra é
+        a mesma — rotina **sem** vínculo é liberada direto, rotina com vínculo
+        **inativo** some.
+        """
+        if not template_ids:
+            return set()
+        states = dict(
+            self.session.query(
+                ClientTemplateAssignment.template_id,
+                ClientTemplateAssignment.is_active,
+            )
+            .filter(
+                ClientTemplateAssignment.client_id == client_id,
+                ClientTemplateAssignment.template_id.in_(template_ids),
+            )
+            .all()
+        )
+        return {
+            template_id for template_id in template_ids if states.get(template_id, True)
+        }
 
     def is_team_member(self, client_id: UUID, user_id: UUID) -> bool:
         """Verifica se o usuário é membro ativo do time deste cliente."""
@@ -341,20 +440,7 @@ class TeamRepository:
         self.session.refresh(member)
         return member
 
-    def get_role_name_by_id(self, role_id: UUID) -> str | None:
-        role = self.session.query(Role.role).filter(Role.id == role_id).first()
-        return role[0] if role else None
-
     # ── Routines for a member ──
-
-    def get_routines_for_invitation(
-        self, invitation_id: UUID
-    ) -> list[InvitationRoutine]:
-        return (
-            self.session.query(InvitationRoutine)
-            .filter(InvitationRoutine.invitation_id == invitation_id)
-            .all()
-        )
 
     def get_accepted_invitation_for_user(
         self, client_id: UUID, user_id: UUID
@@ -462,23 +548,24 @@ class TeamRepository:
             .filter(InvitationRoutine.invitation_id == invitation.id)
             .all()
         )
-        template_ids = [r.template_id for r in routines]
+        template_ids = {r.template_id for r in routines}
         if not template_ids:
             return []
 
-        template_id_set = set(template_ids)
-        all_assignments = self.session.query(ClientTemplateAssignment).all()
-        assignment_map = {
-            a.template_id: a
-            for a in all_assignments
-            if a.client_id == client_id and a.template_id in template_id_set
-        }
-
-        active_ids = set()
-        for tid in template_id_set:
-            assignment = assignment_map.get(tid)
-            if assignment is None or assignment.is_active:
-                active_ids.add(tid)
+        # Só os vínculos desta empresa e destas rotinas entram na consulta. A
+        # versão anterior carregava a tabela `client_template_assignments`
+        # inteira para filtrar em Python, então o custo crescia com o volume de
+        # todas as empresas, e não com o da empresa pedida.
+        assignments = (
+            self.session.query(ClientTemplateAssignment)
+            .filter(
+                ClientTemplateAssignment.client_id == client_id,
+                ClientTemplateAssignment.template_id.in_(template_ids),
+            )
+            .all()
+        )
+        disabled = {a.template_id for a in assignments if not a.is_active}
+        active_ids = template_ids - disabled
 
         if not active_ids:
             return []
@@ -531,20 +618,17 @@ class TeamRepository:
 
     # ── Helpers ──
 
-    def get_client_owner_id(self, client_id: UUID) -> UUID | None:
-        client = (
-            self.session.query(Client.user_id)
-            .filter(Client.id == client_id, Client.is_active)
-            .first()
-        )
-        return client[0] if client else None
+    def get_company_owner_id(self, company_id: UUID) -> UUID | None:
+        """Dono da empresa (estágio `client`), ou `None` se ela não for dele.
 
-    def get_client_by_id(self, client_id: UUID) -> Client | None:
-        return (
-            self.session.query(Client)
-            .filter(Client.id == client_id, Client.is_active)
-            .first()
-        )
+        A empresa é a fonte única do vínculo (Fase 3, item 6): a linha legada
+        `clients` respondia a mesma pergunta, mas ela é o que o R4 apaga — e,
+        com ela desativada, `GET /tasks/?client_id=` deixava de reconhecer o dono
+        e caía no caminho geral, que devolve as tarefas de todas as empresas do
+        usuário em vez de só a pedida.
+        """
+        company = CompanyRepository(self.session).get_client_by_id(company_id)
+        return company.user_id if company is not None else None
 
     def get_user_by_email(self, email: str) -> User | None:
         return (

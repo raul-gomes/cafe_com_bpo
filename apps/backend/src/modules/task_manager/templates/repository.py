@@ -15,6 +15,7 @@ from ..schemas import (
     TemplateActivityCreate,
     TemplateActivityUpdate,
 )
+from ..weekdays import format_weekday_mask
 
 
 class TemplateRepository:
@@ -225,10 +226,27 @@ class TemplateRepository:
         self.session.refresh(tmpl)
         return tmpl
 
+    @staticmethod
+    def _to_storage(data: dict) -> dict:
+        """Converte o contrato da API (`weekdays`) no da coluna (`weekday_mask`).
+
+        A conversão mora aqui, na fronteira com o banco: é o único lugar que
+        conhece os dois formatos, e `weekdays` não existe como coluna.
+
+        Args:
+            data: Campos do schema de entrada já serializados.
+
+        Returns:
+            Os mesmos campos com `weekdays` substituído por `weekday_mask`.
+        """
+        if "weekdays" in data:
+            data["weekday_mask"] = format_weekday_mask(data.pop("weekdays"))
+        return data
+
     def create_template(
         self, template_in: ActivityTemplateCreate, user_id: UUID
     ) -> ActivityTemplate:
-        data = template_in.model_dump()
+        data = self._to_storage(template_in.model_dump())
         tmpl = ActivityTemplate(**data, user_id=user_id)
         self.session.add(tmpl)
         self.session.commit()
@@ -238,7 +256,7 @@ class TemplateRepository:
     def update_template(
         self, template: ActivityTemplate, template_in: ActivityTemplateUpdate
     ) -> ActivityTemplate:
-        data = template_in.model_dump(exclude_unset=True)
+        data = self._to_storage(template_in.model_dump(exclude_unset=True))
         for field, value in data.items():
             setattr(template, field, value)
         self.session.commit()

@@ -1,184 +1,273 @@
+import secrets
+from datetime import UTC, datetime
 from uuid import UUID
 
-import httpx
+from sqlalchemy.exc import IntegrityError
 
+from src.core.asaas_client import AsaasClient, parse_asaas_date, parse_asaas_datetime
 from src.core.config import get_settings
 from src.core.logger import log
 from src.modules.payments.models import Payment
-from src.modules.payments.repository import PaymentRepository
-from src.modules.payments.schemas import CreateCustomerInput, CreatePaymentInput
+from src.modules.payments.repository import PaymentRepository, WebhookEventRepository
+from src.modules.subscriptions.models import Subscription
+from src.modules.subscriptions.service import SubscriptionWebhookService
 
-settings = get_settings()
+# Asaas event name -> the status stored in `payments.status`.
+WEBHOOK_STATUS_MAP = {
+    "PAYMENT_RECEIVED": "received",
+    "PAYMENT_CONFIRMED": "confirmed",
+    "PAYMENT_OVERDUE": "overdue",
+    "PAYMENT_REFUNDED": "refunded",
+    "PAYMENT_DELETED": "deleted",
+}
 
-
-class AsaasClient:
-    BASE_URL = "https://sandbox.asaas.com/api/v3"
-
-    def __init__(self):
-        self.api_key = settings.asaas_api_key or ""
-        self.base_url = self.BASE_URL
-
-    async def _request(
-        self, method: str, endpoint: str, json_data: dict | None = None
-    ) -> dict:
-        headers = {
-            "Content-Type": "application/json",
-            "access_token": self.api_key,
-        }
-        async with httpx.AsyncClient(timeout=30.0) as client:
-            response = await client.request(
-                method,
-                f"{self.base_url}{endpoint}",
-                headers=headers,
-                json=json_data,
-            )
-            response.raise_for_status()
-            return response.json()
-
-    async def create_customer(self, customer_data: CreateCustomerInput) -> dict:
-        payload = {
-            "name": customer_data.name,
-            "email": customer_data.email,
-        }
-        if customer_data.cpf_cnpj:
-            payload["cpfCnpj"] = customer_data.cpf_cnpj
-        if customer_data.phone:
-            payload["phone"] = customer_data.phone
-        if customer_data.mobile_phone:
-            payload["mobilePhone"] = customer_data.mobile_phone
-        if customer_data.address:
-            payload["address"] = customer_data.address
-        if customer_data.address_number:
-            payload["addressNumber"] = customer_data.address_number
-        if customer_data.city:
-            payload["city"] = customer_data.city
-        if customer_data.state:
-            payload["state"] = customer_data.state
-        if customer_data.postal_code:
-            payload["postalCode"] = customer_data.postal_code
-
-        return await self._request("POST", "/customers", payload)
-
-    async def get_customer(self, customer_id: str) -> dict:
-        return await self._request("GET", f"/customers/{customer_id}")
-
-    async def create_payment(
-        self, customer_id: str, payment_data: CreatePaymentInput
-    ) -> dict:
-        payload = {
-            "customer": customer_id,
-            "billingType": payment_data.payment_method.upper(),
-            "value": payment_data.amount,
-            "dueDate": payment_data.due_date,
-            "description": payment_data.description or "Pagamento Cafe com BPO",
-        }
-        if payment_data.success_url:
-            payload["callback"] = {"successUrl": payment_data.success_url}
-
-        return await self._request("POST", "/payments", payload)
-
-    async def get_payment(self, payment_id: str) -> dict:
-        return await self._request("GET", f"/payments/{payment_id}")
-
-    async def get_payment_status(self, payment_id: str) -> dict:
-        return await self._request("GET", f"/payments/{payment_id}/status")
-
-    async def list_payments(
-        self, customer_id: str, limit: int = 20, offset: int = 0
-    ) -> dict:
-        params = {"customer": customer_id, "limit": limit, "offset": offset}
-        return await self._request("GET", "/payments", params)
+# Events that prove money arrived: the only ones allowed to *create* a
+# history row. The others report on a charge and may only update one.
+_PAYMENT_SETTLED_EVENTS = frozenset({"PAYMENT_CONFIRMED", "PAYMENT_RECEIVED"})
+_PAYMENT_REPORTED_EVENTS = frozenset({"PAYMENT_REFUNDED", "PAYMENT_DELETED"})
 
 
 class PaymentService:
-    def __init__(self, repository: PaymentRepository):
+    """Business logic for the billing history and for the Asaas webhook."""
+
+    def __init__(self, repository: PaymentRepository) -> None:
+        """Assembles the service with its repositories and the Asaas client.
+
+        The webhook's three writers — the event ledger, the payment history
+        and the subscription state machine — share one session on purpose:
+        the dispatch commits them together or not at all.
+
+        Args:
+            repository: Data access for the payment history.
+        """
         self.repository = repository
         self.asaas = AsaasClient()
+        self.events = WebhookEventRepository(repository.session)
+        self.subscriptions = SubscriptionWebhookService(repository.session, self.asaas)
 
-    def get_user_payments(self, user_id: UUID) -> list[Payment]:
-        return self.repository.get_by_user(user_id)
+    def verify_webhook_token(self, provided_token: str | None) -> bool:
+        """Decides whether a webhook call comes from Asaas.
 
-    def get_payment(self, payment_id: UUID, user_id: UUID) -> Payment | None:
-        return self.repository.get_by_id(payment_id, user_id)
+        Asaas authenticates webhooks with a shared token in the
+        `asaas-access-token` header, not with a signature. The comparison is
+        constant-time, and **an unconfigured token refuses everybody**: the
+        previous behaviour (accept any POST) let anyone mark a payment as
+        received by guessing a payment id.
 
-    async def create_customer_for_user(
-        self, user_id: UUID, customer_data: CreateCustomerInput
-    ) -> dict:
-        existing = self.repository.get_customer_by_user(user_id)
-        if existing:
-            return await self.asaas.get_customer(existing.asaas_customer_id)
+        Args:
+            provided_token: Value of the `asaas-access-token` header, if any.
 
-        asaas_customer = await self.asaas.create_customer(customer_data)
-        self.repository.save_customer_id(user_id, asaas_customer["id"])
-        log.info(
-            f"💳 Cliente Asaas criado para usuário {user_id}: {asaas_customer['id']}"
-        )
-        return asaas_customer
+        Returns:
+            True only when the header matches the configured token.
+        """
+        expected = get_settings().asaas_webhook_token
+        if not expected:
+            log.warning(
+                "[payments] ASAAS_WEBHOOK_TOKEN não configurado: webhook recusado"
+            )
+            return False
+        if not provided_token:
+            return False
+        return secrets.compare_digest(provided_token, expected)
 
-    async def create_payment(
-        self,
-        user_id: UUID,
-        payment_data: CreatePaymentInput,
-        customer_info: CreateCustomerInput,
-    ) -> Payment:
-        customer = self.repository.get_customer_by_user(user_id)
-        if not customer:
-            asaas_customer = await self.asaas.create_customer(customer_info)
-            customer_id = asaas_customer["id"]
-        else:
-            customer_id = customer.asaas_customer_id
+    def get_billing_history(self, user_id: UUID) -> list[Payment]:
+        """Lists the subscription charges of a user, newest paid month first.
 
-        asaas_payment = await self.asaas.create_payment(customer_id, payment_data)
+        Args:
+            user_id: Authenticated user.
 
-        payment = self.repository.create_payment(
-            user_id=user_id,
-            amount=payment_data.amount,
-            description=payment_data.description,
-            payment_method=payment_data.payment_method,
-            due_date=payment_data.due_date,
-            asaas_customer_id=customer_id,
-            asaas_payment_id=asaas_payment["id"],
-            success_url=payment_data.success_url,
-            error_url=payment_data.error_url,
-        )
+        Returns:
+            The user's subscription charges (legacy one-off rows excluded).
+        """
+        return self.repository.list_billing_history(user_id)
 
-        log.info(
-            f"💳 Pagamento criado: {payment.id} | Asaas: {asaas_payment['id']} | Valor: R$ {payment_data.amount}"
-        )
+    async def process_event(
+        self, event_data: dict, *, now: datetime | None = None
+    ) -> str:
+        """Applies one Asaas webhook event, exactly once (§17, P-18).
 
-        return payment
+        Asaas delivers at-least-once and retries on non-2xx, so idempotency
+        lives in `webhook_events`: the event id is the primary key, and the
+        insert happens before anything else changes — a replay (or a
+        concurrent duplicate) loses that race and is answered without
+        touching state. The ledger row and the effect share one transaction:
+        an event either lands with its change or not at all.
 
-    def process_webhook(self, event_data: dict) -> Payment | None:
+        Only the event id, its name and the outcome are logged — the payload
+        carries the payer's personal data and never reaches the log.
+
+        Args:
+            event_data: Decoded webhook body, already authenticated by the
+                router through `verify_webhook_token`.
+            now: Frozen clock for the state machine, injected by tests.
+
+        Returns:
+            `"ok"` when at least one row changed, `"ignored"` otherwise — a
+            guard that held, an event with no target, or a replay.
+
+        Raises:
+            Exception: Any unexpected failure rolls back and propagates so the
+                router can answer 503; a false 200 would make Asaas stop
+                retrying and drop the event.
+        """
+        if not isinstance(event_data, dict):
+            log.warning("[payments] webhook com corpo não-objeto: ignorado")
+            return "ignored"
         event_type = event_data.get("event")
-        if event_type not in (
-            "PAYMENT_RECEIVED",
-            "PAYMENT_CONFIRMED",
-            "PAYMENT_OVERDUE",
-            "PAYMENT_REFUNDED",
-            "PAYMENT_DELETED",
+        event_id = event_data.get("id")
+        if (
+            not isinstance(event_type, str)
+            or not isinstance(event_id, str)
+            or not event_id
+            or len(event_id) > 100
         ):
-            return None
+            log.warning("[payments] webhook sem identificação válida: ignorado")
+            return "ignored"
 
-        asaas_payment_id = event_data.get("payment", {}).get("id") or event_data.get(
-            "paymentId"
+        session = self.repository.session
+        if self.events.find(event_id) is not None:
+            log.info("[payments] evento %s repetido: ignorado", event_id)
+            return "ignored"
+        try:
+            self.events.add(event_id, event_type)
+            session.flush()
+        except IntegrityError:
+            # A concurrent delivery of the same event is committing right now.
+            session.rollback()
+            log.info("[payments] evento %s entregue em paralelo: ignorado", event_id)
+            return "ignored"
+
+        instant = now if now is not None else datetime.now(UTC)
+        try:
+            changed = await self._dispatch(event_type, event_data, now=instant)
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
+        outcome = "ok" if changed else "ignored"
+        log.info("[payments] webhook %s (%s) => %s", event_id, event_type, outcome)
+        return outcome
+
+    async def _dispatch(self, event_type: str, payload: dict, *, now: datetime) -> bool:
+        """Routes one event to its writer.
+
+        `CHECKOUT_*` and `SUBSCRIPTION_*` belong to the subscription state
+        machine; `PAYMENT_*` may record history, move the subscription, or
+        fall back to a legacy one-off charge created before subscriptions
+        existed. Every branch answers whether it changed a row.
+
+        Args:
+            event_type: Asaas event name.
+            payload: Decoded webhook body.
+            now: Frozen clock of the dispatch.
+
+        Returns:
+            True when at least one row changed.
+        """
+        if event_type.startswith("CHECKOUT_"):
+            return await self.subscriptions.apply_checkout(event_type, payload, now=now)
+        if event_type.startswith("SUBSCRIPTION_"):
+            return self.subscriptions.apply_subscription(event_type, payload, now=now)
+        if event_type not in WEBHOOK_STATUS_MAP:
+            return False
+
+        payment = payload.get("payment")
+        payment = payment if isinstance(payment, dict) else {}
+        subscription = self.subscriptions.find_for_payment(payment)
+        if subscription is not None:
+            changed = False
+            if event_type in _PAYMENT_SETTLED_EVENTS:
+                facts = _history_kwargs(
+                    subscription, payment, WEBHOOK_STATUS_MAP[event_type], paid=True
+                )
+                if facts is not None:
+                    changed |= self.repository.record_subscription_payment(
+                        facts, may_create=True
+                    )
+            elif event_type in _PAYMENT_REPORTED_EVENTS:
+                facts = _history_kwargs(
+                    subscription, payment, WEBHOOK_STATUS_MAP[event_type], paid=False
+                )
+                if facts is not None:
+                    changed |= self.repository.record_subscription_payment(
+                        facts, may_create=False
+                    )
+            # `PAYMENT_OVERDUE` moves only the subscription: nothing was paid,
+            # so there is no month to record.
+            changed |= self.subscriptions.apply_payment(
+                event_type, subscription, payment, now=now
+            )
+            return changed
+
+        payment_id = payment.get("id") or payload.get("paymentId")
+        if isinstance(payment_id, str) and payment_id:
+            return self.repository.apply_asaas_status(
+                payment_id, WEBHOOK_STATUS_MAP[event_type]
+            )
+        return False
+
+
+def _history_kwargs(
+    subscription: Subscription, payment: dict, status: str, *, paid: bool
+) -> dict | None:
+    """Validates a payment payload into the fields the history row requires.
+
+    The `NOT NULL` columns of `payments` are never filled with guesses: a
+    payload missing the amount, the billing method or a readable due date logs
+    and skips the row instead of storing a lie — the subscription state still
+    moves, it just does not invent a paid month.
+
+    Args:
+        subscription: Matched local row; the history row is its (and its
+            user's) record of the charge.
+        payment: The `payment` object of the payload.
+        status: `payments.status` value from `WEBHOOK_STATUS_MAP`.
+        paid: Whether the event proves money arrived. Only then does the
+            payload's `datePayment` become `paid_at` — on a refund that stamp
+            is money going *back*, and it must not rewrite the month.
+
+    Returns:
+        Column → value dict for `Payment`, or `None` when a required field is
+        missing or malformed.
+    """
+    payment_id = payment.get("id")
+    due = parse_asaas_date(payment.get("dueDate"))
+    amount: float | None = None
+    raw_amount = payment.get("value")
+    if isinstance(raw_amount, (int, float, str)) and not isinstance(raw_amount, bool):
+        try:
+            amount = float(raw_amount)
+        except ValueError:
+            amount = None
+    billing_type = payment.get("billingType")
+    if (
+        not isinstance(payment_id, str)
+        or not payment_id
+        or due is None
+        or amount is None
+        or not isinstance(billing_type, str)
+        or not billing_type
+    ):
+        log.warning(
+            "[payments] payload de pagamento incompleto para %s: histórico não gravado",
+            subscription.id,
         )
-        if not asaas_payment_id:
-            return None
+        return None
 
-        payment = self.repository.get_by_asaas_id(asaas_payment_id)
-        if not payment:
-            return None
-
-        status_map = {
-            "PAYMENT_RECEIVED": "received",
-            "PAYMENT_CONFIRMED": "confirmed",
-            "PAYMENT_OVERDUE": "overdue",
-            "PAYMENT_REFUNDED": "refunded",
-            "PAYMENT_DELETED": "deleted",
-        }
-        new_status = status_map.get(event_type, payment.status)
-
-        self.repository.update_status(payment.id, new_status, event_data)
-        log.info(f"💳 Webhook processado: {payment.id} | {event_type} -> {new_status}")
-
-        return payment
+    invoice_url = payment.get("invoiceUrl")
+    customer = payment.get("customer")
+    description = payment.get("description")
+    return {
+        "subscription_id": subscription.id,
+        "user_id": subscription.user_id,
+        "asaas_payment_id": payment_id,
+        "status": status,
+        "amount": amount,
+        "payment_method": billing_type,
+        "due_date": due.isoformat(),
+        "cycle_month": due.strftime("%Y-%m"),
+        "paid_at": parse_asaas_datetime(payment.get("datePayment")) if paid else None,
+        "invoice_url": invoice_url if isinstance(invoice_url, str) else None,
+        "asaas_customer_id": customer if isinstance(customer, str) else None,
+        "description": description if isinstance(description, str) else None,
+    }

@@ -2,7 +2,14 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { MemoryRouter, Routes, Route } from 'react-router-dom'
+import { ConfirmProvider } from '../src/components/ui/ConfirmDialog'
+import { UpgradeProvider } from '../src/components/ui/UpgradeModal'
 import { ContratosPage } from '../src/pages/panel/ContratosPage'
+
+const mockAccess = vi.hoisted(() => ({
+  value: undefined as { access: string; read_only_modules: string[] } | undefined,
+}))
+vi.mock('../src/api/hooks/useAccess', () => ({ useAccess: () => ({ data: mockAccess.value }) }))
 
 const mockGetContracts = vi.hoisted(() => vi.fn())
 const mockGetContractTemplate = vi.hoisted(() => vi.fn())
@@ -70,6 +77,7 @@ const TEMPLATE = {
 describe('ContratosPage', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    mockAccess.value = undefined
     mockGetContracts.mockResolvedValue([DRAFT, FINALIZED])
     mockGetContractTemplate.mockResolvedValue(TEMPLATE)
     mockUpdateContractTemplate.mockResolvedValue(TEMPLATE)
@@ -79,7 +87,16 @@ describe('ContratosPage', () => {
     return render(
       <MemoryRouter initialEntries={['/painel/contratos']}>
         <Routes>
-          <Route path="/painel/contratos" element={<ContratosPage />} />
+          <Route
+            path="/painel/contratos"
+            element={
+              <UpgradeProvider>
+                <ConfirmProvider>
+                  <ContratosPage />
+                </ConfirmProvider>
+              </UpgradeProvider>
+            }
+          />
           <Route path="/painel/contrato/:id" element={<div data-testid="detail-route">detalhe</div>} />
           <Route path="/painel/contrato/:id/visualizar" element={<div data-testid="view-route">visualizar</div>} />
         </Routes>
@@ -164,5 +181,15 @@ describe('ContratosPage', () => {
     await user.click(stub)
 
     expect(await screen.findByTestId('detail-route')).toBeInTheDocument()
+  })
+
+  it('usuário free: clicar em "Novo contrato" abre o modal de upgrade e não abre o modal do contrato', async () => {
+    mockAccess.value = { access: 'free', read_only_modules: ['captar', 'gestao'] }
+    renderPage()
+    fireEvent.click(await screen.findByTestId('new-contract-button'))
+
+    const dialog = await screen.findByRole('dialog')
+    expect(dialog).toHaveTextContent('Assine para liberar a escrita')
+    expect(screen.queryByTestId('novo-contrato-stub')).toBeNull()
   })
 })

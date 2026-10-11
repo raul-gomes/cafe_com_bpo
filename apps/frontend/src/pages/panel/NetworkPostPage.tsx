@@ -9,6 +9,7 @@ import {
   PostResponse,
   CommentResponse,
 } from '../../api/network';
+import { RichText } from '../../components/ui/RichText';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
@@ -190,9 +191,9 @@ export const NetworkPostPage: React.FC = () => {
             </div>
           </div>
         </div>
-        <div
+        <RichText
+          html={post.message}
           className="px-6 py-5 text-[15px] leading-relaxed text-foreground rich-text-content"
-          dangerouslySetInnerHTML={{ __html: post.message }}
         />
       </Card>
 
@@ -223,9 +224,9 @@ export const NetworkPostPage: React.FC = () => {
                   </div>
                 </div>
               </div>
-              <div
+              <RichText
+                html={c.message}
                 className="px-6 py-5 text-[14px] leading-relaxed text-foreground rich-text-content"
-                dangerouslySetInnerHTML={{ __html: c.message }}
               />
             </Card>
           ))}

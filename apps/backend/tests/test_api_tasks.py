@@ -1,7 +1,11 @@
 from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
-from tests.helpers import freeze_assignments_clock, register_user
+from tests.helpers import (
+    freeze_assignments_clock,
+    freeze_scheduler_clock,
+    register_user,
+)
 
 
 def get_auth_header(client, email):
@@ -547,48 +551,77 @@ def test_next_business_day_monday():
     assert result == monday  # Sem alteração
 
 
-def test_create_template_with_due_days(client):
+def _cards_deadline(client, auth, email: str) -> list[dict]:
+    """Lê os cards do usuário via API e devolve `{"nome": deadline}`.
+
+    Lê pela rota autenticada (e não direto do ORM) para que o teste exercite o
+    mesmo payload que a tela consome; o `deadline` chega como ISO 8601.
     """
-    Sprint 3 Section 1: Criar template activity com due_days.
-    due_days é opcional e alternativo ao due_day.
+    tasks = client.get("/tasks/", headers=auth).json()
+    return {task["title"]: task["deadline"] for task in tasks}
+
+
+def test_create_template_with_due_days(client):
+    """Sprint 3 Section 1: uma atividade com `due_days` desloca o prazo do card.
+
+    `due_day`/`due_days` não são renderizados e por isso saíram do payload
+    (§6); o que os torna reais é o efeito: `due_days` pede N dias a partir da
+    data-base e esse prazo é o do card gerado. O teste prova o efeito, não o eco
+    do campo.
     """
     email = f"due_days_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
 
-    # Criar template primeiro
     tmpl_resp = client.post(
         "/tasks/templates/",
         json={
             "name": "Template Due Days",
             "process_type": "fiscal",
-            "recurrence": "monthly",
+            "recurrence": "once",
         },
         headers=auth,
     )
     assert tmpl_resp.status_code == 201
     tmpl_id = tmpl_resp.json()["id"]
 
-    # Criar activity com due_days (sem due_day — mas due_day é obrigatório no schema)
     act_resp = client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={
-            "name": "Atividade com due_days",
-            "due_day": 15,
-            "due_days": 5,
-        },
+        json={"name": "Atividade com due_days", "due_days": 5},
         headers=auth,
     )
     assert act_resp.status_code == 201
-    assert act_resp.json()["due_days"] == 5
-    assert act_resp.json()["due_day"] == 15
+
+    # O prazo da atividade 'once' é calculado em `calculate_activity_deadline`,
+    # que lê o relógio do módulo do scheduler — por isso os dois congelados.
+    now = datetime(2026, 7, 20, 12, 0, 0, tzinfo=timezone.utc)
+    with freeze_assignments_clock(now), freeze_scheduler_clock(now):
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
+    assert assign_resp.status_code == 201, assign_resp.text
+    assert assign_resp.json()["tasks_generated"] == 1, (
+        "Rotina 'once' gera na vinculação"
+    )
+
+    cards = _cards_deadline(client, auth, email)
+    assert list(cards) == ["Atividade com due_days"], (
+        f"Rotina 'once' com due_days=5 deveria gerar 1 card, veio {cards}"
+    )
+    # 20/07 + 5 dias = 25/07 (sábado) → próximo dia útil = 27/07.
+    deadline = cards["Atividade com due_days"]
+    assert deadline[:10] == "2026-07-27", (
+        f"due_days=5 a partir de 20/07 → 27/07, veio {deadline}"
+    )
 
 
 def test_create_template_activity_without_due_days(client):
-    """
-    Sprint 3 Section 1: Criar template activity sem due_days — usa due_day normalmente.
-    """
+    """Sprint 3 Section 1: atividade sem `due_days` segue o `due_day` da rotina."""
     email = f"no_due_days_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
+    cli = create_client(client, auth)
 
     tmpl_resp = client.post(
         "/tasks/templates/",
@@ -596,6 +629,7 @@ def test_create_template_activity_without_due_days(client):
             "name": "Template Sem Due Days",
             "process_type": "contabil",
             "recurrence": "monthly",
+            "due_day": 10,
         },
         headers=auth,
     )
@@ -604,12 +638,29 @@ def test_create_template_activity_without_due_days(client):
 
     act_resp = client.post(
         f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Atividade padrão", "due_day": 10},
+        json={"name": "Atividade padrão"},
         headers=auth,
     )
     assert act_resp.status_code == 201
-    assert act_resp.json()["due_days"] is None
-    assert act_resp.json()["due_day"] == 10
+
+    now = datetime(2026, 7, 1, 12, 0, 0, tzinfo=timezone.utc)
+    with freeze_assignments_clock(now):
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
+    assert assign_resp.status_code == 201, assign_resp.text
+    assert assign_resp.json()["tasks_generated"] == 1, (
+        "Dia 1 ≤ due_day 10 → gera no mês"
+    )
+
+    cards = _cards_deadline(client, auth, email)
+    assert list(cards) == ["Atividade padrão"], cards
+    deadline = cards["Atividade padrão"]
+    assert deadline[:10] == "2026-07-10", (
+        f"Herda o due_day=10 da rotina → 10/07, veio {deadline}"
+    )
 
 
 # ── Sprint 3 Section 2: RoutineType CRUD ──
@@ -997,10 +1048,13 @@ def test_scheduler_does_not_duplicate(client):
     assert r2["tasks_skipped"] >= 1, "Deveria ter detectado task existente"
 
 
-def test_scheduler_weekly_with_weekday_mask(client):
-    """Scheduler gera tarefa semanal no domingo com base na weekday_mask."""
+def test_scheduler_weekly_with_weekdays(client):
+    """Scheduler gera tarefa semanal no domingo com base nos dias marcados."""
     now = datetime(2026, 7, 19, 0, 0, 0, tzinfo=timezone.utc)  # Sunday
-    mask = "0,1"  # Monday, Tuesday
+    # P-5: o contrato da API é o enum de dia, não dígitos. Antes a máscara "0"
+    # (domingo na convenção 0-based do frontend) virava -1 no backend e gerava a
+    # semana anterior; o teste só passava porque contava dias, sem conferir datas.
+    days = ["monday", "tuesday"]
 
     email = f"sched_weekly_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1011,7 +1065,7 @@ def test_scheduler_weekly_with_weekday_mask(client):
         json={
             "name": "Semanal Scheduler",
             "recurrence": "weekly",
-            "weekday_mask": mask,
+            "weekdays": days,
             "process_type": "fiscal",
         },
         headers=auth,
@@ -1034,10 +1088,31 @@ def test_scheduler_weekly_with_weekday_mask(client):
     _complete_pending_tasks(cli["id"], tmpl_id)
 
     data = _get_scheduler_result(now=now)
-    matched_days = len(mask.split(","))
+    matched_days = len(days)
     assert data["tasks_generated"] >= matched_days, (
-        f"Domingo deveria gerar tasks para a semana ({matched_days} dias no mask)"
+        f"Domingo deveria gerar tasks para a semana ({matched_days} dias marcados)"
     )
+
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.models import Task
+
+    db = SessionLocal()
+    try:
+        deadlines = {
+            t.deadline.date()
+            for t in db.query(Task)
+            .filter(Task.client_id == UUID(cli["id"]), Task.completed_at.is_(None))
+            .all()
+        }
+        # Segunda 20/07 e terça 21/07 — a semana seguinte, contada a partir do domingo.
+        assert deadlines == {
+            datetime(2026, 7, 20, tzinfo=timezone.utc).date(),
+            datetime(2026, 7, 21, tzinfo=timezone.utc).date(),
+        }, f"mask 1,2 deveria cair em segunda e terça; veio {deadlines}"
+    finally:
+        db.close()
 
 
 def test_scheduler_weekly_mode_skips_daily_templates(client):
@@ -1081,8 +1156,16 @@ def test_scheduler_weekly_mode_skips_daily_templates(client):
 
 
 def test_scheduler_sunday_auto_generates_monday_daily(client):
-    """Auto-detect de domingo mantém o bônus: gera os dailies de segunda."""
+    """Auto-detect de domingo mantém o bônus: gera os dailies de segunda.
+
+    O clock da geração inicial fica numa quarta-feira de propósito: card gerado
+    no ato do vínculo usa o dia corrente como `period_key`, e se fosse a segunda
+    ele **já seria** o card do bônus — o dedup por `routine_instance_id`
+    (docs/regras_negocio.md §1.2) recusaria a geração e o teste mediria o oposto
+    do que pretende.
+    """
     now = datetime(2026, 7, 19, 0, 0, 0, tzinfo=timezone.utc)  # Sunday
+    wednesday = datetime(2026, 7, 22, 12, 0, 0, tzinfo=timezone.utc)
 
     email = f"sched_sun_daily_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
@@ -1099,7 +1182,7 @@ def test_scheduler_sunday_auto_generates_monday_daily(client):
         json={"name": "Task Diario Dom", "due_day": 1},
         headers=auth,
     )
-    with freeze_assignments_clock():
+    with freeze_assignments_clock(wednesday):
         assign = client.post(
             "/tasks/client-templates/",
             json={"client_id": cli["id"], "template_id": tmpl_id},
@@ -1115,40 +1198,73 @@ def test_scheduler_sunday_auto_generates_monday_daily(client):
     )
 
 
-def test_scheduler_weekly_skips_when_mask_mismatch(client):
-    """Scheduler semanal so roda no domingo; em segunda-feira nao gera."""
-    now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
+def test_scheduler_weekly_generates_only_masked_days(client):
+    """Regra semanal gera a semana filtrada pela mask, mesmo em dia útil.
 
-    email = f"sched_weekly_skip_{uuid4()}@cafe.com"
+    Desde o regate P-3 a regra roda também de segunda a sexta, para recuperar a
+    semana que o domingo deixou passar. Ela produz candidato para **todos** os
+    dias marcados da semana alvo (não só o dia corrente), então o filtro da mask
+    é o que garante que nada fora dela seja criado.
+
+    O relógio do vínculo é congelado num **sábado depois da semana alvo**: a
+    geração inicial de `POST /tasks/client-templates/` só cria os dias marcados
+    que ainda restam na semana corrente (hoje..domingo), então nesse sábado ela
+    não gera nada e a geração fica a cargo do scheduler — que é o que se quer
+    testar aqui. Congelar na própria semana alvo faria o vínculo criar a terça e
+    o scheduler cair no dedup por `routine_instance_id` (gerando 0), o que não
+    prova nada. O teste só passava sem congelar porque o vínculo nascia na
+    semana real de execução, nunca na semana alvo.
+    """
+    now = datetime(2026, 7, 20, 0, 0, 0, tzinfo=timezone.utc)  # Monday
+    # Sábado da mesma semana alvo: a geração inicial não encontra dia marcado.
+    link_time = datetime(2026, 7, 25, 0, 0, 0, tzinfo=timezone.utc)  # Saturday
+
+    email = f"sched_weekly_mask_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
     cli = create_client(client, auth)
 
-    tmpl_resp = client.post(
-        "/tasks/templates/",
-        json={
-            "name": "Semanal Skip",
-            "recurrence": "weekly",
-            "weekday_mask": "0",  # Monday — matches today, mas nao e domingo
-            "process_type": "fiscal",
-        },
-        headers=auth,
-    )
-    tmpl_id = tmpl_resp.json()["id"]
-    client.post(
-        f"/tasks/templates/{tmpl_id}/activities/",
-        json={"name": "Task Skip", "due_day": 1},
-        headers=auth,
-    )
-    client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli["id"], "template_id": tmpl_id},
-        headers=auth,
-    )
+    with freeze_assignments_clock(link_time):
+        tmpl_resp = client.post(
+            "/tasks/templates/",
+            json={
+                "name": "Semanal Mask",
+                "recurrence": "weekly",
+                # terça — o seletor da tela só oferece dias úteis (seg a sex)
+                "weekdays": ["tuesday"],
+                "process_type": "fiscal",
+            },
+            headers=auth,
+        )
+        tmpl_id = tmpl_resp.json()["id"]
+        client.post(
+            f"/tasks/templates/{tmpl_id}/activities/",
+            json={"name": "Task Mask", "due_day": 1},
+            headers=auth,
+        )
+        client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
 
     data = _get_scheduler_result(now=now)
-    assert data["tasks_generated"] == 0, (
-        "Weekly nao deve gerar em dia que nao seja domingo"
+    assert data["tasks_generated"] == 1, (
+        f"só a terça da mask deveria gerar 1 card; gerou {data['tasks_generated']}"
     )
+
+    from uuid import UUID
+
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.models import Task
+
+    db = SessionLocal()
+    try:
+        card = db.query(Task).filter(Task.client_id == UUID(cli["id"])).one()
+        assert (
+            card.deadline.date() == datetime(2026, 7, 21, tzinfo=timezone.utc).date()
+        ), f"o card caiu em {card.deadline}, não no dia marcado (terça 21/07)"
+    finally:
+        db.close()
 
 
 def test_scheduler_monthly_skips_existing_task(client):
@@ -1174,23 +1290,33 @@ def test_scheduler_monthly_skips_existing_task(client):
         json={"name": "Task Mensal", "due_day": 1},
         headers=auth,
     )
-    assign_resp = client.post(
-        "/tasks/client-templates/",
-        json={"client_id": cli["id"], "template_id": tmpl_id},
-        headers=auth,
-    )
-    assert assign_resp.status_code == 201
-    assert assign_resp.json()["tasks_generated"] == 0, (
-        "due_day já passou este mês → vínculo não deve gerar tasks mensais"
-    )
 
-    data = _get_scheduler_result(now=now)
-    assert data["tasks_generated"] >= 1, "Ultimo dia util do mes deve gerar task mensal"
+    from tests.helpers import freeze_assignments_clock, freeze_scheduler_clock
 
-    # Segundo run — nao deve duplicar
-    data2 = _get_scheduler_result(now=now)
-    assert data2["tasks_generated"] == 0
-    assert data2["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
+    # §3 determinismo: vínculo e scheduler leem o mesmo instante fixo —
+    # 31/07/2026 (sexta, último dia útil de julho). Sem isso o resultado
+    # dependia do dia em que a suíte rodasse: com due_day=1 no dia 1 do mês a
+    # vinculação já geraria o card e o teste falharia.
+    with freeze_assignments_clock(now), freeze_scheduler_clock(now):
+        assign_resp = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": tmpl_id},
+            headers=auth,
+        )
+        assert assign_resp.status_code == 201
+        assert assign_resp.json()["tasks_generated"] == 0, (
+            "due_day já passou este mês → vínculo não deve gerar tasks mensais"
+        )
+
+        data = _get_scheduler_result(now=now)
+        assert data["tasks_generated"] >= 1, (
+            "Ultimo dia util do mes deve gerar task mensal"
+        )
+
+        # Segundo run — nao deve duplicar
+        data2 = _get_scheduler_result(now=now)
+        assert data2["tasks_generated"] == 0
+        assert data2["tasks_skipped"] >= 1, "Deveria ter detectado a task existente"
 
 
 def test_scheduler_monthly_skips_wrong_day(client):
@@ -1576,3 +1702,60 @@ def test_tasks_team_only_returns_shared_client_tasks(client):
     assert any(t["template_id"] == y_tmpl for t in team.json()), (
         "rotina liberada deve aparecer"
     )
+
+
+def test_task_list_says_whether_it_is_overdue(client):
+    """O estado derivado vem do servidor, no payload.
+
+    A regra de prazo é de calendário e o front a re-derivava em `deadline.ts`.
+    Com o campo no payload, a mesma tarefa não pode receber dois vereditos
+    conforme a tela — e o teste fixa o dia, porque a resposta muda todo dia."""
+    from datetime import timedelta
+
+    from tests.helpers import freeze_deadline_clock
+
+    with freeze_deadline_clock():
+        email = f"overdue_{uuid4()}@cafe.com"
+        auth = get_auth_header(client, email)
+        client_id = create_client(client, auth, name="Empresa Prazo")["id"]
+
+        def criar(titulo, dias):
+            prazo = datetime(2026, 7, 20, 12, 0, tzinfo=timezone.utc) + timedelta(
+                days=dias
+            )
+            resp = client.post(
+                "/tasks/",
+                json={
+                    "title": titulo,
+                    "client_id": client_id,
+                    "deadline": prazo.isoformat(),
+                    "priority": "high",
+                },
+                headers=auth,
+            )
+            assert resp.status_code == 201, resp.text
+            return resp.json()
+
+        ontem = criar("Venceu ontem", -1)
+        hoje = criar("Vence hoje", 0)
+        amanha = criar("Vence amanhã", 1)
+        sem_prazo = criar("Sem prazo", 0)
+        sem_prazo = client.put(
+            f"/tasks/{sem_prazo['id']}",
+            json={"title": "Sem prazo", "client_id": client_id, "deadline": None},
+            headers=auth,
+        ).json()
+
+        por_id = {t["id"]: t for t in client.get("/tasks/", headers=auth).json()}
+
+        assert por_id[ontem["id"]]["is_overdue"] is True
+        assert por_id[ontem["id"]]["days_remaining"] == -1
+
+        assert por_id[hoje["id"]]["is_overdue"] is False
+        assert por_id[hoje["id"]]["days_remaining"] == 0
+
+        assert por_id[amanha["id"]]["is_overdue"] is False
+        assert por_id[amanha["id"]]["days_remaining"] == 1
+
+        assert por_id[sem_prazo["id"]]["is_overdue"] is False
+        assert por_id[sem_prazo["id"]]["days_remaining"] is None

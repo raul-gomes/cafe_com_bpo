@@ -1,6 +1,8 @@
 /// <reference types="vite/client" />
 import axios from 'axios';
 
+import { isPlanGateError, notifyPlanGate } from './planGate';
+
 // In-memory token storage — not persisted to localStorage (XSS-safe)
 let accessToken: string | null = null;
 
@@ -98,6 +100,13 @@ apiClient.interceptors.response.use(
         isRefreshing = false;
       }
     }
+
+    // Write gate de plano (403 `Seu plano não permite esta ação`): abre o
+    // modal de upgrade uma única vez, em vez de propagar erros por página.
+    if (isPlanGateError(error)) {
+      notifyPlanGate();
+    }
+
     return Promise.reject(error);
   },
 );

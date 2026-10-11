@@ -43,7 +43,7 @@ interface PricingCalculatorLayoutProps {
   onSave?: (data: PricingFormData, clientName: string) => void;
   saveButtonLabel?: string;
   isEditing?: boolean;
-  prospects?: { id: string; name: string; email?: string }[];
+  prospects?: { id: string; name: string; email?: string | null }[];
   prospectId?: string | null;
   onProspectChange?: (prospectId: string | null) => void;
 }

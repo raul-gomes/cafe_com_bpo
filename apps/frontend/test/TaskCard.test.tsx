@@ -35,6 +35,7 @@ const baseTask: TaskResponse = {
   title: 'Test Task',
   priority: 'high',
   is_cancelled: false,
+  is_overdue: false,
   created_at: '2026-01-01T00:00:00Z',
   updated_at: '2026-01-01T00:00:00Z',
 }

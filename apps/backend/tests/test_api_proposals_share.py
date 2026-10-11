@@ -2,7 +2,7 @@ from datetime import datetime, timedelta, timezone
 from uuid import uuid4
 
 from src.core.config import get_settings
-from tests.helpers import register_user
+from tests.helpers import grant_user_beta, pricing_input_for_total, register_user
 
 FRONTEND_URL = get_settings().frontend_url.rstrip("/")
 
@@ -10,6 +10,7 @@ FRONTEND_URL = get_settings().frontend_url.rstrip("/")
 def get_auth_header(client, email):
     payload = {"email": email, "password": "StrongPassword123!"}
     register_user(payload=payload)
+    grant_user_beta(email)
     resp = client.post(
         "/auth/login", data={"username": email, "password": "StrongPassword123!"}
     )
@@ -17,13 +18,12 @@ def get_auth_header(client, email):
     return {"Authorization": f"Bearer {token}"}
 
 
-def create_proposal(client, auth, client_name="Empresa do Teste"):
+def create_proposal(client, auth, client_name="Empresa do Teste", total=1000.0):
     resp = client.post(
         "/proposals/",
         json={
             "client_name": client_name,
-            "input_payload": {"services": [{"name": "BPO Financeiro", "active": True}]},
-            "result_payload": {"final_price": 1000},
+            "input_payload": pricing_input_for_total(total),
         },
         headers=auth,
     )
@@ -100,7 +100,7 @@ def test_public_get_returns_sanitized_proposal(client):
     data = resp.json()
     assert data["client_name"] == "Empresa do Teste"
     assert data["input_payload"]["services"][0]["name"] == "BPO Financeiro"
-    assert data["result_payload"]["final_price"] == 1000
+    assert data["result_payload"]["final_price"] == 1000.0
     assert data["client_decision"] is None
 
 

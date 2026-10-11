@@ -24,7 +24,7 @@ import { CLIENT_DECISION_LABELS, ClientDecision } from '../../api/proposals';
 export interface ProposalLight {
   id: string;
   client_name: string;
-  prospect_id: string | null;
+  company_id: string | null;
   created_at: string;
   number?: number | null;
   client_decision?: ClientDecision | null;
@@ -44,7 +44,10 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
   const [prospects, setProspects] = useState<ProspectData[]>([]);
   const [proposals, setProposals] = useState<ProposalLight[]>([]);
   const [loading, setLoading] = useState(false);
-  const [prospectId, setProspectId] = useState('');
+  // A lista de selection vem de `prospects` (ainda não migrada), e o valor
+  // selecionado é a **empresa** dona do negócio: em prospecção as duas linhas
+  // têm o mesmo id, e é a empresa que a geração lê.
+  const [companyId, setCompanyId] = useState('');
   const [proposalId, setProposalId] = useState('');
 
   const [step, setStep] = useState<'form' | 'fields'>('form');
@@ -76,14 +79,14 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
   }, [open]);
 
   const reset = () => {
-    setProspectId('');
+    setCompanyId('');
     setProposalId('');
     setStep('form');
     setDescriptors([]);
   };
 
-  const filteredProposals = prospectId
-    ? proposals.filter((p) => p.prospect_id === prospectId)
+  const filteredProposals = companyId
+    ? proposals.filter((p) => p.company_id === companyId)
     : [];
 
   const formatProposalOption = (p: ProposalLight): string => {
@@ -93,10 +96,10 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
   };
 
   const handleNext = async () => {
-    if (!prospectId) return;
+    if (!companyId) return;
     try {
       setFieldsLoading(true);
-      const data = await getContractMissingFields(prospectId, proposalId || null);
+      const data = await getContractMissingFields(companyId, proposalId || null);
       setDescriptors(data.fields);
       setStep('fields');
     } catch (e) {
@@ -108,9 +111,9 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
   };
 
   const handleGenerate = async (fields: Record<string, unknown>) => {
-    if (!prospectId) return;
+    if (!companyId) return;
     const contract = await generateContract({
-      prospect_id: prospectId,
+      company_id: companyId,
       proposal_id: proposalId || null,
       fields,
     });
@@ -138,9 +141,9 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
               <select
                 id="contract-prospect"
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
-                value={prospectId}
+                value={companyId}
                 onChange={(e) => {
-                  setProspectId(e.target.value);
+                  setCompanyId(e.target.value);
                   setProposalId('');
                 }}
                 data-testid="contract-prospect-select"
@@ -159,7 +162,7 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
                 className="flex h-10 w-full items-center justify-between rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring disabled:opacity-50"
                 value={proposalId}
                 onChange={(e) => setProposalId(e.target.value)}
-                disabled={!prospectId}
+                disabled={!companyId}
                 data-testid="contract-proposal-select"
               >
                 <option value="">— Sem orçamento —</option>
@@ -167,7 +170,7 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
                   <option key={p.id} value={p.id}>{formatProposalOption(p)}</option>
                 ))}
               </select>
-              {prospectId && filteredProposals.length === 0 && (
+              {companyId && filteredProposals.length === 0 && (
                 <span className="text-xs text-muted-foreground">
                   O prospecto selecionado ainda não possui orçamentos vinculados.
                 </span>
@@ -177,7 +180,7 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
 
           <DialogFooter>
             <Button variant="ghost" onClick={() => { reset(); onClose(); }}>Cancelar</Button>
-            <Button onClick={handleNext} disabled={!prospectId || fieldsLoading}>
+            <Button onClick={handleNext} disabled={!companyId || fieldsLoading}>
               {fieldsLoading ? 'Carregando...' : 'Continuar'}
             </Button>
           </DialogFooter>
@@ -187,7 +190,7 @@ export const NovoContratoModal: React.FC<NovoContratoModalProps> = ({
       <ContractFieldsModal
         open={open && step === 'fields'}
         title="Dados do contrato"
-        description="Preencha os campos abaixo. Os dados que já existem no perfil, prospecto ou orçamento são preenchidos automaticamente."
+        description="Preencha os campos abaixo. Os dados que já existem no perfil, na empresa ou no orçamento são preenchidos automaticamente."
         descriptors={descriptors}
         submitLabel="Gerar contrato"
         onClose={() => {

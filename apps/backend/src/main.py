@@ -3,7 +3,7 @@ import time
 from contextlib import asynccontextmanager
 from datetime import datetime
 
-from fastapi import FastAPI, Request
+from fastapi import Depends, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -12,12 +12,17 @@ from slowapi.errors import RateLimitExceeded
 
 from src.core.config import get_settings
 from src.core.database import engine
+from src.core.entitlements import write_gate
 from src.core.logger import log, setup_logging
 from src.core.rate_limit import limiter
 from src.modules.auth.router import router as auth_router
 from src.modules.beta.router import router as beta_router
 from src.modules.calendar.router import router as calendar_router
 from src.modules.clients.router import router as clients_router
+from src.modules.companies import sync as _companies_sync  # noqa: F401  (escrita dupla)
+from src.modules.companies.models import (
+    Company,  # noqa: F401  (tabela sem rota até a Fase 3)
+)
 from src.modules.contacts.router import router as contacts_router
 from src.modules.contracts.router import router as contracts_router
 from src.modules.dashboard.router import router as dashboard_router
@@ -32,6 +37,14 @@ from src.modules.payments.router import router as payments_router
 from src.modules.pricing.router import router as pricing_router
 from src.modules.proposals.router import router as proposals_router
 from src.modules.prospects.router import router as prospects_router
+from src.modules.subscriptions.models import (
+    BetaAccess,  # noqa: F401  (tabelas sem rota até a Fase 4)
+    PaymentMethod,  # noqa: F401
+    Plan,  # noqa: F401
+    Subscription,  # noqa: F401
+)
+from src.modules.subscriptions.router import access_router, plans_router
+from src.modules.subscriptions.router import router as subscriptions_router
 from src.modules.task_manager import router as tasks_router
 from src.modules.task_manager.scheduler import scheduler_instance
 from src.modules.team.router import router as team_router
@@ -94,6 +107,9 @@ def create_app() -> FastAPI:
         description="API de Precificação e Gestão de Propostas BPO (Arquitetura Modular)",
         version="1.1.0",
         lifespan=lifespan,
+        # §4 of the payments plan: every route runs through the write gate so a
+        # free user only mutates the three modules of §2.
+        dependencies=[Depends(write_gate)],
     )
 
     app.state.limiter = limiter
@@ -151,6 +167,9 @@ def create_app() -> FastAPI:
     app.include_router(tasks_router)
     app.include_router(dashboard_router)
     app.include_router(payments_router)
+    app.include_router(access_router)
+    app.include_router(plans_router)
+    app.include_router(subscriptions_router)
     app.include_router(notifications_router)
     app.include_router(calendar_router)
     app.include_router(feedback_router)

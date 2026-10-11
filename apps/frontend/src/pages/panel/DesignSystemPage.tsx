@@ -48,6 +48,8 @@ import {
 } from '../../components/ui/avatar'
 import { Skeleton } from '../../components/ui/skeleton'
 import { Alert, AlertTitle, AlertDescription } from '../../components/ui/alert'
+import { BetaEndingBanner } from '../../components/panel/BetaEndingBanner'
+import { useUpgrade } from '../../components/ui/UpgradeModal'
 import {
   Dialog,
   DialogTrigger,
@@ -133,8 +135,16 @@ import { DealCard } from '../../components/governanca/DealCard'
 import { DealTimeline } from '../../components/governanca/DealTimeline'
 import { MemberProfileView } from '../../components/network/MemberProfileView'
 import { MemberLink } from '../../components/network/MemberLink'
+import { SubscriptionStatusCard } from '../../components/payments/SubscriptionStatusCard'
+import { BillingProfileForm } from '../../components/payments/BillingProfileForm'
+import { BillingHistoryList } from '../../components/payments/BillingHistoryList'
+import { SignupPlanOffer } from '../../components/payments/SignupPlanOffer'
+import type { Access } from '../../schemas/access'
+import type { Plan } from '../../schemas/plans'
+import type { BillingHistoryRow, BillingProfile } from '../../schemas/subscription'
 import { NewIndicator } from '../../components/network/NewIndicator'
 import type { Deal } from '../../api/governanca'
+import { dealInMonth } from './governancaMonth'
 
 import './DesignSystemPage.css'
 
@@ -149,6 +159,7 @@ const sections = [
   { id: 'governanca', icon: '📈', label: 'Governança' },
   { id: 'navigation', icon: '🧭', label: 'Navegação' },
   { id: 'comunidade', icon: '👥', label: 'Comunidade' },
+  { id: 'pagamentos', icon: '💳', label: 'Pagamentos' },
   { id: 'modes', icon: '🎨', label: 'Modos' },
 ]
 
@@ -226,8 +237,8 @@ const DEMO_MEMBER_COMMENTS = [
   {
     id: 'c1',
     user_id: 'user-demo',
-    author_id: 'user-2',
-    author: { id: 'user-2', name: 'Bruno Lima', avatar_url: null },
+    author_id: '00000000-0000-4000-8000-00000000000b',
+    author: { id: '00000000-0000-4000-8000-00000000000b', name: 'Bruno Lima', avatar_url: null },
     message:
       'Entreguei tres clientes para a Marina e o resultado do fechamento mensal foi excelente.',
     created_at: '2026-09-20T14:00:00Z',
@@ -236,8 +247,8 @@ const DEMO_MEMBER_COMMENTS = [
   {
     id: 'c2',
     user_id: 'user-demo',
-    author_id: 'user-3',
-    author: { id: 'user-3', name: 'Ana Souza', avatar_url: null },
+    author_id: '00000000-0000-4000-8000-00000000000c',
+    author: { id: '00000000-0000-4000-8000-00000000000c', name: 'Ana Souza', avatar_url: null },
     message: 'Muito serio e pontual nos entregas.',
     created_at: '2026-09-21T09:00:00Z',
     can_delete: true,
@@ -253,9 +264,6 @@ const CONTATOS_DEMO: ContactResponse[] = [
     empresa: 'Contabilidade Alfa',
     origem: 'cliente',
     tem_pessoa: true,
-    client_id: 'cl-1',
-    prospect_id: 'p-1',
-    updated_at: '2026-09-28T12:00:00',
   },
   {
     id: 'p-2',
@@ -265,9 +273,6 @@ const CONTATOS_DEMO: ContactResponse[] = [
     empresa: 'Lead Aberto Ltda',
     origem: 'prospecto',
     tem_pessoa: true,
-    client_id: null,
-    prospect_id: 'p-2',
-    updated_at: '2026-09-28T12:00:00',
   },
   {
     id: 'c-2',
@@ -277,9 +282,6 @@ const CONTATOS_DEMO: ContactResponse[] = [
     empresa: 'Empresa Beta',
     origem: 'livre',
     tem_pessoa: true,
-    client_id: null,
-    prospect_id: null,
-    updated_at: '2026-09-28T12:00:00',
   },
   {
     id: 'cl-3',
@@ -289,9 +291,6 @@ const CONTATOS_DEMO: ContactResponse[] = [
     empresa: 'Pedro Alencar ME',
     origem: 'cliente',
     tem_pessoa: false,
-    client_id: 'cl-3',
-    prospect_id: null,
-    updated_at: '2026-09-28T12:00:00',
   },
 ]
 
@@ -303,13 +302,87 @@ const MemberProfileDemo = () => (
   />
 )
 
+// ─── Demo data: Pagamentos (Fase 9) ────────────────────────────────────
+const DEMO_SUBSCRIBER_ACCESS: Access = {
+  access: 'active',
+  read_only_modules: [],
+  writable_modules: ['captar', 'comunidade', 'gestao', 'operacional', 'pagamentos'],
+  expires_at: '2026-12-04T00:00:00Z',
+  grace_until: null,
+  shows_dunning_banner: false,
+  shows_beta_banner: false,
+  subscription_status: 'active',
+  plan: { code: 'mensal', name: 'Mensal', price: '27.90', cycle: 'MONTHLY' },
+  is_admin: false,
+}
+
+const DEMO_PAYMENTS_PLANS: Plan[] = [
+  {
+    id: '00000000-0000-4000-8000-000000000001',
+    code: 'mensal',
+    name: 'Mensal',
+    price: '27.90',
+    cycle: 'MONTHLY',
+    is_active: true,
+    description: 'Acesso completo, cobrado todo mês',
+    subscriber_count: 214,
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000002',
+    code: 'anual',
+    name: 'Anual',
+    price: '279.00',
+    cycle: 'YEARLY',
+    is_active: true,
+    description: 'Mesmo acesso com dois meses grátis',
+    subscriber_count: 37,
+  },
+]
+
+const DEMO_BILLING_PROFILE: BillingProfile = {
+  cpf_cnpj: '24971563792',
+  phone: '4738010919',
+  address: 'Av. Paulista, 150',
+  address_number: '150',
+  complement: 'Apto 12',
+  city: 'São Paulo',
+  state: 'SP',
+  postal_code: '01310000',
+}
+
+const DEMO_BILLING_HISTORY: BillingHistoryRow[] = [
+  {
+    id: '00000000-0000-4000-8000-000000000101',
+    cycle_month: '2026-09',
+    amount: '27.90',
+    status: 'confirmed',
+    paid_at: '2026-09-05T12:00:00Z',
+    invoice_url: 'https://sandbox.asaas.com/invoice/inv_101',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000102',
+    cycle_month: '2026-08',
+    amount: '27.90',
+    status: 'confirmed',
+    paid_at: '2026-08-05T12:00:00Z',
+    invoice_url: 'https://sandbox.asaas.com/invoice/inv_102',
+  },
+  {
+    id: '00000000-0000-4000-8000-000000000103',
+    cycle_month: '2026-06',
+    amount: '27.90',
+    status: 'refunded',
+    paid_at: null,
+    invoice_url: null,
+  },
+]
+
 // ─── Demo data: Governança ──────────────────────────────────────────────
 const DEMO_GOVERNANCA: Deal[] = [
   {
     id: 'deal-conquistado',
     name: 'TechFinance BPOS',
-    status: 'conquistado',
-    reference_date: '2026-09-15T10:00:00',
+    appearances: [{ month: '2026-09', status: 'conquistado' }],
     segment: 'Gestão financeira',
     cnpj: '39123456000180',
     city: 'São Paulo',
@@ -330,8 +403,7 @@ const DEMO_GOVERNANCA: Deal[] = [
   {
     id: 'deal-negociacao',
     name: 'Contabilidade Souza',
-    status: 'em_negociacao',
-    reference_date: '2026-09-18T14:00:00',
+    appearances: [{ month: '2026-09', status: 'em_negociacao' }],
     segment: 'Contabilidade',
     cnpj: '18222333000177',
     city: 'Belo Horizonte',
@@ -348,8 +420,7 @@ const DEMO_GOVERNANCA: Deal[] = [
   {
     id: 'deal-perdido',
     name: 'Café Exportadora',
-    status: 'perdido',
-    reference_date: '2026-09-10T11:30:00',
+    appearances: [{ month: '2026-09', status: 'perdido' }],
     segment: 'Agronegócio',
     cnpj: '27444555000100',
     city: 'Uberlândia',
@@ -374,6 +445,7 @@ export default function DesignSystemPage() {
   const [contatoDialogOpen, setContatoDialogOpen] = useState(false)
   const [projetoDialogOpen, setProjetoDialogOpen] = useState(false)
   const [searchDemo, setSearchDemo] = useState('contabilidade')
+  const { open: openUpgrade } = useUpgrade()
 
   // Controlled state for Checkbox examples
   const [chkTerms, setChkTerms] = useState(true)
@@ -699,9 +771,9 @@ const [skills, setSkills] = useState<string[]>([])
           <div className="ds-col">
             <ProjectCard
               project={{
-                id: 'demo-1',
-                owner_id: 'user-1',
-                owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                id: '00000000-0000-4000-8000-000000000002',
+                owner_id: '00000000-0000-4000-8000-00000000000a',
+                owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
                 title: 'Automação de fluxo fiscal',
                 description:
                   'Projeto para automatizar o fluxo fiscal dos clientes do escritório.',
@@ -715,7 +787,7 @@ const [skills, setSkills] = useState<string[]>([])
                   { id: 's1', name: 'Python', slug: 'python', is_active: true },
                   { id: 's2', name: 'Excel', slug: 'excel', is_active: true },
                 ],
-                group_id: 'demo-group-1',
+                group_id: '00000000-0000-4000-8000-000000000005',
                 is_group_member: true,
                 is_owner: false,
                 application_count: 0,
@@ -739,9 +811,9 @@ const [skills, setSkills] = useState<string[]>([])
           <div className="ds-col">
             <ProjectApplicationsPanel
               project={{
-                id: 'demo-apps-1',
-                owner_id: 'user-1',
-                owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                id: '00000000-0000-4000-8000-000000000001',
+                owner_id: '00000000-0000-4000-8000-00000000000a',
+                owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
                 title: 'Automação de fluxo fiscal',
                 description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
                 status: 'open',
@@ -751,7 +823,7 @@ const [skills, setSkills] = useState<string[]>([])
                 created_at: '2026-09-08T00:00:00Z',
                 updated_at: '2026-09-08T00:00:00Z',
                 skills: [],
-                group_id: 'demo-group-1',
+                group_id: '00000000-0000-4000-8000-000000000005',
                 is_group_member: true,
                 is_owner: true,
                 application_count: 1,
@@ -774,9 +846,9 @@ const [skills, setSkills] = useState<string[]>([])
             <GroupPostCard
               post={{
                 id: 'post-1',
-                group_id: 'demo-group-1',
-                author_id: 'user-1',
-                author: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                group_id: '00000000-0000-4000-8000-000000000005',
+                author_id: '00000000-0000-4000-8000-00000000000a',
+                author: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
                 body: 'Equipe, alinhemos o escopo do primeiro entregável do fluxo fiscal.',
                 created_at: '2026-09-09T10:00:00Z',
               }}
@@ -971,6 +1043,65 @@ const [skills, setSkills] = useState<string[]>([])
               </AlertDescription>
             </Alert>
           </div>
+        </ComponentCard>
+
+        {/* ── BetaEndingBanner ── */}
+        <ComponentCard
+          name="BetaEndingBanner"
+          description="Aviso de fim de beta no painel (D12) · data em UTC, formato pt-BR"
+          howToUse={`import { BetaEndingBanner } from '../../components/panel/BetaEndingBanner'
+import { useAccess } from '../../api/hooks/useAccess'
+
+const { data: access } = useAccess()
+
+{access?.shows_beta_banner && access.expires_at && (
+  <BetaEndingBanner expiresAt={access.expires_at} />
+)}`}
+        >
+          <BetaEndingBanner expiresAt="2027-10-06T00:00:00Z" />
+        </ComponentCard>
+
+        {/* ── UpgradeModal ── */}
+        <ComponentCard
+          name="UpgradeModal"
+          description="Modal de assinatura aberto pelo write gate do plano (403 · plano free) · CTA Assinar → /painel/pagamentos"
+          howToUse={`import { UpgradeProvider } from '../../components/ui/UpgradeModal'
+import { notifyPlanGate } from '../../api/planGate'
+
+// O provider é montado UMA vez na raiz das rotas (router.tsx, dentro do Router).
+// O apiClient dispara notifyPlanGate() sozinho quando o backend
+// responde 403 "Seu plano não permite esta ação"; o modal abre sozinho.
+// Para abrir manualmente (demonstração / chamadas fora do apiClient):
+const { open } = useUpgrade()
+open()`}
+        >
+          <Button variant="outline" onClick={openUpgrade}>
+            Abrir UpgradeModal
+          </Button>
+        </ComponentCard>
+
+        {/* ── SignupPlanOffer ── */}
+        <ComponentCard
+          name="SignupPlanOffer"
+          description="Oferta mostrada logo após o cadastro de um novo usuário: o investimento do plano ativo com 'Assinar' e 'Continuar sem assinar'."
+          howToUse={`import { SignupPlanOffer } from '../../components/payments/SignupPlanOffer'
+
+// Presentacional: o CadastroPage resolve o plano ativo (usePlans) e passa aqui.
+<SignupPlanOffer plan={activePlan} onContinue={() => navigate('/painel')} />`}
+        >
+          <SignupPlanOffer
+            plan={{
+              id: 'demo',
+              code: 'pro',
+              name: 'Pro',
+              price: '49.90',
+              cycle: 'MONTHLY',
+              is_active: true,
+              description: 'Acesso total com escrita em todos os módulos.',
+              subscriber_count: 3,
+            }}
+            onContinue={() => {}}
+          />
         </ComponentCard>
 
         {/* ── Dialog ── */}
@@ -1453,9 +1584,8 @@ toast.promise(fetchData(), {
   }}
 />
 
-// contact?.origem === 'cliente'   => PATCH /contacts/prospects/{id} (cadastro do cliente, via prospecto de origem)
-// contact?.origem === 'prospecto' => PATCH /contacts/prospects/{id} (cadastro do prospecto)
-// caso contrário                => POST/PATCH /contacts (contato do próprio cadastro)`}
+// Fase 4: contato de empresa (origem 'cliente'/'prospecto') => PATCH /contacts/{contactId} (a pessoa é um Contact)
+// caso contrário                                            => POST/PATCH /contacts (contato do próprio cadastro)`}
         >
           <div className="ds-row">
             <Button variant="secondary" onClick={() => setContatoDialogOpen(true)}>
@@ -1562,18 +1692,22 @@ const descriptors: ContractFieldDescriptor[] = [
           name="DealCard"
           description="Card de negócio da Governança: nome, status, segmento/CNPJ/cidade, valor da proposta e detalhe expansível com dados, links e timeline."
           howToUse={`import { DealCard } from '../../components/governanca/DealCard'
+import { dealInMonth } from '../pages/panel/governancaMonth'
 import type { Deal } from '../../api/governanca'
 
-<DealCard deal={deal.conquistado} />
+// A tag é do MÊS, não do negócio: use dealInMonth(deal, mes) ou dealsByMonth()
+const noMes = dealInMonth(deal, '2026-09')
+if (noMes) <DealCard deal={noMes} />
 
-// Deal: { id, name, status: 'conquistado'|'em_negociacao'|'perdido',
-//   reference_date, proposal: {id, final_price}, contract: {id, number},
+// Deal: { id, name, appearances: [{month: '2026-09', status}],
+//   proposal: {id, final_price}, contract: {id, number},
 //   timeline: [{type: 'created'|'sent'|'approved'|'rejected'|'pending', label, date, mock?}] }`}
         >
           <div className="ds-col gap-3">
-            {DEMO_GOVERNANCA.map((deal) => (
-              <DealCard key={deal.id} deal={deal} />
-            ))}
+            {DEMO_GOVERNANCA.map((deal) => {
+              const noMes = dealInMonth(deal, '2026-09');
+              return noMes ? <DealCard key={deal.id} deal={noMes} /> : null;
+            })}
           </div>
         </ComponentCard>
 
@@ -1698,9 +1832,9 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
         >
           <ProjetosCard
             project={{
-              id: 'demo-gestao-1',
-              owner_id: 'user-1',
-              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              id: '00000000-0000-4000-8000-000000000004',
+              owner_id: '00000000-0000-4000-8000-00000000000a',
+              owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
               title: 'Automação de fluxo fiscal',
               description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
               status: 'open',
@@ -1712,7 +1846,7 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
               skills: [
                 { id: 's1', name: 'Python', slug: 'python', is_active: true },
               ],
-              group_id: 'demo-group-1',
+              group_id: '00000000-0000-4000-8000-000000000005',
               is_group_member: true,
               is_owner: true,
               application_count: 3,
@@ -1770,9 +1904,9 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
         >
           <ProjetoEquipePanel
             project={{
-              id: 'demo-equipe-1',
-              owner_id: 'user-1',
-              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              id: '00000000-0000-4000-8000-000000000003',
+              owner_id: '00000000-0000-4000-8000-00000000000a',
+              owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
               title: 'Automação de fluxo fiscal',
               description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
               status: 'open',
@@ -1782,20 +1916,20 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
               created_at: '2026-09-08T00:00:00Z',
               updated_at: '2026-09-10T00:00:00Z',
               skills: [],
-              group_id: 'demo-group-1',
+              group_id: '00000000-0000-4000-8000-000000000005',
               is_group_member: true,
               is_owner: false,
               application_count: 0,
               applications_closed: false,
             }}
             group={{
-              id: 'demo-group-1',
-              project_id: 'demo-equipe-1',
+              id: '00000000-0000-4000-8000-000000000005',
+              project_id: '00000000-0000-4000-8000-000000000003',
               project_title: 'Automação de fluxo fiscal',
               is_member: true,
               members: [
-                { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
-                { id: 'user-2', name: 'Ana Souza', email: 'ana@cafe.com' },
+                { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                { id: '00000000-0000-4000-8000-00000000000b', name: 'Ana Souza', email: 'ana@cafe.com' },
               ],
               posts: [],
               created_at: '2026-09-08T00:00:00Z',
@@ -1816,9 +1950,9 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
         >
           <ProjetoTopicoPanel
             project={{
-              id: 'demo-topico-1',
-              owner_id: 'user-1',
-              owner: { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+              id: '00000000-0000-4000-8000-000000000006',
+              owner_id: '00000000-0000-4000-8000-00000000000a',
+              owner: { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
               title: 'Automação de fluxo fiscal',
               description: 'Projeto para automatizar o fluxo fiscal dos clientes.',
               status: 'open',
@@ -1828,26 +1962,26 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
               created_at: '2026-09-08T00:00:00Z',
               updated_at: '2026-09-10T00:00:00Z',
               skills: [],
-              group_id: 'demo-group-1',
+              group_id: '00000000-0000-4000-8000-000000000005',
               is_group_member: true,
               is_owner: true,
               application_count: 0,
               applications_closed: false,
             }}
             group={{
-              id: 'demo-group-1',
-              project_id: 'demo-topico-1',
+              id: '00000000-0000-4000-8000-000000000005',
+              project_id: '00000000-0000-4000-8000-000000000006',
               project_title: 'Automação de fluxo fiscal',
               is_member: true,
               members: [
-                { id: 'user-1', name: 'Raul Gomes', email: 'raul@cafe.com' },
+                { id: '00000000-0000-4000-8000-00000000000a', name: 'Raul Gomes', email: 'raul@cafe.com' },
               ],
               posts: [
                 {
                   id: 'post-1',
-                  group_id: 'demo-group-1',
-                  author_id: 'user-2',
-                  author: { id: 'user-2', name: 'Ana Souza', email: 'ana@cafe.com' },
+                  group_id: '00000000-0000-4000-8000-000000000005',
+                  author_id: '00000000-0000-4000-8000-00000000000b',
+                  author: { id: '00000000-0000-4000-8000-00000000000b', name: 'Ana Souza', email: 'ana@cafe.com' },
                   body: 'Alinhemos o escopo do primeiro entregável do fluxo fiscal.',
                   created_at: '2026-09-09T10:00:00Z',
                 },
@@ -1855,6 +1989,65 @@ notif.type === 'profile_comment' -> navigate(\`/painel/membros/\${notif.related_
               created_at: '2026-09-08T00:00:00Z',
             }}
           />
+        </ComponentCard>
+      </Section>
+
+      {/* ═══════════ 8. PAGAMENTOS (Fase 9) ═══════════ */}
+      <Section id="pagamentos" icon="💳" title="Pagamentos">
+        <ComponentCard
+          name="SubscriptionStatusCard"
+          description="Bloco de plano + ações da seção Pagamentos: catálogo com Assinar para free/beta, o plano vigente com Cancelar para active, alerta de dunning para past_due e nota para admin"
+          howToUse={`import { SubscriptionStatusCard } from '../../components/payments/SubscriptionStatusCard'
+
+<SubscriptionStatusCard
+  access={access}                      // GET /access
+  plans={plans}                        // GET /plans
+  isCheckingPlans={isLoadingPlans}
+  hasSavedProfile={!!profile}          // GET /subscriptions/billing (404 => false)
+  onSubscribe={(planId) => abrirCheckout(planId)}   // POST /subscriptions/checkout + redirect
+  onCancel={() => confirmarCancelamento()}          // POST /subscriptions/cancel
+/>`}
+        >
+          <SubscriptionStatusCard
+            access={DEMO_SUBSCRIBER_ACCESS}
+            plans={DEMO_PAYMENTS_PLANS}
+            isCheckingPlans={false}
+            hasSavedProfile
+            onSubscribe={(planId) => toast.info(`Assinar ${planId}`)}
+            onCancel={() => toast.info('Cancelar assinatura')}
+          />
+        </ComponentCard>
+
+        <ComponentCard
+          name="BillingProfileForm"
+          description="Dados de cobrança enviados ao checkout da Asaas: campos com máscara gerando dígitos, validação de forma no cliente e dígito verificador do CPF/CNPJ no servidor"
+          howToUse={`import { BillingProfileForm } from '../../components/payments/BillingProfileForm'
+
+<BillingProfileForm
+  profile={profile}        // null quando o usuário nunca salvou
+  isLoading={isLoading}
+  isSaving={isSaving}
+  apiError={saveError}     // opcional: mensagem de produto do 422 (ex.: CNPJ inválido)
+  onSave={(data) => saveProfile.mutate(data)}   // PUT /subscriptions/billing
+/>`}
+        >
+          <BillingProfileForm
+            profile={DEMO_BILLING_PROFILE}
+            isLoading={false}
+            isSaving={false}
+            onSave={(data) => toast.success(`Salvar: ${data.address}, ${data.state}`)}
+          />
+        </ComponentCard>
+
+        <ComponentCard
+          name="BillingHistoryList"
+          description="Histórico mês a mês das cobranças da assinatura: rótulo do mês em pt-BR, valor em real, status e link da fatura quando ela existe"
+          howToUse={`import { BillingHistoryList } from '../../components/payments/BillingHistoryList'
+
+<BillingHistoryList rows={rows} isLoading={isLoading} />
+// rows = GET /payments/, já na ordem do mês mais recente`}
+        >
+          <BillingHistoryList rows={DEMO_BILLING_HISTORY} isLoading={false} />
         </ComponentCard>
       </Section>
 

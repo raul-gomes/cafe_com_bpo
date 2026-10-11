@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useRef, useCallback, ReactNode } from 'react';
 import { apiClient, tokenStorage } from '../api/client';
+import { queryClient } from '../api/queryClient';
 import axios from 'axios';
 
 const SESSION_KEY = 'cafe_bpo_proposal';
@@ -14,6 +15,16 @@ function isTokenExpired(token: string): boolean {
   } catch {
     return true;
   }
+}
+
+// React Query keys are global (['access'], ['tasks'], …) and the cache lives in
+// an app-level singleton that survives logout/login in the same SPA session. If
+// it were retained, switching accounts would show the previous user's cached
+// data — for access, the admin's `{ is_admin: true }` in the payments screen.
+// Clearing on every identity change is the only place that can expire the whole
+// class, not just one key.
+function clearUserCache(): void {
+  queryClient.clear();
 }
 
 export interface User {
@@ -58,6 +69,7 @@ interface RegisterPayload {
   email: string;
   company?: string;
   password: string;
+  terms_accepted: boolean;
 }
 
 interface AuthContextType {
@@ -103,6 +115,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
       await fetchUser(data.access_token);
     } catch {
       // No valid refresh cookie — user is not logged in
+      clearUserCache();
       tokenStorage.clearToken();
       setUser(null);
     } finally {
@@ -124,6 +137,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
         if (status === 401) {
           setSessionExpired(true);
           setTimeout(() => setSessionExpired(false), 5000);
+          clearUserCache();
           tokenStorage.clearToken();
           setUser(null);
         } else if (status && status >= 500 && attempts < retries) {
@@ -131,6 +145,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
           await new Promise(resolve => setTimeout(resolve, 1000 * attempts));
           return tryFetch();
         } else {
+          clearUserCache();
           tokenStorage.clearToken();
           setUser(null);
         }
@@ -145,6 +160,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   }, [checkToken]);
 
   const login = async (token: string) => {
+    clearUserCache();
     tokenStorage.setToken(token);
     setSessionExpired(false);
     await checkToken();
@@ -158,6 +174,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     } catch {
       // Logout server call is best-effort
     }
+    clearUserCache();
     tokenStorage.clearToken();
     setUser(null);
     setSessionExpired(false);
@@ -169,15 +186,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 
     try {
       const saved = JSON.parse(raw);
-      if (saved.form && saved.pricing) {
-        const response = await apiClient.post<{ id: string }>('/proposals/', {
-          client_name: saved.clientName || 'Cliente',
-          input_payload: saved.form,
-          result_payload: saved.pricing,
-        });
-        
+      if (saved.form) {
+        // Sem `result_payload`: o preço é calculado pelo servidor. O `pricing`
+        // do rascunho é descartado e o total autoritativo volta na resposta.
+        const response = await apiClient.post<{ id: string; result_payload?: any }>(
+          '/proposals/',
+          {
+            client_name: saved.clientName || 'Cliente',
+            input_payload: saved.form,
+          }
+        );
+
         sessionStorage.removeItem(SESSION_KEY);
-        
+
         return response.data.id;
       }
     } catch (e) {

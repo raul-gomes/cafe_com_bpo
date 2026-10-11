@@ -1,16 +1,15 @@
 """
 Contacts Module - Router
 
-Agenda de contatos do BPO (Gestão › Contatos).
+Contact agenda of the BPO (Management › Contacts).
 
-A listagem junta três fontes, sem duplicar dado: os contatos livres
-cadastrados aqui, o contato de cada prospecto (inclusive o que ainda não virou
-cliente) e o contato de cada cliente. O contato de prospecto/cliente é o
-representante registrado no cadastro (`prospects.representante_*`); sem
-representante, a linha usa o telefone/e-mail da própria empresa.
+The listing joins three sources without duplicating data: the free contacts
+registered here, the contact of each company (prospect or client). The company
+person is a `Contact` attached to the company; a company with no person shows
+its own phone/email, read-only.
 
-Edição de linha de empresa grava no cadastro de origem; exclusão existe só para
-contato livre. A autorização (escopo por usuário) é resolvida no service.
+Editing a company row writes to the contact; deletion exists only for a free
+contact. Authorization (per-user scope) is resolved in the service.
 """
 
 from typing import Annotated
@@ -30,7 +29,6 @@ from .schemas import (
     ContactResponse,
     ContactUpdate,
     OrigemContato,
-    SourceContactUpdate,
 )
 from .service import ContactService
 
@@ -42,6 +40,7 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 def get_service(
     session: Annotated[Session, Depends(get_db_session)],
 ) -> ContactService:
+    """Builds the service with a repository bound to the request session."""
     return ContactService(ContactRepository(session))
 
 
@@ -55,7 +54,7 @@ def list_contacts(
     q: Annotated[str | None, Query(max_length=120)] = None,
     origem: Annotated[OrigemContato | None, Query()] = None,
 ):
-    """Contatos do usuário: livres + empresas, com busca e filtro de origem."""
+    """Contacts of the user: free + company, with search and origin filter."""
     return service.list_contacts(current_user.id, search=q, origem=origem)
 
 
@@ -66,32 +65,8 @@ def create_contact(
     current_user: CurrentUserDep,
 ):
     created = service.create_contact(contact_in, current_user.id)
-    log.info(f"📇 Contato criado: {contact_in.nome} por {current_user.email}")
+    log.info(f"📇 Contact created: {contact_in.nome} by {current_user.email}")
     return created
-
-
-@router.patch("/prospects/{prospect_id}", response_model=ContactResponse)
-def update_source_contact(
-    prospect_id: UUID,
-    contact_in: SourceContactUpdate,
-    service: ServiceDep,
-    current_user: CurrentUserDep,
-):
-    """Corrige o contato no cadastro de origem (prospecto ou cliente).
-
-    Rota literal antes de `/{contact_id}` de propósito: `prospects` não é um UUID
-    e o path da pessoa não deve sombrear o do cadastro.
-    """
-    try:
-        updated = service.update_source_contact(
-            prospect_id, contact_in, current_user.id
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e)) from e
-    log.info(
-        f"📇 Contato do cadastro atualizado: {prospect_id} por {current_user.email}"
-    )
-    return updated
 
 
 @router.patch("/{contact_id}", response_model=ContactResponse)
@@ -101,10 +76,18 @@ def update_contact(
     service: ServiceDep,
     current_user: CurrentUserDep,
 ):
+    """Fixes a contact by its id — a free one, or the person of a company.
+
+    A company person arrives with the contact `id`: `contacts` is what holds the
+    representative, so editing by `prospect_id` would mean editing by an id that
+    is not the agenda row's. A company with no person registered has no contact,
+    hence no id here — its row is read-only.
+    """
     try:
         updated = service.update_contact(contact_id, contact_in, current_user.id)
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e
+    log.info(f"📇 Contact updated: {contact_id} by {current_user.email}")
     return updated
 
 

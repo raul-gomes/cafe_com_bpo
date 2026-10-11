@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { UserPlus } from 'lucide-react';
+import { UserPlus, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { FichaButton } from '../../components/ui/ficha-button';
@@ -13,12 +13,13 @@ import {
   createContact,
   deleteContact,
   listContacts,
-  updateSourceContact,
   updateContact,
+  type ContactPayload,
   type ContactResponse,
   type OrigemContato,
 } from '../../api/contacts';
 import { toContactPayload, type ContactFormData } from '../../schemas/contacts';
+import { useWriteGate } from '../../api/hooks/useWriteGate';
 
 const VAZIO = '—';
 
@@ -40,6 +41,7 @@ const FILTROS: { value: OrigemContato | 'todos'; label: string }[] = [
  */
 export function ContatosPage() {
   const confirm = useConfirm();
+  const { canWrite: canWriteContacts, locked: contactsLocked } = useWriteGate('gestao');
   const [contatos, setContatos] = useState<ContactResponse[]>([]);
   const [busca, setBusca] = useState('');
   const [origem, setOrigem] = useState<OrigemContato | 'todos'>('todos');
@@ -97,6 +99,7 @@ export function ContatosPage() {
   }, [carregar, busca, origem]);
 
   const abrirNovo = () => {
+    if (!canWriteContacts()) return;
     setEmEdicao(null);
     setFormAberto(true);
   };
@@ -116,20 +119,21 @@ export function ContatosPage() {
     const daEmpresa =
       emEdicao?.origem === 'cliente' || emEdicao?.origem === 'prospecto';
     try {
-      if (emEdicao && daEmpresa && emEdicao.prospect_id) {
-        await updateSourceContact(emEdicao.prospect_id, {
-          nome: payload.nome,
-          telefone: payload.telefone,
-          email: payload.email,
-        });
+      if (emEdicao) {
+        // A linha da empresa É o contato (fase 4): a edição vai por `id` do
+        // contato. `empresa` só vale em contato livre — no cadastro da empresa
+        // o nome tem uma fonte só e não é enviado.
+        const daPessoa: Partial<ContactPayload> = daEmpresa
+          ? { nome: payload.nome, telefone: payload.telefone, email: payload.email }
+          : payload;
+        await updateContact(emEdicao.id, daPessoa);
         toast.success(
           emEdicao.origem === 'cliente'
-            ? 'Contato do cliente atualizado no cadastro dele.'
-            : 'Contato do prospecto atualizado no cadastro dele.'
+            ? 'Contato do cliente atualizado.'
+            : emEdicao.origem === 'prospecto'
+              ? 'Contato do prospecto atualizado.'
+              : 'Contato atualizado.'
         );
-      } else if (emEdicao) {
-        await updateContact(emEdicao.id, payload);
-        toast.success('Contato atualizado.');
       } else {
         await createContact(payload);
         toast.success('Contato salvo.');
@@ -171,6 +175,7 @@ export function ContatosPage() {
           </p>
         </div>
         <FichaButton onClick={abrirNovo}>
+          {contactsLocked && <Lock className="h-4 w-4" />}
           <UserPlus className="h-4 w-4" />
           Novo contato
         </FichaButton>

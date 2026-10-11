@@ -194,6 +194,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
               : <><span>Entrar</span><LogIn size={15} /></>
             }
           </Button>
+
+          <div className="text-center mt-5 text-[13px] text-muted-foreground">
+            Ainda não tem conta?{' '}
+            <Link
+              to={inviteToken ? `/cadastro?invite_token=${encodeURIComponent(inviteToken)}` : '/cadastro'}
+              className="text-primary-strong no-underline font-medium hover:underline"
+            >
+              Cadastre-se
+            </Link>
+          </div>
         </form>
 
         {/* Login com Google: o servidor já gera a autorização (auth/oauth/service.py),

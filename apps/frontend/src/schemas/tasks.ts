@@ -17,10 +17,16 @@ export interface TaskResponse {
   moved_by?: string;
   moved_by_name?: string;
   assignee_name?: string;
+  client_name?: string;
+  client_color?: string;
   cancelled_at?: string;
   is_cancelled: boolean;
   completed_at?: string;
   deleted_at?: string;
+  /** Estado derivado no servidor (regra de calendário em `src/core/deadline`).
+   *  O front não re-deriva: mesma tarefa, mesmo veredito em qualquer tela. */
+  is_overdue: boolean;
+  days_remaining?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -57,20 +63,6 @@ export interface TaskPhaseResponse {
   is_done: boolean;
   is_default: boolean;
   created_at: string;
-}
-
-export interface TaskPhaseCreate {
-  name: string;
-  color: string;
-  order: number;
-  is_done: boolean;
-}
-
-export interface TaskPhaseUpdate {
-  name?: string;
-  color?: string;
-  order?: number;
-  is_done?: boolean;
 }
 
 export interface TimelineTask {
@@ -136,6 +128,46 @@ export interface RoutineTypeUpdate {
   suggestions?: string[];
 }
 
+/**
+ * Dia da semana no contrato da API (P-5).
+ *
+ * O backend é dono do mapeamento e manda o enum como string; o frontend nunca
+ * converte número em dia — era aí que nascia o off-by-one do `weekday_mask`.
+ * `saturday` e `sunday` existem para exibição de rotinas antigas; o seletor de
+ * dias é `SELECTABLE_WEEKDAYS` (seg–sex, só dia útil, por decisão do dono).
+ */
+export const WEEKDAYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const;
+
+export type Weekday = (typeof WEEKDAYS)[number];
+
+/** Dias que o produto permite marcar — seg a sex. */
+export const SELECTABLE_WEEKDAYS: readonly Weekday[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+];
+
+/** Rótulos em português para exibir os dias. */
+export const WEEKDAY_LABELS: Record<Weekday, string> = {
+  monday: 'Seg',
+  tuesday: 'Ter',
+  wednesday: 'Qua',
+  thursday: 'Qui',
+  friday: 'Sex',
+  saturday: 'Sáb',
+  sunday: 'Dom',
+};
+
 export interface ActivityTemplateListItem {
   id: string;
   user_id: string;
@@ -143,38 +175,28 @@ export interface ActivityTemplateListItem {
   description?: string;
   process_type?: string;
   recurrence: string;
-  weekday_mask?: string;
+  weekdays?: Weekday[];
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
-  due_date?: string;
-  recurrence_end_date?: string;
   is_active: boolean;
   is_general?: boolean;
   is_archived?: boolean;
   is_overdue?: boolean;
   days_overdue?: number;
   activity_count: number;
-  parent_template_id?: string;
   routine_type_id?: string;
   routine_type_name?: string;
   routine_type_color?: string;
-  created_at: string;
-  updated_at: string;
 }
 
 export interface TemplateActivityResponse {
   id: string;
-  template_id: string;
   name: string;
   description?: string;
   priority: string;
-  due_day?: number;
-  due_days?: number;
   estimated_minutes?: number;
   order: number;
-  phase_id?: string;
-  created_at: string;
 }
 
 export interface ActivityTemplateResponse {
@@ -184,21 +206,16 @@ export interface ActivityTemplateResponse {
   description?: string;
   process_type?: string;
   recurrence: string;
-  weekday_mask?: string;
+  weekdays?: Weekday[];
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
-  due_date?: string;
-  recurrence_end_date?: string;
   is_active: boolean;
   is_general: boolean;
   is_archived?: boolean;
-  parent_template_id?: string;
   routine_type_id?: string;
   routine_type_name?: string;
   routine_type_color?: string;
-  created_at: string;
-  updated_at: string;
   activities: TemplateActivityResponse[];
 }
 
@@ -207,7 +224,7 @@ export interface ActivityTemplateCreate {
   description?: string;
   process_type?: string;
   recurrence?: string;
-  weekday_mask?: string;
+  weekdays?: Weekday[];
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
@@ -223,7 +240,7 @@ export interface ActivityTemplateUpdate {
   description?: string;
   process_type?: string;
   recurrence?: string;
-  weekday_mask?: string;
+  weekdays?: Weekday[];
   due_day?: number;
   due_month?: number;
   due_days_from_start?: number;
@@ -272,11 +289,18 @@ export interface ClientTemplateAssignmentResponse {
   id: string;
   client_id: string;
   template_id: string;
-  user_id: string;
-  start_date?: string;
   is_active: boolean;
-  created_at: string;
-  updated_at: string;
+}
+
+/** Resposta de vincular uma rotina a um cliente: o vínculo e as tarefas geradas. */
+export interface ClientTemplateAssignResponse {
+  assignment_id: string;
+  tasks_generated: number;
+}
+
+/** Resposta de regerar as tarefas de um vínculo: quantas foram criadas. */
+export interface ClientTemplateRegenerateResponse {
+  tasks_generated: number;
 }
 
 // ── SLA ──
@@ -362,19 +386,9 @@ export interface ClientTimelineResponse {
 export interface OverdueTemplateResponse {
   id: string;
   name: string;
-  description?: string;
-  process_type?: string;
   recurrence: string;
-  weekday_mask?: string;
-  due_month?: number;
-  due_date?: string;
-  recurrence_end_date?: string;
-  is_active: boolean;
   days_overdue: number;
   activity_count: number;
-  routine_type_id?: string;
-  routine_type_name?: string;
-  routine_type_color?: string;
 }
 
 // ── Dashboard Alerts ──

@@ -17,7 +17,7 @@ export const TERMOS_USO_HTML = `
 
 <h2>2. Definições</h2>
 <ol>
-  <li><strong>Plataforma:</strong> o site cafecombpo.com.br, o painel da ferramenta, a calculadora de Precificação, as páginas públicas (agenda dos cafés, produtos, inscrição Beta) e quaisquer outros canais digitais que indicarmos.</li>
+  <li><strong>Plataforma:</strong> o site cafecombpo.cloud, o painel da ferramenta, a calculadora de Precificação, as páginas públicas (agenda dos cafés, produtos, inscrição Beta) e quaisquer outros canais digitais que indicarmos.</li>
   <li><strong>Usuário:</strong> a pessoa física maior de 18 anos que cria uma conta e utiliza a Plataforma, seja em nome próprio (ex.: operador autônomo de BPO), seja em nome de uma empresa (ex.: escritório de BPO ou de contabilidade).</li>
   <li><strong>Assinante:</strong> o Usuário que contratou um plano pago.</li>
   <li><strong>Membro de equipe:</strong> a pessoa convidada por um Usuário para trabalhar com ele em clientes, tarefas ou rotinas dentro da Plataforma.</li>

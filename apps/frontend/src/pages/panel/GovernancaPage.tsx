@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { DealStatus, getGovernanca, GovernancaResponse, Deal } from '../../api/governanca';
+import { dealsByMonth } from './governancaMonth';
 import { unreproveProspect } from '../../api/prospects';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
@@ -100,41 +101,41 @@ export const GovernancaPage: React.FC = () => {
 
   const months = useMemo(() => data?.months ?? [], [data]);
 
-  const normalized = useMemo(() => {
-    if (!data) return [];
-    return data.deals.map(d => ({
-      ...d,
-      month: d.reference_date.slice(0, 7),
-    }));
-  }, [data]);
+  // O mesmo negócio pode aparecer em dois meses (a prospecção e o fechamento),
+  // e a tag renderizada é a do mês que está sendo olhado. O agrupamento e essa
+  // tag são calculados em `governancaMonth` porque são regra de negócio, não
+  // detalhe de layout.
+  const byMonth = useMemo(() => (data ? dealsByMonth(data.deals) : {}), [data]);
+
+  const normalized = useMemo(
+    () => (activeMonth ? (byMonth[activeMonth] ?? []) : []),
+    [byMonth, activeMonth],
+  );
 
   const visibleDeals = useMemo(() => {
     const term = search.trim().toLowerCase();
     return normalized.filter(deal => {
-      const inMonth = activeMonth ? deal.month === activeMonth : true;
-      if (!inMonth) return false;
       if (tab !== 'todos' && deal.status !== tab) return false;
       if (!term) return true;
       return [deal.name, deal.cnpj, deal.segment, deal.city, deal.state, deal.email]
         .filter(Boolean)
         .some(v => String(v).toLowerCase().includes(term));
     });
-  }, [normalized, activeMonth, tab, search]);
+  }, [normalized, tab, search]);
 
   const counts = useMemo(() => {
     const base = { conquistado: 0, em_negociacao: 0, perdido: 0 };
     for (const deal of normalized) {
-      if (activeMonth && deal.month !== activeMonth) continue;
       base[deal.status] += 1;
     }
     return base;
-  }, [normalized, activeMonth]);
+  }, [normalized]);
 
   const conqueredRevenue = useMemo(() => {
     return normalized
-      .filter(d => d.status === 'conquistado' && (!activeMonth || d.month === activeMonth))
+      .filter(d => d.status === 'conquistado')
       .reduce((sum, d) => sum + (d.proposal?.final_price ?? 0), 0);
-  }, [normalized, activeMonth]);
+  }, [normalized]);
 
   const canGoForward = activeMonth < currentMonth();
 

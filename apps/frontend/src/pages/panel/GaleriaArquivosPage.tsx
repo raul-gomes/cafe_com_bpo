@@ -44,8 +44,6 @@ interface GalleryFile {
   updated_at: string;
 }
 
-const BASE_URL = (apiClient.defaults.baseURL || '/api').replace(/\/+$/, '');
-
 export const GaleriaArquivosPage: React.FC = () => {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin';
@@ -237,13 +235,28 @@ export const GaleriaArquivosPage: React.FC = () => {
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDownload = (file: GalleryFile) => {
+  const handleDownload = async (file: GalleryFile) => {
     // Se file_path já for uma URL absoluta (ex.: Cloudinary), abre direto.
     if (/^https?:\/\//.test(file.file_path)) {
       window.open(file.file_path, '_blank');
       return;
     }
-    window.open(`${BASE_URL}${file.file_path}`, '_blank');
+    // Arquivo local exige o token: o download agora é autenticado e filtrado
+    // por dono, então `window.open` (que não manda o header) deixaria de
+    // funcionar. Busca o blob e entrega ao navegador como download.
+    try {
+      const response = await apiClient.get(file.file_path, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data as Blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = file.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Erro ao baixar arquivo.');
+    }
   };
 
   const currentFiles =

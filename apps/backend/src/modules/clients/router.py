@@ -8,6 +8,7 @@ from src.core.database import get_db_session
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user
+from src.modules.companies.repository import CompanyRepository
 
 from .repository import ClientRepository
 from .schemas import ClientCreate, ClientResponse, ClientUpdate
@@ -40,7 +41,6 @@ def get_client_segments(
 
 @router.get("/", response_model=list[ClientResponse])
 def get_clients(
-    repo: ClientRepoDep,
     current_user: CurrentUserDep,
     session: Annotated[Session, Depends(get_db_session)],
 ):
@@ -50,15 +50,9 @@ def get_clients(
     enxerga as tasks do board (via /tasks/), sem acesso às informações do
     cliente.
     """
-    owned_clients = repo.get_by_user(current_user.id)
+    companies = CompanyRepository(session).list_clients(current_user.id)
 
-    return [
-        ClientResponse(
-            **{k: getattr(c, k) for k in c.__dict__ if not k.startswith("_")},
-            role="owner",
-        )
-        for c in owned_clients
-    ]
+    return [ClientResponse.model_validate(company) for company in companies]
 
 
 @router.post("/", response_model=ClientResponse, status_code=status.HTTP_201_CREATED)

@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+import { useAccess } from '../../api/hooks/useAccess';
 import { ModalNosAjude } from './ModalNosAjude';
 import { ModalReportarErro } from './ModalReportarErro';
 import { CafeIcon, type CafeIconName } from '../../brand/CafeIcon';
@@ -31,6 +32,10 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
   const [showDonateModal, setShowDonateModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
+  const { data: access } = useAccess();
+  // Write gate do plano (GET /access): no gratuito, "captar" e "gestao" ficam só para ver.
+  // O cadeado é informativo — navegar continua livre; o servidor bloqueia a escrita.
+  const readOnly = new Set(access?.read_only_modules ?? []);
   const isAdmin = user?.role === 'admin';
   const sections = NAV_SECTIONS.filter(section => !section.adminOnly || isAdmin);
 
@@ -57,7 +62,10 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
         className={cn('cafe-rail-link panel-rail-link no-underline', !active && 'text-muted-foreground hover:text-foreground')}
       >
         <CafeIcon name={item.icon} className={active ? 'text-module' : 'opacity-80'} />
-        <span className="cafe-rail-label truncate">{item.label}</span>
+        <span className="cafe-rail-label flex-1 truncate">{item.label}</span>
+        {item.gate && readOnly.has(item.gate) && (
+          <span className="panel-item-lock cafe-rail-label" aria-label="Somente leitura no plano gratuito" />
+        )}
       </Link>
     );
   };
@@ -87,21 +95,21 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
               type="button"
               role="tab"
               aria-selected={section.id === activeSection.id}
-              aria-label={section.assinatura ? `${section.label} (assinatura para criar e enviar)` : section.label}
-              title={section.assinatura ? `${section.label} · criar e enviar exige assinatura` : section.label}
+              aria-label={readOnly.has(section.id) ? `${section.label} (assinatura para criar e enviar)` : section.label}
+              title={readOnly.has(section.id) ? `${section.label} · criar e enviar exige assinatura` : section.label}
               data-cafe-module={section.module}
               onClick={() => selectSection(section)}
               className="panel-module-tab"
             >
               <CafeIcon name={section.icon} className="size-[20px]" />
-              {section.assinatura && <span className="panel-module-tab-lock" aria-hidden="true" />}
+              {readOnly.has(section.id) && <span className="panel-module-tab-lock" aria-hidden="true" />}
             </button>
           ))}
         </div>
         <div className="panel-module-name cafe-rail-label" data-cafe-module={activeSection.module}>
           {activeSection.label}
         </div>
-        {activeSection.assinatura && (
+        {readOnly.has(activeSection.id) && (
           <p className="panel-module-plan cafe-rail-label">
             Explore à vontade. Para criar e enviar, assinatura de {PRECO_ASSINATURA}.
           </p>

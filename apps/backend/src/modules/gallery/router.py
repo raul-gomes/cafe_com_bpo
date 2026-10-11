@@ -126,20 +126,39 @@ async def upload_gallery_file(
 
 
 @router.get("/download/{filename}")
-def download_gallery_file(filename: str):
-    """Serve arquivo da galeria para download."""
-    filename = os.path.basename(filename)
-    filepath = os.path.join(STORAGE_DIR, filename)
+def download_gallery_file(
+    filename: str,
+    user: CurrentUserDep,
+    session: Annotated[Session, Depends(get_db_session)],
+):
+    """Serve um arquivo da galeria **do usuário autenticado**.
 
-    if not os.path.exists(filepath):
+    A rota exige usuário e a posse é provada pela linha em `gallery_items`: sem
+    isso, qualquer request anônimo baixava documento de cliente — e o de outro
+    usuário, bastando conhecer o nome do arquivo (o `file_path` é devolvido na
+    listagem). Arquivo que existe em disco sem linha correspondente continua 404,
+    porque a autorização vem do banco e não do diretório.
+    """
+    safe_filename = os.path.basename(filename)
+    item = GalleryRepository(session).find_owned_download(user.id, safe_filename)
+    if item is None:
+        raise HTTPException(
+            status_code=404, detail="Arquivo não encontrado na galeria."
+        )
+
+    filepath = os.path.join(STORAGE_DIR, safe_filename)
+    if not os.path.isfile(filepath):
+        log.warning(
+            "[gallery] linha %s aponta para arquivo ausente: %s", item.id, safe_filename
+        )
         raise HTTPException(
             status_code=404, detail="Arquivo não encontrado na galeria."
         )
 
     return FileResponse(
         path=filepath,
-        filename=filename,
-        media_type="application/octet-stream",
+        filename=item.file_name,
+        media_type=item.file_type or "application/octet-stream",
         content_disposition_type="attachment",
     )
 
@@ -266,19 +285,29 @@ async def delete_common_file(
 
 
 @router.get("/common/download/{filename}")
-def download_common_file(filename: str):
-    """Serve arquivo comunitário para download."""
-    safe = os.path.basename(filename)
-    filepath = os.path.join(COMMON_STORAGE_DIR, safe)
+def download_common_file(
+    filename: str,
+    user: CurrentUserDep,
+    session: Annotated[Session, Depends(get_db_session)],
+):
+    """Serve um arquivo comunitário para um membro autenticado.
 
-    if not os.path.exists(filepath):
+    O arquivo é compartilhado entre os membros da plataforma, não com a internet:
+    a rota exige usuário. Só linhas salvas localmente atendem aqui — o que foi
+    enviado ao Cloudinary mantém a URL do provedor em `file_path` e é buscado
+    direto do CDN.
+    """
+    safe = os.path.basename(filename)
+    item = CommonGalleryRepository(session).find_download(safe)
+    filepath = os.path.join(COMMON_STORAGE_DIR, safe)
+    if item is None or not os.path.isfile(filepath):
         raise HTTPException(
             status_code=404, detail="Arquivo comunitário não encontrado."
         )
 
     return FileResponse(
         path=filepath,
-        filename=safe,
-        media_type="application/octet-stream",
+        filename=item.file_name,
+        media_type=item.file_type or "application/octet-stream",
         content_disposition_type="attachment",
     )

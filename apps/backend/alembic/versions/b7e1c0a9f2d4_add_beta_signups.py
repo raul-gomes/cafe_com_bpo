@@ -5,7 +5,7 @@ nome, e-mail (único, minúsculo), WhatsApp, perfil, faixa de clientes, desafio,
 origem e data do aceite da LGPD. Não é usuário do sistema.
 
 Revision ID: b7e1c0a9f2d4
-Revises: 09d0d0d7300b
+Revises: d2e3f4a5b6c7
 Create Date: 2026-10-11 05:00:00.000000
 
 """
@@ -18,7 +18,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "b7e1c0a9f2d4"
-down_revision: str | Sequence[str] | None = "09d0d0d7300b"
+down_revision: str | Sequence[str] | None = "d2e3f4a5b6c7"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
