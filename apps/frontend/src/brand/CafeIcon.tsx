@@ -10,9 +10,16 @@ export type CafeIconName =
   | 'pesquisa' | 'filtro' | 'ajustes' | 'adicionar' | 'fechar' | 'voltar' | 'expandir'
   | 'recolher' | 'notificacoes' | 'seguranca' | 'suporte' | 'mensagem' | 'encontro'
   | 'tempo' | 'favorito' | 'sair' | 'xicara' | 'grao' | 'vapor' | 'coador'
-  | 'pausa-cafe' | 'conversa-cafe';
+  | 'pausa-cafe' | 'conversa-cafe'
+  /* Extensões do app (fora do sprite V4), no mesmo desenho: matriz 24, traço 1,6, abertura no traço. */
+  | 'coracao';
 
 const SPRITE = '/brand/kit-v4/icones-assinatura.svg';
+
+const EXTENSIONS: Partial<Record<CafeIconName, string>> = {
+  // Coração do "Colabore": o traço não fecha na ponta direita (gesto de abertura da família).
+  coracao: 'M12 20s-8-4.6-8-10.4A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 8 2.4c0 2.6-1.6 4.9-3.5 6.8',
+};
 
 interface CafeIconProps {
   name: CafeIconName;
@@ -37,6 +44,6 @@ export const CafeIcon: React.FC<CafeIconProps> = ({ name, className, label }) =>
     aria-hidden={label ? undefined : true}
     focusable="false"
   >
-    <use href={`${SPRITE}#${name}`} />
+    {EXTENSIONS[name] ? <path d={EXTENSIONS[name]} /> : <use href={`${SPRITE}#${name}`} />}
   </svg>
 );

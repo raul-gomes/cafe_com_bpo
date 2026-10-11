@@ -5,7 +5,7 @@ import { PanelTopBar } from './PanelTopBar';
 import { Toaster } from '../ui/sonner';
 import { NAV_SECTIONS, sectionForPath, type NavSection } from './navigation';
 
-const COLLAPSED_KEY = 'cafe_bpo_sidebar_collapsed';
+const NAV_KEY = 'cafe_bpo_sidebar_nav';
 const MODULE_KEY = 'cafe_bpo_active_menu';
 
 function readStorage(key: string): string | null {
@@ -24,6 +24,15 @@ function writeStorage(key: string, value: string): void {
   }
 }
 
+/** Estados do menu, na ordem em que a seta os percorre. */
+type NavState = 'expanded' | 'collapsed' | 'hidden';
+const NAV_CYCLE: NavState[] = ['expanded', 'collapsed', 'hidden'];
+const NAV_TOGGLE_LABEL: Record<NavState, string> = {
+  expanded: 'Recolher menu: deixar só os ícones',
+  collapsed: 'Esconder o menu',
+  hidden: 'Abrir o menu completo',
+};
+
 function sectionById(id: string | null): NavSection {
   return NAV_SECTIONS.find(section => section.id === id) ?? NAV_SECTIONS[0];
 }
@@ -38,7 +47,10 @@ function sectionById(id: string | null): NavSection {
  */
 export const PanelLayout: React.FC = () => {
   const { pathname } = useLocation();
-  const [collapsed, setCollapsed] = useState<boolean>(() => readStorage(COLLAPSED_KEY) === '1');
+  const [nav, setNav] = useState<NavState>(() => {
+    const stored = readStorage(NAV_KEY);
+    return NAV_CYCLE.includes(stored as NavState) ? (stored as NavState) : 'expanded';
+  });
   const [chosenId, setChosenId] = useState<string>(() => readStorage(MODULE_KEY) || NAV_SECTIONS[0].id);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const drawerRef = useRef<HTMLDialogElement>(null);
@@ -59,13 +71,24 @@ export const PanelLayout: React.FC = () => {
     writeStorage(MODULE_KEY, section.id);
   }, []);
 
-  const toggleCollapsed = useCallback(() => {
-    setCollapsed(prev => {
-      const next = !prev;
-      writeStorage(COLLAPSED_KEY, next ? '1' : '0');
+  // Seta: completo → só ícones → retraído → completo.
+  const cycleNav = useCallback(() => {
+    setNav(prev => {
+      const next = NAV_CYCLE[(NAV_CYCLE.indexOf(prev) + 1) % NAV_CYCLE.length];
+      writeStorage(NAV_KEY, next);
       return next;
     });
   }, []);
+
+  // A cor do módulo vai no <body> para alcançar também menus e diálogos em portal.
+  const moduleColor = routeSection?.module;
+  useEffect(() => {
+    if (moduleColor) document.body.dataset.cafeModule = moduleColor;
+    else delete document.body.dataset.cafeModule;
+    return () => {
+      delete document.body.dataset.cafeModule;
+    };
+  }, [moduleColor]);
 
   // Gaveta do celular: <dialog> nativo (Escape e foco preso vêm do navegador).
   useEffect(() => {
@@ -79,22 +102,21 @@ export const PanelLayout: React.FC = () => {
     <div
       // Linha única com altura da tela: sem isso a linha "auto" cresce com o menu e ele não rola.
       className="cafe-workspace app-shell h-screen w-screen grid-rows-[minmax(0,100vh)] overflow-hidden border-0"
-      data-nav={collapsed ? 'collapsed' : 'expanded'}
-      data-cafe-module={activeSection.module}
+      data-nav={nav}
     >
       {/* Retraído: largura 0 e visibility:hidden (CSS), o que também tira os links do Tab. */}
       <div className="panel-rail-slot min-w-0 overflow-hidden">
-        <PanelSidebar activeSection={activeSection} onSelectSection={selectSection} />
+        <PanelSidebar activeSection={activeSection} inModule={Boolean(routeSection)} onSelectSection={selectSection} />
       </div>
 
       {/* Seta flutuante: fica na borda do menu e continua visível com ele retraído. */}
       <button
         type="button"
-        onClick={toggleCollapsed}
+        onClick={cycleNav}
         className="cafe-floating-arrow panel-rail-toggle"
-        aria-expanded={!collapsed}
-        aria-label={collapsed ? 'Abrir menu lateral' : 'Recolher menu lateral'}
-        title={collapsed ? 'Abrir menu' : 'Recolher menu'}
+        aria-expanded={nav !== 'hidden'}
+        aria-label={NAV_TOGGLE_LABEL[nav]}
+        title={NAV_TOGGLE_LABEL[nav]}
       >
         <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
       </button>
@@ -131,6 +153,7 @@ export const PanelLayout: React.FC = () => {
           </button>
           <PanelSidebar
             activeSection={activeSection}
+            inModule={Boolean(routeSection)}
             onSelectSection={selectSection}
             onNavigate={() => setMobileNavOpen(false)}
           />

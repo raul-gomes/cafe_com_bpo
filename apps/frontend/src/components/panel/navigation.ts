@@ -47,7 +47,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'captar',
     label: 'Captar',
     module: 'captacao',
-    icon: 'direcao',
+    icon: 'coador',
     tagline: 'Do primeiro contato ao contrato',
     items: [
       { path: '/painel/prospectos', icon: 'direcao', label: 'Prospectos' },
@@ -91,10 +91,33 @@ export const NAV_SECTIONS: NavSection[] = [
       { path: '/painel/configuracoes', icon: 'ajustes', label: 'Configurações' },
     ],
   },
+  // Módulos de exemplo (em construção) para ver as abas se reorganizando.
+  {
+    id: 'notas-fiscais',
+    label: 'Notas Fiscais',
+    module: 'notas',
+    icon: 'nota',
+    tagline: 'Emissão e acompanhamento de NF',
+    items: [
+      { path: '/painel/notas-fiscais', icon: 'nota', label: 'Notas emitidas' },
+      { path: '/painel/notas-fiscais/emitir', icon: 'adicionar', label: 'Emitir nota' },
+    ],
+  },
+  {
+    id: 'certificados',
+    label: 'Certificados Digitais',
+    module: 'negocios',
+    icon: 'seguranca',
+    tagline: 'Validade e renovação dos certificados',
+    items: [
+      { path: '/painel/certificados', icon: 'seguranca', label: 'Certificados' },
+      { path: '/painel/certificados/vencimentos', icon: 'tempo', label: 'Vencimentos' },
+    ],
+  },
   {
     id: 'config',
     label: 'Admin',
-    module: 'notas',
+    module: 'gestao',
     icon: 'ajustes',
     tagline: 'Ferramentas de administração',
     adminOnly: true,
@@ -106,6 +129,13 @@ export function isItemActive(item: NavItem, pathname: string): boolean {
   if (item.path === HOME_ITEM.path) return pathname === '/painel' || pathname === '/painel/';
   if (pathname.startsWith(item.path)) return true;
   return (item.matches ?? []).some(prefix => pathname.startsWith(prefix));
+}
+
+/** Item ativo de uma lista: o de caminho mais específico entre os que casam. */
+export function activeItemPath(items: NavItem[], pathname: string): string | null {
+  const matching = items.filter(item => isItemActive(item, pathname));
+  if (matching.length === 0) return null;
+  return matching.reduce((best, item) => (item.path.length > best.path.length ? item : best)).path;
 }
 
 /** Seção (e portanto módulo/atmosfera) da rota atual; null no Início e no perfil. */

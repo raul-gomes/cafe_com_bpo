@@ -219,6 +219,11 @@ export async function buildRouter() {
               path: 'projetos/:id',
               element: <SuspenseWrapper><ProjetoDetalhePage /></SuspenseWrapper>,
             },
+            // Módulos de exemplo: Notas Fiscais e Certificados Digitais (em construção).
+            { path: 'notas-fiscais', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
+            { path: 'notas-fiscais/emitir', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
+            { path: 'certificados', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
+            { path: 'certificados/vencimentos', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             {
               path: 'configuracoes',
               element: <SuspenseWrapper><ConfiguracoesPage /></SuspenseWrapper>,
