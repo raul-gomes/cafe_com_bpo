@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Navbar } from '../components/ui/Navbar';
 import { TERMOS_USO_HTML } from '../content/termos-uso';
 import { POLITICA_PRIVACIDADE_HTML } from '../content/politica-privacidade';
+import { usePageMeta } from '../lib/seo';
 import './home.css';
 
 const DOCUMENTOS = {
@@ -26,11 +27,15 @@ const LegalPage: React.FC<LegalPageProps> = ({ documento }) => {
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    document.title = `${titulo} · Café com BPO`;
-    return () => {
-      document.title = 'Café com BPO';
-    };
-  }, [titulo]);
+  }, [documento]);
+  usePageMeta({
+    title: titulo,
+    description:
+      documento === 'termos'
+        ? 'Termos de Uso do Café com BPO: planos, assinatura, programa Beta, comunidade, encontros e responsabilidades.'
+        : 'Política de Privacidade do Café com BPO: quais dados tratamos, para quê, com quem compartilhamos e como exercer seus direitos (LGPD).',
+    path: documento === 'termos' ? '/termos-de-uso' : '/politica-de-privacidade',
+  });
 
   return (
     <div className="hb-page">

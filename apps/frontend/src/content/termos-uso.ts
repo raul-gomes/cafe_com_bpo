@@ -1,8 +1,7 @@
 // Termos de Uso — texto exibido em /termos-de-uso e referenciado no login e nas inscrições.
 // Conteúdo estático do próprio código (não vem da API): pode ser renderizado como HTML.
-// Revisado em 11/10/2026 a partir do funcionamento real da plataforma. Recomenda-se
-// revisão por advogado antes da publicação definitiva e o preenchimento dos dados
-// de identificação da empresa marcados como "a preencher".
+// Revisado em 11/10/2026 a partir do funcionamento real da plataforma. Recomenda-se revisão por advogado antes da
+// publicação definitiva. Endereço da sede vindo de consulta pública: conferir no cartão CNPJ.
 export const TERMOS_USO_HTML = `
 <h1>Termos de Uso do Café com BPO</h1>
 <p><em>Última atualização: 11 de outubro de 2026</em></p>
@@ -11,7 +10,7 @@ export const TERMOS_USO_HTML = `
 
 <h2>1. Quem somos</h2>
 <ol>
-  <li>A plataforma Café com BPO é mantida pela empresa responsável pelo projeto Café com BPO (doravante "Café com BPO", "nós"). <strong>Identificação jurídica (a preencher): razão social, CNPJ e endereço da sede.</strong></li>
+  <li>A plataforma Café com BPO é mantida por a <strong>Castellum Financial Soluções Integradas Ltda.</strong>, inscrita no CNPJ sob o nº <strong>52.317.042/0001-54</strong>, com sede na Avenida Brigadeiro Faria Lima, 1572, conjunto 22, sala 1022, Jardim Paulistano, São Paulo/SP, CEP 01451-917, titular da marca e do projeto Café com BPO (doravante "Café com BPO", "nós").</li>
   <li>Canal oficial de contato para qualquer assunto destes Termos: <strong>cafe@cafecombpo.com.br</strong>.</li>
   <li>O Café com BPO é um movimento, uma comunidade e uma plataforma feita por quem opera BPO financeiro. Nada nestes Termos transforma o Café com BPO em sócio, contador, consultor jurídico, consultor tributário ou prestador de serviços de BPO para você ou para os seus clientes.</li>
 </ol>

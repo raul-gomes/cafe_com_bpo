@@ -13,6 +13,7 @@ import {
   CLIENT_DECISION_LABELS,
 } from '../api/proposals';
 import { toast } from 'sonner';
+import { usePageMeta } from '../lib/seo';
 
 const DECISION_OPTIONS: { value: ClientDecision; label: string }[] = [
   { value: 'approved', label: 'Aprovado' },
@@ -21,6 +22,8 @@ const DECISION_OPTIONS: { value: ClientDecision; label: string }[] = [
 ];
 
 export const PublicProposalPage: React.FC = () => {
+  // Proposta compartilhada por link com o cliente: privada, nunca indexada.
+  usePageMeta({ title: 'Proposta', description: 'Proposta comercial compartilhada pelo Café com BPO.', path: '/orcamento', noindex: true });
   const { hash } = useParams<{ hash: string }>();
   const [proposal, setProposal] = useState<PublicProposal | null>(null);
   const [loading, setLoading] = useState(true);

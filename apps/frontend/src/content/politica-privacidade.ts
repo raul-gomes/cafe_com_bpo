@@ -1,8 +1,8 @@
 // Política de Privacidade — texto exibido em /politica-de-privacidade.
 // Conteúdo estático do próprio código (não vem da API): pode ser renderizado como HTML.
 // Revisada em 11/10/2026 a partir dos dados que a plataforma realmente trata
-// (módulos, integrações e armazenamento). Recomenda-se revisão por advogado e o
-// preenchimento dos dados de identificação marcados como "a preencher".
+// (módulos, integrações e armazenamento). Recomenda-se revisão por advogado antes da
+// publicação definitiva. Endereço da sede vindo de consulta pública: conferir no cartão CNPJ.
 export const POLITICA_PRIVACIDADE_HTML = `
 <h1>Política de Privacidade do Café com BPO</h1>
 <p><em>Última atualização: 11 de outubro de 2026</em></p>
@@ -11,7 +11,7 @@ export const POLITICA_PRIVACIDADE_HTML = `
 
 <h2>1. Quem é o responsável</h2>
 <ol>
-  <li>O controlador dos dados tratados para fazer a Plataforma funcionar (sua conta, sua assinatura, sua participação na comunidade e nos encontros) é a empresa responsável pelo Café com BPO. <strong>Identificação jurídica (a preencher): razão social, CNPJ e endereço da sede.</strong></li>
+  <li>O controlador dos dados tratados para fazer a Plataforma funcionar (sua conta, sua assinatura, sua participação na comunidade e nos encontros) é a <strong>Castellum Financial Soluções Integradas Ltda.</strong>, inscrita no CNPJ sob o nº <strong>52.317.042/0001-54</strong>, com sede na Avenida Brigadeiro Faria Lima, 1572, conjunto 22, sala 1022, Jardim Paulistano, São Paulo/SP, CEP 01451-917, titular da marca e do projeto Café com BPO.</li>
   <li><strong>Encarregado pelo tratamento de dados (DPO):</strong> enquanto não houver nomeação específica divulgada nesta página, o canal do encarregado é <strong>cafe@cafecombpo.com.br</strong>.</li>
   <li><strong>Atenção a um papel diferente:</strong> quando você, operador de BPO, cadastra dados dos seus clientes, prospectos e contatos, <strong>você é o controlador</strong> desses dados e o Café com BPO é o <strong>operador</strong> (item 6).</li>
 </ol>

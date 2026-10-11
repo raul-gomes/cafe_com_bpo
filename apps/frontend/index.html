@@ -25,7 +25,71 @@
         } catch (e) { /* armazenamento indisponível: fica o padrão */ }
       })();
     </script>
-    <title>Café com BPO</title>
+    <title>Café com BPO · Inteligência de negócio para o BPO financeiro</title>
+    <!-- SEO padrão (página inicial). As demais páginas trocam estas tags em src/lib/seo.ts.
+         Robôs que não executam JavaScript (prévia de link no WhatsApp/LinkedIn) leem só isto. -->
+    <meta name="description" content="Comunidade, ferramenta e precificação para quem opera BPO financeiro. Inteligência de negócio não é IA: é você com a realidade. Seja Beta do Café com BPO." />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#35291F" />
+    <link rel="canonical" href="https://cafecombpo.cloud/" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <!-- Google Search Console: cole aqui a meta de verificação que o Google gerar
+         (ou verifique pelo DNS, que é o recomendado). Ex.:
+         <meta name="google-site-verification" content="CODIGO_DO_GOOGLE" /> -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Café com BPO" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="Café com BPO · Inteligência de negócio para o BPO financeiro" />
+    <meta property="og:description" content="Comunidade, ferramenta e precificação para quem opera BPO financeiro. Seja Beta e construa com a gente." />
+    <meta property="og:url" content="https://cafecombpo.cloud/" />
+    <meta property="og:image" content="https://cafecombpo.cloud/brand/og-cafe-com-bpo.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Café com BPO — inteligência de negócio para o BPO financeiro" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Café com BPO · Inteligência de negócio para o BPO financeiro" />
+    <meta name="twitter:description" content="Comunidade, ferramenta e precificação para quem opera BPO financeiro." />
+    <meta name="twitter:image" content="https://cafecombpo.cloud/brand/og-cafe-com-bpo.png" />
+    <!-- Dados estruturados: ajudam o Google a entender quem publica o site. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://cafecombpo.cloud/#organizacao",
+            "name": "Café com BPO",
+            "legalName": "Castellum Financial Soluções Integradas Ltda.",
+            "taxID": "52.317.042/0001-54",
+            "url": "https://cafecombpo.cloud/",
+            "logo": "https://cafecombpo.cloud/favicon.png",
+            "email": "cafe@cafecombpo.com.br",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Avenida Brigadeiro Faria Lima, 1572, conjunto 22, sala 1022",
+              "addressLocality": "São Paulo",
+              "addressRegion": "SP",
+              "postalCode": "01451-917",
+              "addressCountry": "BR"
+            },
+            "sameAs": [
+              "https://www.youtube.com/@cafecombpo",
+              "https://www.linkedin.com/showcase/caf%C3%A9-com-bpo/",
+              "https://whatsapp.com/channel/0029Va95EV54Y9lnz81xJH24"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://cafecombpo.cloud/#site",
+            "name": "Café com BPO",
+            "url": "https://cafecombpo.cloud/",
+            "inLanguage": "pt-BR",
+            "publisher": { "@id": "https://cafecombpo.cloud/#organizacao" }
+          }
+        ]
+      }
+    </script>
   </head>
   <body class="cafe-theme">
     <div id="root"></div>

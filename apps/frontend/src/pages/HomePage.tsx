@@ -7,6 +7,7 @@ import { CafeBanner } from '../components/home/CafeBanner';
 import { Navbar } from '../components/ui/Navbar';
 import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
 import './home.css';
+import { usePageMeta } from '../lib/seo';
 
 /** O que estamos construindo: o formato do que dá para alcançar, sem dizer "onde". */
 const CONSTRUINDO: { icon: CafeIconName; titulo: string; texto: string }[] = [
@@ -52,6 +53,11 @@ const BENEFICIOS: { icon: CafeIconName; titulo: string; texto: string }[] = [
 
 
 const HomePage: React.FC = () => {
+  usePageMeta({
+    title: 'Café com BPO',
+    description: 'Comunidade, ferramenta e precificação para quem opera BPO financeiro. Inteligência de negócio não é IA: é você com a realidade. Seja Beta.',
+    path: '/',
+  });
   const [colaboreOpen, setColaboreOpen] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
   const { hash } = useLocation();

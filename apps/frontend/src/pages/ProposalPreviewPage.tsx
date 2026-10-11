@@ -6,8 +6,11 @@ import { Button } from '../components/ui/button';
 import { ProposalPreview } from '../components/proposal/ProposalPreview';
 
 import { SESSION_KEY, ProposalSession } from '../schemas/proposalSession';
+import { usePageMeta } from '../lib/seo';
 
 export default function ProposalPreviewPage() {
+  // Proposta gerada no simulador: não deve aparecer no Google.
+  usePageMeta({ title: 'Proposta', description: 'Prévia de proposta do Café com BPO.', path: '/proposta', noindex: true });
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [proposal, setProposal] = useState<ProposalSession | null>(null);

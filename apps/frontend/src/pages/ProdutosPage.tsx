@@ -4,6 +4,7 @@ import { Navbar } from '../components/ui/Navbar';
 import { CafeIcon, type CafeIconName } from '../brand/CafeIcon';
 import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
 import './home.css';
+import { usePageMeta } from '../lib/seo';
 
 interface Produto {
   icon: CafeIconName;
@@ -38,6 +39,11 @@ const PRODUTOS: Produto[] = [
 ];
 
 const ProdutosPage: React.FC = () => {
+  usePageMeta({
+    title: 'Produtos',
+    description: 'Precificação, Residência em BPO e a ferramenta do Café com BPO: feito por quem opera, para quem quer escalar o BPO financeiro sem endoidar.',
+    path: '/produtos',
+  });
   const pageRef = useRef<HTMLDivElement>(null);
   useFolhasSobrepostas(pageRef);
   return (

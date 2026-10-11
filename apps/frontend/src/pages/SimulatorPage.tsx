@@ -2,8 +2,14 @@ import React from 'react';
 import { Navbar } from '../components/ui/Navbar';
 import { FadeIn } from '../components/ui/FadeIn';
 import { PublicPricingSimulator } from '../components/pricing/PublicPricingSimulator';
+import { usePageMeta } from '../lib/seo';
 
 const SimulatorPage: React.FC = () => {
+  usePageMeta({
+    title: 'Precificação de BPO financeiro',
+    description: 'Calcule o preço justo dos seus serviços de BPO financeiro: custo real da operação, tempo de cada serviço e margem. Grátis, sem cadastro.',
+    path: '/precificacao',
+  });
   return (
     <div className="simulator-landing-page pb-[100px] bg-[var(--bg)]">
       <Navbar />

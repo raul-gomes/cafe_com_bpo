@@ -5,9 +5,15 @@ import { CafeIcon, type CafeIconName } from '../brand/CafeIcon';
 import { CANAIS_CAFE, HORARIO_CAFE, proximoCafeAberto } from '../components/home/cafes';
 import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
 import './home.css';
+import { usePageMeta } from '../lib/seo';
 
 /** Agenda dos cafés: encontros abertos (última quarta do mês) e o café dos Betas (toda quarta). */
 const CafesPage: React.FC = () => {
+  usePageMeta({
+    title: 'Agenda dos cafés',
+    description: 'Encontros do Café com BPO: café aberto na última quarta do mês, às 14h, no Meet, e café dos Betas toda quarta. Veja como participar.',
+    path: '/cafes',
+  });
   const proximo = proximoCafeAberto(new Date()).toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: '2-digit',
