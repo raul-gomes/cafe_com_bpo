@@ -4,8 +4,6 @@ import { useAuth } from '../../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
 import { CafeIcon } from '../../brand/CafeIcon';
 import { useAppearance } from '../../brand/appearance';
-import { AtmosphereQuickPicker } from '../../brand/AtmospherePicker';
-import { Popover, PopoverContent, PopoverTrigger } from '../ui/popover';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,7 +24,7 @@ interface PanelTopBarProps {
 export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMobileNav, mobileNavOpen }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [{ mode }] = useAppearance();
+  const [{ mode }, setAppearance] = useAppearance();
 
   const firstName = user?.name?.split(' ')[0] || 'Usuário';
   const initials = user?.name
@@ -60,17 +58,13 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
       </div>
 
       <div className="ml-auto flex items-center gap-[8px]">
-        <Popover>
-          <PopoverTrigger
-            render={
-              <button
-                type="button"
-                className="grid size-[40px] place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
-                aria-label="Atmosfera: cor e luz"
-                title="Atmosfera"
-              />
-            }
-          >
+        <button
+          type="button"
+          onClick={() => setAppearance({ mode: mode === 'dark' ? 'light' : 'dark' })}
+          className="grid size-[40px] place-items-center rounded-full text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          aria-label={mode === 'dark' ? 'Usar modo claro' : 'Usar modo escuro'}
+          title={mode === 'dark' ? 'Modo claro' : 'Modo escuro'}
+        >
           {mode === 'dark' ? (
             <svg className="size-[20px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
               <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" />
@@ -80,18 +74,7 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
               <path d="M20 14.5A8 8 0 0 1 9.5 4a8 8 0 1 0 10.5 10.5z" />
             </svg>
           )}
-          </PopoverTrigger>
-          <PopoverContent align="end" className="w-[280px] p-[14px]">
-            <AtmosphereQuickPicker />
-            <button
-              type="button"
-              onClick={() => navigate('/painel/configuracoes?aba=aparencia')}
-              className="text-left text-xs font-semibold text-primary-strong hover:underline"
-            >
-              Ver as seis atmosferas
-            </button>
-          </PopoverContent>
-        </Popover>
+        </button>
 
         <NotificationBell />
 
@@ -133,7 +116,7 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
               <CafeIcon name="pessoas" className="size-[18px]" /> Meu perfil
             </DropdownMenuItem>
             <DropdownMenuItem onClick={() => navigate('/painel/configuracoes?aba=aparencia')}>
-              <CafeIcon name="ajustes" className="size-[18px]" /> Aparência e configurações
+              <CafeIcon name="ajustes" className="size-[18px]" /> Configurações
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onClick={logout}>

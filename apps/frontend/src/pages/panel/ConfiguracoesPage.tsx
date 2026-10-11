@@ -1,6 +1,6 @@
 import React from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { AtmosphereGrid } from '../../brand/AtmospherePicker';
+import { ModeChoice } from '../../brand/ModeChoice';
 import { PerfilPage } from './PerfilPage';
 import { cn } from '../../lib/utils';
 
@@ -45,10 +45,10 @@ export const ConfiguracoesPage: React.FC = () => {
         <section aria-labelledby="aparencia-titulo" className="rounded-lg border border-border bg-card p-[clamp(20px,3vw,32px)]">
           <h2 id="aparencia-titulo" className="text-lg font-bold text-foreground">Aparência</h2>
           <p className="mb-[20px] mt-[4px] text-[0.9375rem] text-muted-foreground">
-            Escolha a família de cor e a luz do painel. Cada módulo (Operacional, Captar, Comunidade, Gestão)
-            mantém a própria cor de orientação em qualquer atmosfera. A escolha fica salva neste navegador.
+            O claro é o padrão do Café; o escuro descansa a vista à noite. Em qualquer um, cada módulo
+            mantém a sua cor nos detalhes. A escolha fica salva neste navegador.
           </p>
-          <AtmosphereGrid />
+          <ModeChoice />
         </section>
       )}
     </div>

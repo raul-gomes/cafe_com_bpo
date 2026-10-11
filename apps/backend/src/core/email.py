@@ -66,14 +66,21 @@ class EmailService:
         subject: str,
         text: str = "",
         html: str = "",
+        attachments: list[dict] | None = None,
     ) -> None:
-        """Enfileira um e-mail com conteúdo livre (HTML/text prontos)."""
+        """Enfileira um e-mail com conteúdo livre (HTML/text prontos).
+
+        `attachments` segue o formato do provedor: [{"filename", "content" (base64)}].
+        """
         key = EmailService.build_idempotency_key("notification", to_email)
+        payload = {"subject": subject, "html": html, "text": text}
+        if attachments:
+            payload["attachments"] = attachments
         EmailService._enqueue(
             kind="notification",
             recipient=to_email,
             template="custom",
-            payload={"subject": subject, "html": html, "text": text},
+            payload=payload,
             idempotency_key=key,
         )
 

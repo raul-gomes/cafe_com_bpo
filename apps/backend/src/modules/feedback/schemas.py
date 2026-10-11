@@ -1,9 +1,4 @@
-from pydantic import BaseModel, Field
-
-
-class FeedbackCreate(BaseModel):
-    title: str = Field(..., min_length=3, max_length=200)
-    description: str = Field(..., min_length=10, max_length=2000)
+from pydantic import BaseModel
 
 
 class FeedbackResponse(BaseModel):

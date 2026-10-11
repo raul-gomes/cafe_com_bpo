@@ -81,7 +81,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'gestao',
     label: 'Gestão',
     module: 'gestao',
-    icon: 'painel',
+    icon: 'negocios',
     tagline: 'Equipe, contatos e o escritório',
     items: [
       { path: '/painel/projetos', icon: 'negocios', label: 'Projetos' },

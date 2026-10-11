@@ -15,14 +15,13 @@
     <link rel="stylesheet" href="/brand/kit-v4/cafe-expression.css" />
     <link rel="stylesheet" href="/brand/kit-v4/cafe-navigation.css" />
     <script>
-      /* Aplica a atmosfera salva antes da primeira pintura (evita piscar o tema errado).
+      /* Aplica o modo salvo antes da primeira pintura (evita piscar o tema errado).
          Mesma chave e formato de src/brand/appearance.ts. */
       (function () {
         try {
           var v = JSON.parse(localStorage.getItem('cafe-appearance') || '{}') || {};
-          var root = document.documentElement;
-          if (['cafe', 'verde', 'azul'].indexOf(v.palette) >= 0) root.dataset.cafePalette = v.palette;
-          if (['light', 'dark'].indexOf(v.mode) >= 0) root.dataset.cafeMode = v.mode;
+          /* Só claro/escuro: a família de cor é sempre Café (data-cafe-palette fixo no <html>). */
+          if (['light', 'dark'].indexOf(v.mode) >= 0) document.documentElement.dataset.cafeMode = v.mode;
         } catch (e) { /* armazenamento indisponível: fica o padrão */ }
       })();
     </script>

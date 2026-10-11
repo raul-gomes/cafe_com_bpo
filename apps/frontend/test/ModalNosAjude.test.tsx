@@ -13,7 +13,7 @@ describe('ModalNosAjude', () => {
 
     expect(screen.getAllByText('PIX').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/cafe@cafecombpo.com.br/)).toBeInTheDocument()
-    expect(screen.getByText(/Ajude o Café com BPO/)).toBeInTheDocument()
+    expect(screen.getByText(/Sem você, isso não seria possível/)).toBeInTheDocument()
   })
 
   it('does not render content when closed', () => {
@@ -26,7 +26,8 @@ describe('ModalNosAjude', () => {
     const onClose = vi.fn()
     render(<ModalNosAjude isOpen={true} onClose={onClose} />)
 
-    const overlay = document.querySelector('.modal-overlay')
+    // O fundo escuro é o pai do diálogo; clicar nele fecha.
+    const overlay = screen.getByRole('dialog').parentElement
     expect(overlay).toBeInTheDocument()
     if (overlay) fireEvent.click(overlay)
 
