@@ -11,7 +11,7 @@ const SimulatorPage: React.FC = () => {
       <main className="pt-[40px]">
         <FadeIn delay={1}>
           <div className="app-header mb-10 border-none bg-transparent">
-            <h1 className="text-4xl font-extrabold">Simulador de Precificação BPO</h1>
+            <h1 className="font-editorial text-[2.75rem] font-medium leading-tight tracking-[-0.02em]">Precificação do seu BPO</h1>
             <p className="text-lg max-w-[600px] mx-auto mt-3">
               Descubra o valor justo gerado dinamicamente para sua operação com a metodologia Café com BPO.
             </p>

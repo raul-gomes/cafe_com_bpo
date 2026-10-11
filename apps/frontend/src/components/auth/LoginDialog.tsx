@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { LoginForm } from './LoginForm';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
@@ -59,15 +59,30 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
       data-testid="login-page"
     >
       <div ref={panelRef} className="login-dialog" role="dialog" aria-modal="true" aria-label="Login">
-        <button type="button" onClick={onClose} className="login-dialog-close" aria-label="Fechar">
-          <CafeIcon name="fechar" />
-        </button>
-        {errorParam && (
-          <Alert variant="destructive" className="mb-[12px]">
-            <span>{ERROR_MESSAGES[errorParam] || 'Ocorreu um erro. Tente novamente.'}</span>
-          </Alert>
-        )}
-        <LoginForm onForgotPassword={() => setShowForgotPw(true)} compact />
+        {/* Coluna da marca: deixa a janela horizontal e cabendo numa só olhada. */}
+        <div className="login-dialog-brand">
+          <img src="/brand/kit-v4/logo-cafe-colorida.svg" alt="Café com BPO" className="login-dialog-logo" />
+          <div>
+            <h2 className="login-dialog-title">Bem-vindo de volta.</h2>
+            <p className="login-dialog-lead">Seu escritório de BPO em um lugar só.</p>
+          </div>
+          <p className="login-dialog-beta">
+            Ainda não tem acesso?{' '}
+            <Link to="/#quero-ser-beta" onClick={onClose}>Quero ser Beta</Link>
+          </p>
+        </div>
+
+        <div className="login-dialog-form">
+          <button type="button" onClick={onClose} className="login-dialog-close" aria-label="Fechar">
+            <CafeIcon name="fechar" />
+          </button>
+          {errorParam && (
+            <Alert variant="destructive" className="mb-[12px]">
+              <span>{ERROR_MESSAGES[errorParam] || 'Ocorreu um erro. Tente novamente.'}</span>
+            </Alert>
+          )}
+          <LoginForm onForgotPassword={() => setShowForgotPw(true)} compact />
+        </div>
       </div>
       <ForgotPasswordModal open={showForgotPw} onOpenChange={setShowForgotPw} />
     </div>

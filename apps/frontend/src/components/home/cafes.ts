@@ -1,5 +1,8 @@
 /** Agenda dos cafés: regras de data e canais onde o link do encontro é divulgado. */
 
+/** Os encontros são sempre às 14h (horário de Brasília). */
+export const HORARIO_CAFE = '14h';
+
 /**
  * Próximo café aberto: a última quarta-feira do mês. Se a deste mês já passou
  * (o dia de hoje conta como "ainda vale"), devolve a do mês seguinte.

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { PIX_KEY } from '../../config/env';
+import { QRCodeSVG } from 'qrcode.react';
+import { PIX_KEY, PIX_MERCHANT_CITY, PIX_MERCHANT_NAME } from '../../config/env';
+import { buildPixPayload } from '../../lib/pix';
 import { CafeIcon } from '../../brand/CafeIcon';
 
 interface ModalNosAjudeProps {
@@ -10,13 +12,26 @@ interface ModalNosAjudeProps {
 /** "Colabore": convite para fazer parte (não pedido de ajuda), com PIX. */
 export const ModalNosAjude: React.FC<ModalNosAjudeProps> = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [payloadCopied, setPayloadCopied] = useState(false);
 
   if (!isOpen) return null;
+
+  const pixPayload = buildPixPayload({
+    key: PIX_KEY,
+    merchantName: PIX_MERCHANT_NAME,
+    merchantCity: PIX_MERCHANT_CITY,
+  });
 
   const handleCopyPix = () => {
     navigator.clipboard.writeText(PIX_KEY);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const handleCopyPayload = () => {
+    navigator.clipboard.writeText(pixPayload);
+    setPayloadCopied(true);
+    setTimeout(() => setPayloadCopied(false), 2000);
   };
 
   return (
@@ -49,17 +64,30 @@ export const ModalNosAjude: React.FC<ModalNosAjudeProps> = ({ isOpen, onClose })
         </p>
 
         {PIX_KEY ? (
-          <div className="mt-[22px] rounded-md border border-border bg-muted p-[16px]">
-            <p className="text-xs font-bold uppercase tracking-[0.11em] text-muted-foreground">PIX</p>
-            <p className="mt-[4px] text-sm text-muted-foreground">Contribua com o valor que fizer sentido para você.</p>
-            <div className="mt-[12px] flex items-center gap-[10px]">
-              <code className="min-w-0 flex-1 truncate rounded-sm bg-card px-[10px] py-[8px] text-sm">{PIX_KEY}</code>
+          <div className="mt-[22px] flex gap-[16px] rounded-md border border-border bg-muted p-[16px] max-[420px]:flex-col">
+            {/* QR pequeno, sobre branco (leitura do app do banco), com o código "copia e cola". */}
+            <div className="shrink-0 self-start rounded-sm bg-white p-[8px]">
+              <QRCodeSVG value={pixPayload} size={104} level="M" title="QR Code PIX do Café com BPO" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold uppercase tracking-[0.11em] text-muted-foreground">PIX</p>
+              <p className="mt-[4px] text-sm text-muted-foreground">Aponte a câmera do app do banco ou copie a chave. O valor é você quem escolhe.</p>
+              <div className="mt-[10px] flex items-center gap-[8px]">
+                <code className="min-w-0 flex-1 truncate rounded-sm bg-card px-[10px] py-[8px] text-sm">{PIX_KEY}</code>
+                <button
+                  type="button"
+                  className="flex shrink-0 items-center gap-[6px] rounded-md bg-primary px-[14px] py-[8px] text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                  onClick={handleCopyPix}
+                >
+                  {copied ? 'Copiado!' : 'Copiar'}
+                </button>
+              </div>
               <button
                 type="button"
-                className="flex shrink-0 items-center gap-[6px] rounded-md bg-primary px-[14px] py-[8px] text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
-                onClick={handleCopyPix}
+                onClick={handleCopyPayload}
+                className="mt-[8px] text-xs font-semibold text-primary-strong hover:underline"
               >
-                {copied ? 'Copiado!' : 'Copiar'}
+                {payloadCopied ? 'Código copiado!' : 'Copiar código "copia e cola"'}
               </button>
             </div>
           </div>

@@ -5,7 +5,8 @@ import { PanelSidebar } from '../src/components/panel/PanelSidebar'
 import { NAV_SECTIONS } from '../src/components/panel/navigation'
 import { renderWithProviders } from './test-utils'
 
-vi.mock('../src/config/env', () => ({
+vi.mock('../src/config/env', async importOriginal => ({
+  ...(await importOriginal<typeof import('../src/config/env')>()),
   PIX_KEY: 'cafe@cafecombpo.com.br',
 }))
 

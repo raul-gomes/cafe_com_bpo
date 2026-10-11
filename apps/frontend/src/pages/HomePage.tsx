@@ -129,7 +129,7 @@ const HomePage: React.FC = () => {
                 <CafeIcon name="assinatura" />
                 <span>Quero fazer parte desta construção</span>
               </a>
-              <Link to="/simulador" className="hb-link">Ver o simulador de preço</Link>
+              <Link to="/precificacao" className="hb-link">Calcular o preço do meu BPO</Link>
             </div>
           </div>
         </section>

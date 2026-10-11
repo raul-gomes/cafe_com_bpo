@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { LoginFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
@@ -12,9 +12,6 @@ import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Label } from '../../components/ui/label';
-import { LegalDocumentModal } from '../ui/LegalDocumentModal';
-import { TERMOS_USO_HTML } from '../../content/termos-uso';
-import { POLITICA_PRIVACIDADE_HTML } from '../../content/politica-privacidade';
 import { logoFor, useAppearance } from '../../brand/appearance';
 
 interface LoginFormProps {
@@ -28,13 +25,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
     defaultValues: { email: '', password: '', terms: false },
   });
   const [genericError, setGenericError] = useState<string | null>(null);
-  const [openTerms, setOpenTerms] = useState(false);
-  const [openPrivacy, setOpenPrivacy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite_token');
+  // Só quem veio do botão de baixar a proposta (simulador) vê o aviso de salvar a simulação.
+  const vindoDaProposta = searchParams.get('motivo') === 'proposta' && Boolean(sessionStorage.getItem('cafe_bpo_proposal'));
   const termsAccepted = watch('terms');
   const [{ mode }] = useAppearance();
 
@@ -90,8 +87,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
     <>
     <Card className={compact ? 'border-0 bg-transparent shadow-none ring-0' : 'mx-auto max-w-[480px]'}>
       <CardContent className={compact ? 'p-0' : 'pt-7 px-8 pb-7'}>
-        {/* Brand */}
-        <div className={compact ? 'mb-[18px] text-center' : 'text-center mb-5'}>
+        {/* Marca: na janela suspensa ela fica na coluna ao lado (LoginDialog). */}
+        {!compact && <div className="text-center mb-5">
           <img src={logoFor(mode)} alt="Café com BPO" className="mx-auto mb-[12px] h-auto w-[132px]" />
           <h2 className="font-editorial text-[1.75rem] font-medium leading-tight text-foreground">
             Bem-vindo de volta
@@ -99,9 +96,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
           <p className="mt-[2px] text-sm text-muted-foreground">
             Entre com sua conta do Café com BPO
           </p>
-        </div>
+        </div>}
 
-        {sessionStorage.getItem('cafe_bpo_proposal') && (
+        {vindoDaProposta && (
           <Alert className="mb-5 text-center">
             <strong>Quase lá!</strong> Faça login para salvar sua simulação e baixar sua proposta em PDF.
           </Alert>
@@ -171,15 +168,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
               <Label htmlFor="terms" className="cursor-pointer">
                 Li e concordo com os{' '}
               </Label>
-              <button type="button" onClick={() => setOpenTerms(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
+              <Link to="/termos-de-uso" className="text-primary-strong hover:underline text-[12px] leading-relaxed font-medium">
                 Termos de Uso
-              </button>
+              </Link>
               <Label htmlFor="terms" className="cursor-pointer">
                 {' '}e{' '}
               </Label>
-              <button type="button" onClick={() => setOpenPrivacy(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
+              <Link to="/politica-de-privacidade" className="text-primary-strong hover:underline text-[12px] leading-relaxed font-medium">
                 Política de Privacidade
-              </button>
+              </Link>
               <Label htmlFor="terms" className="cursor-pointer">
                 {' '}(LGPD).
               </Label>
@@ -199,8 +196,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
         </form>
       </CardContent>
     </Card>
-    <LegalDocumentModal open={openTerms} onOpenChange={setOpenTerms} title="Termos de Uso" content={TERMOS_USO_HTML} />
-    <LegalDocumentModal open={openPrivacy} onOpenChange={setOpenPrivacy} title="Política de Privacidade" content={POLITICA_PRIVACIDADE_HTML} />
     </>
   );
 };

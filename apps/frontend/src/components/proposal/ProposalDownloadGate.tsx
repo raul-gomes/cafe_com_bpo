@@ -32,7 +32,8 @@ export const ProposalDownloadGate: React.FC<ProposalDownloadGateProps> = ({
         provider: user
       });
     } else {
-      navigate('/login');
+      // A marca faz o login mostrar o aviso de salvar a simulação.
+      navigate('/login?motivo=proposta');
     }
   };
 

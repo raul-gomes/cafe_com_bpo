@@ -15,6 +15,8 @@ const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage
 const PublicProposalPage = React.lazy(() => import('./pages/PublicProposalPage'))
 const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
 const CafesPage = React.lazy(() => import('./pages/CafesPage'))
+const ProdutosPage = React.lazy(() => import('./pages/ProdutosPage'))
+const LegalPage = React.lazy(() => import('./pages/LegalPage'))
 
 // ── Suspense wrapper ─────────────────────────────────────────────
 // eslint-disable-next-line react-refresh/only-export-components
@@ -82,6 +84,11 @@ export async function buildRouter() {
           element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
         },
         {
+          // Nome novo da página (o endereço antigo /simulador continua valendo).
+          path: '/precificacao',
+          element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
+        },
+        {
           path: '/proposta',
           element: <SuspenseWrapper><ProposalPreviewPage /></SuspenseWrapper>,
         },
@@ -96,6 +103,18 @@ export async function buildRouter() {
         {
           path: '/cafes',
           element: <SuspenseWrapper><CafesPage /></SuspenseWrapper>,
+        },
+        {
+          path: '/produtos',
+          element: <SuspenseWrapper><ProdutosPage /></SuspenseWrapper>,
+        },
+        {
+          path: '/termos-de-uso',
+          element: <SuspenseWrapper><LegalPage documento="termos" /></SuspenseWrapper>,
+        },
+        {
+          path: '/politica-de-privacidade',
+          element: <SuspenseWrapper><LegalPage documento="privacidade" /></SuspenseWrapper>,
         },
       ],
     },

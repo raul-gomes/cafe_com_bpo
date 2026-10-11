@@ -3,7 +3,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { ModalNosAjude } from '../src/components/panel/ModalNosAjude'
 
 // PIX_KEY vem do env — mocka para um valor estável nos testes
-vi.mock('../src/config/env', () => ({
+vi.mock('../src/config/env', async importOriginal => ({
+  ...(await importOriginal<typeof import('../src/config/env')>()),
   PIX_KEY: 'cafe@cafecombpo.com.br',
 }))
 

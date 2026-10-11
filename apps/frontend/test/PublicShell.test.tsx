@@ -32,10 +32,10 @@ function renderPublic() {
 }
 
 describe('topo público e login suspenso', () => {
-  it('mostra as ações na ordem Simulador, Quero ser Beta, Login', () => {
+  it('mostra as ações na ordem Precificação, Quero ser Beta, Login', () => {
     renderPublic()
     const nav = screen.getByRole('navigation', { name: 'Principal' })
-    expect(Array.from(nav.children).map(el => el.textContent)).toEqual(['Simulador', 'Quero ser Beta', 'Login'])
+    expect(Array.from(nav.children).map(el => el.textContent)).toEqual(['Precificação', 'Quero ser Beta', 'Login'])
   })
 
   it('Login abre a janela por cima da página atual e Escape fecha', () => {

@@ -28,7 +28,8 @@ vi.mock('../src/components/panel/NotificationBell', () => ({
   NotificationBell: () => null,
 }))
 
-vi.mock('../src/config/env', () => ({
+vi.mock('../src/config/env', async importOriginal => ({
+  ...(await importOriginal<typeof import('../src/config/env')>()),
   PIX_KEY: 'cafe@cafecombpo.com.br',
 }))
 

@@ -2,7 +2,7 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../components/ui/Navbar';
 import { CafeIcon, type CafeIconName } from '../brand/CafeIcon';
-import { CANAIS_CAFE, proximoCafeAberto } from '../components/home/cafes';
+import { CANAIS_CAFE, HORARIO_CAFE, proximoCafeAberto } from '../components/home/cafes';
 import './home.css';
 
 /** Agenda dos cafés: encontros abertos (última quarta do mês) e o café dos Betas (toda quarta). */
@@ -33,15 +33,15 @@ const CafesPage: React.FC = () => {
           <div className="hb-grid hb-grid-3 hb-cafes-grid">
             <article className="hb-card">
               <span className="hb-card-icon"><CafeIcon name="encontro" /></span>
-              <h3>Café aberto · última quarta do mês</h3>
+              <h3>Café aberto · última quarta do mês, às {HORARIO_CAFE}</h3>
               <p>
-                Encontro aberto a toda a comunidade, no Google Meet. O próximo é <strong>{proximo}</strong>.
+                Encontro aberto a toda a comunidade, no Google Meet. O próximo é <strong>{proximo}, às {HORARIO_CAFE}</strong>.
                 O link sai nos nossos canais — entre em um deles para receber.
               </p>
             </article>
             <article className="hb-card">
               <span className="hb-card-icon"><CafeIcon name="conversa-cafe" /></span>
-              <h3>Café dos Betas · toda quarta</h3>
+              <h3>Café dos Betas · toda quarta, às {HORARIO_CAFE}</h3>
               <p>
                 Para quem é Beta: toda semana a gente discute a ferramenta, com muitos insights, ideias e a construção
                 da nossa ferramenta perfeita.
