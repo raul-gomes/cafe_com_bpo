@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../components/ui/Navbar';
 import { CafeIcon, type CafeIconName } from '../brand/CafeIcon';
 import { CANAIS_CAFE, HORARIO_CAFE, proximoCafeAberto } from '../components/home/cafes';
+import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
 import './home.css';
 
 /** Agenda dos cafés: encontros abertos (última quarta do mês) e o café dos Betas (toda quarta). */
@@ -13,11 +14,14 @@ const CafesPage: React.FC = () => {
     month: 'long',
   });
 
+  const pageRef = useRef<HTMLDivElement>(null);
+  useFolhasSobrepostas(pageRef);
+
   return (
-    <div className="hb-page">
+    <div ref={pageRef} className="hb-page">
       <Navbar />
       <main>
-        <section className="hb-hero">
+        <section className="hb-sheet hb-hero-sheet"><div className="hb-hero">
           <p className="hb-kicker"><span className="hb-dot" aria-hidden="true" /> Agenda dos cafés</p>
           <h1 className="hb-display">
             O que nos une não é o nicho.
@@ -27,9 +31,9 @@ const CafesPage: React.FC = () => {
             Os encontros são frequentes, sempre com um tema e pensados para um movimento específico do BPO.
             Puxa uma cadeira: o café já está passado.
           </p>
-        </section>
+        </div></section>
 
-        <section className="hb-section hb-section-soft" aria-label="Encontros">
+        <section className="hb-sheet hb-section hb-section-soft" aria-label="Encontros">
           <div className="hb-grid hb-grid-3 hb-cafes-grid">
             <article className="hb-card">
               <span className="hb-card-icon"><CafeIcon name="encontro" /></span>
@@ -59,7 +63,7 @@ const CafesPage: React.FC = () => {
           </div>
         </section>
 
-        <section className="hb-section" aria-labelledby="canais-titulo">
+        <section className="hb-sheet hb-section" aria-labelledby="canais-titulo">
           <div className="hb-section-head">
             <p className="hb-kicker">Onde sai o link do encontro</p>
             <h2 id="canais-titulo" className="hb-headline">Entre em um dos canais e não perca o próximo.</h2>

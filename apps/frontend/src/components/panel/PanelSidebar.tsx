@@ -5,7 +5,7 @@ import { ModalNosAjude } from './ModalNosAjude';
 import { ModalReportarErro } from './ModalReportarErro';
 import { CafeIcon, type CafeIconName } from '../../brand/CafeIcon';
 import { BrandLogo } from '../../brand/BrandLogo';
-import { HOME_ITEM, NAV_SECTIONS, activeItemPath, type NavItem, type NavSection } from './navigation';
+import { HOME_ITEM, NAV_SECTIONS, PRECO_ASSINATURA, activeItemPath, type NavItem, type NavSection } from './navigation';
 import { cn } from '../../lib/utils';
 
 interface PanelSidebarProps {
@@ -87,19 +87,25 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
               type="button"
               role="tab"
               aria-selected={section.id === activeSection.id}
-              aria-label={section.label}
-              title={section.label}
+              aria-label={section.assinatura ? `${section.label} (assinatura para criar e enviar)` : section.label}
+              title={section.assinatura ? `${section.label} · criar e enviar exige assinatura` : section.label}
               data-cafe-module={section.module}
               onClick={() => selectSection(section)}
               className="panel-module-tab"
             >
               <CafeIcon name={section.icon} className="size-[20px]" />
+              {section.assinatura && <span className="panel-module-tab-lock" aria-hidden="true" />}
             </button>
           ))}
         </div>
         <div className="panel-module-name cafe-rail-label" data-cafe-module={activeSection.module}>
           {activeSection.label}
         </div>
+        {activeSection.assinatura && (
+          <p className="panel-module-plan cafe-rail-label">
+            Explore à vontade. Para criar e enviar, assinatura de {PRECO_ASSINATURA}.
+          </p>
+        )}
 
         <nav className="panel-thin-scroll -mx-[4px] min-h-0 flex-1 overflow-y-auto px-[4px]" aria-label={`Áreas de ${activeSection.label}`}>
           <div className="flex flex-col gap-[2px]">{activeSection.items.map(renderLink)}</div>

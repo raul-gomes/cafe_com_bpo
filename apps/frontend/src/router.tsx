@@ -65,6 +65,7 @@ export async function buildRouter() {
   const { ProjetosPage } = await import('./pages/panel/ProjetosPage')
   const { ProjetoDetalhePage } = await import('./pages/panel/ProjetoDetalhePage')
   const { ConfiguracoesPage } = await import('./pages/panel/ConfiguracoesPage')
+  const { AulasPage } = await import('./pages/panel/AulasPage')
 
   return createBrowserRouter([
     {
@@ -250,6 +251,11 @@ export async function buildRouter() {
               path: 'projetos/:id',
               element: <SuspenseWrapper><ProjetoDetalhePage /></SuspenseWrapper>,
             },
+            // Aulas: primeiros passos na ferramenta, BPO para iniciantes e mentorias.
+            { path: 'aulas', element: <Navigate to="/painel/aulas/primeiros-passos" replace /> },
+            { path: 'aulas/primeiros-passos', element: <SuspenseWrapper><AulasPage secao="primeiros-passos" /></SuspenseWrapper> },
+            { path: 'aulas/bpo-primeiros-passos', element: <SuspenseWrapper><AulasPage secao="bpo-primeiros-passos" /></SuspenseWrapper> },
+            { path: 'aulas/mentorias', element: <SuspenseWrapper><AulasPage secao="mentorias" /></SuspenseWrapper> },
             // Módulos de exemplo: Notas Fiscais e Certificados Digitais (em construção).
             { path: 'notas-fiscais', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'notas-fiscais/emitir', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },

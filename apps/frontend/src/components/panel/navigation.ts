@@ -1,7 +1,7 @@
 import type { CafeIconName } from '../../brand/CafeIcon';
 
 /** Módulo do kit V4 que dá a cor de orientação de cada área (data-cafe-module). */
-export type CafeModule = 'gestao' | 'captacao' | 'tarefas' | 'comunidade' | 'negocios' | 'notas';
+export type CafeModule = 'gestao' | 'captacao' | 'tarefas' | 'comunidade' | 'negocios' | 'notas' | 'aulas';
 
 export interface NavItem {
   path: string;
@@ -20,8 +20,18 @@ export interface NavSection {
   /** Frase curta que orienta "você está neste ambiente". */
   tagline: string;
   adminOnly?: boolean;
+  /**
+   * Módulo que no plano gratuito é só para ver: navega e explora tudo, mas criar,
+   * editar e enviar exige assinatura. Espelha a regra do write gate do Raul
+   * (branch feat/fase1-preco-autoritativo: free = captar e gestão read-only);
+   * quando ela entrar, o cadeado passa a vir do acesso real do usuário.
+   */
+  assinatura?: boolean;
   items: NavItem[];
 }
+
+/** Preço da assinatura que libera os módulos marcados com `assinatura`. */
+export const PRECO_ASSINATURA = 'R$ 27,90/mês';
 
 /** Início fica fora dos módulos: é o ponto de partida do dia. */
 export const HOME_ITEM: NavItem = { path: '/painel', icon: 'inicio', label: 'Início' };
@@ -47,6 +57,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'captar',
     label: 'Captar',
     module: 'captacao',
+    assinatura: true,
     icon: 'coador',
     tagline: 'Do primeiro contato ao contrato',
     items: [
@@ -81,6 +92,7 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'gestao',
     label: 'Gestão',
     module: 'gestao',
+    assinatura: true,
     icon: 'negocios',
     tagline: 'Equipe, contatos e o escritório',
     items: [
@@ -89,6 +101,18 @@ export const NAV_SECTIONS: NavSection[] = [
       { path: '/painel/contatos', icon: 'mensagem', label: 'Contatos' },
       { path: '/painel/pagamentos', icon: 'pagamentos', label: 'Pagamentos' },
       { path: '/painel/configuracoes', icon: 'ajustes', label: 'Configurações' },
+    ],
+  },
+  {
+    id: 'aulas',
+    label: 'Aulas',
+    module: 'aulas',
+    icon: 'aula',
+    tagline: 'Aprender a usar e aprender o BPO',
+    items: [
+      { path: '/painel/aulas/primeiros-passos', icon: 'direcao', label: 'Primeiros passos' },
+      { path: '/painel/aulas/bpo-primeiros-passos', icon: 'aula', label: 'BPO: primeiros passos' },
+      { path: '/painel/aulas/mentorias', icon: 'pessoas', label: 'Mentorias' },
     ],
   },
   // Módulos de exemplo (em construção) para ver as abas se reorganizando.

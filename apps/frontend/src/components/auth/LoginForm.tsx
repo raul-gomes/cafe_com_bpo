@@ -26,6 +26,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
   });
   const [genericError, setGenericError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleSoon, setGoogleSoon] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -194,6 +195,30 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
             }
           </Button>
         </form>
+
+        {/* Login com Google: o servidor já gera a autorização (auth/oauth/service.py),
+            mas ainda não tem a rota que conecta ao site — o botão avisa "em breve". */}
+        <div className="my-[12px] flex items-center gap-[10px] text-xs text-muted-foreground" aria-hidden="true">
+          <span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
+        </div>
+        <button
+          type="button"
+          onClick={() => setGoogleSoon(true)}
+          className="flex w-full items-center justify-center gap-[10px] rounded-md border border-input bg-card px-[14px] py-[9px] text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+        >
+          <svg className="size-[18px]" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z" />
+            <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.1-4.5H2.2v2.8A11 11 0 0 0 12 23z" />
+            <path fill="#FBBC05" d="M5.9 14.2a6.6 6.6 0 0 1 0-4.3V7H2.2a11 11 0 0 0 0 9.9l3.7-2.7z" />
+            <path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.2 7l3.7 2.9C6.7 7.3 9.1 5.4 12 5.4z" />
+          </svg>
+          Entrar com Google
+        </button>
+        {googleSoon && (
+          <p role="status" className="mt-[8px] text-center text-xs text-muted-foreground">
+            O login com Google chega em breve. Por enquanto, entre com e-mail e senha.
+          </p>
+        )}
       </CardContent>
     </Card>
     </>

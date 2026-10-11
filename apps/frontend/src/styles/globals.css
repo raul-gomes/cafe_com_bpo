@@ -139,6 +139,13 @@ body[data-cafe-module] {
   --cafe-on-accent: var(--cafe-canvas);
 }
 
+/* Módulo Aulas: o kit não tem cor para ele; usa o dourado de foco do próprio kit
+   (fundo derivado por mistura, sem hex novo). */
+[data-cafe-module="aulas"] {
+  --cafe-module: var(--cafe-focus);
+  --cafe-module-bg: color-mix(in srgb, var(--cafe-focus) 14%, var(--cafe-paper));
+}
+
 /* Menu em três estados (a seta percorre): completo 240 px → só ícones 76 px → retraído 0. */
 .app-shell {
   position: relative;
@@ -289,4 +296,35 @@ body[data-cafe-module] .cafe-command-tab { border-bottom-color: var(--cafe-modul
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
   }
+}
+
+/* Plano: cadeado discreto na aba de módulo que exige assinatura para criar/enviar. */
+.panel-module-tab { position: relative; }
+.panel-module-tab-lock {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 9px;
+  height: 7px;
+  border: 1.4px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.8;
+}
+.panel-module-tab-lock::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 5px;
+  height: 4px;
+  transform: translateX(-50%);
+  border: 1.4px solid currentColor;
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+}
+.panel-module-plan {
+  margin: -2px 12px 8px;
+  font-size: 0.75rem;
+  line-height: 1.4;
+  color: var(--cafe-muted);
 }

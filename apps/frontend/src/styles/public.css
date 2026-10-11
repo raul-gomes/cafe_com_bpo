@@ -120,3 +120,4 @@
 .pub-nav-icon:hover { opacity: 1; background: rgb(255 255 255 / 0.1); }
 .pub-nav-icon:focus-visible { outline: 3px solid var(--cafe-brand-yellow); outline-offset: 2px; }
 .pub-nav-icon svg { width: 22px; height: 22px; }
+button.pub-nav-icon { background: transparent; border: 0; cursor: pointer; padding: 0; }

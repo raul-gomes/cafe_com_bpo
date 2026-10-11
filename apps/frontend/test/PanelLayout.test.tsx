@@ -66,7 +66,7 @@ describe('PanelLayout — módulo de trabalho e menu', () => {
   it('a cor do módulo vem da rota e vai no body (alcança menus em portal)', () => {
     renderLayout('/painel/prospectos')
     expect(document.body.dataset.cafeModule).toBe('captacao')
-    expect(screen.getAllByRole('tab', { name: 'Captar' })[0]).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getAllByRole('tab', { name: /^Captar/ })[0]).toHaveAttribute('aria-selected', 'true')
   })
 
   it('no painel principal não há cor de módulo (vale o amarelo do café)', () => {

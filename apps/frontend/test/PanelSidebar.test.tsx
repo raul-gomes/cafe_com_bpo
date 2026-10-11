@@ -59,9 +59,10 @@ describe('PanelSidebar — um módulo de trabalho por vez', () => {
     const tabs = within(screen.getByRole('tablist', { name: 'Módulo de trabalho' })).getAllByRole('tab')
     expect(tabs.map(t => t.getAttribute('aria-label'))).toEqual([
       'Operacional',
-      'Captar',
+      'Captar (assinatura para criar e enviar)',
       'Comunidade',
-      'Gestão',
+      'Gestão (assinatura para criar e enviar)',
+      'Aulas',
       'Notas Fiscais',
       'Certificados Digitais',
     ])
@@ -89,7 +90,7 @@ describe('PanelSidebar — um módulo de trabalho por vez', () => {
     ['Gestão', 'gestao', '/painel/projetos'],
   ])('ao escolher a aba %s, troca o módulo e abre a primeira área (%s → %s)', (label, id, path) => {
     const { onSelectSection } = renderSidebar()
-    fireEvent.click(screen.getByRole('tab', { name: label }))
+    fireEvent.click(screen.getByRole('tab', { name: new RegExp('^' + label) }))
     expect(onSelectSection).toHaveBeenCalledWith(expect.objectContaining({ id }))
     expect(screen.getByTestId('route-probe')).toHaveTextContent(path)
   })

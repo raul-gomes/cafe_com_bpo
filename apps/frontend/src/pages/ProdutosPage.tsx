@@ -1,7 +1,8 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../components/ui/Navbar';
 import { CafeIcon, type CafeIconName } from '../brand/CafeIcon';
+import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
 import './home.css';
 
 interface Produto {
@@ -36,11 +37,14 @@ const PRODUTOS: Produto[] = [
   },
 ];
 
-const ProdutosPage: React.FC = () => (
-  <div className="hb-page">
+const ProdutosPage: React.FC = () => {
+  const pageRef = useRef<HTMLDivElement>(null);
+  useFolhasSobrepostas(pageRef);
+  return (
+  <div ref={pageRef} className="hb-page">
     <Navbar />
     <main>
-      <section className="hb-hero">
+      <section className="hb-sheet hb-hero-sheet"><div className="hb-hero">
         <p className="hb-kicker"><span className="hb-dot" aria-hidden="true" /> Produtos do Café</p>
         <h1 className="hb-display">
           Feito por quem opera.
@@ -49,9 +53,9 @@ const ProdutosPage: React.FC = () => (
         <p className="hb-lead">
           Ferramentas, conteúdo e a jornada de quem vive o BPO de verdade. E tem muito mais vindo por aí.
         </p>
-      </section>
+      </div></section>
 
-      <section className="hb-section hb-section-soft" aria-label="Produtos">
+      <section className="hb-sheet hb-section hb-section-soft" aria-label="Produtos">
         <div className="hb-grid hb-grid-3">
           {PRODUTOS.map(produto => (
             <article key={produto.nome} className="hb-card hb-produto">
@@ -75,6 +79,7 @@ const ProdutosPage: React.FC = () => (
       <Link to="/" className="hb-footer-link">Voltar ao início</Link>
     </footer>
   </div>
-);
+  );
+};
 
 export default ProdutosPage;

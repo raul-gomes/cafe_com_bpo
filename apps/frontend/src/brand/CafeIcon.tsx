@@ -12,13 +12,15 @@ export type CafeIconName =
   | 'tempo' | 'favorito' | 'sair' | 'xicara' | 'grao' | 'vapor' | 'coador'
   | 'pausa-cafe' | 'conversa-cafe'
   /* Extensões do app (fora do sprite V4), no mesmo desenho: matriz 24, traço 1,6, abertura no traço. */
-  | 'coracao';
+  | 'coracao' | 'aula';
 
 const SPRITE = '/brand/kit-v4/icones-assinatura.svg';
 
 const EXTENSIONS: Partial<Record<CafeIconName, string>> = {
   // Coração do "Colabore": o traço não fecha na ponta direita (gesto de abertura da família).
   coracao: 'M12 20s-8-4.6-8-10.4A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 8 2.4c0 2.6-1.6 4.9-3.5 6.8',
+  // Aulas: tela com play; a borda abre no canto superior direito, base da tela embaixo.
+  aula: 'M15 5H4v12h16V9M10 8.8l4.5 2.7-4.5 2.7zM8 20.5h8',
 };
 
 interface CafeIconProps {
