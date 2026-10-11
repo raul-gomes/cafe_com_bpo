@@ -42,7 +42,8 @@
 .hb-hero {
   max-width: 1080px;
   margin: 0 auto;
-  padding: clamp(64px, 11vw, 140px) clamp(16px, 5vw, 64px) clamp(56px, 8vw, 96px);
+  /* Pouco espaço embaixo: o formulário de inscrição vem logo em seguida. */
+  padding: clamp(56px, 9vw, 112px) clamp(16px, 5vw, 64px) clamp(32px, 4vw, 48px);
 }
 .hb-kicker {
   display: inline-flex;
@@ -139,6 +140,13 @@
 
 /* ── Inscrição ── */
 .hb-section-signup { background: var(--cafe-panel); border-top: 1px solid var(--cafe-line); }
+/* Inscrição logo após a abertura: entra junto com a página, sem esperar rolagem. */
+.hb-section-signup { padding-top: clamp(40px, 5vw, 64px); scroll-margin-top: 72px; }
+
+/* ── Chamado final ── */
+.hb-section-closing { text-align: center; }
+.hb-closing { display: grid; justify-items: center; gap: 24px; }
+.hb-closing .hb-headline { margin-inline: auto; }
 .hb-signup { display: grid; grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr); gap: clamp(28px, 5vw, 64px); align-items: start; }
 .hb-form {
   position: relative;

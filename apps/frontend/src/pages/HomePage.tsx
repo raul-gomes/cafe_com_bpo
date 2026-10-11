@@ -120,6 +120,19 @@ const HomePage: React.FC = () => {
           </div>
         </section>
 
+        {/* ── Inscrição ── */}
+        <section id="quero-ser-beta" className="hb-section hb-section-signup" aria-labelledby="inscricao-titulo">
+          <div className="hb-signup">
+            <div className="hb-signup-intro">
+              <p className="hb-kicker">Inscrição Beta</p>
+              <h2 id="inscricao-titulo" className="hb-headline">Quer fazer parte desta construção?</h2>
+              <p className="hb-section-lead">
+                Conta um pouco de você. A gente lê cada inscrição e chama os Betas aos poucos, para dar atenção de verdade.
+              </p>
+            </div>
+            <BetaSignupForm />
+          </div>
+        </section>
         {/* ── O que estamos construindo ── */}
         <section className="hb-section" aria-labelledby="construindo-titulo">
           <div className="hb-section-head hb-ficha">
@@ -173,17 +186,14 @@ const HomePage: React.FC = () => {
           </div>
         </section>
 
-        {/* ── Inscrição ── */}
-        <section id="quero-ser-beta" className="hb-section hb-section-signup" aria-labelledby="inscricao-titulo">
-          <div className="hb-signup hb-ficha">
-            <div className="hb-signup-intro">
-              <p className="hb-kicker">Inscrição Beta</p>
-              <h2 id="inscricao-titulo" className="hb-headline">Quer fazer parte desta construção?</h2>
-              <p className="hb-section-lead">
-                Conta um pouco de você. A gente lê cada inscrição e chama os Betas aos poucos, para dar atenção de verdade.
-              </p>
-            </div>
-            <BetaSignupForm />
+        {/* ── Chamado final: volta ao formulário lá em cima ── */}
+        <section className="hb-section hb-section-closing" aria-labelledby="fechamento-titulo">
+          <div className="hb-closing hb-ficha">
+            <h2 id="fechamento-titulo" className="hb-headline">Bora construir junto?</h2>
+            <a href="#quero-ser-beta" onClick={irParaInscricao} className="cafe-command cafe-command-tab hb-cta">
+              <CafeIcon name="assinatura" />
+              <span>Quero ser Beta</span>
+            </a>
           </div>
         </section>
       </main>
