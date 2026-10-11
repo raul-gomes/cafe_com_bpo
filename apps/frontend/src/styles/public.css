@@ -1,0 +1,82 @@
+/* Páginas públicas: topo, login suspenso e peças comuns (kit V4). */
+
+/* ── Topo ── faixa escura atrás do logo colorido (o amarelo não lia sobre o papel). */
+.pub-nav {
+  position: sticky;
+  top: 0;
+  z-index: 60;
+  background: var(--cafe-deep);
+  color: var(--cafe-on-deep);
+  border-bottom: 3px solid var(--cafe-brand-yellow);
+}
+.pub-nav-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 10px clamp(16px, 4vw, 48px);
+}
+.pub-nav-brand { display: block; flex: none; }
+.pub-nav-brand img { width: 128px; height: auto; display: block; }
+.pub-nav-actions { display: flex; align-items: center; gap: clamp(10px, 2vw, 22px); }
+
+/* Os três gestos do kit, compactos para o topo. */
+.pub-nav-actions .cafe-command { min-height: 40px; font-size: 0.9375rem; white-space: nowrap; }
+.pub-nav-rail { color: var(--cafe-on-deep); padding: 8px 2px; gap: 0; border-bottom-color: color-mix(in srgb, var(--cafe-on-deep) 35%, transparent); }
+.pub-nav-rail > span { font: 600 0.9375rem/1.1 var(--cafe-font-text); }
+.pub-nav-rail::after { background: var(--cafe-brand-yellow); }
+.pub-nav-tab { padding: 8px 16px; margin-top: 10px; }
+.pub-nav-cut { padding: 8px 22px 8px 16px; }
+.pub-nav-cut > span:first-child { padding-right: 0; border-right: 0; }
+
+@media (max-width: 560px) {
+  .pub-nav-brand img { width: 104px; }
+  .pub-nav-rail { display: none; }
+  .pub-nav-actions .cafe-command { font-size: 0.875rem; }
+}
+
+/* ── Login em janela suspensa ── */
+.login-dialog-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgb(20 16 12 / 0.55);
+  backdrop-filter: blur(4px);
+  animation: login-fundo 200ms ease-out both;
+}
+.login-dialog {
+  position: relative;
+  width: min(100%, 420px);
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  padding: 28px 28px 24px;
+  background: var(--cafe-paper);
+  color: var(--cafe-ink);
+  border: 1px solid var(--cafe-line-strong);
+  border-bottom: 3px solid var(--cafe-brand-yellow);
+  border-radius: 0 14px 0 0;
+  box-shadow: 8px 8px 0 color-mix(in srgb, var(--cafe-ink) 18%, transparent), 0 24px 60px rgb(0 0 0 / 0.25);
+  animation: login-janela 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.login-dialog-close {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  color: var(--cafe-muted);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+.login-dialog-close:hover { background: var(--cafe-panel); color: var(--cafe-ink); }
+@keyframes login-fundo { from { opacity: 0; } to { opacity: 1; } }
+@keyframes login-janela { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }

@@ -4,6 +4,7 @@ import App from './App.tsx'
 import { AppProviders } from './providers/AppProviders'
 /* ─── Tailwind + Design Tokens (must be first) ─── */
 import './styles/globals.css'
+import './styles/public.css'
 import './tokens.css'
 
 /* ─── Design System Components ─── */

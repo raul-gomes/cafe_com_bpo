@@ -8,7 +8,7 @@ const SimulatorPage: React.FC = () => {
     <div className="simulator-landing-page pb-[100px] bg-[var(--bg)]">
       <Navbar />
 
-      <main className="pt-[100px]">
+      <main className="pt-[40px]">
         <FadeIn delay={1}>
           <div className="app-header mb-10 border-none bg-transparent">
             <h1 className="text-4xl font-extrabold">Simulador de Precificação BPO</h1>

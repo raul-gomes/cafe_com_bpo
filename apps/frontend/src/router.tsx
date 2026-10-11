@@ -4,6 +4,7 @@ import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { PanelLayout } from './components/panel/PanelLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AdminRoute } from './components/auth/AdminRoute'
+import { PublicShell } from './components/auth/LoginDialogContext'
 
 // ── Lazy-loaded pages (default exports — use React.lazy) ─────────
 const HomePage = React.lazy(() => import('./pages/HomePage'))
@@ -13,6 +14,7 @@ const UnderConstructionPage = React.lazy(() => import('./pages/UnderConstruction
 const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage'))
 const PublicProposalPage = React.lazy(() => import('./pages/PublicProposalPage'))
 const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
+const CafesPage = React.lazy(() => import('./pages/CafesPage'))
 
 // ── Suspense wrapper ─────────────────────────────────────────────
 // eslint-disable-next-line react-refresh/only-export-components
@@ -64,12 +66,38 @@ export async function buildRouter() {
 
   return createBrowserRouter([
     {
-      path: '/',
-      element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
-    },
-    {
-      path: '/login',
-      element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
+      // Páginas públicas: topo comum e login em janela suspensa (PublicShell).
+      element: <PublicShell />,
+      children: [
+        {
+          path: '/',
+          element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
+        },
+        {
+          path: '/login',
+          element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
+        },
+        {
+          path: '/simulador',
+          element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
+        },
+        {
+          path: '/proposta',
+          element: <SuspenseWrapper><ProposalPreviewPage /></SuspenseWrapper>,
+        },
+        {
+          path: '/orcamento/:hash',
+          element: <SuspenseWrapper><PublicProposalPage /></SuspenseWrapper>,
+        },
+        {
+          path: '/em-construcao',
+          element: <SuspenseWrapper><UnderConstructionPage /></SuspenseWrapper>,
+        },
+        {
+          path: '/cafes',
+          element: <SuspenseWrapper><CafesPage /></SuspenseWrapper>,
+        },
+      ],
     },
     {
       path: '/auth/callback',
@@ -86,22 +114,6 @@ export async function buildRouter() {
     {
       path: '/invitations/accept',
       element: <SuspenseWrapper><InvitationAcceptPage /></SuspenseWrapper>,
-    },
-    {
-      path: '/simulador',
-      element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
-    },
-    {
-      path: '/proposta',
-      element: <SuspenseWrapper><ProposalPreviewPage /></SuspenseWrapper>,
-    },
-    {
-      path: '/orcamento/:hash',
-      element: <SuspenseWrapper><PublicProposalPage /></SuspenseWrapper>,
-    },
-    {
-      path: '/em-construcao',
-      element: <SuspenseWrapper><UnderConstructionPage /></SuspenseWrapper>,
     },
     {
       path: '/dashboard',

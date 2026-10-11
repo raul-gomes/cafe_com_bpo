@@ -8,35 +8,9 @@
   background: var(--cafe-canvas);
   color: var(--cafe-ink);
   font-family: var(--cafe-font-text);
-  overflow-x: hidden;
+  /* clip (não hidden): hidden criaria um contêiner de rolagem e quebraria o sticky das folhas. */
+  overflow-x: clip;
 }
-
-/* ── Topo ── */
-.hb-nav {
-  position: sticky;
-  top: 0;
-  z-index: 20;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 14px clamp(16px, 5vw, 64px);
-  background: color-mix(in srgb, var(--cafe-canvas) 88%, transparent);
-  backdrop-filter: blur(8px);
-  border-bottom: 1px solid var(--cafe-line);
-}
-.hb-nav-brand img { width: 124px; height: auto; }
-.hb-nav-links { display: flex; align-items: center; gap: clamp(12px, 2.5vw, 28px); font-size: 0.9375rem; font-weight: 600; }
-.hb-nav-links a { color: var(--cafe-ink-soft); text-decoration: none; }
-.hb-nav-links a:hover { color: var(--cafe-ink); }
-.hb-nav-links .hb-nav-cta {
-  white-space: nowrap;
-  padding: 9px 16px;
-  border-radius: var(--cafe-radius-sm);
-  background: var(--cafe-accent);
-  color: var(--cafe-on-accent);
-}
-.hb-nav-links .hb-nav-cta:hover { background: var(--cafe-accent-hover); color: var(--cafe-on-accent); }
 
 /* ── Abertura ── */
 .hb-hero {
@@ -226,23 +200,104 @@
 }
 .hb-footer-colabore:hover { color: var(--cafe-ink); background: var(--cafe-panel); }
 
-/* ── Fichas subindo do arquivo ── */
-.hb-ficha {
-  opacity: 0;
-  transform: translateY(40px) rotate(-0.6deg);
-  transform-origin: left bottom;
-  transition:
-    opacity 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--hb-delay, 0ms),
-    transform 800ms cubic-bezier(0.16, 1, 0.3, 1) var(--hb-delay, 0ms);
-}
-.hb-ficha.is-in { opacity: 1; transform: none; }
-
-@media (prefers-reduced-motion: reduce) {
-  .hb-ficha { opacity: 1; transform: none; transition: none; }
-}
-
 @media (max-width: 760px) {
-  .hb-nav-links a:not(.hb-nav-cta):first-child { display: none; }
   .hb-person, .hb-signup, .hb-field-row { grid-template-columns: 1fr; }
   .hb-person-photo { max-width: 220px; }
 }
+
+/* ── Folha sobre folha ──
+   Com .hb-sheets-on (computador, sem "reduzir movimento"), cada seção fica
+   presa no topo e a seguinte sobe por cima, com a borda superior arredondada e
+   uma sombra suave — uma folha pousando sobre a outra. O top e o z-index de
+   cada folha vêm do HomePage (useFolhasSobrepostas). */
+.hb-sheet { position: relative; background: var(--cafe-canvas); }
+.hb-section-soft.hb-sheet, .hb-section-signup.hb-sheet { background: var(--cafe-panel); }
+.hb-sheets-on .hb-sheet { position: sticky; }
+.hb-sheets-on .hb-sheet + .hb-sheet {
+  border-radius: 22px 22px 0 0;
+  border-top: 1px solid var(--cafe-line);
+  box-shadow: 0 -18px 40px -22px rgb(41 36 31 / 0.35);
+}
+.hb-hero-sheet { border-bottom: 1px solid var(--cafe-line); }
+
+/* ── Colabore ── */
+.hb-colabore {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: clamp(18px, 3vw, 36px);
+  align-items: center;
+}
+.hb-colabore-icon { width: 56px; height: 56px; }
+.hb-colabore-icon svg { width: 28px; height: 28px; }
+@media (max-width: 760px) {
+  .hb-colabore { grid-template-columns: 1fr; }
+}
+
+.hb-footer-link { color: var(--cafe-ink-soft); font-weight: 600; text-decoration: none; }
+.hb-footer-link:hover { color: var(--cafe-ink); text-decoration: underline; }
+
+/* ── Banner flutuante: próximo café ── */
+.cafe-banner {
+  position: fixed;
+  right: clamp(12px, 3vw, 28px);
+  bottom: clamp(12px, 3vw, 28px);
+  z-index: 70;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  width: min(360px, calc(100vw - 24px));
+  padding: 18px 44px 18px 18px;
+  background: var(--cafe-deep);
+  color: var(--cafe-on-deep);
+  border-bottom: 3px solid var(--cafe-brand-yellow);
+  border-radius: 0 14px 0 0;
+  box-shadow: 6px 6px 0 rgb(0 0 0 / 0.18), 0 18px 40px rgb(0 0 0 / 0.22);
+  animation: cafe-banner-entra 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.cafe-banner-icone {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  background: var(--cafe-brand-yellow);
+  color: #322800;
+}
+.cafe-banner-kicker { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--cafe-brand-yellow); }
+.cafe-banner-texto { margin-top: 4px; font-size: 0.9375rem; line-height: 1.45; }
+.cafe-banner-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 10px;
+  font-weight: 700;
+  color: var(--cafe-on-deep);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.cafe-banner-fechar {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: var(--cafe-on-deep);
+  background: transparent;
+  border: 0;
+  border-radius: 50%;
+  opacity: 0.75;
+  cursor: pointer;
+}
+.cafe-banner-fechar:hover { opacity: 1; background: rgb(255 255 255 / 0.1); }
+@keyframes cafe-banner-entra { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .cafe-banner { animation: none; } }
+
+/* ── Agenda dos cafés ── */
+.hb-cafes-grid .hb-card p strong { color: var(--cafe-ink); }
+.hb-canal { display: block; color: inherit; text-decoration: none; transition: transform 140ms, box-shadow 140ms; }
+.hb-canal:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--cafe-panel-strong); }
+.hb-canal-abrir { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-weight: 700; font-size: 0.9375rem; }
+.hb-cafes-nota { margin-top: 28px; font: italic 500 1.25rem/1.4 var(--cafe-font-editorial); color: var(--cafe-ink-soft); }

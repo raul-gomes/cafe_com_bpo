@@ -9,7 +9,7 @@ const UnderConstructionPage: React.FC = () => {
     <div className="pb-[100px]">
       <Navbar />
 
-      <main className="pt-[120px]">
+      <main className="pt-[48px]">
         <section className="min-h-[80vh] bg-background text-foreground flex flex-col items-center justify-center text-center w-full py-[100px]">
           <div className="max-w-[1024px] mx-auto px-5">
             <FadeIn delay={1}>

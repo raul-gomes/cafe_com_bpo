@@ -1,10 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { Link, useLocation } from 'react-router-dom';
 import { CafeIcon, type CafeIconName } from '../brand/CafeIcon';
-import { logoFor, useAppearance } from '../brand/appearance';
 import { ModalNosAjude } from '../components/panel/ModalNosAjude';
 import { BetaSignupForm } from '../components/home/BetaSignupForm';
+import { CafeBanner } from '../components/home/CafeBanner';
+import { Navbar } from '../components/ui/Navbar';
 import './home.css';
 
 /** O que estamos construindo: o formato do que dá para alcançar, sem dizer "onde". */
@@ -49,37 +49,58 @@ const BENEFICIOS: { icon: CafeIconName; titulo: string; texto: string }[] = [
   },
 ];
 
-/** Seções entram como fichas saindo do arquivo, uma vez, ao aparecer na tela. */
-function useFichasEntrando(root: React.RefObject<HTMLElement>) {
+
+/**
+ * Folha sobre folha: cada seção fica presa no topo (sticky) e a seguinte sobe
+ * por cima dela, como uma folha colocada sobre outra. Seção mais alta que a
+ * tela primeiro rola até o fim e só então fica presa (top negativo), para nada
+ * ficar escondido. Só no computador e sem "reduzir movimento".
+ */
+function useFolhasSobrepostas(root: React.RefObject<HTMLElement>) {
   useEffect(() => {
-    const fichas = root.current?.querySelectorAll<HTMLElement>('.hb-ficha') ?? [];
-    const reduzir = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-    if (reduzir || typeof IntersectionObserver === 'undefined') {
-      fichas.forEach(el => el.classList.add('is-in'));
-      return;
-    }
-    const observer = new IntersectionObserver(
-      entries => {
-        entries.forEach(entry => {
-          if (entry.isIntersecting) {
-            entry.target.classList.add('is-in');
-            observer.unobserve(entry.target);
-          }
-        });
-      },
-      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' }
-    );
-    fichas.forEach(el => observer.observe(el));
-    return () => observer.disconnect();
+    const page = root.current;
+    const desktop = window.matchMedia?.('(min-width: 900px)');
+    const reduzir = window.matchMedia?.('(prefers-reduced-motion: reduce)');
+    if (!page || !desktop || !reduzir) return;
+
+    const folhas = () => Array.from(page.querySelectorAll<HTMLElement>('.hb-sheet'));
+    const ajustar = () => {
+      const ativo = desktop.matches && !reduzir.matches;
+      page.classList.toggle('hb-sheets-on', ativo);
+      const topo = document.querySelector<HTMLElement>('.pub-nav')?.offsetHeight ?? 0;
+      folhas().forEach((folha, index) => {
+        folha.style.zIndex = ativo ? String(index + 1) : '';
+        folha.style.top = ativo ? `${Math.min(topo, window.innerHeight - folha.offsetHeight)}px` : '';
+      });
+    };
+
+    ajustar();
+    const observer = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(ajustar) : null;
+    folhas().forEach(folha => observer?.observe(folha));
+    window.addEventListener('resize', ajustar);
+    desktop.addEventListener?.('change', ajustar);
+    reduzir.addEventListener?.('change', ajustar);
+    return () => {
+      observer?.disconnect();
+      window.removeEventListener('resize', ajustar);
+      desktop.removeEventListener?.('change', ajustar);
+      reduzir.removeEventListener?.('change', ajustar);
+    };
   }, [root]);
 }
 
 const HomePage: React.FC = () => {
-  const { isAuthenticated } = useAuth();
-  const [{ mode }] = useAppearance();
   const [colaboreOpen, setColaboreOpen] = useState(false);
   const pageRef = useRef<HTMLDivElement>(null);
-  useFichasEntrando(pageRef);
+  const { hash } = useLocation();
+  useFolhasSobrepostas(pageRef);
+
+  // Vindo de outra página pelo "Quero ser Beta" do topo (/#quero-ser-beta).
+  useEffect(() => {
+    if (hash === '#quero-ser-beta') {
+      document.getElementById('quero-ser-beta')?.scrollIntoView({ block: 'start' });
+    }
+  }, [hash]);
 
   const irParaInscricao = (event: React.MouseEvent) => {
     event.preventDefault();
@@ -88,40 +109,33 @@ const HomePage: React.FC = () => {
 
   return (
     <div ref={pageRef} className="hb-page" data-testid="home-page">
-      <header className="hb-nav">
-        <Link to="/" className="hb-nav-brand" aria-label="Café com BPO">
-          <img src={logoFor(mode)} alt="Café com BPO" />
-        </Link>
-        <nav className="hb-nav-links" aria-label="Principal">
-          <Link to="/simulador">Simulador</Link>
-          <Link to={isAuthenticated ? '/painel' : '/login'}>{isAuthenticated ? 'Painel' : 'Entrar'}</Link>
-          <a href="#quero-ser-beta" onClick={irParaInscricao} className="hb-nav-cta">Quero ser Beta</a>
-        </nav>
-      </header>
+      <Navbar />
 
       <main>
         {/* ── Abertura ── */}
-        <section className="hb-hero">
-          <p className="hb-kicker"><span className="hb-dot" aria-hidden="true" /> Fase beta · vagas abertas</p>
-          <h1 className="hb-display">
-            Inteligência de negócio não é IA.
-            <em> É você com a realidade.</em>
-          </h1>
-          <p className="hb-lead">
-            Estamos contratando Betas para testar, criar e fazer funcionar de um jeito que só o Café tem.
-            Quatro anos de chão de BPO — e dois passos à frente.
-          </p>
-          <div className="hb-hero-actions">
-            <a href="#quero-ser-beta" onClick={irParaInscricao} className="cafe-command cafe-command-tab hb-cta">
-              <CafeIcon name="assinatura" />
-              <span>Quero fazer parte desta construção</span>
-            </a>
-            <Link to="/simulador" className="hb-link">Ver o simulador de preço</Link>
+        <section className="hb-sheet hb-hero-sheet">
+          <div className="hb-hero">
+            <p className="hb-kicker"><span className="hb-dot" aria-hidden="true" /> Fase beta · vagas abertas</p>
+            <h1 className="hb-display">
+              Inteligência de negócio não é IA.
+              <em> É você com a realidade.</em>
+            </h1>
+            <p className="hb-lead">
+              Estamos contratando Betas para testar, criar e fazer funcionar de um jeito que só o Café tem.
+              Quatro anos de chão de BPO — e dois passos à frente.
+            </p>
+            <div className="hb-hero-actions">
+              <a href="#quero-ser-beta" onClick={irParaInscricao} className="cafe-command cafe-command-tab hb-cta">
+                <CafeIcon name="assinatura" />
+                <span>Quero fazer parte desta construção</span>
+              </a>
+              <Link to="/simulador" className="hb-link">Ver o simulador de preço</Link>
+            </div>
           </div>
         </section>
 
         {/* ── Inscrição ── */}
-        <section id="quero-ser-beta" className="hb-section hb-section-signup" aria-labelledby="inscricao-titulo">
+        <section id="quero-ser-beta" className="hb-sheet hb-section hb-section-signup" aria-labelledby="inscricao-titulo">
           <div className="hb-signup">
             <div className="hb-signup-intro">
               <p className="hb-kicker">Inscrição Beta</p>
@@ -133,9 +147,10 @@ const HomePage: React.FC = () => {
             <BetaSignupForm />
           </div>
         </section>
+
         {/* ── O que estamos construindo ── */}
-        <section className="hb-section" aria-labelledby="construindo-titulo">
-          <div className="hb-section-head hb-ficha">
+        <section className="hb-sheet hb-section" aria-labelledby="construindo-titulo">
+          <div className="hb-section-head">
             <p className="hb-kicker">O que estamos construindo</p>
             <h2 id="construindo-titulo" className="hb-headline">Um escritório de BPO que cabe em um lugar só.</h2>
             <p className="hb-section-lead">
@@ -144,8 +159,8 @@ const HomePage: React.FC = () => {
             </p>
           </div>
           <div className="hb-grid">
-            {CONSTRUINDO.map((item, index) => (
-              <article key={item.titulo} className="hb-card hb-ficha" style={{ '--hb-delay': `${index * 90}ms` } as React.CSSProperties}>
+            {CONSTRUINDO.map(item => (
+              <article key={item.titulo} className="hb-card">
                 <span className="hb-card-icon"><CafeIcon name={item.icon} /></span>
                 <h3>{item.titulo}</h3>
                 <p>{item.texto}</p>
@@ -155,14 +170,14 @@ const HomePage: React.FC = () => {
         </section>
 
         {/* ── Por que ser Beta ── */}
-        <section className="hb-section hb-section-soft" aria-labelledby="beta-titulo">
-          <div className="hb-section-head hb-ficha">
+        <section className="hb-sheet hb-section hb-section-soft" aria-labelledby="beta-titulo">
+          <div className="hb-section-head">
             <p className="hb-kicker">Por que ser Beta</p>
             <h2 id="beta-titulo" className="hb-headline">Quem constrói junto, chega junto.</h2>
           </div>
           <div className="hb-grid hb-grid-3">
-            {BENEFICIOS.map((item, index) => (
-              <article key={item.titulo} className="hb-card hb-ficha" style={{ '--hb-delay': `${index * 90}ms` } as React.CSSProperties}>
+            {BENEFICIOS.map(item => (
+              <article key={item.titulo} className="hb-card">
                 <span className="hb-card-icon"><CafeIcon name={item.icon} /></span>
                 <h3>{item.titulo}</h3>
                 <p>{item.texto}</p>
@@ -172,8 +187,8 @@ const HomePage: React.FC = () => {
         </section>
 
         {/* ── Quem está por trás ── */}
-        <section className="hb-section" aria-labelledby="quem-titulo">
-          <div className="hb-person hb-ficha">
+        <section className="hb-sheet hb-section" aria-labelledby="quem-titulo">
+          <div className="hb-person">
             <img src="/ghuto_cesar.jpeg" alt="Ghuto César" className="hb-person-photo" />
             <div>
               <p className="hb-kicker">Quem está por trás</p>
@@ -186,9 +201,28 @@ const HomePage: React.FC = () => {
           </div>
         </section>
 
+        {/* ── Colabore ── */}
+        <section className="hb-sheet hb-section hb-section-soft" aria-labelledby="colabore-secao-titulo">
+          <div className="hb-colabore">
+            <span className="hb-card-icon hb-colabore-icon"><CafeIcon name="coracao" /></span>
+            <div>
+              <p className="hb-kicker">Colabore</p>
+              <h2 id="colabore-secao-titulo" className="hb-headline">Sem você, isso não seria possível.</h2>
+              <p className="hb-section-lead">
+                Este projeto é maior do que cada um de nós. Quando todo mundo coloca um pouco, chegar lá fica mais
+                leve e mais rápido — e o que a gente constrói segue aberto para quem precisa.
+              </p>
+            </div>
+            <button type="button" onClick={() => setColaboreOpen(true)} className="cafe-command cafe-command-tab hb-cta">
+              <CafeIcon name="coracao" />
+              <span>Quero contribuir</span>
+            </button>
+          </div>
+        </section>
+
         {/* ── Chamado final: volta ao formulário lá em cima ── */}
-        <section className="hb-section hb-section-closing" aria-labelledby="fechamento-titulo">
-          <div className="hb-closing hb-ficha">
+        <section className="hb-sheet hb-section hb-section-closing" aria-labelledby="fechamento-titulo">
+          <div className="hb-closing">
             <h2 id="fechamento-titulo" className="hb-headline">Bora construir junto?</h2>
             <a href="#quero-ser-beta" onClick={irParaInscricao} className="cafe-command cafe-command-tab hb-cta">
               <CafeIcon name="assinatura" />
@@ -200,11 +234,10 @@ const HomePage: React.FC = () => {
 
       <footer className="hb-footer">
         <span>© {new Date().getFullYear()} Café com BPO</span>
-        <button type="button" onClick={() => setColaboreOpen(true)} className="hb-footer-colabore">
-          <CafeIcon name="coracao" className="size-[18px]" /> Colabore com o projeto
-        </button>
+        <Link to="/cafes" className="hb-footer-link">Agenda dos cafés</Link>
       </footer>
 
+      <CafeBanner />
       <ModalNosAjude isOpen={colaboreOpen} onClose={() => setColaboreOpen(false)} />
     </div>
   );

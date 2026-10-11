@@ -1,65 +1,59 @@
 import React from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import logo from '../../assets/logo.png';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { Button, buttonVariants } from './button';
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuItem,
-} from './dropdown-menu';
+import { useLoginDialog } from '../auth/LoginDialogContext';
 
+/**
+ * Topo das páginas públicas (início, simulador, propostas, agenda dos cafés).
+ *
+ * - Faixa escura (--cafe-deep) atrás do logo colorido: o amarelo sobre o papel
+ *   claro não tinha leitura.
+ * - Fica no fluxo (sticky), não flutuando por cima: antes o conteúdo — a
+ *   proposta impressa, o login — passava por baixo da barra.
+ * - Três ações, na ordem pedida, cada uma num gesto do kit V4:
+ *   Simulador (trilho) · Quero ser Beta (fichário) · Login (recorte).
+ */
 export const Navbar: React.FC = () => {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { isAuthenticated } = useAuth();
+  const { openLogin } = useLoginDialog();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
 
-  const handleLogout = () => {
-    logout();
-    navigate('/');
+  const irParaBeta = (event: React.MouseEvent) => {
+    if (pathname === '/') {
+      const alvo = document.getElementById('quero-ser-beta');
+      if (alvo) {
+        event.preventDefault();
+        alvo.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
   };
 
   return (
-    <nav className="fixed top-0 left-0 right-0 z-[9999] flex h-14 items-center border-b border-white/10 bg-black/92 backdrop-blur-lg">
-      <div className="mx-auto flex w-full max-w-[1024px] items-center justify-between px-5">
-        {/* Logo */}
-        <Link to="/" className="flex items-center gap-2.5 no-underline">
-          <img src={logo} alt="Café com BPO" className="h-7 w-auto" />
-          <span className="text-[15px] font-bold tracking-tight text-white">
-            Café com <span className="text-primary-strong">BPO</span>
-          </span>
+    <header className="pub-nav print:hidden">
+      <div className="pub-nav-inner">
+        <Link to="/" className="pub-nav-brand" aria-label="Café com BPO — início">
+          <img src="/brand/kit-v4/logo-cafe-colorida.svg" alt="Café com BPO" />
         </Link>
 
-        {/* Right side */}
-        <div className="flex items-center gap-2">
-          <Link
-            to="/simulador"
-            className="rounded-md px-3 py-1.5 text-[13px] font-medium text-muted-foreground no-underline transition-colors hover:text-foreground"
-          >
-            Simulador
+        <nav className="pub-nav-actions" aria-label="Principal">
+          <Link to="/simulador" className="cafe-command cafe-command-rail pub-nav-rail">
+            <span>Simulador</span>
           </Link>
-
+          <Link to="/#quero-ser-beta" onClick={irParaBeta} className="cafe-command cafe-command-tab pub-nav-tab">
+            <span>Quero ser Beta</span>
+          </Link>
           {isAuthenticated ? (
-            <DropdownMenu>
-              <DropdownMenuTrigger render={<Button variant="outline" size="sm" className="gap-2" />}>
-                Olá, {user?.name?.split(' ')[0] || 'Usuário'}
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                <DropdownMenuItem onClick={() => navigate('/dashboard')}>
-                  <span>📊</span> Minhas Propostas
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive focus:text-destructive">
-                  <span>🚪</span> Sair da conta
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <button type="button" onClick={() => navigate('/painel')} className="cafe-command cafe-command-cut pub-nav-cut">
+              <span>Painel</span>
+            </button>
           ) : (
-            <Link to="/login" className={buttonVariants({ variant: "default", size: "sm", className: "no-underline" })}>
-              Entrar
-            </Link>
+            <button type="button" onClick={openLogin} className="cafe-command cafe-command-cut pub-nav-cut">
+              <span>Login</span>
+            </button>
           )}
-        </div>
+        </nav>
       </div>
-    </nav>
+    </header>
   );
 };

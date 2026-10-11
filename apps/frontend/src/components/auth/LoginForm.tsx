@@ -15,13 +15,15 @@ import { Label } from '../../components/ui/label';
 import { LegalDocumentModal } from '../ui/LegalDocumentModal';
 import { TERMOS_USO_HTML } from '../../content/termos-uso';
 import { POLITICA_PRIVACIDADE_HTML } from '../../content/politica-privacidade';
-import logo from '../../assets/logo.png';
+import { logoFor, useAppearance } from '../../brand/appearance';
 
 interface LoginFormProps {
   onForgotPassword?: () => void;
+  /** Dentro da janela suspensa: sem cartão próprio e com espaçamentos menores. */
+  compact?: boolean;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact = false }) => {
   const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm<LoginFormData & { terms: boolean }>({
     defaultValues: { email: '', password: '', terms: false },
   });
@@ -34,6 +36,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite_token');
   const termsAccepted = watch('terms');
+  const [{ mode }] = useAppearance();
 
   const onSubmit = async (data: LoginFormData & { terms: boolean }) => {
     setGenericError(null);
@@ -85,16 +88,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
 
   return (
     <>
-    <Card className="mx-auto max-w-[480px]">
-      <CardContent className="pt-7 px-8 pb-7">
+    <Card className={compact ? 'border-0 bg-transparent shadow-none ring-0' : 'mx-auto max-w-[480px]'}>
+      <CardContent className={compact ? 'p-0' : 'pt-7 px-8 pb-7'}>
         {/* Brand */}
-        <div className="text-center mb-5">
-          <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-foreground mb-1">
-            Bem-vindo
+        <div className={compact ? 'mb-[18px] text-center' : 'text-center mb-5'}>
+          <img src={logoFor(mode)} alt="Café com BPO" className="mx-auto mb-[12px] h-auto w-[132px]" />
+          <h2 className="font-editorial text-[1.75rem] font-medium leading-tight text-foreground">
+            Bem-vindo de volta
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Entre com sua conta BPO
+          <p className="mt-[2px] text-sm text-muted-foreground">
+            Entre com sua conta do Café com BPO
           </p>
         </div>
 
