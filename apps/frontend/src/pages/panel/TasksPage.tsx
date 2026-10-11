@@ -17,6 +17,7 @@ import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { FichaButton } from '../../components/ui/ficha-button';
 import { Skeleton } from '../../components/ui/skeleton';
 import {
     DropdownMenu,
@@ -452,9 +453,9 @@ export const TasksPage: React.FC = () => {
                         ))}
                     </div>
 
-                    <Button variant="default" size="sm" onClick={handleOpenNewTask}>
+                    <FichaButton onClick={handleOpenNewTask}>
                         <Plus size={18} /> Nova Tarefa
-                    </Button>
+                    </FichaButton>
                 </div>
             </div>
 

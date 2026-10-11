@@ -1,5 +1,5 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { NotificationBell } from './NotificationBell';
 import { CafeIcon } from '../../brand/CafeIcon';
@@ -34,7 +34,7 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
     : 'U';
 
   return (
-    <header className="relative flex h-[60px] shrink-0 items-center gap-[12px] border-b border-border bg-card px-[clamp(16px,3vw,40px)]">
+    <header className="panel-topbar relative flex h-[60px] shrink-0 items-center gap-[12px] border-b border-border bg-card px-[clamp(16px,3vw,40px)]">
       {/* Faixa do módulo: corre da esquerda para a direita a cada troca de área. */}
       <span
         key={sectionLabel ?? 'inicio'}
@@ -85,7 +85,7 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
             <AtmosphereQuickPicker />
             <button
               type="button"
-              onClick={() => navigate('/painel/configuracoes')}
+              onClick={() => navigate('/painel/configuracoes?aba=aparencia')}
               className="text-left text-xs font-semibold text-primary-strong hover:underline"
             >
               Ver as seis atmosferas
@@ -95,15 +95,12 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
 
         <NotificationBell />
 
-        <DropdownMenu>
-          <DropdownMenuTrigger
-            render={
-              <button
-                type="button"
-                className="flex items-center gap-[8px] rounded-full py-[4px] pl-[4px] pr-[12px] transition-colors hover:bg-accent"
-                aria-label={`Conta de ${firstName}`}
-              />
-            }
+        {/* Foto e nome levam direto ao perfil; a seta ao lado abre o menu da conta. */}
+        <div className="flex items-center rounded-full transition-colors hover:bg-accent/60">
+          <Link
+            to="/painel/perfil"
+            className="flex items-center gap-[8px] rounded-full py-[4px] pl-[4px] pr-[6px] no-underline"
+            title="Meu perfil"
           >
             <span
               className="grid size-[32px] place-items-center rounded-full bg-primary bg-cover bg-center text-xs font-bold text-primary-foreground"
@@ -113,6 +110,19 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
               {!user?.avatar_url && initials}
             </span>
             <span className="hidden text-sm font-semibold text-foreground sm:inline">{firstName}</span>
+            <span className="sr-only">— abrir meu perfil</span>
+          </Link>
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="grid size-[32px] place-items-center rounded-full text-muted-foreground hover:text-foreground"
+                aria-label="Menu da conta"
+              />
+            }
+          >
+            <svg className="size-[16px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-[220px]">
             <DropdownMenuLabel className="truncate text-xs font-normal text-muted-foreground">
@@ -122,7 +132,7 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
             <DropdownMenuItem onClick={() => navigate('/painel/perfil')}>
               <CafeIcon name="pessoas" className="size-[18px]" /> Meu perfil
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => navigate('/painel/configuracoes')}>
+            <DropdownMenuItem onClick={() => navigate('/painel/configuracoes?aba=aparencia')}>
               <CafeIcon name="ajustes" className="size-[18px]" /> Aparência e configurações
             </DropdownMenuItem>
             <DropdownMenuSeparator />
@@ -131,6 +141,7 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        </div>
       </div>
     </header>
   );

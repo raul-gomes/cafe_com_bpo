@@ -3,38 +3,66 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
 import { PanelTopBar } from './PanelTopBar';
 import { Toaster } from '../ui/sonner';
-import { sectionForPath } from './navigation';
+import { NAV_SECTIONS, sectionForPath, type NavSection } from './navigation';
 
 const COLLAPSED_KEY = 'cafe_bpo_sidebar_collapsed';
+const MODULE_KEY = 'cafe_bpo_active_menu';
 
-function getInitialCollapsed(): boolean {
+function readStorage(key: string): string | null {
   try {
-    return localStorage.getItem(COLLAPSED_KEY) === '1';
+    return localStorage.getItem(key);
   } catch {
-    return false;
+    return null;
   }
 }
 
+function writeStorage(key: string, value: string): void {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // armazenamento indisponível: vale só nesta sessão
+  }
+}
+
+function sectionById(id: string | null): NavSection {
+  return NAV_SECTIONS.find(section => section.id === id) ?? NAV_SECTIONS[0];
+}
+
 /**
- * Casca do painel no padrão .cafe-workspace do kit V4. A área da rota atual
- * define o módulo (data-cafe-module): ao trocar de área, muda a cor de
- * orientação sem trocar a atmosfera escolhida pelo usuário.
+ * Casca do painel (.cafe-workspace do kit V4).
+ *
+ * Módulo de trabalho: vem da rota quando ela pertence a um módulo; em telas
+ * sem módulo (Início, perfil) fica o último escolhido. O módulo define o
+ * data-cafe-module de toda a casca — menu, logo, seta, faixa do topo e linha
+ * dos botões fichário vestem a cor dele.
  */
 export const PanelLayout: React.FC = () => {
   const { pathname } = useLocation();
-  const [collapsed, setCollapsed] = useState<boolean>(getInitialCollapsed);
+  const [collapsed, setCollapsed] = useState<boolean>(() => readStorage(COLLAPSED_KEY) === '1');
+  const [chosenId, setChosenId] = useState<string>(() => readStorage(MODULE_KEY) || NAV_SECTIONS[0].id);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const drawerRef = useRef<HTMLDialogElement>(null);
-  const section = sectionForPath(pathname);
+
+  const routeSection = sectionForPath(pathname);
+  const activeSection = routeSection ?? sectionById(chosenId);
+
+  // Ao entrar numa rota de outro módulo (link, notificação…), ele vira o escolhido.
+  useEffect(() => {
+    if (routeSection && routeSection.id !== chosenId) {
+      setChosenId(routeSection.id);
+      writeStorage(MODULE_KEY, routeSection.id);
+    }
+  }, [routeSection, chosenId]);
+
+  const selectSection = useCallback((section: NavSection) => {
+    setChosenId(section.id);
+    writeStorage(MODULE_KEY, section.id);
+  }, []);
 
   const toggleCollapsed = useCallback(() => {
     setCollapsed(prev => {
       const next = !prev;
-      try {
-        localStorage.setItem(COLLAPSED_KEY, next ? '1' : '0');
-      } catch {
-        // armazenamento indisponível: vale só nesta sessão
-      }
+      writeStorage(COLLAPSED_KEY, next ? '1' : '0');
       return next;
     });
   }, []);
@@ -50,21 +78,36 @@ export const PanelLayout: React.FC = () => {
   return (
     <div
       // Linha única com altura da tela: sem isso a linha "auto" cresce com o menu e ele não rola.
-      className="cafe-workspace panel-shell h-screen w-screen grid-rows-[minmax(0,100vh)] overflow-hidden border-0"
+      className="cafe-workspace app-shell h-screen w-screen grid-rows-[minmax(0,100vh)] overflow-hidden border-0"
       data-nav={collapsed ? 'collapsed' : 'expanded'}
-      data-cafe-module={section?.module}
+      data-cafe-module={activeSection.module}
     >
-      <PanelSidebar collapsed={collapsed} onToggleCollapsed={toggleCollapsed} />
+      {/* Retraído: largura 0 e visibility:hidden (CSS), o que também tira os links do Tab. */}
+      <div className="panel-rail-slot min-w-0 overflow-hidden">
+        <PanelSidebar activeSection={activeSection} onSelectSection={selectSection} />
+      </div>
+
+      {/* Seta flutuante: fica na borda do menu e continua visível com ele retraído. */}
+      <button
+        type="button"
+        onClick={toggleCollapsed}
+        className="cafe-floating-arrow panel-rail-toggle"
+        aria-expanded={!collapsed}
+        aria-label={collapsed ? 'Abrir menu lateral' : 'Recolher menu lateral'}
+        title={collapsed ? 'Abrir menu' : 'Recolher menu'}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+      </button>
 
       <div className="flex h-screen min-w-0 flex-col overflow-hidden">
         <PanelTopBar
-          sectionLabel={section?.label ?? null}
+          sectionLabel={routeSection?.label ?? null}
           onOpenMobileNav={() => setMobileNavOpen(true)}
           mobileNavOpen={mobileNavOpen}
         />
-        <main className="panel-main relative min-w-0 flex-1 overflow-y-auto bg-background px-[clamp(16px,3vw,40px)] py-[28px] text-foreground">
+        <main className="app-main panel-thin-scroll relative min-w-0 flex-1 overflow-y-auto bg-background px-[clamp(16px,3vw,40px)] py-[28px] text-foreground">
           {/* A chave muda só ao trocar de módulo: a ficha sobe ao entrar numa área nova. */}
-          <div key={section?.id ?? 'inicio'} className="panel-module-enter">
+          <div key={routeSection?.id ?? 'inicio'} className="panel-module-enter">
             <Outlet />
           </div>
         </main>
@@ -77,7 +120,7 @@ export const PanelLayout: React.FC = () => {
         onClose={() => setMobileNavOpen(false)}
         className="m-0 h-dvh max-h-none w-[min(320px,86vw)] max-w-none border-0 bg-transparent p-0 backdrop:bg-black/50"
       >
-        <div className="relative h-full" data-cafe-module={section?.module}>
+        <div className="relative h-full">
           <button
             type="button"
             onClick={() => setMobileNavOpen(false)}
@@ -86,7 +129,11 @@ export const PanelLayout: React.FC = () => {
           >
             <svg className="size-[20px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
           </button>
-          <PanelSidebar variant="drawer" onNavigate={() => setMobileNavOpen(false)} />
+          <PanelSidebar
+            activeSection={activeSection}
+            onSelectSection={selectSection}
+            onNavigate={() => setMobileNavOpen(false)}
+          />
         </div>
       </dialog>
 

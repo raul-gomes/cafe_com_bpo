@@ -21,6 +21,7 @@ import {
 } from '../../api/team';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { FichaButton } from '../../components/ui/ficha-button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -503,12 +504,12 @@ export const EmpresasPage: React.FC = () => {
           <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Meus Clientes</h1>
           <p className="text-[14px] text-muted-foreground">Gerencie os clientes da sua carteira.</p>
         </div>
-        <Button variant="default" onClick={() => { resetForm(); setExpandedCardId(null); setShowForm(true); }}>
+        <FichaButton onClick={() => { resetForm(); setExpandedCardId(null); setShowForm(true); }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Novo Cliente
-        </Button>
+        </FichaButton>
       </div>
 
       {/* Create form (top, not editing) */}

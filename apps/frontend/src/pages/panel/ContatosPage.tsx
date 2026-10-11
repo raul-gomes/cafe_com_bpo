@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { UserPlus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
-import { Button } from '../../components/ui/button';
+import { FichaButton } from '../../components/ui/ficha-button';
 import { Card } from '../../components/ui/card';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -170,10 +170,10 @@ export function ContatosPage() {
             Encontre os contatos das empresas e salve os novos.
           </p>
         </div>
-        <Button onClick={abrirNovo}>
+        <FichaButton onClick={abrirNovo}>
           <UserPlus className="h-4 w-4" />
           Novo contato
-        </Button>
+        </FichaButton>
       </div>
 
       <Card className="mb-4 p-4">

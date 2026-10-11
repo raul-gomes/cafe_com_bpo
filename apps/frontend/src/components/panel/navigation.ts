@@ -15,19 +15,28 @@ export interface NavSection {
   id: string;
   label: string;
   module: CafeModule;
+  /** Ícone da aba do módulo no topo do menu. */
+  icon: CafeIconName;
+  /** Frase curta que orienta "você está neste ambiente". */
+  tagline: string;
   adminOnly?: boolean;
   items: NavItem[];
 }
 
-/** Início fica fora das seções: é o ponto de partida do dia. */
+/** Início fica fora dos módulos: é o ponto de partida do dia. */
 export const HOME_ITEM: NavItem = { path: '/painel', icon: 'inicio', label: 'Início' };
 
-/** Todas as áreas ficam visíveis ao mesmo tempo, agrupadas por módulo. */
+/**
+ * Módulos de trabalho. O menu mostra um módulo por vez: quem está em Captar
+ * vê só Captar, com a cor de Captar em volta.
+ */
 export const NAV_SECTIONS: NavSection[] = [
   {
     id: 'operacional',
     label: 'Operacional',
     module: 'tarefas',
+    icon: 'rotina',
+    tagline: 'Rotinas e entregas dos clientes',
     items: [
       { path: '/painel/tarefas', icon: 'processo', label: 'Gestor de Tarefas' },
       { path: '/painel/templates-atividades', icon: 'rotina', label: 'Rotinas' },
@@ -38,6 +47,8 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'captar',
     label: 'Captar',
     module: 'captacao',
+    icon: 'direcao',
+    tagline: 'Do primeiro contato ao contrato',
     items: [
       { path: '/painel/prospectos', icon: 'direcao', label: 'Prospectos' },
       {
@@ -54,6 +65,8 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'comunidade',
     label: 'Comunidade',
     module: 'comunidade',
+    icon: 'xicara',
+    tagline: 'Conversa, projetos e troca',
     items: [
       {
         path: '/painel/forum',
@@ -68,6 +81,8 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'gestao',
     label: 'Gestão',
     module: 'gestao',
+    icon: 'painel',
+    tagline: 'Equipe, contatos e o escritório',
     items: [
       { path: '/painel/projetos', icon: 'negocios', label: 'Projetos' },
       { path: '/painel/gestao-equipes', icon: 'pessoas', label: 'Gestão de equipes' },
@@ -80,6 +95,8 @@ export const NAV_SECTIONS: NavSection[] = [
     id: 'config',
     label: 'Admin',
     module: 'notas',
+    icon: 'ajustes',
+    tagline: 'Ferramentas de administração',
     adminOnly: true,
     items: [{ path: '/painel/design-system', icon: 'nota', label: 'Design System' }],
   },

@@ -1,42 +1,45 @@
 import React, { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ModalNosAjude } from './ModalNosAjude';
 import { ModalReportarErro } from './ModalReportarErro';
 import { CafeIcon } from '../../brand/CafeIcon';
-import { logoFor, useAppearance } from '../../brand/appearance';
-import { HOME_ITEM, NAV_SECTIONS, isItemActive, type NavItem } from './navigation';
+import { BrandLogo } from '../../brand/BrandLogo';
+import { HOME_ITEM, NAV_SECTIONS, isItemActive, type NavItem, type NavSection } from './navigation';
 import { cn } from '../../lib/utils';
 
 interface PanelSidebarProps {
-  collapsed?: boolean;
-  onToggleCollapsed?: () => void;
+  /** Módulo de trabalho em que a pessoa está (define itens e cor do menu). */
+  activeSection: NavSection;
+  onSelectSection: (section: NavSection) => void;
   /** Chamado ao navegar (fecha a gaveta no celular). */
   onNavigate?: () => void;
-  /** Na gaveta do celular o menu é sempre expandido e sem a seta de recolher. */
-  variant?: 'rail' | 'drawer';
 }
 
 /**
- * Menu lateral do painel no padrão de navegação do kit V4: todas as áreas
- * visíveis, agrupadas por módulo; 240 px aberto / 76 px recolhido (largura
- * controlada pelo .cafe-workspace do PanelLayout) e seta flutuante de 44 px.
+ * Menu do painel: um módulo de trabalho por vez. As abas de fichário no topo
+ * trocam o módulo; tudo abaixo (cabeçalho, itens, tom de fundo) passa a ser
+ * daquele módulo. A largura (aberto/retraído) é do .cafe-workspace no PanelLayout.
  */
-export const PanelSidebar: React.FC<PanelSidebarProps> = ({
-  collapsed = false,
-  onToggleCollapsed,
-  onNavigate,
-  variant = 'rail',
-}) => {
+export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, onSelectSection, onNavigate }) => {
   const { user, logout } = useAuth();
   const { pathname } = useLocation();
-  const [{ mode }] = useAppearance();
+  const navigate = useNavigate();
   const [showDonateModal, setShowDonateModal] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
 
   const isAdmin = user?.role === 'admin';
   const sections = NAV_SECTIONS.filter(section => !section.adminOnly || isAdmin);
-  const compact = variant === 'rail' && collapsed;
+  const homeActive = isItemActive(HOME_ITEM, pathname);
+
+  const selectSection = (section: NavSection) => {
+    onSelectSection(section);
+    // Entrar num módulo leva à primeira área dele.
+    if (section.items.length > 0) {
+      navigate(section.items[0].path);
+      onNavigate?.();
+    }
+  };
 
   const renderLink = (item: NavItem) => {
     const active = isItemActive(item, pathname);
@@ -46,14 +49,13 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
         to={item.path}
         onClick={onNavigate}
         aria-current={active ? 'page' : undefined}
-        title={compact ? item.label : undefined}
         className={cn(
-          'cafe-rail-link min-h-[40px] py-[8px] text-[0.9375rem] no-underline',
+          'cafe-rail-link panel-rail-link min-h-[42px] py-[9px] text-[0.9375rem] no-underline',
           !active && 'text-muted-foreground hover:text-foreground'
         )}
       >
         <CafeIcon name={item.icon} className={cn(active ? 'text-module' : 'opacity-80')} />
-        <span className="cafe-rail-label truncate">{item.label}</span>
+        <span className="truncate">{item.label}</span>
       </Link>
     );
   };
@@ -61,60 +63,73 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({
   return (
     <>
       <aside
-        className={cn(
-          'cafe-rail flex h-screen min-h-0 flex-col overflow-visible',
-          // O kit esconde o trilho no celular; o utilitário flex anularia isso.
-          variant === 'rail' && 'max-[760px]:hidden'
-        )}
+        className="cafe-rail panel-rail flex h-full min-h-0 flex-col"
+        data-cafe-module={activeSection.module}
         aria-label="Menu do painel"
       >
-        {variant === 'rail' && (
-          <button
-            type="button"
-            onClick={onToggleCollapsed}
-            className="cafe-floating-arrow cafe-rail-toggle"
-            aria-expanded={!collapsed}
-            aria-label={collapsed ? 'Expandir menu lateral' : 'Recolher menu lateral'}
-            title={collapsed ? 'Expandir menu' : 'Recolher menu'}
-          >
-            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
-          </button>
-        )}
-
-        {/* Marca: sem símbolo compacto oficial no kit, então some no modo recolhido. */}
         <Link
-          to="/painel"
+          to={HOME_ITEM.path}
           onClick={onNavigate}
-          className="cafe-rail-brand px-[12px] no-underline"
+          className="cafe-rail-brand mb-[20px] px-[8px] no-underline"
           aria-label="Café com BPO — início do painel"
         >
-          <img src={logoFor(mode)} alt="" className="h-auto w-[140px]" />
+          <BrandLogo module={activeSection.module} className="w-[132px]" />
         </Link>
 
-        <nav className="-mx-[4px] min-h-0 flex-1 overflow-y-auto px-[4px]" aria-label="Áreas">
-          <div className="mb-[16px]">{renderLink(HOME_ITEM)}</div>
+        {/* Abas de fichário: um módulo de trabalho por vez. */}
+        <div className="panel-module-tabs" role="tablist" aria-label="Módulo de trabalho">
+          {sections.map(section => {
+            const selected = section.id === activeSection.id;
+            return (
+              <button
+                key={section.id}
+                type="button"
+                role="tab"
+                aria-selected={selected}
+                aria-label={section.label}
+                title={section.label}
+                data-cafe-module={section.module}
+                onClick={() => selectSection(section)}
+                className="panel-module-tab"
+              >
+                <CafeIcon name={section.icon} className="size-[20px]" />
+              </button>
+            );
+          })}
+        </div>
 
-          {sections.map(section => (
-            <div key={section.id} data-cafe-module={section.module} className="mb-[20px]">
-              {compact ? (
-                <div className="mx-auto mb-[6px] h-[2px] w-[24px] rounded-full bg-module/60" aria-hidden="true" />
-              ) : (
-                <div className="mb-[6px] flex items-center gap-[8px] px-[12px] text-xs font-bold uppercase tracking-[0.11em] text-muted-foreground">
-                  <span className="size-[8px] rounded-full bg-module" aria-hidden="true" />
-                  {section.label}
-                </div>
+        {/* "Você está em…": o nome do módulo dá o norte de onde se trabalha agora. */}
+        <div className="panel-module-heading" role="tabpanel" aria-label={activeSection.label}>
+          <div className="text-xs font-bold uppercase tracking-[0.11em] text-module">Módulo</div>
+          <div className="font-editorial text-[1.625rem] font-medium leading-tight tracking-[-0.02em] text-foreground">
+            {activeSection.label}
+          </div>
+          <div className="mt-[2px] text-[0.8125rem] leading-snug text-muted-foreground">{activeSection.tagline}</div>
+        </div>
+
+        <nav className="panel-thin-scroll -mx-[4px] min-h-0 flex-1 overflow-y-auto px-[4px] pt-[8px]" aria-label={`Áreas de ${activeSection.label}`}>
+          <div className="flex flex-col gap-[2px]">{activeSection.items.map(renderLink)}</div>
+
+          <div className="mt-[16px] border-t border-border/70 pt-[10px]">
+            <Link
+              to={HOME_ITEM.path}
+              onClick={onNavigate}
+              aria-current={homeActive ? 'page' : undefined}
+              className={cn(
+                'cafe-rail-link panel-rail-link min-h-[42px] py-[9px] text-[0.9375rem] no-underline',
+                !homeActive && 'text-muted-foreground hover:text-foreground'
               )}
-              <div className="flex flex-col gap-[2px]" role="group" aria-label={section.label}>
-                {section.items.map(renderLink)}
-              </div>
-            </div>
-          ))}
+            >
+              <CafeIcon name="inicio" className={cn(homeActive ? 'text-module' : 'opacity-80')} />
+              <span>Início · meu dia</span>
+            </Link>
+          </div>
         </nav>
 
-        <div className="mt-[12px] border-t border-border pt-[12px]">
-          <FooterButton compact={compact} icon="suporte" label="Reportar erro" onClick={() => setShowReportModal(true)} />
-          <FooterButton compact={compact} icon="favorito" label="Nos Ajude" onClick={() => setShowDonateModal(true)} />
-          <FooterButton compact={compact} icon="sair" label="Sair da conta" onClick={logout} />
+        <div className="mt-[10px] border-t border-border/70 pt-[10px]">
+          <FooterButton icon="suporte" label="Reportar erro" onClick={() => setShowReportModal(true)} />
+          <FooterButton icon="favorito" label="Nos Ajude" onClick={() => setShowDonateModal(true)} />
+          <FooterButton icon="sair" label="Sair da conta" onClick={logout} />
         </div>
       </aside>
 
@@ -128,26 +143,19 @@ function FooterButton({
   icon,
   label,
   onClick,
-  compact,
 }: {
   icon: 'suporte' | 'favorito' | 'sair';
   label: string;
   onClick: () => void;
-  compact: boolean;
 }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      title={compact ? label : undefined}
-      aria-label={compact ? label : undefined}
-      className={cn(
-        'flex min-h-[40px] w-full items-center gap-[12px] rounded-lg px-[12px] text-left text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-foreground',
-        compact && 'justify-center px-0'
-      )}
+      className="flex min-h-[38px] w-full items-center gap-[12px] rounded-lg px-[12px] text-left text-sm text-muted-foreground transition-colors hover:bg-card/70 hover:text-foreground"
     >
       <CafeIcon name={icon} className="size-[18px] opacity-80" />
-      {!compact && label}
+      {label}
     </button>
   );
 }
