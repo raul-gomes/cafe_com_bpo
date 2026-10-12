@@ -758,11 +758,44 @@ class ContractService:
         contract_id: UUID,
         contractada: dict | None = None,
     ) -> list[dict]:
-        """Re-resolve os tokens do snapshot com os dados atuais + campos gravados."""
+        """Sections to display: live tokens for a draft, the frozen text once final.
+
+        A draft re-resolves its tokens with the current company, proposal and
+        profile data. A finalized contract returns the sections frozen at
+        finalization, so the document never changes after it is closed
+        (AUD-006) and every channel (detail, preview, governance) shows the same.
+
+        Args:
+            user_id: Owner of the contract.
+            contract_id: Contract id.
+            contractada: Data of the contracted party (the caller's profile).
+
+        Returns:
+            The sections to render.
+
+        Raises:
+            ValueError: When the contract does not exist for the user.
+        """
         contract = self.repository.get_contract(user_id, contract_id)
         if not contract:
             raise ValueError("Contrato não encontrado")
+        if contract.status == Contract.STATUS_FINALIZED:
+            return contract.sections or []
+        return self._resolve_sections(contract, user_id, contractada)
 
+    def _resolve_sections(
+        self, contract: Contract, user_id: UUID, contractada: dict | None
+    ) -> list[dict]:
+        """Resolves the tokens of a contract with the current data.
+
+        Args:
+            contract: The contract (draft).
+            user_id: Owner of the contract.
+            contractada: Data of the contracted party.
+
+        Returns:
+            The sections with tokens replaced (unknown tokens stay literal).
+        """
         # Rascunho sem dono (sem empresa): não há de onde resolver token, então
         # o que está gravado é a resposta.
         if contract.company_id is None:
@@ -845,14 +878,39 @@ class ContractService:
         return self.repository.set_contract_sections(contract, sections)
 
     def finalize(
-        self, user_id: UUID, contract_id: UUID, client_repo
+        self,
+        user_id: UUID,
+        contract_id: UUID,
+        client_repo,
+        contractada: dict | None = None,
     ) -> tuple[Contract, str | None]:
+        """Freezes the contract text and converts the prospect into a client.
+
+        The tokens are resolved one last time with the data of this moment and
+        that text becomes the immutable document (AUD-006): later changes to
+        the company, proposal or profile no longer reach it.
+
+        Args:
+            user_id: Owner of the contract.
+            contract_id: Contract id.
+            client_repo: Client repository used by the prospect conversion.
+            contractada: Data of the contracted party (the caller's profile).
+
+        Returns:
+            The finalized contract and the new client id, when a prospect was
+            converted.
+
+        Raises:
+            ValueError: When the contract does not exist for the user.
+            PermissionError: When it is already finalized.
+        """
         contract = self.repository.get_contract(user_id, contract_id)
         if not contract:
             raise ValueError("Contrato não encontrado")
         self._ensure_editable(contract)
 
-        finalized = self.repository.mark_finalized(contract)
+        frozen = self._resolve_sections(contract, user_id, contractada)
+        finalized = self.repository.mark_finalized(contract, sections=frozen)
         client_id = None
 
         if contract.prospect_id is not None:

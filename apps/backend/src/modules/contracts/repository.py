@@ -199,7 +199,19 @@ class ContractRepository:
         self.session.refresh(contract)
         return contract
 
-    def mark_finalized(self, contract: Contract) -> Contract:
+    def mark_finalized(self, contract: Contract, sections: list[dict]) -> Contract:
+        """Marks the contract finalized with its frozen text.
+
+        Args:
+            contract: The draft being finalized.
+            sections: Sections with tokens already resolved; they become both the
+                document and the base snapshot, so nothing re-renders later.
+
+        Returns:
+            The finalized contract.
+        """
+        contract.sections = sections
+        contract.template_sections = deepcopy(sections)
         contract.status = Contract.STATUS_FINALIZED
         contract.finalized_at = datetime.now(timezone.utc)
         self.session.commit()
