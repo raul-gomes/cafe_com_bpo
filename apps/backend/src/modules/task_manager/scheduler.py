@@ -537,8 +537,12 @@ class TaskScheduler:
             errors: list[str] = []
 
             for assignment in assignments:
+                # Same resolution as the link (AUD-013): a general routine
+                # belongs to its author, so the link owner only reaches it
+                # with include_general; without it, the routine stopped after
+                # the first cards.
                 tmpl = tmpl_repo.get_template_by_id(
-                    assignment.template_id, assignment.user_id
+                    assignment.template_id, assignment.user_id, include_general=True
                 )
                 if not tmpl or not tmpl.is_active:
                     continue
