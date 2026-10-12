@@ -30,10 +30,13 @@ const subscriptionApi = vi.hoisted(() => ({
 
 const plansApi = vi.hoisted(() => ({ listPlans: vi.fn() }))
 
+const accessApi = vi.hoisted(() => ({ getAccess: vi.fn() }))
+
 vi.mock('sonner', () => ({ toast }))
 vi.mock('../src/api/hooks/useAccess', () => queryHooks)
 vi.mock('../src/api/subscription', () => subscriptionApi)
 vi.mock('../src/api/plans', () => plansApi)
+vi.mock('../src/api/access', () => accessApi)
 
 const FREE_ACCESS: Access = {
   access: 'free',
@@ -121,6 +124,7 @@ describe('PaymentsPage', () => {
       defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
     })
     queryHooks.useAccess.mockReturnValue({ data: FREE_ACCESS })
+    accessApi.getAccess.mockResolvedValue(FREE_ACCESS)
     plansApi.listPlans.mockResolvedValue([MENSAL])
     subscriptionApi.getBillingProfile.mockRejectedValue({ response: { status: 404 } })
     subscriptionApi.saveBillingProfile.mockRejectedValue(new Error('not reached'))
@@ -207,6 +211,8 @@ describe('PaymentsPage', () => {
   })
 
   it('retorno do checkout pago: confirma por toast e limpa a query string', async () => {
+    // The server already reports the plan active (webhook arrived first).
+    accessApi.getAccess.mockResolvedValue(ACTIVE_ACCESS)
     const replaceSpy = vi
       .spyOn(window.history, 'replaceState')
       .mockImplementation(() => undefined)
@@ -220,6 +226,24 @@ describe('PaymentsPage', () => {
       expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Pagamento confirmado'))
     })
     expect(replaceSpy).toHaveBeenCalledWith({}, '', '/painel/pagamentos')
+    replaceSpy.mockRestore()
+  })
+
+  it('retorno pago sem confirmacao do servidor: avisa que aguarda, nao confirma (AUD-034)', async () => {
+    const replaceSpy = vi
+      .spyOn(window.history, 'replaceState')
+      .mockImplementation(() => undefined)
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { ...window.location, assign: assignMock, search: '?checkout=paid' },
+    })
+    renderPage()
+
+    await waitFor(() => {
+      expect(toast.info).toHaveBeenCalledWith(expect.stringContaining('aguardando a confirmação'))
+    })
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(accessApi.getAccess).toHaveBeenCalled()
     replaceSpy.mockRestore()
   })
 

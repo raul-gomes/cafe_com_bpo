@@ -1,9 +1,10 @@
 import { useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { type QueryClient, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { useConfirm } from '../../components/ui/ConfirmDialog';
+import { getAccess } from '../../api/access';
 import { useAccess } from '../../api/hooks/useAccess';
 import { useBillingProfile, useSaveBillingProfile } from '../../api/hooks/useBillingProfile';
 import { useBillingHistory, useCancelSubscription, useOpenCheckout } from '../../api/hooks/useSubscription';
@@ -53,6 +54,30 @@ const firstApiError = (error: unknown): string | null => {
     return null;
 };
 
+/**
+ * Retorno `?checkout=paid`: consulta o acesso no servidor antes de anunciar.
+ * Plano ativo confirma; ainda sem o webhook (ou sem resposta), avisa que a
+ * confirmação está a caminho em vez de prometer o acesso.
+ */
+const confirmPaidCheckout = async (queryClient: QueryClient): Promise<void> => {
+    try {
+        const access = await queryClient.fetchQuery({
+            queryKey: ACCESS_KEY,
+            queryFn: getAccess,
+            staleTime: 0,
+        });
+        if (access.access === 'active') {
+            toast.success('Pagamento confirmado. Bem-vindo(a) ao plano!');
+            return;
+        }
+    } catch {
+        // sem resposta do servidor, cai no aviso de espera
+    }
+    toast.info(
+        'Pagamento enviado. Estamos aguardando a confirmação do Asaas, e o plano é liberado assim que ela chegar (costuma levar poucos minutos).',
+    );
+};
+
 export function PaymentsPage() {
     const { data: access } = useAccess();
     const { data: plans, isLoading: isCheckingPlans } = usePlans();
@@ -70,7 +95,9 @@ export function PaymentsPage() {
     useEffect(() => {
         const checkout = new URLSearchParams(window.location.search).get('checkout');
         if (checkout === 'paid') {
-            toast.success('Pagamento confirmado. Bem-vindo(a) ao plano!');
+            // A URL só diz que o checkout terminou; quem confirma o pagamento
+            // é o servidor, depois do webhook do Asaas (AUD-034).
+            void confirmPaidCheckout(queryClient);
         } else if (checkout === 'canceled') {
             toast.info('Checkout cancelado. Nada foi cobrado.');
         } else if (checkout === 'expired') {
