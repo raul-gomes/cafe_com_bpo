@@ -270,9 +270,17 @@ async def delete_common_file(
     if not item:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-    # Se veio do Cloudinary, remove de lá pelo public_id
+    # Common files are uploaded as Cloudinary "raw" resources, so they are
+    # destroyed as raw; the row only goes when the provider confirms (AUD-026).
     if item.public_id:
-        await CloudinaryService.delete_file(item.public_id)
+        removed = await CloudinaryService.delete_file(
+            item.public_id, resource_type="raw"
+        )
+        if not removed:
+            raise HTTPException(
+                status_code=502,
+                detail="Não foi possível remover o arquivo do armazenamento. Tente de novo.",
+            )
     else:
         local_path = os.path.join(COMMON_STORAGE_DIR, os.path.basename(item.file_path))
         if os.path.exists(local_path):

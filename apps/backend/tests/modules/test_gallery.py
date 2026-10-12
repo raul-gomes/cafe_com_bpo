@@ -295,19 +295,51 @@ def test_common_gallery_delete_admin(client, db_session):
     file_id = upload.json()["id"]
 
     with patch(
-        "src.modules.gallery.router.CloudinaryService.delete_file"
+        "src.modules.gallery.router.CloudinaryService.delete_file", return_value=True
     ) as mock_delete:
         resp = client.delete(
             f"/gallery/common/{file_id}",
             headers={"Authorization": f"Bearer {token}"},
         )
     assert resp.status_code == 204
-    mock_delete.assert_called_once_with(fake_public_id)
+    # Common files are raw resources: destroy needs that type (AUD-026).
+    mock_delete.assert_called_once_with(fake_public_id, resource_type="raw")
 
     # Confirm it's gone
     list_resp = client.get("/gallery/common")
     ids = [f["id"] for f in list_resp.json()]
     assert file_id not in ids
+
+
+def test_common_gallery_delete_keeps_the_row_when_the_provider_fails(
+    client, db_session
+):
+    """AUD-026: the row only goes when the provider confirms the removal."""
+    token = _create_admin_user(client, db_session)
+    fake_public_id = "cafe_com_bpo/gallery/fake_user/gallery_keep"
+    with patch(
+        "src.modules.gallery.router.CloudinaryService.upload_raw_file",
+        return_value={
+            "id": fake_public_id,
+            "url": "https://res.example/" + fake_public_id,
+        },
+    ):
+        file_id = client.post(
+            "/gallery/common/upload",
+            headers={"Authorization": f"Bearer {token}"},
+            files={"file": ("keep.pdf", b"x", "application/pdf")},
+        ).json()["id"]
+
+    with patch(
+        "src.modules.gallery.router.CloudinaryService.delete_file", return_value=False
+    ):
+        resp = client.delete(
+            f"/gallery/common/{file_id}",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+    assert resp.status_code == 502
+    assert file_id in [f["id"] for f in client.get("/gallery/common").json()]
 
 
 def test_common_gallery_delete_rejects_regular_user(client, db_session):
