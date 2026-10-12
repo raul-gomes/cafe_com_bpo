@@ -343,6 +343,11 @@ class TemplateActivity(Base):
         ForeignKey("task_phases.id", ondelete="SET NULL"),
         nullable=True,
     )
+    # In a private copy (fork) of a general routine: the master activity this
+    # one was copied from. The screen keeps showing the master's ids until it
+    # reloads, so writes map them to the copy through this column (AUD-019).
+    # No FK on purpose: the master activity may be deleted later.
+    source_activity_id = Column(UUID(as_uuid=True), nullable=True, index=True)
     created_at = Column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
