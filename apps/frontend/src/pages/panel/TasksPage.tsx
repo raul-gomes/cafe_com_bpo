@@ -25,6 +25,7 @@ import {
     DropdownMenuSeparator,
 } from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/utils';
+import { type FilterMode, manualRange, periodForMode } from '../../lib/taskPeriods';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 
@@ -32,11 +33,13 @@ export const TasksPage: React.FC = () => {
     const { user } = useAuth();
     const confirm = useConfirm();
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
-    const [userFilter, setUserFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'overdue'>('today');
+    const [userFilter, setUserFilter] = useState<FilterMode>('today');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
+    // Manual range: a real period when valid, an inline message when not.
+    const manualPeriod = useMemo(() => manualRange(dateFrom, dateTo), [dateFrom, dateTo]);
     const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
     const [clientFilter, setClientFilter] = useState<string>('');
     const [bulkLoading, setBulkLoading] = useState<Record<string, 'completing' | 'cancelling' | null>>({});
@@ -54,7 +57,10 @@ export const TasksPage: React.FC = () => {
     const runMonthly = useRunMonthly();
     const runWeekly = useRunWeekly();
     const runYearly = useRunYearly();
-    const { data: timelineData, isLoading: timelineLoading } = useTimeline();
+    const { data: timelineData, isLoading: timelineLoading } = useTimeline(
+        manualPeriod.period?.start.toISOString(),
+        manualPeriod.period?.end.toISOString(),
+    );
     const { data: conflictsData } = useConflicts();
     // Aplica o filtro de cliente também na linha do tempo
     const filteredTimeline = useMemo(() => {
@@ -288,23 +294,11 @@ export const TasksPage: React.FC = () => {
     };
 
     // ── Filter tasks for a given mode ──
-    const filterTasksForMode = (mode: 'all' | 'today' | 'week' | 'month' | 'year' | 'overdue'): TaskResponse[] => {
-        const computePeriodForMode = (m: string): { start: Date; end: Date } | null => {
-            if (m === 'today') return { start: todayStart, end: todayEnd };
-            if (m === 'week') {
-                const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1); mon.setHours(0,0,0,0);
-                const sun = new Date(mon); sun.setDate(sun.getDate() + 6); sun.setHours(23,59,59,999);
-                return { start: mon, end: sun };
-            }
-            if (m === 'month') {
-                return { start: new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0,0,0,0), end: new Date(new Date().getFullYear(), new Date().getMonth()+1, 0, 23,59,59,999) };
-            }
-            if (m === 'year') {
-                return { start: new Date(new Date().getFullYear(), 0, 1, 0,0,0,0), end: new Date(new Date().getFullYear(), 12, 0, 23,59,59,999) };
-            }
-            return null;
-        };
-        const p = computePeriodForMode(mode);
+    const filterTasksForMode = (mode: FilterMode, withManualRange = true): TaskResponse[] => {
+        // A valid manual range is the period of every mode (AUD-015); the quick
+        // filters come from the pure helper (Monday-to-Sunday weeks, AUD-016).
+        // The counters of the quick buttons ignore the manual range.
+        const p = (withManualRange ? manualPeriod.period : null) ?? periodForMode(mode, new Date());
         return clientFilteredTasks.filter(t => {
             if (t.is_cancelled) return false;
             const taskStatus = getTaskStatus(t);
@@ -337,7 +331,8 @@ export const TasksPage: React.FC = () => {
             if (isLastPhase) {
                 // Tarefas concluídas seguem o período do filtro selecionado (por completed_at)
                 if (mode === 'overdue') return false;
-                // Filtro "Todas" (e intervalo manual): mostra todas as concluídas
+                // "Todas" has no period: every completed card. A manual range
+                // filters by completion date, like the quick periods.
                 if (!p) return true;
                 return isCompletedInPeriod(t, p);
             }
@@ -350,7 +345,7 @@ export const TasksPage: React.FC = () => {
 
     // Efetivamente qual filtro está sendo usado (pode ter sido cascateado)
     const effectiveFilter = useMemo((): typeof userFilter => {
-        if (userFilter === 'overdue' || userFilter === 'all' || dateFrom) return userFilter;
+        if (userFilter === 'overdue' || userFilter === 'all' || manualPeriod.period) return userFilter;
         const startIdx = cascadeModes.indexOf(userFilter as any);
         if (startIdx === -1) return userFilter;
         for (let i = startIdx; i < cascadeModes.length; i++) {
@@ -359,11 +354,11 @@ export const TasksPage: React.FC = () => {
         }
         return 'all';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userFilter, tasksList, clientFilter, dateFrom, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
+    }, [userFilter, tasksList, clientFilter, manualPeriod, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
 
     const filteredTasks = useMemo(() => filterTasksForMode(effectiveFilter),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [tasksList, clientFilter, effectiveFilter, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
+        [tasksList, clientFilter, effectiveFilter, manualPeriod, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
 
     // Sincroniza o botão de filtro visual com o efetivo (sem causar loop)
     const prevEffective = useRef(effectiveFilter);
@@ -380,7 +375,7 @@ export const TasksPage: React.FC = () => {
         const modes: Array<'today' | 'week' | 'month' | 'year' | 'all' | 'overdue'> = ['today', 'week', 'month', 'year', 'all', 'overdue'];
         const counts: Record<string, number> = {};
         for (const mode of modes) {
-            counts[mode] = filterTasksForMode(mode).filter(t => getTaskStatus(t) !== lastPhaseId).length;
+            counts[mode] = filterTasksForMode(mode, false).filter(t => getTaskStatus(t) !== lastPhaseId).length;
         }
         return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -573,6 +568,9 @@ export const TasksPage: React.FC = () => {
                                     <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setUserFilter('all'); }}
                                         className="filter-date-input w-full rounded-sm border border-border bg-muted px-2 py-1 text-[12px] text-foreground outline-none focus:border-primary" />
                                 </div>
+                                {manualPeriod.error && (
+                                    <p role="alert" className="text-[11px] font-semibold text-destructive">{manualPeriod.error}</p>
+                                )}
                                 <div className="flex justify-end gap-1">
                                     <button onClick={() => { setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
                                         className="cursor-pointer rounded-sm border border-border bg-transparent px-2.5 py-1 text-[11px] text-muted-foreground">
