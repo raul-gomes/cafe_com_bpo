@@ -1,3 +1,4 @@
+import html
 from datetime import datetime, timezone
 from uuid import UUID
 
@@ -521,7 +522,19 @@ class TeamService:
         token: str,
         user_exists: bool,
     ) -> None:
-        """Send invitation email."""
+        """Sends the invitation e-mail.
+
+        Names come from user input (profile name, company name), so they are
+        HTML-escaped before entering the body: a name can never become a link
+        or markup in an e-mail sent by the platform.
+
+        Args:
+            to_email: Invited address.
+            client_name: Company name.
+            inviter_name: Name of who invites.
+            token: Raw invitation token.
+            user_exists: Whether the invited person already has an account.
+        """
         if user_exists:
             accept_url = f"{settings.frontend_url}/invitations/accept?token={token}"
         else:
@@ -529,7 +542,10 @@ class TeamService:
 
         subject = f"Convite para equipe — {client_name}"
 
-        html = f"""
+        safe_inviter = html.escape(inviter_name)
+        safe_client = html.escape(client_name)
+        safe_accept_url = html.escape(accept_url, quote=True)
+        html_body = f"""
         <html>
         <body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; background-color: #f5f5f7; color: #1d1d1f;">
             <div style="background: white; border-radius: 12px; padding: 40px; text-align: center;">
@@ -537,11 +553,11 @@ class TeamService:
                 <h2 style="font-size: 18px; font-weight: 400; color: #555; margin-bottom: 24px;">Convite para Equipe</h2>
 
                 <p style="font-size: 16px; color: #333; line-height: 1.6;">
-                    O(A) <strong>{inviter_name}</strong> convidou você para fazer parte da equipe de
-                    <strong>{client_name}</strong> no Café com BPO.
+                    O(A) <strong>{safe_inviter}</strong> convidou você para fazer parte da equipe de
+                    <strong>{safe_client}</strong> no Café com BPO.
                 </p>
 
-                <a href="{accept_url}"
+                <a href="{safe_accept_url}"
                    style="display: inline-block; background-color: #0071e3; color: white;
                           padding: 14px 32px; border-radius: 8px; text-decoration: none;
                           font-size: 16px; font-weight: 500; margin: 24px 0;">
@@ -569,5 +585,5 @@ class TeamService:
         Este link expira em 7 dias.
         """
 
-        EmailService.send_email(to_email, subject, text, html)
+        EmailService.send_email(to_email, subject, text, html_body)
         log.info(f"📧 Convite enviado para {to_email} — cliente {client_name}")
