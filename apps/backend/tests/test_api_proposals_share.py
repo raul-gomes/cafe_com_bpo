@@ -300,3 +300,29 @@ def test_email_and_whatsapp_include_public_share_link(client):
 
     detail = client.get(f"/proposals/{proposal['id']}", headers=auth)
     assert detail.json()["shared_count"] >= 2
+
+
+def test_email_escapes_client_name_and_message(client):
+    """AUD-010: text typed by the sender never becomes markup in the e-mail."""
+    from unittest.mock import patch
+
+    from src.core.email import EmailService
+
+    auth = get_auth_header(client, f"escape_{uuid4()}@cafe.com")
+    proposal = create_proposal(client, auth)
+    with patch.object(EmailService, "send_email") as send:
+        resp = client.post(
+            f"/proposals/{proposal['id']}/send-email",
+            json={
+                "email": "cliente@empresa.com",
+                "client_name": '<a href="https://phish.example">Banco</a>',
+                "message": "Clique <b>aqui</b>\nObrigado",
+            },
+            headers=auth,
+        )
+
+    assert resp.status_code == 200, resp.text
+    html = send.call_args.kwargs["html"]
+    assert '<a href="https://phish.example">' not in html
+    assert "&lt;a href=&quot;https://phish.example&quot;&gt;Banco&lt;/a&gt;" in html
+    assert "Clique &lt;b&gt;aqui&lt;/b&gt;<br>Obrigado" in html
