@@ -31,10 +31,22 @@
 .pub-nav-cut { padding: 8px 22px 8px 16px; }
 .pub-nav-cut > span:first-child { padding-right: 0; border-right: 0; }
 
+/* Below ~680px the three actions no longer fit beside the logo and the
+   icons, so they take a second row of their own: Login stays visible and
+   Precificação is kept instead of hidden (AUD-035). */
+@media (max-width: 720px) {
+  .pub-nav-inner { flex-wrap: wrap; row-gap: 4px; padding-block: 8px 6px; }
+  .pub-nav-actions { order: 3; flex-basis: 100%; justify-content: space-between; gap: 8px; }
+  .pub-nav-tab { margin-top: 0; }
+}
 @media (max-width: 560px) {
   .pub-nav-brand img { width: 104px; }
-  .pub-nav-rail { display: none; }
   .pub-nav-actions .cafe-command { font-size: 0.875rem; }
+}
+@media (max-width: 360px) {
+  .pub-nav-actions .cafe-command { font-size: 0.8125rem; }
+  .pub-nav-tab { padding: 8px 10px; }
+  .pub-nav-cut { padding: 8px 16px 8px 10px; }
 }
 
 /* ── Login em janela suspensa ── */
