@@ -4,7 +4,6 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useTaskEvents } from '../../api/hooks/useTaskEvents';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../api/client';
 import { TaskResponse } from '../../schemas/tasks';
 import { getClients } from '../../api/clients';
 import { TaskDrawer } from '../../components/tasks/TaskDrawer';
@@ -199,19 +198,6 @@ export const TasksPage: React.FC = () => {
         setTaskModalOpen(true);
     };
 
-    const handleSyncCalendar = async () => {
-        const activeTaskIds = tasksList
-            .filter(t => !t.completed_at && !t.is_cancelled)
-            .map(t => t.id);
-        if (activeTaskIds.length === 0) return;
-        try {
-            await apiClient.post('/calendar/sync', { task_ids: activeTaskIds });
-            toast.success('Tarefas sincronizadas com o Google Agenda!');
-        } catch (err: any) {
-            const detail = err?.response?.data?.detail || 'Erro ao sincronizar';
-            toast.error(detail);
-        }
-    };
 
     const handleRunDaily = async () => {
         toast.promise(runDaily.mutateAsync(), {
@@ -424,8 +410,20 @@ export const TasksPage: React.FC = () => {
                         </Button>
                     )}
                     {user?.role === 'admin' && (
-                        <Button variant="ghost" size="sm" onClick={handleSyncCalendar} title="Sincronizar tarefas ativas com Google Agenda">
-                            <CalendarIcon size={16} /> Sincronizar
+                        // Shown as unavailable until the Google OAuth connection
+                        // exists (owner decision, AUD-023/AUD-024): the old button
+                        // announced a sync that never reached the calendar.
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled
+                            aria-describedby="calendar-unavailable"
+                            title="A integração com a Google Agenda ainda não está disponível."
+                        >
+                            <CalendarIcon size={16} /> Google Agenda (em breve)
+                            <span id="calendar-unavailable" className="sr-only">
+                                A integração com a Google Agenda ainda não está disponível.
+                            </span>
                         </Button>
                     )}
                     {user?.role === 'admin' && (

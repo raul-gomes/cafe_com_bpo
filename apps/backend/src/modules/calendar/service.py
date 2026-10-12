@@ -25,6 +25,14 @@ log = logging.getLogger(__name__)
 CALENDAR_SCOPE = "https://www.googleapis.com/auth/calendar.events"
 
 
+class CalendarUnavailable(Exception):
+    """The Google Calendar integration is not available (not configured).
+
+    Owner decision (2026-10-12, AUD-023/AUD-024): the integration is shown as
+    unavailable until the OAuth callback that stores the user's token exists.
+    """
+
+
 class GoogleCalendarService:
     """
     Service to sync tasks to Google Calendar.
@@ -202,19 +210,16 @@ class GoogleCalendarService:
         Returns a summary dict with ``synced``, ``failed`` counts and a
         ``details`` list with per-task status.
         """
-        # ── Mock mode when not configured ──
-        if not self._enabled or not task_ids:
+        # Not configured: say so. The old mock mode reported every task as
+        # synced, and the screen told the user the calendar was up to date
+        # while nothing was created (AUD-023).
+        if not self._enabled:
             log.info(
-                f"Calendar sync for user {user_id} ({len(task_ids)} tasks) "
-                f"— {'configured' if self._enabled else 'not configured, mock mode'}"
+                f"Calendar sync refused for user {user_id}: integration not configured"
             )
-            return {
-                "synced": len(task_ids),
-                "failed": 0,
-                "details": [
-                    {"task_id": str(tid), "status": "mock_synced"} for tid in task_ids
-                ],
-            }
+            raise CalendarUnavailable()
+        if not task_ids:
+            return {"synced": 0, "failed": 0, "details": []}
 
         # ── Get valid credentials ──
         creds = self._ensure_valid_credentials(user_id)
