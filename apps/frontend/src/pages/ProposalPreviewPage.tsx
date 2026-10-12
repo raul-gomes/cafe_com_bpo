@@ -28,7 +28,13 @@ export default function ProposalPreviewPage() {
       return;
     }
     try {
-      setProposal(JSON.parse(raw) as ProposalSession);
+      const parsed = JSON.parse(raw) as Partial<ProposalSession> | null;
+      // A draft without a calculation (e.g. 0 people) cannot be shown (AUD-042).
+      if (!parsed?.pricing || !parsed.form) {
+        setNotFound(true);
+        return;
+      }
+      setProposal(parsed as ProposalSession);
     } catch {
       setNotFound(true);
     }

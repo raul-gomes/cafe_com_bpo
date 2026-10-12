@@ -212,10 +212,19 @@ export const PublicPricingSimulator: React.FC = () => {
     }
   };
 
+  const [visualizeError, setVisualizeError] = useState('');
+
   const handleVisualize = () => {
     const form = getValues();
     const result = calculatePricing(form.operation, form.services, form.desired_profit_margin, form.term_discount);
-    
+    // Sem pessoas ou horas não há custo/hora: avisa em vez de abrir uma
+    // prévia vazia que quebrava a página (AUD-042).
+    if (!result) {
+      setVisualizeError('Para ver a proposta, informe pelo menos 1 pessoa na operação e pelo menos 1 hora trabalhada por mês.');
+      return;
+    }
+    setVisualizeError('');
+
     const simulationState = { 
       form, 
       pricing: result,
@@ -504,6 +513,11 @@ export const PublicPricingSimulator: React.FC = () => {
             >
               Visualizar Proposta Detalhada
             </button>
+            {visualizeError && (
+              <p role="alert" style={{ marginTop: '12px', fontSize: '14px', fontWeight: 600, color: 'var(--ds-error)' }}>
+                {visualizeError}
+              </p>
+            )}
             <p style={{ marginTop: '12px', fontSize: '14px', color: 'var(--ds-text-muted)' }}>
               Acesse agora para visualizar os cálculos completos, impostos e gerar seu PDF.
             </p>
