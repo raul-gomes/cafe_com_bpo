@@ -1,10 +1,9 @@
 import React, { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { confirmCafePresence, getPublicSite } from '../../api/platform';
+import { confirmCafePresence } from '../../api/platform';
 import type { CafeRsvpAccepted } from '../../schemas/platform';
 import { CafeIcon } from '../../brand/CafeIcon';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '../ui/dialog';
-import { nextOpenCafe } from './cafes';
+import { useNextCafe } from './useNextCafe';
 
 /** Google Calendar dates are written as UTC "YYYYMMDDTHHMMSSZ". */
 function calendarStamp(date: Date): string {
@@ -56,9 +55,9 @@ function formatMeeting(iso: string): string {
  * @returns The strip and its dialog.
  */
 export const CafeRsvpStrip: React.FC = () => {
-  const { data: site } = useQuery({ queryKey: ['public-site'], queryFn: getPublicSite, staleTime: 5 * 60_000 });
-  const startsAt = site?.cafe_meeting.starts_at ?? nextOpenCafeAt2pm().toISOString();
-  const title = site?.cafe_meeting.title ?? 'Café aberto do Café com BPO';
+  const next = useNextCafe();
+  const startsAt = next.startsAt.toISOString();
+  const title = next.title;
 
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
@@ -156,9 +155,3 @@ export const CafeRsvpStrip: React.FC = () => {
     </>
   );
 };
-
-/** Fallback before the API answers: the default rule (last Wednesday, 14h Brasília). */
-function nextOpenCafeAt2pm(): Date {
-  const day = nextOpenCafe(new Date());
-  return new Date(`${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, '0')}-${String(day.getDate()).padStart(2, '0')}T14:00:00-03:00`);
-}

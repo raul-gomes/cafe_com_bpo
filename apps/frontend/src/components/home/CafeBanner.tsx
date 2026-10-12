@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Link } from 'react-router-dom';
 import { CafeIcon } from '../../brand/CafeIcon';
-import { CAFE_TIME, nextOpenCafe } from './cafes';
+import { formatCafeDayAndTime, useNextCafe } from './useNextCafe';
 
 /*
  * Closing the banner only lasts while the page is open: a reload brings it
@@ -34,6 +34,7 @@ function closeBanner(): void {
  */
 export const CafeBanner: React.FC = () => {
   const isClosed = useSyncExternalStore(subscribe, () => closed, () => closed);
+  const { startsAt } = useNextCafe();
   const [ready, setReady] = useState(false);
 
   // Comes in a little after the page, so it does not compete with the hero.
@@ -44,8 +45,6 @@ export const CafeBanner: React.FC = () => {
 
   if (!ready || isClosed) return null;
 
-  const date = nextOpenCafe(new Date()).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
-
   return (
     <aside className="cafe-banner" aria-label="Próximo café">
       <button type="button" className="cafe-banner-close" onClick={closeBanner} aria-label="Fechar aviso">
@@ -55,7 +54,7 @@ export const CafeBanner: React.FC = () => {
       <div>
         <p className="cafe-banner-kicker">Participe do próximo café</p>
         <p className="cafe-banner-text">
-          Encontro aberto no Meet: <strong>{date}, às {CAFE_TIME}</strong>.
+          Encontro aberto no Meet: <strong>{formatCafeDayAndTime(startsAt)}</strong>.
         </p>
         <Link to="/cafes" className="cafe-banner-link">
           Ver agenda dos cafés <CafeIcon name="expandir" className="size-[16px]" />

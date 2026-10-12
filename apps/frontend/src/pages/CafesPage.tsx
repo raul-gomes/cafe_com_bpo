@@ -2,7 +2,8 @@ import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../components/ui/Navbar';
 import { CafeIcon } from '../brand/CafeIcon';
-import { CAFE_CHANNELS, CAFE_TIME, nextOpenCafe } from '../components/home/cafes';
+import { CAFE_CHANNELS, CAFE_TIME } from '../components/home/cafes';
+import { formatCafeDayAndTime, useNextCafe } from '../components/home/useNextCafe';
 import { useStackedSheets } from '../components/home/useStackedSheets';
 import { PublicFooter } from '../components/home/PublicFooter';
 import { CafeRsvpStrip } from '../components/home/CafeRsvp';
@@ -24,11 +25,7 @@ const CafesPage: React.FC = () => {
   const pageRef = useRef<HTMLDivElement>(null);
   useStackedSheets(pageRef);
 
-  const next = nextOpenCafe(new Date()).toLocaleDateString('pt-BR', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-  });
+  const { startsAt } = useNextCafe();
 
   return (
     <div ref={pageRef} className="hb-page">
@@ -53,7 +50,7 @@ const CafesPage: React.FC = () => {
               <span className="hb-card-icon"><CafeIcon name="encontro" /></span>
               <h3>Café aberto · última quarta do mês, às {CAFE_TIME}</h3>
               <p>
-                Encontro aberto a toda a comunidade, no Google Meet. O próximo é <strong>{next}, às {CAFE_TIME}</strong>.
+                Encontro aberto a toda a comunidade, no Google Meet. O próximo é <strong>{formatCafeDayAndTime(startsAt)}</strong>.
                 O link sai nos nossos canais — entre em um deles para receber.
               </p>
             </article>
