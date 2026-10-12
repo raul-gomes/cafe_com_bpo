@@ -59,7 +59,10 @@ const CONTENT: Record<LessonSection, SectionContent> = {
 export const LessonsPage: React.FC<{ section: LessonSection }> = ({ section }) => {
   const { title, lead, icon, lessons: plannedLessons, emptyText } = CONTENT[section];
   const { user } = useAuth();
-  const { data: allLessons } = useQuery({ queryKey: ['lessons'], queryFn: listLessons });
+  const { data: allLessons, isPending, isError, isFetching, refetch } = useQuery({
+    queryKey: ['lessons'],
+    queryFn: listLessons,
+  });
   // Published lessons (Admin › Aulas) replace the planned list of the section.
   const published = (allLessons ?? []).filter(lesson => lesson.section === section);
 
@@ -80,7 +83,26 @@ export const LessonsPage: React.FC<{ section: LessonSection }> = ({ section }) =
         )}
       </header>
 
-      {published.length > 0 ? (
+      {/* Loading and failure are their own states: the planned list is only
+          the content when the API answered that nothing is published (AUD-043).
+          A failed refetch keeps the lessons already on screen. */}
+      {isPending ? (
+        <p role="status" className="rounded-lg border border-border bg-card p-[24px] text-[0.9875rem] text-muted-foreground">
+          Carregando aulas…
+        </p>
+      ) : isError && !allLessons ? (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-[12px] rounded-lg border border-destructive/20 bg-destructive/10 p-[20px] text-[0.9875rem] text-destructive">
+          <span>Não foi possível carregar as aulas. Verifique sua conexão e tente de novo.</span>
+          <button
+            type="button"
+            className="cafe-button cafe-button-secondary cafe-button-sm"
+            onClick={() => void refetch()}
+            disabled={isFetching}
+          >
+            {isFetching ? 'Tentando…' : 'Tentar de novo'}
+          </button>
+        </div>
+      ) : published.length > 0 ? (
         <div className="grid gap-[20px] sm:grid-cols-2">
           {published.map((lesson, index) => (
             <article key={lesson.id} className="overflow-hidden rounded-lg border border-border bg-card">
