@@ -17,9 +17,11 @@ def test_upload_gallery_file_success(client):
     files = {"file": ("test.pdf", file_content, "application/pdf")}
 
     response = client.post(
-        "/gallery/upload?title=Test%20Document&description=A%20test%20PDF%20file",
+        "/gallery/upload",
         headers={"Authorization": f"Bearer {token}"},
         files=files,
+        # The screen sends title/description as multipart fields (AUD-027).
+        data={"title": "Test Document", "description": "A test PDF file"},
     )
 
     assert response.status_code == 201
@@ -117,9 +119,10 @@ def test_list_gallery_files(client):
 
     files = {"file": ("test.pdf", b"content", "application/pdf")}
     client.post(
-        "/gallery/upload?title=My%20File",
+        "/gallery/upload",
         headers={"Authorization": f"Bearer {token}"},
         files=files,
+        data={"title": "My File"},
     )
 
     response = client.get("/gallery/", headers={"Authorization": f"Bearer {token}"})
@@ -233,15 +236,17 @@ def test_common_gallery_upload_admin(client, db_session):
         return_value={"id": fake_public_id, "url": fake_url},
     ) as mock_upload:
         resp = client.post(
-            "/gallery/common/upload?title=Common%20Doc",
+            "/gallery/common/upload",
             headers={"Authorization": f"Bearer {token}"},
             files=files,
+            data={"title": "Common Doc", "description": "Shared with members"},
         )
     assert resp.status_code == 201
     mock_upload.assert_called_once()
     data = resp.json()
     assert data["file_name"] == "common.pdf"
     assert data["title"] == "Common Doc"
+    assert data["description"] == "Shared with members"
     assert data["file_size"] == len(file_content)
     assert data["file_path"] == fake_url
     assert data["public_id"] == fake_public_id

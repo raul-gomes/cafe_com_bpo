@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -69,8 +69,9 @@ async def upload_gallery_file(
     user: CurrentUserDep,
     session: Annotated[Session, Depends(get_db_session)],
     file: UploadFile = File(...),
-    title: str = Query(default=""),
-    description: str = Query(default=""),
+    # Multipart fields, as the screen sends them in the FormData (AUD-027).
+    title: str = Form(default=""),
+    description: str = Form(default=""),
 ):
     """Upload de arquivo de galeria com validação e isolamento por usuário."""
     if not file.filename:
@@ -211,8 +212,9 @@ async def upload_common_file(
     admin: Annotated[UserResponse, Depends(require_admin)],
     repo: Annotated[CommonGalleryRepository, Depends(get_common_repo)],
     file: UploadFile = File(...),
-    title: str = Query(default=""),
-    description: str = Query(default=""),
+    # Multipart fields, as the screen sends them in the FormData (AUD-027).
+    title: str = Form(default=""),
+    description: str = Form(default=""),
 ):
     """Upload de arquivo comunitário (restrito a administradores).
 
