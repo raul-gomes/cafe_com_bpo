@@ -133,28 +133,30 @@ export const ProspectosPage: React.FC = () => {
     const resolvedSegment =
       formData.segment === 'Outro' && customSegment.trim()
         ? customSegment.trim()
-        : formData.segment || undefined;
+        : formData.segment || null;
 
+    // An emptied optional field goes as null: omitting it kept the stored value
+    // (the update applies only the keys it receives) (AUD-021).
     const payload = {
       name: formData.name,
-      cnpj: formData.cnpj || undefined,
-      phone: formData.phone || undefined,
-      email: formData.email.trim() || undefined,
-      description: formData.description || undefined,
+      cnpj: formData.cnpj || null,
+      phone: formData.phone || null,
+      email: formData.email.trim() || null,
+      description: formData.description || null,
       segment: resolvedSegment,
       color: formData.color,
-      representante_nome: formData.representante_nome || undefined,
-      representante_email: formData.representante_email.trim() || undefined,
-      representante_cpf: formData.representante_cpf || undefined,
-      representante_telefone: formData.representante_telefone || undefined,
-      representante_cargo: formData.representante_cargo || undefined,
-      street: formData.street || undefined,
-      number: formData.number || undefined,
-      complement: formData.complement || undefined,
-      neighborhood: formData.neighborhood || undefined,
-      city: formData.city || undefined,
-      state: formData.state || undefined,
-      cep: formData.cep || undefined,
+      representante_nome: formData.representante_nome || null,
+      representante_email: formData.representante_email.trim() || null,
+      representante_cpf: formData.representante_cpf || null,
+      representante_telefone: formData.representante_telefone || null,
+      representante_cargo: formData.representante_cargo || null,
+      street: formData.street || null,
+      number: formData.number || null,
+      complement: formData.complement || null,
+      neighborhood: formData.neighborhood || null,
+      city: formData.city || null,
+      state: formData.state || null,
+      cep: formData.cep || null,
     };
 
     try {
