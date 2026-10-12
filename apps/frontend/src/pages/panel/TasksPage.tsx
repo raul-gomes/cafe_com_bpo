@@ -103,13 +103,25 @@ export const TasksPage: React.FC = () => {
         return (showTeamCards ? teamTasks : tasks) || [];
     }, [tasks, teamTasks, showTeamCards]);
 
-    const handleBulkComplete = async (colId: string) => {
-        if (!tasks) return;
-        const colTasks = tasks.filter(t => getTaskStatus(t) === colId);
+    /**
+     * Describes which cards a bulk action will touch, for the confirmation.
+     *
+     * @param count How many cards the column shows.
+     * @returns E.g. "as 3 tarefas visíveis nesta coluna (Empresa Beta)".
+     */
+    const describeBulkScope = (count: number): string => {
+        const noun = count === 1 ? 'tarefa visível' : 'tarefas visíveis';
+        const client = selectedClientName ? ` (${selectedClientName})` : '';
+        return `as ${count} ${noun} nesta coluna${client}`;
+    };
+
+    // Bulk actions receive the cards the column shows (filters, client, team
+    // mode and column search) — never the raw list, which has hidden cards.
+    const handleBulkComplete = async (colId: string, colTasks: TaskResponse[]) => {
         if (colTasks.length === 0) return;
         const confirmed = await confirm({
             title: 'Concluir tarefas',
-            message: `Concluir todas as ${colTasks.length} tarefas desta fase?`,
+            message: `Concluir ${describeBulkScope(colTasks.length)}?`,
             confirmLabel: 'Concluir',
             cancelLabel: 'Voltar',
             variant: 'warning',
@@ -125,13 +137,11 @@ export const TasksPage: React.FC = () => {
         }
     };
 
-    const handleBulkCancel = async (colId: string) => {
-        if (!tasks) return;
-        const colTasks = tasks.filter(t => getTaskStatus(t) === colId);
+    const handleBulkCancel = async (colId: string, colTasks: TaskResponse[]) => {
         if (colTasks.length === 0) return;
         const confirmed = await confirm({
             title: 'Cancelar tarefas',
-            message: `Cancelar todas as ${colTasks.length} tarefas desta fase?`,
+            message: `Cancelar ${describeBulkScope(colTasks.length)}?`,
             confirmLabel: 'Cancelar tarefas',
             cancelLabel: 'Voltar',
             variant: 'danger',
