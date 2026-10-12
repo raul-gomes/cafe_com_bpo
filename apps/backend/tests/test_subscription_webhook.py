@@ -816,3 +816,28 @@ def test_the_cycle_addition_clamps_to_the_short_month():
 
     assert add_billing_month(date(2026, 1, 31)) == date(2026, 2, 28)
     assert add_billing_month(date(2026, 10, 5)) == date(2026, 11, 5)
+
+
+def test_late_overdue_of_a_charge_already_paid_changes_nothing(
+    db_session: Session, subscription: Subscription
+):
+    """AUD-008: PAYMENT_OVERDUE arriving after PAYMENT_CONFIRMED of the same
+    charge (out of order) must not reopen the dunning window.
+
+    Args:
+        db_session: Database session.
+        subscription: The row that will receive both events.
+    """
+    _process(
+        db_session,
+        _payment_event("evt_paid_1", "PAYMENT_CONFIRMED", checkout_session="chk_wh_1"),
+    )
+    paid = _stored(db_session, subscription.id)
+    assert paid.status == SUBSCRIPTION_STATUS_ACTIVE
+
+    outcome = _process(db_session, _payment_event("evt_late_1", "PAYMENT_OVERDUE"))
+
+    row = _stored(db_session, subscription.id)
+    assert outcome == "ignored"
+    assert row.status == SUBSCRIPTION_STATUS_ACTIVE
+    assert row.grace_until is None

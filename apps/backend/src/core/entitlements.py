@@ -207,10 +207,15 @@ def resolve_access(
     plan = _plan_summary(subscription.plan)
     if subscription.status == SUBSCRIPTION_STATUS_PAST_DUE:
         grace_until = as_utc(subscription.grace_until)
+        # A period already paid is never cut short by an overdue notice (owner
+        # decision for AUD-008): access lasts until the later of the two ends.
+        ends = [
+            end for end in (grace_until, as_utc(subscription.current_period_end)) if end
+        ]
         return Access(
             state=AccessState.PAST_DUE,
             read_only_modules=(),
-            expires_at=grace_until,
+            expires_at=max(ends) if ends else None,
             grace_until=grace_until,
             plan=plan,
             subscription_status=subscription.status,
@@ -308,8 +313,13 @@ def _best_subscription(
     past_due: Subscription | None = None
     for subscription in subscriptions:
         if subscription.status == SUBSCRIPTION_STATUS_PAST_DUE:
-            grace_until = as_utc(subscription.grace_until)
-            if grace_until is not None and grace_until > now:
+            # Still granting while the tolerance runs or the paid period runs
+            # (AUD-008: a late overdue notice never takes a paid month away).
+            ends = (
+                as_utc(subscription.grace_until),
+                as_utc(subscription.current_period_end),
+            )
+            if any(end is not None and end > now for end in ends):
                 past_due = past_due or subscription
             continue
         if subscription.status not in (
