@@ -271,7 +271,7 @@ export async function buildRoutes() {
             },
             {
               path: 'gestao-equipes',
-              element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper>,
+              element: <SuspenseWrapper><UnderConstructionPanelPage area="equipes" /></SuspenseWrapper>,
             },
             {
               path: 'projetos',
@@ -291,10 +291,10 @@ export async function buildRoutes() {
             { path: 'aulas/bpo-primeiros-passos', element: <SuspenseWrapper><LessonsPage section="bpo-primeiros-passos" /></SuspenseWrapper> },
             { path: 'aulas/mentorias', element: <SuspenseWrapper><LessonsPage section="mentorias" /></SuspenseWrapper> },
             // Placeholder modules (under construction): Notas Fiscais and Certificados Digitais.
-            { path: 'notas-fiscais', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
-            { path: 'notas-fiscais/emitir', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
-            { path: 'certificados', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
-            { path: 'certificados/vencimentos', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
+            { path: 'notas-fiscais', element: <SuspenseWrapper><UnderConstructionPanelPage area="notas-fiscais" /></SuspenseWrapper> },
+            { path: 'notas-fiscais/emitir', element: <SuspenseWrapper><UnderConstructionPanelPage area="notas-fiscais" /></SuspenseWrapper> },
+            { path: 'certificados', element: <SuspenseWrapper><UnderConstructionPanelPage area="certificados" /></SuspenseWrapper> },
+            { path: 'certificados/vencimentos', element: <SuspenseWrapper><UnderConstructionPanelPage area="certificados" /></SuspenseWrapper> },
             {
               path: 'admin',
               element: <AdminRoute />,
