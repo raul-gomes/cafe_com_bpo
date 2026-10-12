@@ -2,6 +2,7 @@
 import axios from 'axios';
 
 import { isPlanGateError, notifyPlanGate } from './planGate';
+import { loginPathFor } from '../lib/returnTo';
 
 // In-memory token storage — not persisted to localStorage (XSS-safe)
 let accessToken: string | null = null;
@@ -93,7 +94,8 @@ apiClient.interceptors.response.use(
         tokenStorage.clearToken();
         const currentPath = window.location.pathname;
         if (currentPath !== '/login' && !currentPath.startsWith('/auth/')) {
-          window.location.href = `/login?session_expired=true&return_to=${encodeURIComponent(currentPath)}`;
+          // Query and hash go too: the login reopens the same record (AUD-039).
+          window.location.href = loginPathFor(window.location, { session_expired: 'true' });
         }
         return Promise.reject(refreshError);
       } finally {

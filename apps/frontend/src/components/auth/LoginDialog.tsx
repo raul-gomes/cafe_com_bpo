@@ -8,6 +8,7 @@ import { CafeIcon } from '../../brand/CafeIcon';
 import { useQuery } from '@tanstack/react-query';
 import { getPublicSite } from '../../api/platform';
 import type { LoginNotice } from '../../schemas/platform';
+import { safeReturnTo } from '../../lib/returnTo';
 
 /** Shown while the editable notice loads (and if the API is unreachable). */
 const DEFAULT_NOTICE: LoginNotice = {
@@ -64,7 +65,9 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
   const { isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const errorParam = searchParams.get('error');
+  // The expired-session redirect sends session_expired=true, not error=… .
+  const errorParam = searchParams.get('error') ?? (searchParams.get('session_expired') ? 'session_expired' : null);
+  const returnTo = safeReturnTo(searchParams.get('return_to'));
   const [showForgotPw, setShowForgotPw] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const { data: site } = useQuery({ queryKey: ['public-site'], queryFn: getPublicSite, staleTime: 5 * 60_000 });
@@ -72,8 +75,8 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
 
   // Already signed in: the login makes no sense, go straight to the panel.
   useEffect(() => {
-    if (!isLoading && isAuthenticated) navigate('/painel');
-  }, [isAuthenticated, isLoading, navigate]);
+    if (!isLoading && isAuthenticated) navigate(returnTo ?? '/painel');
+  }, [isAuthenticated, isLoading, navigate, returnTo]);
 
   // Escape closes; the background does not scroll while the dialog is open.
   // Focus goes back to whatever opened the dialog (the Login button) on close.

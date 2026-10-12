@@ -13,6 +13,7 @@ import { Alert } from '../../components/ui/alert';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Label } from '../../components/ui/label';
 import { logoFor, useAppearance } from '../../brand/appearance';
+import { safeReturnTo } from '../../lib/returnTo';
 
 interface LoginFormProps {
   onForgotPassword?: () => void;
@@ -77,7 +78,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
       if (res && (res as any).syncedProposalId) {
         navigate(`/painel/orcamento/${(res as any).syncedProposalId}`);
       } else {
-        navigate('/painel');
+        // Back to where the session expired, when it is a path of the app (AUD-039).
+        navigate(safeReturnTo(searchParams.get('return_to')) ?? '/painel');
       }
     } catch (error: any) {
       setGenericError(error.response?.data?.detail || 'Credenciais inválidas. Tente novamente.');
