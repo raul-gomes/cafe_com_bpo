@@ -4,7 +4,7 @@ import { cn } from '../../lib/utils';
 
 /* ── Shared types ── */
 
-type TipoMask = 'cpf' | 'cnpj' | 'phone' | 'date';
+type TipoMask = 'cpf' | 'cnpj' | 'cpfCnpj' | 'phone' | 'date';
 
 interface MaskedInputBaseProps {
   value?: string;
@@ -28,6 +28,16 @@ const maskDate = (value: string): string =>
     .replace(/^(\d{2})\/(\d{2})(\d)/, '$1/$2/$3')
     .slice(0, 10);
 
+/**
+ * CPF while it fits (up to 11 digits), CNPJ beyond that.
+ *
+ * One field for both documents: the length limit is the CNPJ one from the
+ * start, so a CNPJ can be typed digit by digit (AUD-014); a CPF-sized limit
+ * blocked the 12th digit before the mask could switch.
+ */
+const maskCpfOrCnpj = (value: string): string =>
+  onlyNumbers(value).length > 11 ? maskCNPJ(value) : maskCPF(value);
+
 /* ── Tipo → mask function + metadata ── */
 
 const MASK_CONFIG: Record<
@@ -36,6 +46,7 @@ const MASK_CONFIG: Record<
 > = {
   cpf: { mask: maskCPF, placeholder: '000.000.000-00', maxLength: 14 },
   cnpj: { mask: maskCNPJ, placeholder: '00.000.000/0000-00', maxLength: 18 },
+  cpfCnpj: { mask: maskCpfOrCnpj, placeholder: 'CPF ou CNPJ', maxLength: 18 },
   phone: { mask: maskPhone, placeholder: '(00) 00000-0000', maxLength: 15 },
   date: { mask: maskDate, placeholder: 'DD/MM/AAAA', maxLength: 10 },
 };

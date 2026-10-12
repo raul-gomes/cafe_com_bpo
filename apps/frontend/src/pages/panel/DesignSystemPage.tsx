@@ -670,6 +670,10 @@ export default function DesignSystemPage() {
               <InputGroupAddon align="inline-start">CPF</InputGroupAddon>
               <MaskedInput tipo="cpf" />
             </InputGroup>
+            <InputGroup>
+              <InputGroupAddon align="inline-start">CPF/CNPJ</InputGroupAddon>
+              <MaskedInput tipo="cpfCnpj" />
+            </InputGroup>
 <InputGroup>
               <InputGroupAddon align="inline-start">Telefone</InputGroupAddon>
               <MaskedInput tipo="phone" />
