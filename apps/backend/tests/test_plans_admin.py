@@ -207,6 +207,31 @@ def test_unknown_cycle_is_refused(client, plan: Plan):
     assert response.status_code == 422, response.text
 
 
+@pytest.mark.parametrize("cycle", ["YEARLY", "WEEKLY", "QUARTERLY"])
+def test_only_the_monthly_cycle_is_sold(client, plan: Plan, cycle: str):
+    """AUD-009 (owner decision 2026-10-12): plans differ by features, never by
+    cycle. A cycle Asaas bills but the product does not sell would charge one
+    cycle and grant one month.
+
+    Args:
+        client: FastAPI test client.
+        plan: Seeded plan.
+        cycle: A non-monthly cycle Asaas accepts.
+    """
+    response = client.post(
+        "/plans",
+        json={
+            "code": f"plan_{cycle.lower()}",
+            "name": "Outro",
+            "price": "10.00",
+            "cycle": cycle,
+        },
+        headers=_headers(client),
+    )
+
+    assert response.status_code == 422, response.text
+
+
 def test_admin_updates_the_price(client, plan: Plan):
     """The price changes here and nowhere else.
 
