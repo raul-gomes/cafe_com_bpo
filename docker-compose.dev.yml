@@ -35,7 +35,9 @@ services:
     build:
       context: ./infra
       args:
-        NGINX_CONF: nginx.conf.local
+        # Versioned HTTP gateway (AUD-038); nginx.conf.local stays a personal,
+        # unversioned override.
+        NGINX_CONF: nginx.dev.conf
 
   web:
     build:
