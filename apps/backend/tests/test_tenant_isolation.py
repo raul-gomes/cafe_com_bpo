@@ -5,6 +5,10 @@ knows A's ids. B must neither read nor change anything of A, and the answer
 must be "not found" so it never confirms that the id exists.
 """
 
+from uuid import UUID
+
+from src.core.database import SessionLocal
+from src.modules.task_manager.models import Task
 from tests.helpers import paid_auth_header, unique_email
 from tests.test_team_routines_e2e import get_raw_token_for_invite
 
@@ -262,3 +266,92 @@ class TestSLAs:
 
         assert changed.status_code == 200 and changed.json()["sla_days"] == 5
         assert deleted.status_code == 204
+
+
+class TestTaskCompany:
+    """AUD-003: a task never moves to a company the caller cannot write on."""
+
+    def _task(self, client, auth: dict, company_id: str) -> str:
+        """Creates a loose task and returns its id.
+
+        Args:
+            client: Test client.
+            auth: Authorization header of the owner.
+            company_id: Company id.
+
+        Returns:
+            The task id.
+        """
+        resp = client.post(
+            "/tasks/",
+            json={"title": "Conciliar", "client_id": company_id},
+            headers=auth,
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["id"]
+
+    def test_cannot_point_own_task_to_foreign_company(self, client):
+        owner, outsider = _two_accounts(client)
+        foreign_company = _company(client, owner, "Empresa A")
+        own_company = _company(client, outsider, "Empresa B")
+        task_id = self._task(client, outsider, own_company)
+
+        resp = client.put(
+            f"/tasks/{task_id}", json={"client_id": foreign_company}, headers=outsider
+        )
+
+        assert resp.status_code == 404, resp.text
+        tasks = client.get(f"/tasks/?client_id={own_company}", headers=outsider).json()
+        assert [t["id"] for t in tasks] == [task_id]
+
+    def test_moving_between_own_companies_keeps_canonical_link(self, client):
+        owner, _ = _two_accounts(client)
+        first = _company(client, owner, "Primeira")
+        second = _company(client, owner, "Segunda")
+        task_id = self._task(client, owner, first)
+
+        resp = client.put(
+            f"/tasks/{task_id}", json={"client_id": second}, headers=owner
+        )
+
+        assert resp.status_code == 200, resp.text
+        assert [
+            t["id"]
+            for t in client.get(f"/tasks/?client_id={second}", headers=owner).json()
+        ] == [task_id]
+        assert client.get(f"/tasks/?client_id={first}", headers=owner).json() == []
+        session = SessionLocal()
+        try:
+            stored = session.get(Task, UUID(task_id))
+            assert (str(stored.client_id), str(stored.company_id)) == (second, second)
+        finally:
+            session.close()
+
+    def test_routine_card_does_not_change_company(self, client):
+        owner, _ = _two_accounts(client)
+        first = _company(client, owner, "Primeira")
+        second = _company(client, owner, "Segunda")
+        # A one-off routine generates its card right away, whatever the date.
+        template_id = client.post(
+            "/tasks/templates/",
+            json={"name": "Abertura", "recurrence": "once", "due_days_from_start": 5},
+            headers=owner,
+        ).json()["id"]
+        client.post(
+            f"/tasks/templates/{template_id}/activities/",
+            json={"name": "Cadastro inicial", "due_days": 5},
+            headers=owner,
+        )
+        client.post(
+            "/tasks/client-templates/",
+            json={"client_id": first, "template_id": template_id},
+            headers=owner,
+        )
+        cards = client.get(f"/tasks/?client_id={first}", headers=owner).json()
+        routine_card = next(c for c in cards if c["template_id"] == template_id)
+
+        resp = client.put(
+            f"/tasks/{routine_card['id']}", json={"client_id": second}, headers=owner
+        )
+
+        assert resp.status_code == 409, resp.text

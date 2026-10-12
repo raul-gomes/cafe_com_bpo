@@ -26,7 +26,7 @@ from ..schemas import (
 )
 from ..sla.repository import SLARepository
 from ..task.repository import TaskRepository
-from ..task.service import TaskService
+from ..task.service import RoutineTaskCompanyLocked, TaskService
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -188,16 +188,41 @@ def update_task(
     task_id: UUID,
     task_in: TaskUpdate,
     repo: RepoDep,
+    service: ServiceDep,
     current_user: CurrentUserDep,
 ):
-    """Atualiza dados da tarefa.
+    """Updates a task.
 
-    As fases são globais (3 canônicas compartilhadas), então `phase_id` é
-    validado diretamente contra as fases existentes.
+    Phases are global (3 shared canonical phases), so `phase_id` is checked
+    straight against the existing ones. A change of company goes through the
+    service, which checks the destination and keeps `company_id` in sync.
+
+    Args:
+        task_id: Task id.
+        task_in: Fields to change.
+        repo: Task repository.
+        service: Task service (company change authorization).
+        current_user: The caller.
+
+    Returns:
+        The updated task.
+
+    Raises:
+        HTTPException: 404 when the task or the destination company is not
+            reachable by the caller; 409 when a routine card would change company.
     """
     task = repo.get_by_id_for_update(task_id, current_user.id)
     if not task:
         raise HTTPException(status_code=404, detail="Tarefa não encontrada")
+    try:
+        service.authorize_company_change(task, task_in, current_user.id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Empresa não encontrada")
+    except RoutineTaskCompanyLocked:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Tarefa de rotina não muda de empresa. Edite o vínculo da rotina.",
+        )
 
     old_phase_id = task.phase_id
     phases = repo.get_all_phases()
