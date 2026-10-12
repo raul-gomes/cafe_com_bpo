@@ -49,6 +49,30 @@ describe('public header and login dialog', () => {
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(screen.queryByRole('dialog', { name: 'Login' })).not.toBeInTheDocument()
   })
+
+  it('keeps keyboard focus inside the dialog and gives it back to Login on close (AUD-036)', () => {
+    renderPublic()
+    const opener = within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('button', { name: 'Login' })
+    opener.focus()
+    fireEvent.click(opener)
+
+    const dialog = screen.getByRole('dialog', { name: 'Login' })
+    const focusables = Array.from(
+      dialog.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled])')
+    )
+    const first = focusables[0]
+    const last = focusables[focusables.length - 1]
+
+    first.focus()
+    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
+    expect(document.activeElement).toBe(last)
+
+    fireEvent.keyDown(last, { key: 'Tab' })
+    expect(document.activeElement).toBe(first)
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+    expect(document.activeElement).toBe(opener)
+  })
 })
 
 describe('next open café (last Wednesday of the month)', () => {

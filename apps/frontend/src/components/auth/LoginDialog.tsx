@@ -23,6 +23,33 @@ const ERROR_MESSAGES: Record<string, string> = {
   session_expired: 'Sua sessão expirou. Faça login novamente.',
 };
 
+const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+
+/**
+ * Keeps Tab / Shift+Tab inside the dialog: from the last control it wraps to
+ * the first and back. Without it, keyboard focus walked to the page behind the
+ * modal despite aria-modal (AUD-036).
+ *
+ * @param event - The Tab keydown.
+ * @param panel - The dialog element.
+ */
+function trapFocus(event: KeyboardEvent, panel: HTMLElement | null): void {
+  if (!panel) return;
+  const focusables = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE));
+  if (focusables.length === 0) return;
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  const active = document.activeElement;
+  const outside = !panel.contains(active);
+  if (event.shiftKey && (active === first || outside)) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && (active === last || outside)) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
 interface LoginDialogProps {
   onClose: () => void;
 }
@@ -49,9 +76,19 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
   }, [isAuthenticated, isLoading, navigate]);
 
   // Escape closes; the background does not scroll while the dialog is open.
+  // Focus goes back to whatever opened the dialog (the Login button) on close.
+  useEffect(() => {
+    const opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    return () => {
+      if (opener?.isConnected) opener.focus();
+    };
+  }, []);
+
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' && !showForgotPw) onClose();
+      if (showForgotPw) return; // the forgot-password modal handles its own keys
+      if (event.key === 'Escape') onClose();
+      if (event.key === 'Tab') trapFocus(event, panelRef.current);
     };
     document.addEventListener('keydown', onKey);
     const previousOverflow = document.body.style.overflow;
