@@ -151,7 +151,24 @@ describe('NetworkPage - filtro dos topicos publicos', () => {
     mockGetProjects.mockReset()
     mockGetConversations.mockReset()
     mockGetMyGroups.mockReset()
-    mockGetPosts.mockResolvedValue({ items: [POST, OTHER_POST], total: 2 })
+    // The server applies the filter (AUD-031); the mock answers like it.
+    mockGetPosts.mockImplementation(
+      async (_limit: number, _offset: number, filter: string = 'all') => {
+        const items =
+          filter === 'mine' ? [POST] : filter === 'answered' ? [POST] : [POST, OTHER_POST]
+        return { items, total: items.length }
+      }
+    )
+  })
+
+  it('pede o filtro ao servidor, em vez de filtrar so a primeira pagina', async () => {
+    renderPage()
+
+    fireEvent.click(await screen.findByRole('button', { name: /Meus Tópicos/i }))
+    await waitFor(() => expect(mockGetPosts).toHaveBeenLastCalledWith(20, 0, 'mine'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Respondidos/i }))
+    await waitFor(() => expect(mockGetPosts).toHaveBeenLastCalledWith(20, 0, 'answered'))
   })
 
   it('Todos mostra os dois topicos', async () => {
@@ -187,6 +204,45 @@ describe('NetworkPage - filtro dos topicos publicos', () => {
 
     fireEvent.click(screen.getByRole('button', { name: /^Todos$/i }))
     expect(await screen.findByText(OTHER_POST.title)).toBeInTheDocument()
+  })
+})
+
+describe('NetworkPage - paginacao do forum', () => {
+  const page = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({ ...POST, id: `p-${i}`, title: `Tópico ${i}` }))
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetPosts.mockReset()
+    mockUnreadNotifications.current = []
+  })
+
+  it('carrega a pagina seguinte e mostra quantos faltam', async () => {
+    const all = page(25)
+    mockGetPosts.mockImplementation(async (limit: number, offset: number) => ({
+      items: all.slice(offset, offset + limit),
+      total: all.length,
+    }))
+    renderPage()
+
+    expect(await screen.findByText('Tópico 0')).toBeInTheDocument()
+    expect(screen.queryByText('Tópico 24')).not.toBeInTheDocument()
+    expect(screen.getByText('Mostrando 20 de 25 tópicos')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Carregar mais/i }))
+
+    expect(await screen.findByText('Tópico 24')).toBeInTheDocument()
+    expect(screen.getByText('Tópico 0')).toBeInTheDocument()
+    expect(mockGetPosts).toHaveBeenLastCalledWith(20, 20, 'all')
+    expect(screen.queryByRole('button', { name: /Carregar mais/i })).not.toBeInTheDocument()
+  })
+
+  it('sem mais paginas, nao oferece carregar mais', async () => {
+    mockGetPosts.mockResolvedValue({ items: [POST], total: 1 })
+    renderPage()
+
+    await screen.findByText(POST.title)
+    expect(screen.queryByRole('button', { name: /Carregar mais/i })).not.toBeInTheDocument()
   })
 })
 

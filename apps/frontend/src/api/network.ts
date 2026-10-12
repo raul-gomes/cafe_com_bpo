@@ -45,8 +45,15 @@ export interface Skill {
   created_at?: string;
 }
 
-export const getPosts = async (limit = 10, offset = 0): Promise<PaginatedPosts> => {
-  const { data } = await apiClient.get('/network/posts', { params: { limit, offset } });
+/** Filtro do fórum, aplicado pelo servidor antes de paginar. */
+export type PostFilter = 'all' | 'mine' | 'answered';
+
+export const getPosts = async (
+  limit = 10,
+  offset = 0,
+  filter: PostFilter = 'all'
+): Promise<PaginatedPosts> => {
+  const { data } = await apiClient.get('/network/posts', { params: { limit, offset, filter } });
   return data;
 };
 
