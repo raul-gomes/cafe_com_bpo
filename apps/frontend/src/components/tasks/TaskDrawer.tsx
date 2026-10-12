@@ -5,7 +5,7 @@ import { Pencil, PencilOff, Trash2, Check, XCircle } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
-import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
+import { TaskResponse, TaskPhaseResponse, TaskUpdate } from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 import {
   Sheet,
@@ -58,7 +58,27 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
     }
   });
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<TaskFormData>();
+  const { register, handleSubmit, formState: { errors, dirtyFields }, reset } = useForm<TaskFormData>();
+
+  /**
+   * Fields the person actually changed, ready for PUT /tasks/{id}.
+   *
+   * An update sends only these: a field the form never received (e.g. the
+   * description of a task opened from the timeline, whose DTO is reduced)
+   * stays as stored instead of being overwritten with an empty value
+   * (AUD-007). A field the person emptied is sent as null, so clearing works.
+   *
+   * @param data Current form values.
+   * @returns The changed fields.
+   */
+  const changedFields = (data: TaskFormData): TaskUpdate => {
+    const changed: Record<string, unknown> = {};
+    for (const key of Object.keys(dirtyFields) as (keyof TaskFormData)[]) {
+      const value = data[key];
+      changed[key] = value === '' || (typeof value === 'number' && Number.isNaN(value)) ? null : value;
+    }
+    return changed as TaskUpdate;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -100,7 +120,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
         time_estimate_minutes: data.time_estimate_minutes || undefined,
       };
       if (task) {
-        await updateTask.mutateAsync({ id: task.id, ...submitData });
+        await updateTask.mutateAsync({ id: task.id, ...changedFields(data) });
       } else {
         await createTask.mutateAsync(submitData);
       }

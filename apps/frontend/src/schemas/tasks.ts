@@ -43,16 +43,17 @@ export interface TaskCreate {
   notes?: string;
 }
 
+/** Partial update: omitted fields stay as stored; null clears an optional field. */
 export interface TaskUpdate {
   title?: string;
-  description?: string;
+  description?: string | null;
   client_id?: string;
   priority?: string;
   process_type?: string;
-  deadline?: string;
+  deadline?: string | null;
   phase_id?: string;
-  time_estimate_minutes?: number;
-  notes?: string;
+  time_estimate_minutes?: number | null;
+  notes?: string | null;
 }
 
 export interface TaskPhaseResponse {

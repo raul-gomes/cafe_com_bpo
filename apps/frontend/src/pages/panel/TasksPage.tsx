@@ -244,6 +244,14 @@ export const TasksPage: React.FC = () => {
         setTaskModalOpen(true);
     };
 
+    // The timeline sends only an id (its DTO has no description/notes): the
+    // drawer opens the full task from the loaded list (AUD-007).
+    const handleEditTaskById = (taskId: string) => {
+        const full = tasksList.find(t => t.id === taskId);
+        if (full) handleEditTask(full);
+        else toast.error('Não foi possível abrir esta tarefa. Atualize a página e tente de novo.');
+    };
+
     // Use allTasks (with team tasks merged) when toggle is on
     const tasksList = useMemo(() => allTasks || tasks || [], [allTasks, tasks]);
 
@@ -625,7 +633,7 @@ export const TasksPage: React.FC = () => {
                                 conflicts={conflictsData?.conflicts || []}
                                 clients={clients || []}
                                 isLoading={timelineLoading}
-                                onEdit={handleEditTask}
+                                onEdit={handleEditTaskById}
                             />
                         </Card>
                     ) : (

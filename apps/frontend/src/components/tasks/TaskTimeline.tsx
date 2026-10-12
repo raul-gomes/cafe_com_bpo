@@ -1,5 +1,5 @@
 import React from 'react';
-import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
+import { TaskPhaseResponse } from '../../schemas/tasks';
 import { cn } from '../../lib/utils';
 import { AlertTriangle } from 'lucide-react';
 
@@ -11,7 +11,8 @@ type Props = {
   conflicts: { date: string; tasks: ConflictTaskItem[]; total_minutes: number }[];
   clients: any[];
   isLoading: boolean;
-  onEdit: (t: TaskResponse) => void;
+  /** Receives the id: the timeline DTO is reduced, so the page opens the full task. */
+  onEdit: (taskId: string) => void;
 };
 
 const TaskTimelineInner: React.FC<Props> = ({ timeline, conflicts, clients, isLoading, onEdit }) => {
@@ -78,7 +79,7 @@ const TaskTimelineInner: React.FC<Props> = ({ timeline, conflicts, clients, isLo
                   return (
                     <div
                       key={task.id}
-                      onClick={() => onEdit(task as TaskResponse)}
+                      onClick={() => onEdit(task.id)}
                       className="flex cursor-pointer items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12px] text-foreground transition-colors hover:brightness-110"
                       style={{
                         background: (client?.color || 'var(--ds-primary)') + '22',
