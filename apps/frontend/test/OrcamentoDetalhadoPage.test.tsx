@@ -74,6 +74,12 @@ vi.mock('../src/api/clients', () => ({
   getClients: mockGetClients,
 }))
 
+const mockGetProspects = vi.hoisted(() => vi.fn())
+
+vi.mock('../src/api/prospects', () => ({
+  getProspects: mockGetProspects,
+}))
+
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
 }))
@@ -112,6 +118,29 @@ describe('OrcamentoDetalhadoPage', () => {
         phone: '5511988887777',
       },
     ])
+    mockGetProspects.mockResolvedValue([])
+  })
+
+  it('sends to the linked prospect, not to a client with the same name (AUD-022)', async () => {
+    (_apiClient.get as ReturnType<typeof vi.fn>).mockResolvedValueOnce({
+      data: { ...mockProposal, company_id: 'prospect-1' },
+    })
+    mockGetProspects.mockResolvedValue([
+      { id: 'prospect-1', name: 'Empresa Exemplo', representante_email: 'lead@prospect.com.br' },
+    ])
+    renderPage()
+    await screen.findByRole('heading', { name: 'Empresa Exemplo' })
+
+    fireEvent.click(screen.getByText('E-mail'))
+    expect(await screen.findByText(/lead@prospect\.com\.br/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
+
+    await waitFor(() => {
+      expect(_apiClient.post).toHaveBeenCalledWith(
+        '/proposals/prop-1/send-email',
+        expect.objectContaining({ email: 'lead@prospect.com.br' })
+      )
+    })
   })
 
   it('sends email to the client registered email (regressão email)', async () => {
@@ -121,6 +150,7 @@ describe('OrcamentoDetalhadoPage', () => {
 
     const emailBtn = screen.getByText('E-mail')
     fireEvent.click(emailBtn)
+    fireEvent.click(await screen.findByRole('button', { name: 'Enviar' }))
 
     await waitFor(() => {
       expect(_apiClient.post).toHaveBeenCalledWith(

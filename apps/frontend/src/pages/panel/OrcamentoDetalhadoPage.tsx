@@ -6,6 +6,10 @@ import { serviceMonthlyValue } from '../../lib/pricingEngine';
 import logoAsset from '../../assets/logo.png';
 import { useAuth } from '../../context/AuthContext';
 import { getClients, ClientData } from '../../api/clients';
+import { getProspects } from '../../api/prospects';
+import type { ProspectData } from '../../schemas/prospects';
+import { resolveProposalContact } from '../../lib/proposalContact';
+import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { CLIENT_DECISION_LABELS, ClientDecision } from '../../api/proposals';
 import { generateShareLink, ShareLinkResponse } from '../../api/proposals';
 import { DealTimeline } from '../../components/governanca/DealTimeline';
@@ -21,6 +25,8 @@ interface Proposal {
   id: string;
   client_name: string;
   number?: number | null;
+  /** Company the proposal belongs to (client or prospect): the canonical link. */
+  company_id?: string | null;
   input_payload: any;
   result_payload: any;
   created_at: string;
@@ -44,21 +50,25 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const [proposal, setProposal] = useState<Proposal | null>(null);
   const [clients, setClients] = useState<ClientData[]>([]);
+  const [prospects, setProspects] = useState<ProspectData[]>([]);
   const [loading, setLoading] = useState(true);
   const [shareLink, setShareLink] = useState<ShareLinkResponse | null>(null);
   const navigate = useNavigate();
+  const confirm = useConfirm();
   const { user } = useAuth();
   const { generate: generatePDF, isGenerating, error: pdfError } = useGeneratePDF();
 
   const fetchData = useCallback(async () => {
     try {
       setLoading(true);
-      const [proposalResp, clientsResp] = await Promise.all([
+      const [proposalResp, clientsResp, prospectsResp] = await Promise.all([
         apiClient.get<Proposal>(`/proposals/${id}`),
         getClients(),
+        getProspects(),
       ]);
       setProposal(proposalResp.data);
       setClients(clientsResp);
+      setProspects(prospectsResp);
     } catch (err) {
       console.error('Erro ao carregar dados:', err);
     } finally {
@@ -127,20 +137,30 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
     }
   };
 
+  // The recipient comes from the proposal's company link (client or prospect),
+  // never from a name match, and is shown for confirmation before sending (AUD-022).
+  const recipient = proposal ? resolveProposalContact(proposal, clients, prospects) : null;
+
   const handleEmail = async () => {
     if (!proposal) return;
 
-    const client = clients.find(
-      c => c.name.trim().toLowerCase() === proposal.client_name.trim().toLowerCase()
-    );
-    const email = client?.email;
+    const email = recipient?.email;
 
     if (!email) {
       toast.error(
-        `Nenhum e-mail cadastrado para ${proposal.client_name}. Cadastre o contato em Meus Clientes.`
+        `Nenhum e-mail cadastrado para ${proposal.client_name}. Cadastre o contato no cadastro da empresa.`
       );
       return;
     }
+
+    const ok = await confirm({
+      title: 'Enviar orçamento por e-mail',
+      message: `Enviar o orçamento para ${recipient.name} (${email})?`,
+      confirmLabel: 'Enviar',
+      cancelLabel: 'Voltar',
+      variant: 'warning',
+    });
+    if (!ok) return;
 
     try {
       let shareUrl = shareLink?.url;
@@ -165,14 +185,11 @@ export const OrcamentoDetalhadoPage: React.FC = () => {
   const handleWhatsApp = async () => {
     if (!proposal) return;
 
-    const client = clients.find(
-      c => c.name.trim().toLowerCase() === proposal.client_name.trim().toLowerCase()
-    );
-    const phone = client?.phone;
+    const phone = recipient?.phone;
 
     if (!phone || phone.replace(/\D/g, '').length < 10) {
       toast.error(
-        `Nenhum telefone cadastrado para ${proposal.client_name}. Cadastre o contato em Meus Clientes.`
+        `Nenhum telefone cadastrado para ${proposal.client_name}. Cadastre o contato no cadastro da empresa.`
       );
       return;
     }
