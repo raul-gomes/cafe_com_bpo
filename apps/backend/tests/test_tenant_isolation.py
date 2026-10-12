@@ -191,3 +191,74 @@ class TestRoutineLinks:
         assert member_link.status_code == 201, member_link.text
         assert on_owner_link.status_code == 404
         assert on_own_link.status_code == 200, on_own_link.text
+
+
+class TestSLAs:
+    """AUD-002: SLAs belong to the company owner."""
+
+    def _sla(self, client, auth: dict, company_id: str) -> str:
+        """Creates a 2-day SLA and returns its id.
+
+        Args:
+            client: Test client.
+            auth: Authorization header of the owner.
+            company_id: Company id.
+
+        Returns:
+            The SLA id.
+        """
+        resp = client.post(
+            "/tasks/sla/",
+            json={"client_id": company_id, "process_type": "fiscal", "sla_days": 2},
+            headers=auth,
+        )
+        assert resp.status_code == 201, resp.text
+        return resp.json()["id"]
+
+    def test_outsider_cannot_read_change_or_delete_foreign_sla(self, client):
+        owner, outsider = _two_accounts(client)
+        company_id = _company(client, owner)
+        sla_id = self._sla(client, owner, company_id)
+
+        listed = client.get(f"/tasks/sla/?client_id={company_id}", headers=outsider)
+        changed = client.put(
+            f"/tasks/sla/{sla_id}", json={"sla_days": 999}, headers=outsider
+        )
+        deleted = client.delete(f"/tasks/sla/{sla_id}", headers=outsider)
+
+        assert (listed.status_code, changed.status_code, deleted.status_code) == (
+            404,
+            404,
+            404,
+        )
+        kept = client.get(f"/tasks/sla/?client_id={company_id}", headers=owner).json()
+        assert [(s["id"], s["sla_days"]) for s in kept] == [(sla_id, 2)]
+
+    def test_outsider_cannot_create_sla_on_foreign_company(self, client):
+        owner, outsider = _two_accounts(client)
+        company_id = _company(client, owner)
+
+        resp = client.post(
+            "/tasks/sla/",
+            json={"client_id": company_id, "process_type": "fiscal", "sla_days": 1},
+            headers=outsider,
+        )
+
+        assert resp.status_code == 404, resp.text
+        assert (
+            client.get(f"/tasks/sla/?client_id={company_id}", headers=owner).json()
+            == []
+        )
+
+    def test_owner_manages_own_sla(self, client):
+        owner, _ = _two_accounts(client)
+        company_id = _company(client, owner)
+        sla_id = self._sla(client, owner, company_id)
+
+        changed = client.put(
+            f"/tasks/sla/{sla_id}", json={"sla_days": 5}, headers=owner
+        )
+        deleted = client.delete(f"/tasks/sla/{sla_id}", headers=owner)
+
+        assert changed.status_code == 200 and changed.json()["sla_days"] == 5
+        assert deleted.status_code == 204

@@ -33,8 +33,23 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 def list_client_slas(
     client_id: UUID, service: SLAServiceDep, current_user: CurrentUserDep
 ):
-    """Lista as configurações de SLA de um cliente."""
-    return service.get_client_slas(client_id)
+    """Lists the SLAs of a company owned by the caller.
+
+    Args:
+        client_id: Company id.
+        service: The SLA service.
+        current_user: The caller.
+
+    Returns:
+        The SLAs.
+
+    Raises:
+        HTTPException: 404 when the company is not the caller's.
+    """
+    try:
+        return service.get_client_slas(client_id, current_user.id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
 
 @router.post(
@@ -43,8 +58,23 @@ def list_client_slas(
 def create_sla(
     sla_in: ClientSLACreate, service: SLAServiceDep, current_user: CurrentUserDep
 ):
-    """Cria configuração de SLA para um cliente."""
-    return service.create_sla(sla_in, current_user.id)
+    """Creates an SLA for a company owned by the caller.
+
+    Args:
+        sla_in: Company, process and days.
+        service: The SLA service.
+        current_user: The caller.
+
+    Returns:
+        The new SLA.
+
+    Raises:
+        HTTPException: 404 when the company is not the caller's.
+    """
+    try:
+        return service.create_sla(sla_in, current_user.id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
 
 @router.put("/sla/{sla_id}", response_model=ClientSLAResponse)
@@ -65,6 +95,6 @@ def update_sla(
 def delete_sla(sla_id: UUID, service: SLAServiceDep, current_user: CurrentUserDep):
     """Remove configuração de SLA."""
     try:
-        service.delete_sla(sla_id)
+        service.delete_sla(sla_id, current_user.id)
     except ValueError:
         raise HTTPException(status_code=404, detail="SLA não encontrado")
