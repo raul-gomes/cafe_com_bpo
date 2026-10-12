@@ -267,7 +267,22 @@ export const TasksPage: React.FC = () => {
         return tasksList.filter(t => t.client_id === clientFilter);
     }, [tasksList, clientFilter]);
 
-    const selectedClientName = (clients || []).find(c => c.id === clientFilter)?.name;
+    // Companies to identify and filter cards: the user's own plus the shared
+    // ones, which only come inside the authorized task DTOs (client_name and
+    // client_color) — the companies payload stays restricted to the owner (AUD-017).
+    const clientOptions = useMemo(() => {
+        const own = clients || [];
+        const known = new Set(own.map(c => c.id));
+        const shared: { id: string; name: string; color?: string }[] = [];
+        for (const task of [...(tasks || []), ...(teamTasks || [])]) {
+            if (known.has(task.client_id) || !task.client_name) continue;
+            known.add(task.client_id);
+            shared.push({ id: task.client_id, name: task.client_name, color: task.client_color });
+        }
+        return [...own, ...shared];
+    }, [clients, tasks, teamTasks]);
+
+    const selectedClientName = clientOptions.find(c => c.id === clientFilter)?.name;
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -532,7 +547,7 @@ export const TasksPage: React.FC = () => {
                                 Todos os clientes
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {(clients || []).map(c => (
+                            {clientOptions.map(c => (
                                 <DropdownMenuItem key={c.id} onClick={() => setClientFilter(c.id)}>
                                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color || '#94a3b8' }} />
                                     {c.name}
@@ -616,7 +631,7 @@ export const TasksPage: React.FC = () => {
                             </Card>
                         ) : (
                             <DragDropContext onDragEnd={handleDragEnd}>
-                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} currentUserId={user?.id} onEdit={handleEditTask}
+                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clientOptions} currentUserId={user?.id} onEdit={handleEditTask}
                                     getTaskStatus={getTaskStatus} columnSearch={columnSearch} setColumnSearch={setColumnSearch}
                                     onFinalize={(id) => {
                                         updateTaskStatus.mutate({ id, phase_id: doneColumnId });
@@ -629,14 +644,14 @@ export const TasksPage: React.FC = () => {
                             <TaskTimeline
                                 timeline={filteredTimeline?.timeline || []}
                                 conflicts={conflictsData?.conflicts || []}
-                                clients={clients || []}
+                                clients={clientOptions}
                                 isLoading={timelineLoading}
                                 onEdit={handleEditTaskById}
                             />
                         </Card>
                     ) : (
                         <Card className="p-6">
-                            <TaskCalendar tasks={clientFilteredTasks} clients={clients || []} onEdit={handleEditTask} isMacro={false} />
+                            <TaskCalendar tasks={clientFilteredTasks} clients={clientOptions} onEdit={handleEditTask} isMacro={false} />
                         </Card>
                     )}
                 </div>
@@ -650,7 +665,7 @@ export const TasksPage: React.FC = () => {
                                 <X size={14} />
                             </button>
                         </div>
-                        <TaskCalendar tasks={clientFilteredTasks} clients={clients || []} onEdit={handleEditTask} isMacro={true} />
+                        <TaskCalendar tasks={clientFilteredTasks} clients={clientOptions} onEdit={handleEditTask} isMacro={true} />
                     </Card>
                 )}
             </div>
