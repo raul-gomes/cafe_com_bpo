@@ -278,7 +278,12 @@ async def upload_avatar(
         service.user_repo.session.commit()
         log.info(f"🖼️ Avatar Cloudinary ativo: {db_user.email} | URL: {read_url}")
 
-        if old_avatar_file and old_avatar_file.provider_item_id:
+        # Never delete the file that was just activated (AUD-025).
+        if (
+            old_avatar_file
+            and old_avatar_file.provider_item_id
+            and old_avatar_file.provider_item_id != public_id
+        ):
             await CloudinaryService.delete_file(old_avatar_file.provider_item_id)
             old_avatar_file.status = "deleted"
             service.user_repo.session.commit()

@@ -105,13 +105,15 @@ class CloudinaryService:
         if not _cloudinary_configured():
             return _save_locally(content, user_id, folder)
         try:
-            timestamp = int(time.time())
-            public_id = f"{folder}_{timestamp}"
+            # Unique per upload, never overwritten (AUD-025): a seconds-based id
+            # collided for two uploads in the same second, the second replaced
+            # the first, and the cleanup of the "old" file deleted the new one.
+            public_id = f"{folder}_{int(time.time())}_{uuid.uuid4().hex[:12]}"
             upload_result = cloudinary.uploader.upload(
                 content,
                 folder=f"cafe_com_bpo/{folder}/{user_id}",
                 public_id=public_id,
-                overwrite=True,
+                overwrite=False,
                 resource_type=resource_type,
             )
 
@@ -124,19 +126,35 @@ class CloudinaryService:
             raise e
 
     @classmethod
-    async def delete_file(cls, public_id: str):
-        """
-        Remove um arquivo do Cloudinary.
+    async def delete_file(cls, public_id: str, resource_type: str = "image") -> bool:
+        """Removes a file from Cloudinary (or from local storage in development).
+
+        `destroy` defaults to images, so a raw file (PDF, spreadsheet) must be
+        destroyed with its resource type or it stays on the provider while the
+        row disappears (AUD-026). The provider answer is checked.
+
+        Args:
+            public_id: Provider id of the file.
+            resource_type: "image" (avatars, logos) or "raw" (documents).
+
+        Returns:
+            True when the file was removed.
         """
         if public_id.startswith("local:"):
             local_file = LOCAL_STORAGE_DIR / public_id.removeprefix("local:")
             local_file.unlink(missing_ok=True)
-            return
+            return True
         try:
-            cloudinary.uploader.destroy(public_id)
-            log.info(f"🗑️ Arquivo Cloudinary removido: {public_id}")
+            result = cloudinary.uploader.destroy(public_id, resource_type=resource_type)
         except Exception as e:
             log.error(f"❌ Erro ao deletar arquivo no Cloudinary: {e!s}")
+            return False
+        removed = isinstance(result, dict) and result.get("result") == "ok"
+        if removed:
+            log.info(f"🗑️ Arquivo Cloudinary removido: {public_id}")
+        else:
+            log.error(f"❌ Cloudinary não removeu {public_id}: {result}")
+        return removed
 
 
 class OneDriveService:
