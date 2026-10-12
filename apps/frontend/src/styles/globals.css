@@ -322,12 +322,6 @@ body[data-cafe-module] .cafe-command-tab { border-bottom-color: var(--cafe-modul
   border-bottom: 0;
   border-radius: 3px 3px 0 0;
 }
-.panel-module-plan {
-  margin: -2px 12px 8px;
-  font-size: 0.75rem;
-  line-height: 1.4;
-  color: var(--cafe-muted);
-}
 /* Cadeado de item (ex.: Pagamentos) — mesmo desenho do cadeado das abas, em linha. */
 .panel-item-lock { position: relative; display: inline-block; width: 10px; height: 8px; margin-top: 4px; border: 1.4px solid currentColor; border-radius: 2px; opacity: 0.55; }
 .panel-item-lock::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 6px; height: 4px; transform: translateX(-50%); border: 1.4px solid currentColor; border-bottom: 0; border-radius: 3px 3px 0 0; }

@@ -121,3 +121,31 @@
 .pub-nav-icon:focus-visible { outline: 3px solid var(--cafe-brand-yellow); outline-offset: 2px; }
 .pub-nav-icon svg { width: 22px; height: 22px; }
 button.pub-nav-icon { background: transparent; border: 0; cursor: pointer; padding: 0; }
+
+/* Public footer: Saint Joseph seal (patron of Café com BPO) centered and small,
+   then the footer information. The seal is a mask painted with the text color. */
+.pub-footer {
+  display: grid;
+  justify-items: center;
+  gap: 14px;
+  padding: 36px clamp(16px, 5vw, 64px) 32px;
+  text-align: center;
+  color: var(--cafe-muted);
+  border-top: 1px solid var(--cafe-line);
+  background: var(--cafe-canvas);
+  position: relative;
+  z-index: 40;
+}
+.pub-footer-seal {
+  width: 48px;
+  height: 48px;
+  background: currentColor;
+  opacity: 0.8;
+  -webkit-mask: url('/brand/selo-sao-jose.png') center / contain no-repeat;
+  mask: url('/brand/selo-sao-jose.png') center / contain no-repeat;
+}
+.pub-footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px 22px; font-size: 0.9375rem; font-weight: 600; }
+.pub-footer-links a { color: var(--cafe-ink-soft); text-decoration: none; }
+.pub-footer-links a:hover { color: var(--cafe-ink); text-decoration: underline; }
+.pub-footer-legal { font-size: 0.8125rem; line-height: 1.6; max-width: 70ch; }
+.pub-footer-legal a { color: inherit; }

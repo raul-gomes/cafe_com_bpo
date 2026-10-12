@@ -7,12 +7,12 @@ export const POLITICA_PRIVACIDADE_HTML = `
 <h1>Política de Privacidade do Café com BPO</h1>
 <p><em>Última atualização: 11 de outubro de 2026</em></p>
 
-<p>Esta Política explica quais dados pessoais o Café com BPO trata, para quê, com quem compartilha, por quanto tempo guarda e como você exerce os seus direitos. Ela segue a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD), o Marco Civil da Internet (Lei nº 12.965/2014) e o Código de Defesa do Consumidor. Se algo não ficar claro, pergunte: <strong>cafe@cafecombpo.com.br</strong>.</p>
+<p>Esta Política explica quais dados pessoais o Café com BPO trata, para quê, com quem compartilha, por quanto tempo guarda e como você exerce os seus direitos. Ela segue a Lei Geral de Proteção de Dados (Lei nº 13.709/2018 — LGPD), o Marco Civil da Internet (Lei nº 12.965/2014) e o Código de Defesa do Consumidor. Se algo não ficar claro, pergunte: <strong>falarcom@cafecombpo.com</strong>.</p>
 
 <h2>1. Quem é o responsável</h2>
 <ol>
   <li>O controlador dos dados tratados para fazer a Plataforma funcionar (sua conta, sua assinatura, sua participação na comunidade e nos encontros) é a <strong>Castellum Financial Soluções Integradas Ltda.</strong>, inscrita no CNPJ sob o nº <strong>52.317.042/0001-54</strong>, com sede na Avenida Brigadeiro Faria Lima, 1572, conjunto 22, sala 1022, Jardim Paulistano, São Paulo/SP, CEP 01451-917, titular da marca e do projeto Café com BPO.</li>
-  <li><strong>Encarregado pelo tratamento de dados (DPO):</strong> enquanto não houver nomeação específica divulgada nesta página, o canal do encarregado é <strong>cafe@cafecombpo.com.br</strong>.</li>
+  <li><strong>Encarregado pelo tratamento de dados (DPO):</strong> enquanto não houver nomeação específica divulgada nesta página, o canal do encarregado é <strong>falarcom@cafecombpo.com</strong>.</li>
   <li><strong>Atenção a um papel diferente:</strong> quando você, operador de BPO, cadastra dados dos seus clientes, prospectos e contatos, <strong>você é o controlador</strong> desses dados e o Café com BPO é o <strong>operador</strong> (item 6).</li>
 </ol>
 
@@ -75,6 +75,7 @@ export const POLITICA_PRIVACIDADE_HTML = `
   <li><strong>Segurança:</strong> prevenir fraude, limitar tentativas repetidas (por IP), investigar incidentes e proteger contas — legítimo interesse e prevenção à fraude (art. 7º, IX, e art. 11, II, "g").</li>
   <li><strong>Inscrição Beta:</strong> avaliar inscrições, chamar Betas e falar com você sobre o programa — consentimento (art. 7º, I), que você pode retirar quando quiser.</li>
   <li><strong>Comunidade e encontros:</strong> exibir o seu perfil e as suas publicações aos demais membros, enviar links dos cafés, gravar e disponibilizar encontros — execução de contrato e consentimento, conforme o caso.</li>
+  <li><strong>Publicidade nas páginas públicas</strong> (Google AdSense), que ajuda a manter o projeto: anúncios personalizados dependem do seu consentimento (art. 7º, I); você pode recusá-los a qualquer momento nas configurações do Google.</li>
   <li><strong>Melhorar a Plataforma:</strong> entender como as funcionalidades são usadas, corrigir erros e decidir prioridades, preferencialmente com dados agregados ou anonimizados — legítimo interesse.</li>
   <li><strong>Comunicações:</strong> avisos de segurança, cobrança e mudanças nos Termos (sempre); novidades e conteúdos do Café (você pode descadastrar a qualquer momento) — execução de contrato e legítimo interesse ou consentimento, conforme o caso.</li>
   <li><strong>Defender direitos</strong> em processos judiciais, administrativos ou arbitrais — exercício regular de direitos (art. 7º, VI).</li>
@@ -102,7 +103,7 @@ export const POLITICA_PRIVACIDADE_HTML = `
   <li><strong>Pagamentos</strong> (Asaas Gestão Financeira): cobrança e gestão da assinatura;</li>
   <li><strong>E-mail transacional</strong> (Resend): envio de e-mails de conta, avisos, propostas e entregas;</li>
   <li><strong>Armazenamento de imagens</strong> (Cloudinary), quando utilizado: fotos e logotipos;</li>
-  <li><strong>Google</strong>: integração com o Google Agenda e login com Google, quando você ativar; Google Meet nos encontros;</li>
+  <li><strong>Google</strong>: integração com o Google Agenda e login com Google, quando você ativar; Google Meet nos encontros; Google AdSense, que exibe anúncios nas páginas públicas e recebe dados de navegação (como endereço IP, identificadores de cookie e páginas visitadas);</li>
   <li><strong>Canais de divulgação</strong> (WhatsApp, YouTube, LinkedIn): onde publicamos os links dos encontros e as gravações; o que você faz nesses canais segue as políticas deles;</li>
   <li><strong>Outros membros:</strong> o seu perfil público, publicações e projetos ficam visíveis à comunidade; conversas privadas, só a quem participa delas; membros de equipe veem o que você compartilha com eles;</li>
   <li><strong>Pessoas a quem você envia algo:</strong> clientes que recebem uma proposta por link, e-mail ou WhatsApp veem o conteúdo dela;</li>
@@ -121,12 +122,13 @@ export const POLITICA_PRIVACIDADE_HTML = `
 </ul>
 
 <h2>9. Cookies e armazenamento no navegador</h2>
-<p>Usamos o mínimo necessário e não usamos cookies de publicidade:</p>
+<p>Usamos o mínimo necessário para o site funcionar e, nas páginas públicas, cookies de publicidade do Google AdSense:</p>
 <ul>
   <li><strong>Cookie de sessão</strong> (essencial, protegido contra leitura por scripts): mantém você conectado de forma segura;</li>
   <li><strong>Preferências locais</strong>: modo claro ou escuro, estado do menu lateral e módulo em que você estava;</li>
   <li><strong>Simulação de Precificação</strong>: guardada temporariamente no navegador até você entrar na conta, para não perder o cálculo;</li>
   <li><strong>Avisos</strong>: lembrança de que você fechou um aviso durante a visita.</li>
+  <li><strong>Publicidade (Google AdSense)</strong>: o Google e seus parceiros podem usar cookies e identificadores para exibir anúncios, inclusive personalizados com base nas suas visitas a este e a outros sites, e para medir esses anúncios. Você pode desativar a personalização em <strong>adssettings.google.com</strong> e saber mais em <strong>policies.google.com/technologies/ads</strong>. Não exibimos anúncios dentro do painel da ferramenta.</li>
 </ul>
 <p>Você pode apagar esses dados nas configurações do navegador. Apagar o cookie de sessão encerra o seu login.</p>
 
@@ -138,7 +140,7 @@ export const POLITICA_PRIVACIDADE_HTML = `
 </ol>
 
 <h2>11. Transferência internacional</h2>
-<p>Alguns parceiros (como Resend, Cloudinary e Google) processam dados em servidores fora do Brasil. Nesses casos, a transferência ocorre com as salvaguardas do art. 33 da LGPD, como cláusulas contratuais de proteção de dados e o compromisso do parceiro com padrões de segurança equivalentes.</p>
+<p>Alguns parceiros (como Resend, Cloudinary e Google, inclusive o Google AdSense) processam dados em servidores fora do Brasil. Nesses casos, a transferência ocorre com as salvaguardas do art. 33 da LGPD, como cláusulas contratuais de proteção de dados e o compromisso do parceiro com padrões de segurança equivalentes.</p>
 
 <h2>12. Seus direitos</h2>
 <p>Você pode, a qualquer momento e sem custo:</p>
@@ -154,7 +156,7 @@ export const POLITICA_PRIVACIDADE_HTML = `
   <li>opor-se a tratamento feito com base no legítimo interesse, quando houver descumprimento da lei;</li>
   <li>apresentar reclamação à ANPD (gov.br/anpd).</li>
 </ul>
-<p>Para exercer os seus direitos, escreva para <strong>cafe@cafecombpo.com.br</strong> a partir do e-mail cadastrado. Podemos pedir uma confirmação de identidade para proteger você. Respondemos em até 15 dias. Pedidos sobre dados de clientes cadastrados por um usuário serão encaminhados a esse usuário, que é o controlador.</p>
+<p>Para exercer os seus direitos, escreva para <strong>falarcom@cafecombpo.com</strong> a partir do e-mail cadastrado. Podemos pedir uma confirmação de identidade para proteger você. Respondemos em até 15 dias. Pedidos sobre dados de clientes cadastrados por um usuário serão encaminhados a esse usuário, que é o controlador.</p>
 
 <h2>13. Crianças e adolescentes</h2>
 <p>A Plataforma é destinada a maiores de 18 anos. Não coletamos intencionalmente dados de crianças e adolescentes. Se identificarmos esse tipo de dado sem base legal adequada, vamos eliminá-lo.</p>
@@ -163,5 +165,5 @@ export const POLITICA_PRIVACIDADE_HTML = `
 <p>Esta Política pode mudar para acompanhar a Plataforma e a lei. A versão vigente fica sempre nesta página, com a data da última atualização, e mudanças relevantes serão avisadas por e-mail ou dentro da Plataforma antes de valerem.</p>
 
 <h2>15. Fale com a gente</h2>
-<p>Dúvidas, pedidos ou reclamações sobre privacidade: <strong>cafe@cafecombpo.com.br</strong>. Leia também os <a href="/termos-de-uso">Termos de Uso</a>.</p>
+<p>Dúvidas, pedidos ou reclamações sobre privacidade: <strong>falarcom@cafecombpo.com</strong>. Leia também os <a href="/termos-de-uso">Termos de Uso</a>.</p>
 `.trim();

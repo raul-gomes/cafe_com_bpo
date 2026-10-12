@@ -6,6 +6,7 @@ import { CANAIS_CAFE, HORARIO_CAFE, proximoCafeAberto } from '../components/home
 import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
 import './home.css';
 import { usePageMeta } from '../lib/seo';
+import { PublicFooter } from '../components/home/PublicFooter';
 
 /** Agenda dos cafés: encontros abertos (última quarta do mês) e o café dos Betas (toda quarta). */
 const CafesPage: React.FC = () => {
@@ -94,10 +95,7 @@ const CafesPage: React.FC = () => {
         </section>
       </main>
 
-      <footer className="hb-footer">
-        <span>© {new Date().getFullYear()} Café com BPO</span>
-        <Link to="/" className="hb-footer-link">Voltar ao início</Link>
-      </footer>
+      <PublicFooter />
     </div>
   );
 };

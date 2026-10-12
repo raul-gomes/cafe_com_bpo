@@ -34,9 +34,13 @@
     <link rel="canonical" href="https://cafecombpo.cloud/" />
     <link rel="manifest" href="/site.webmanifest" />
     <link rel="apple-touch-icon" href="/favicon.png" />
-    <!-- Google Search Console: cole aqui a meta de verificação que o Google gerar
-         (ou verifique pelo DNS, que é o recomendado). Ex.:
-         <meta name="google-site-verification" content="CODIGO_DO_GOOGLE" /> -->
+    <!-- Google Search Console: site ownership check (URL-prefix property).
+         The Domain property is verified by the DNS TXT record instead — see GUIA-GOOGLE.md. -->
+    <meta name="google-site-verification" content="4j7u8YoCDlsVS1HQfK1KmFD2Mgdx3mYkASyg9YsIJC8" />
+    <!-- Google AdSense (publisher ca-pub-9822124118535028). Must stay in the page head:
+         AdSense looks for it here to verify the site. Ads only show after they are
+         set up in the AdSense dashboard; exclude /painel there (see GUIA-GOOGLE.md). -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9822124118535028" crossorigin="anonymous"></script>
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Café com BPO" />
     <meta property="og:locale" content="pt_BR" />
@@ -64,7 +68,7 @@
             "taxID": "52.317.042/0001-54",
             "url": "https://cafecombpo.cloud/",
             "logo": "https://cafecombpo.cloud/favicon.png",
-            "email": "cafe@cafecombpo.com.br",
+            "email": "falarcom@cafecombpo.com",
             "address": {
               "@type": "PostalAddress",
               "streetAddress": "Avenida Brigadeiro Faria Lima, 1572, conjunto 22, sala 1022",

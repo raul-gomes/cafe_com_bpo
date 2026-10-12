@@ -25,8 +25,6 @@ export interface NavSection {
   items: NavItem[];
 }
 
-/** Preço da assinatura que libera os módulos só-leitura do plano gratuito. */
-export const PRECO_ASSINATURA = 'R$ 27,90/mês';
 
 /** Início fica fora dos módulos: é o ponto de partida do dia. */
 export const HOME_ITEM: NavItem = { path: '/painel', icon: 'inicio', label: 'Início' };

@@ -8,6 +8,7 @@ import { Navbar } from '../components/ui/Navbar';
 import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
 import './home.css';
 import { usePageMeta } from '../lib/seo';
+import { PublicFooter } from '../components/home/PublicFooter';
 
 /** O que estamos construindo: o formato do que dá para alcançar, sem dizer "onde". */
 const CONSTRUINDO: { icon: CafeIconName; titulo: string; texto: string }[] = [
@@ -200,10 +201,7 @@ const HomePage: React.FC = () => {
         </section>
       </main>
 
-      <footer className="hb-footer">
-        <span>© {new Date().getFullYear()} Café com BPO</span>
-        <Link to="/cafes" className="hb-footer-link">Agenda dos cafés</Link>
-      </footer>
+      <PublicFooter />
 
       <CafeBanner />
       <ModalNosAjude isOpen={colaboreOpen} onClose={() => setColaboreOpen(false)} />

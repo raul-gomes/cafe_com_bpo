@@ -6,6 +6,7 @@ import { POLITICA_PRIVACIDADE_HTML } from '../content/politica-privacidade';
 import { usePageMeta } from '../lib/seo';
 import { RichText } from '../components/ui/RichText';
 import './home.css';
+import { PublicFooter } from '../components/home/PublicFooter';
 
 const DOCUMENTOS = {
   termos: { titulo: 'Termos de Uso', html: TERMOS_USO_HTML },
@@ -53,6 +54,7 @@ const LegalPage: React.FC<LegalPageProps> = ({ documento }) => {
           <Link to="/" className="hb-link">Voltar ao início</Link>
         </nav>
       </main>
+      <PublicFooter />
     </div>
   );
 };

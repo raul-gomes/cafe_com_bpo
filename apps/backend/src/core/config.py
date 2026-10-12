@@ -76,7 +76,7 @@ class Settings(BaseSettings):
     google_calendar_redirect_uri: str = "http://localhost:3000/calendar/callback"
 
     # Support / Feedback
-    support_email: str = "cafe@cafecombpo.com.br"
+    support_email: str = "falarcom@cafecombpo.com"
     # Destinatário dedicado do "Reportar Erro" (fallback: support_email)
     feedback_email: str = ""
 

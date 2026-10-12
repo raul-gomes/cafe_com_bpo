@@ -5,6 +5,7 @@ import { CafeIcon, type CafeIconName } from '../brand/CafeIcon';
 import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
 import './home.css';
 import { usePageMeta } from '../lib/seo';
+import { PublicFooter } from '../components/home/PublicFooter';
 
 interface Produto {
   icon: CafeIconName;
@@ -80,10 +81,7 @@ const ProdutosPage: React.FC = () => {
       </section>
     </main>
 
-    <footer className="hb-footer">
-      <span>© {new Date().getFullYear()} Café com BPO</span>
-      <Link to="/" className="hb-footer-link">Voltar ao início</Link>
-    </footer>
+    <PublicFooter />
   </div>
   );
 };

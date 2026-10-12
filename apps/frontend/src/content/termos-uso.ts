@@ -11,7 +11,7 @@ export const TERMOS_USO_HTML = `
 <h2>1. Quem somos</h2>
 <ol>
   <li>A plataforma Café com BPO é mantida por a <strong>Castellum Financial Soluções Integradas Ltda.</strong>, inscrita no CNPJ sob o nº <strong>52.317.042/0001-54</strong>, com sede na Avenida Brigadeiro Faria Lima, 1572, conjunto 22, sala 1022, Jardim Paulistano, São Paulo/SP, CEP 01451-917, titular da marca e do projeto Café com BPO (doravante "Café com BPO", "nós").</li>
-  <li>Canal oficial de contato para qualquer assunto destes Termos: <strong>cafe@cafecombpo.com.br</strong>.</li>
+  <li>Canal oficial de contato para qualquer assunto destes Termos: <strong>falarcom@cafecombpo.com</strong>.</li>
   <li>O Café com BPO é um movimento, uma comunidade e uma plataforma feita por quem opera BPO financeiro. Nada nestes Termos transforma o Café com BPO em sócio, contador, consultor jurídico, consultor tributário ou prestador de serviços de BPO para você ou para os seus clientes.</li>
 </ol>
 
@@ -177,6 +177,6 @@ export const TERMOS_USO_HTML = `
 <ol>
   <li>Estes Termos são regidos pelas leis brasileiras.</li>
   <li>Fica eleito o foro da comarca de São Paulo/SP para resolver controvérsias, ressalvado ao consumidor o direito de propor ação no foro do seu domicílio.</li>
-  <li>Antes de qualquer medida, fale com a gente: <strong>cafe@cafecombpo.com.br</strong>. A maioria das coisas se resolve num bom café.</li>
+  <li>Antes de qualquer medida, fale com a gente: <strong>falarcom@cafecombpo.com</strong>. A maioria das coisas se resolve num bom café.</li>
 </ol>
 `.trim();
