@@ -7,33 +7,37 @@ from src.core.database import Base
 
 
 def _now() -> datetime:
+    """Current instant in UTC, with microseconds (keeps close signups ordered).
+
+    Returns:
+        The current UTC datetime.
+    """
     return datetime.now(UTC)
 
 
 class BetaSignup(Base):
-    """Inscrição de quem quer ser Beta (captação da página inicial).
+    """A person who wants to be a Beta tester (landing page signup).
 
-    Não é usuário do sistema: é a lista de interessados que o time usa para
-    convidar Betas. Um registro por e-mail (normalizado em minúsculas); uma
-    nova inscrição com o mesmo e-mail atualiza os dados.
+    Not a platform user: it is the waiting list the team reads to invite Betas.
+    One row per e-mail (stored lowercase); signing up again with the same
+    e-mail updates the row.
     """
 
     __tablename__ = "beta_signups"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    nome = Column(String(120), nullable=False)
+    name = Column(String(120), nullable=False)
     email = Column(String(255), nullable=False, unique=True, index=True)
     whatsapp = Column(String(20), nullable=True)
-    # comecando | crescendo | escritorio_contabil | outro
-    perfil = Column(String(30), nullable=False)
+    # starting | growing | accounting_office | other
+    profile = Column(String(30), nullable=False)
     # 0 | 1-5 | 6-15 | 16-30 | 30+
-    faixa_clientes = Column(String(10), nullable=False)
-    desafio = Column(Text, nullable=True)
-    # Página/campanha de origem (ex.: "home"), para medir a captação.
-    origem = Column(String(100), nullable=True)
-    consentimento_em = Column(DateTime(timezone=True), nullable=False)
+    client_range = Column(String(10), nullable=False)
+    challenge = Column(Text, nullable=True)
+    # Page or campaign the signup came from (e.g. "home"), to measure acquisition.
+    source = Column(String(100), nullable=True)
+    consented_at = Column(DateTime(timezone=True), nullable=False)
 
-    # Default no Python (microssegundos) mantém a ordem estável entre inscrições próximas.
     created_at = Column(
         DateTime(timezone=True), default=_now, server_default=func.now(), nullable=False
     )

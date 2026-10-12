@@ -1,56 +1,61 @@
 import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Link } from 'react-router-dom';
 import { CafeIcon } from '../../brand/CafeIcon';
-import { HORARIO_CAFE, proximoCafeAberto } from './cafes';
+import { CAFE_TIME, nextOpenCafe } from './cafes';
 
 /*
- * Fechar o banner vale só enquanto a página está aberta: ao atualizar a página
- * ele volta, e clicar no logo do topo também o traz de volta (reabrirBannerCafe).
+ * Closing the banner only lasts while the page is open: a reload brings it
+ * back, and so does clicking the header logo (reopenCafeBanner).
  */
-let fechado = false;
+let closed = false;
 const listeners = new Set<() => void>();
-const avisar = () => listeners.forEach(listener => listener());
+const notify = () => listeners.forEach(listener => listener());
 const subscribe = (listener: () => void) => {
   listeners.add(listener);
   return () => listeners.delete(listener);
 };
 
+/** Shows the next-café banner again (used by the header logo). */
 // eslint-disable-next-line react-refresh/only-export-components
-export function reabrirBannerCafe(): void {
-  fechado = false;
-  avisar();
+export function reopenCafeBanner(): void {
+  closed = false;
+  notify();
 }
 
-function fecharBanner(): void {
-  fechado = true;
-  avisar();
+function closeBanner(): void {
+  closed = true;
+  notify();
 }
 
-/** Banner flutuante (canto da tela) chamando para o próximo café aberto. */
+/**
+ * Floating banner (screen corner) inviting people to the next open café.
+ *
+ * @returns The banner, or nothing while hidden.
+ */
 export const CafeBanner: React.FC = () => {
-  const estaFechado = useSyncExternalStore(subscribe, () => fechado, () => fechado);
-  const [pronto, setPronto] = useState(false);
+  const isClosed = useSyncExternalStore(subscribe, () => closed, () => closed);
+  const [ready, setReady] = useState(false);
 
-  // Entra um pouco depois da página, para não competir com a abertura.
+  // Comes in a little after the page, so it does not compete with the hero.
   useEffect(() => {
-    const timer = window.setTimeout(() => setPronto(true), 1800);
+    const timer = window.setTimeout(() => setReady(true), 1800);
     return () => window.clearTimeout(timer);
   }, []);
 
-  if (!pronto || estaFechado) return null;
+  if (!ready || isClosed) return null;
 
-  const data = proximoCafeAberto(new Date()).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
+  const date = nextOpenCafe(new Date()).toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' });
 
   return (
     <aside className="cafe-banner" aria-label="Próximo café">
-      <button type="button" className="cafe-banner-fechar" onClick={fecharBanner} aria-label="Fechar aviso">
+      <button type="button" className="cafe-banner-close" onClick={closeBanner} aria-label="Fechar aviso">
         <CafeIcon name="fechar" className="size-[18px]" />
       </button>
-      <span className="cafe-banner-icone" aria-hidden="true"><CafeIcon name="xicara" /></span>
+      <span className="cafe-banner-icon" aria-hidden="true"><CafeIcon name="xicara" /></span>
       <div>
         <p className="cafe-banner-kicker">Participe do próximo café</p>
-        <p className="cafe-banner-texto">
-          Encontro aberto no Meet: <strong>{data}, às {HORARIO_CAFE}</strong>.
+        <p className="cafe-banner-text">
+          Encontro aberto no Meet: <strong>{date}, às {CAFE_TIME}</strong>.
         </p>
         <Link to="/cafes" className="cafe-banner-link">
           Ver agenda dos cafés <CafeIcon name="expandir" className="size-[16px]" />

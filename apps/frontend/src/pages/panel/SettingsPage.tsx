@@ -10,8 +10,13 @@ const TABS = [
 ] as const;
 type TabId = (typeof TABS)[number]['id'];
 
-/** Gestão › Configurações: perfil (mesma tela de /painel/perfil) e aparência. */
-export const ConfiguracoesPage: React.FC = () => {
+/**
+ * Gestão › Configurações: profile (same screen as /painel/perfil) and
+ * appearance. The `aba` query param (product vocabulary) selects the tab.
+ *
+ * @returns The page.
+ */
+export const SettingsPage: React.FC = () => {
   const [params, setParams] = useSearchParams();
   const tab: TabId = params.get('aba') === 'aparencia' ? 'aparencia' : 'perfil';
 
@@ -42,8 +47,8 @@ export const ConfiguracoesPage: React.FC = () => {
       {tab === 'perfil' ? (
         <PerfilPage />
       ) : (
-        <section aria-labelledby="aparencia-titulo" className="rounded-lg border border-border bg-card p-[clamp(20px,3vw,32px)]">
-          <h2 id="aparencia-titulo" className="text-lg font-bold text-foreground">Aparência</h2>
+        <section aria-labelledby="appearance-title" className="rounded-lg border border-border bg-card p-[clamp(20px,3vw,32px)]">
+          <h2 id="appearance-title" className="text-lg font-bold text-foreground">Aparência</h2>
           <p className="mb-[20px] mt-[4px] text-[0.9375rem] text-muted-foreground">
             O claro é o padrão do Café; o escuro descansa a vista à noite. Em qualquer um, cada módulo
             mantém a sua cor nos detalhes. A escolha fica salva neste navegador.

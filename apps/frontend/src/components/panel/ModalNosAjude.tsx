@@ -9,7 +9,11 @@ interface ModalNosAjudeProps {
   onClose: () => void;
 }
 
-/** "Colabore": convite para fazer parte (não pedido de ajuda), com PIX. */
+/**
+ * "Colabore": an invitation to be part of it (not a plea for help), with PIX.
+ *
+ * @returns The dialog, or nothing while closed.
+ */
 export const ModalNosAjude: React.FC<ModalNosAjudeProps> = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
   const [payloadCopied, setPayloadCopied] = useState(false);
@@ -65,7 +69,7 @@ export const ModalNosAjude: React.FC<ModalNosAjudeProps> = ({ isOpen, onClose })
 
         {PIX_KEY ? (
           <div className="mt-[22px] flex gap-[16px] rounded-md border border-border bg-muted p-[16px] max-[420px]:flex-col">
-            {/* QR pequeno, sobre branco (leitura do app do banco), com o código "copia e cola". */}
+            {/* Small QR on white (bank apps read it best), plus the "copia e cola" code. */}
             <div className="shrink-0 self-start rounded-sm bg-white p-[8px]">
               <QRCodeSVG value={pixPayload} size={104} level="M" title="QR Code PIX do Café com BPO" />
             </div>

@@ -12,7 +12,7 @@ import { useConfirm } from '../../components/ui/ConfirmDialog';
 import { RoutineDrawer } from '../../components/tasks/RoutineDrawer';
 import { Card, CardContent } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { FichaButton } from '../../components/ui/ficha-button';
+import { FolderTabButton } from '../../components/ui/folder-tab-button';
 import { Input } from '../../components/ui/input';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Badge } from '../../components/ui/badge';
@@ -196,9 +196,9 @@ export const TemplateListPage: React.FC = () => {
               <Globe size={16} /> Rotina Geral
             </Button>
           )}
-          <FichaButton onClick={() => { setCreateAsGeneral(false); setShowCreate(true); }}>
+          <FolderTabButton onClick={() => { setCreateAsGeneral(false); setShowCreate(true); }}>
             <Plus size={16} /> Nova Rotina
-          </FichaButton>
+          </FolderTabButton>
         </div>
       </div>
 

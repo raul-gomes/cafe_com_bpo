@@ -14,13 +14,17 @@ import {
 } from '../ui/dropdown-menu';
 
 interface PanelTopBarProps {
-  /** Nome da área atual (null no Início). */
+  /** Name of the current area (null on Home). */
   sectionLabel: string | null;
   onOpenMobileNav: () => void;
   mobileNavOpen: boolean;
 }
 
-/** Barra fina do topo: onde estou, avisos e conta — o perfil saiu da lateral. */
+/**
+ * Thin top bar: where I am, notifications and account — the profile left the side menu.
+ *
+ * @returns The top bar.
+ */
 export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMobileNav, mobileNavOpen }) => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
@@ -33,7 +37,7 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
 
   return (
     <header className="panel-topbar relative flex h-[60px] shrink-0 items-center gap-[12px] border-b border-border bg-card px-[clamp(16px,3vw,40px)]">
-      {/* Faixa do módulo: corre da esquerda para a direita a cada troca de área. */}
+      {/* Module stripe: runs left to right on every area change. */}
       <span
         key={sectionLabel ?? 'inicio'}
         className="panel-module-stripe pointer-events-none absolute inset-x-0 -bottom-px h-[3px] bg-module"
@@ -78,7 +82,7 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
 
         <NotificationBell />
 
-        {/* Foto e nome levam direto ao perfil; a seta ao lado abre o menu da conta. */}
+        {/* Photo and name go straight to the profile; the arrow beside opens the account menu. */}
         <div className="flex items-center rounded-full transition-colors hover:bg-accent/60">
           <Link
             to="/painel/perfil"

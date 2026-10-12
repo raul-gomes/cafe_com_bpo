@@ -10,20 +10,22 @@ import { HOME_ITEM, NAV_SECTIONS, activeItemPath, type NavItem, type NavSection 
 import { cn } from '../../lib/utils';
 
 interface PanelSidebarProps {
-  /** Módulo de trabalho mostrado no menu (o último escolhido, também no Início). */
+  /** Work module shown in the menu (the last one chosen, also on Home). */
   activeSection: NavSection;
-  /** Se a tela atual pertence a um módulo (fora dele, o logo fica na cor oficial). */
+  /** Whether the current screen belongs to a module (outside one, the logo keeps its official color). */
   inModule: boolean;
   onSelectSection: (section: NavSection) => void;
-  /** Chamado ao navegar (fecha a gaveta no celular). */
+  /** Called on navigation (closes the mobile drawer). */
   onNavigate?: () => void;
 }
 
 /**
- * Menu do painel: um módulo de trabalho por vez. As abas no topo trocam o
- * módulo e se reorganizam em linhas quando houver mais módulos; a lista abaixo
- * é só daquele módulo e termina com as ações de conta, rolando junto.
- * Largura (completo / só ícones / retraído) vem do PanelLayout.
+ * Panel menu: one work module at a time. The tabs on top switch the module and
+ * wrap into rows as more modules arrive; the list below belongs to that module
+ * only and ends with the account actions, scrolling along. Width (full / icons
+ * only / hidden) comes from PanelLayout.
+ *
+ * @returns The menu.
  */
 export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inModule, onSelectSection, onNavigate }) => {
   const { user, logout } = useAuth();
@@ -33,15 +35,15 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
   const [showReportModal, setShowReportModal] = useState(false);
 
   const { data: access } = useAccess();
-  // Write gate do plano (GET /access): no gratuito, "captar" e "gestao" ficam só para ver.
-  // O cadeado é informativo — navegar continua livre; o servidor bloqueia a escrita.
+  // Plan write gate (GET /access): on the free plan "captar" and "gestao" are view-only.
+  // The lock is informative — navigation stays open; the server blocks the write.
   const readOnly = new Set(access?.read_only_modules ?? []);
   const isAdmin = user?.role === 'admin';
   const sections = NAV_SECTIONS.filter(section => !section.adminOnly || isAdmin);
 
   const selectSection = (section: NavSection) => {
     onSelectSection(section);
-    // Entrar num módulo leva à primeira área dele.
+    // Entering a module opens its first area.
     if (section.items.length > 0) {
       navigate(section.items[0].path);
       onNavigate?.();
@@ -73,7 +75,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
   return (
     <>
       <aside className="cafe-rail panel-rail flex h-full min-h-0 flex-col" aria-label="Menu do painel">
-        {/* O café leva ao painel principal: a visão macro do dia e da empresa. */}
+        {/* The café logo opens the main panel: the macro view of the day and the business. */}
         <Link
           to={HOME_ITEM.path}
           onClick={onNavigate}
@@ -87,7 +89,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
           </span>
         </Link>
 
-        {/* Abas dos módulos: quebram em linhas sozinhas quando entrarem novos. */}
+        {/* Module tabs: they wrap into rows on their own when new modules arrive. */}
         <div className="panel-module-tabs" role="tablist" aria-label="Módulo de trabalho">
           {sections.map(section => (
             <button
@@ -113,7 +115,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
         <nav className="panel-thin-scroll -mx-[4px] min-h-0 flex-1 overflow-y-auto px-[4px]" aria-label={`Áreas de ${activeSection.label}`}>
           <div className="flex flex-col gap-[2px]">{activeSection.items.map(renderLink)}</div>
 
-          {/* Ações de conta no fim da lista (rolam junto, sem comer espaço fixo). */}
+          {/* Account actions at the end of the list (scroll along, no fixed space taken). */}
           <div className="mt-[12px] flex flex-col gap-[2px] border-t border-border/70 pt-[10px]">
             <ActionRow icon="suporte" label="Reportar erro" onClick={() => setShowReportModal(true)} />
             <ActionRow icon="coracao" label="Colabore" onClick={() => setShowDonateModal(true)} />

@@ -1,15 +1,15 @@
 import type { CafeIconName } from '../../brand/CafeIcon';
 
-/** Módulo do kit V4 que dá a cor de orientação de cada área (data-cafe-module). */
+/** V4 kit module that gives each area its orientation color (data-cafe-module). */
 export type CafeModule = 'gestao' | 'captacao' | 'tarefas' | 'comunidade' | 'negocios' | 'notas' | 'aulas';
 
 export interface NavItem {
   path: string;
   icon: CafeIconName;
   label: string;
-  /** Outras rotas que contam como "dentro" deste item (detalhe, edição...). */
+  /** Other routes that count as "inside" this item (detail, edit...). */
   matches?: string[];
-  /** Módulo do write gate quando difere do da seção (ex.: "pagamentos" dentro de Gestão). */
+  /** Write gate module when it differs from the section's (e.g. "pagamentos" inside Gestão). */
   gate?: string;
 }
 
@@ -17,21 +17,21 @@ export interface NavSection {
   id: string;
   label: string;
   module: CafeModule;
-  /** Ícone da aba do módulo no topo do menu. */
+  /** Icon of the module tab at the top of the menu. */
   icon: CafeIconName;
-  /** Frase curta que orienta "você está neste ambiente". */
+  /** Short line telling "you are in this environment" (kept for future use). */
   tagline: string;
   adminOnly?: boolean;
   items: NavItem[];
 }
 
-
-/** Início fica fora dos módulos: é o ponto de partida do dia. */
+/** Home sits outside the modules: it is where the day starts. */
 export const HOME_ITEM: NavItem = { path: '/painel', icon: 'inicio', label: 'Início' };
 
 /**
- * Módulos de trabalho. O menu mostra um módulo por vez: quem está em Captar
- * vê só Captar, com a cor de Captar em volta.
+ * Work modules. The menu shows one module at a time: whoever is in Captar
+ * sees only Captar, with Captar's color around. Section ids match the write
+ * gate module names of `GET /access` (`captar`, `gestao`...).
  */
 export const NAV_SECTIONS: NavSection[] = [
   {
@@ -106,7 +106,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { path: '/painel/aulas/mentorias', icon: 'pessoas', label: 'Mentorias' },
     ],
   },
-  // Módulos de exemplo (em construção) para ver as abas se reorganizando.
+  // Placeholder modules (under construction) to see the tabs wrapping.
   {
     id: 'notas-fiscais',
     label: 'Notas Fiscais',
@@ -139,24 +139,44 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { path: '/painel/design-system', icon: 'nota', label: 'Design System' },
       { path: '/painel/planos', icon: 'carteira', label: 'Planos' },
+      { path: '/painel/inscricoes-beta', icon: 'pessoas', label: 'Inscrições Beta' },
     ],
   },
 ];
 
+/**
+ * Whether a menu item matches the current route.
+ *
+ * @param item Menu item.
+ * @param pathname Current path.
+ * @returns `true` when the route is the item or one of its sub-routes.
+ */
 export function isItemActive(item: NavItem, pathname: string): boolean {
   if (item.path === HOME_ITEM.path) return pathname === '/painel' || pathname === '/painel/';
   if (pathname.startsWith(item.path)) return true;
   return (item.matches ?? []).some(prefix => pathname.startsWith(prefix));
 }
 
-/** Item ativo de uma lista: o de caminho mais específico entre os que casam. */
+/**
+ * Active item of a list: the most specific path among the matching ones.
+ *
+ * @param items Menu items of a section.
+ * @param pathname Current path.
+ * @returns The path of the active item, or `null`.
+ */
 export function activeItemPath(items: NavItem[], pathname: string): string | null {
   const matching = items.filter(item => isItemActive(item, pathname));
   if (matching.length === 0) return null;
   return matching.reduce((best, item) => (item.path.length > best.path.length ? item : best)).path;
 }
 
-/** Seção (e portanto módulo/atmosfera) da rota atual; null no Início e no perfil. */
+/**
+ * Section (and therefore module color) of the current route.
+ *
+ * @param pathname Current path.
+ * @param sections Sections to search.
+ * @returns The section, or `null` on Home and on the profile.
+ */
 export function sectionForPath(pathname: string, sections: NavSection[] = NAV_SECTIONS): NavSection | null {
   return sections.find(section => section.items.some(item => isItemActive(item, pathname))) ?? null;
 }

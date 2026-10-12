@@ -9,9 +9,11 @@ interface LoginDialogApi {
 const LoginDialogContext = createContext<LoginDialogApi | null>(null);
 
 /**
- * Abre o login como janela suspensa sobre a página atual. Fora do
- * PublicShell (ex.: componente isolado em teste) cai para a rota /login,
- * que mostra a página inicial com a janela aberta.
+ * Opens the login as a dialog over the current page. Outside the PublicShell
+ * (e.g. a component rendered alone in a test) it falls back to the /login
+ * route, which shows the landing page with the dialog open.
+ *
+ * @returns The login dialog API.
  */
 // eslint-disable-next-line react-refresh/only-export-components
 export function useLoginDialog(): LoginDialogApi {
@@ -20,7 +22,11 @@ export function useLoginDialog(): LoginDialogApi {
   return context ?? { openLogin: () => navigate('/login') };
 }
 
-/** Layout das páginas públicas: renderiza a página e, quando pedido, o login por cima. */
+/**
+ * Public pages layout: renders the page and, when asked, the login on top.
+ *
+ * @returns The layout.
+ */
 export const PublicShell: React.FC = () => {
   const [open, setOpen] = useState(false);
   const openLogin = useCallback(() => setOpen(true), []);

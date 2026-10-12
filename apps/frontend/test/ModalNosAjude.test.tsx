@@ -27,7 +27,7 @@ describe('ModalNosAjude', () => {
     const onClose = vi.fn()
     render(<ModalNosAjude isOpen={true} onClose={onClose} />)
 
-    // O fundo escuro é o pai do diálogo; clicar nele fecha.
+    // The dark backdrop is the dialog's parent; clicking it closes.
     const overlay = screen.getByRole('dialog').parentElement
     expect(overlay).toBeInTheDocument()
     if (overlay) fireEvent.click(overlay)

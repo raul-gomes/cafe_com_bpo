@@ -1,22 +1,22 @@
-/* Página inicial — fase beta (captação de Betas).
-   Tudo nos tokens do kit V4 (--cafe-*); Newsreader na voz editorial, DM Sans no
-   resto. As seções entram como fichas saindo do arquivo (800 ms, "entrada de
-   camada" do manual), uma vez, e respeitam movimento reduzido. */
+/* Landing page — beta phase (Beta tester acquisition).
+   Everything on the V4 kit tokens (--cafe-*); Newsreader for the editorial
+   voice, DM Sans for the rest. Sections stack like sheets of paper on desktop
+   and respect reduced motion. */
 
 .hb-page {
   min-height: 100vh;
   background: var(--cafe-canvas);
   color: var(--cafe-ink);
   font-family: var(--cafe-font-text);
-  /* clip (não hidden): hidden criaria um contêiner de rolagem e quebraria o sticky das folhas. */
+  /* clip (not hidden): hidden would create a scroll container and break the sticky sheets. */
   overflow-x: clip;
 }
 
-/* ── Abertura ── */
+/* ── Hero ── */
 .hb-hero {
   max-width: 1080px;
   margin: 0 auto;
-  /* Pouco espaço embaixo: o formulário de inscrição vem logo em seguida. */
+  /* Little space below: the signup form comes right after. */
   padding: clamp(56px, 9vw, 112px) clamp(16px, 5vw, 64px) clamp(32px, 4vw, 48px);
 }
 .hb-kicker {
@@ -48,7 +48,7 @@
 .hb-cta { font-size: 1rem; gap: 12px; justify-content: center; text-decoration: none; }
 .hb-link { color: var(--cafe-ink); font-weight: 600; text-decoration: underline; text-underline-offset: 4px; text-decoration-thickness: 1px; }
 
-/* ── Seções ── */
+/* ── Sections ── */
 .hb-section { padding: clamp(56px, 8vw, 104px) clamp(16px, 5vw, 64px); }
 .hb-section > * { max-width: 1080px; margin-inline: auto; }
 .hb-section-soft { background: var(--cafe-panel); border-block: 1px solid var(--cafe-line); }
@@ -64,7 +64,7 @@
 .hb-grid { display: grid; gap: 22px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); }
 .hb-grid-3 { grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
 
-/* Card como ficha: aba no alto e linha de assinatura embaixo (gesto do fichário). */
+/* Card as a file card: tab on top and a signature line below (folder-tab gesture). */
 .hb-card {
   position: relative;
   margin-top: 10px;
@@ -100,7 +100,7 @@
 }
 .hb-card-icon svg { width: 22px; height: 22px; }
 
-/* ── Quem está por trás ── */
+/* ── Who is behind it ── */
 .hb-person { display: grid; grid-template-columns: minmax(160px, 260px) 1fr; gap: clamp(24px, 5vw, 56px); align-items: center; }
 .hb-person-photo {
   width: 100%;
@@ -112,12 +112,12 @@
   filter: saturate(0.9);
 }
 
-/* ── Inscrição ── */
+/* ── Signup ── */
 .hb-section-signup { background: var(--cafe-panel); border-top: 1px solid var(--cafe-line); }
-/* Inscrição logo após a abertura: entra junto com a página, sem esperar rolagem. */
+/* Signup right after the hero: it comes in with the page, no scroll wait. */
 .hb-section-signup { padding-top: clamp(40px, 5vw, 64px); scroll-margin-top: 72px; }
 
-/* ── Chamado final ── */
+/* ── Closing call ── */
 .hb-section-closing { text-align: center; }
 .hb-closing { display: grid; justify-items: center; gap: 24px; }
 .hb-closing .hb-headline { margin-inline: auto; }
@@ -173,7 +173,7 @@
 .hb-submit:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 .hb-trap { position: absolute; left: -10000px; width: 1px; height: 1px; overflow: hidden; }
 
-/* ── Rodapé ── */
+/* ── Footer ── */
 .hb-footer {
   display: flex;
   flex-wrap: wrap;
@@ -205,11 +205,11 @@
   .hb-person-photo { max-width: 220px; }
 }
 
-/* ── Folha sobre folha ──
-   Com .hb-sheets-on (computador, sem "reduzir movimento"), cada seção fica
-   presa no topo e a seguinte sobe por cima, com a borda superior arredondada e
-   uma sombra suave — uma folha pousando sobre a outra. O top e o z-index de
-   cada folha vêm do HomePage (useFolhasSobrepostas). */
+/* ── Sheet over sheet ──
+   With .hb-sheets-on (desktop, no "reduce motion"), every section sticks to
+   the top and the next one slides over it, with a rounded top edge and a soft
+   shadow — one sheet landing on another. Each sheet's top and z-index come
+   from useStackedSheets. */
 .hb-sheet { position: relative; background: var(--cafe-canvas); }
 .hb-section-soft.hb-sheet, .hb-section-signup.hb-sheet { background: var(--cafe-panel); }
 .hb-sheets-on .hb-sheet { position: sticky; }
@@ -220,23 +220,23 @@
 }
 .hb-hero-sheet { border-bottom: 1px solid var(--cafe-line); }
 
-/* ── Colabore ── */
-.hb-colabore {
+/* ── Contribute ── */
+.hb-contribute {
   display: grid;
   grid-template-columns: auto 1fr auto;
   gap: clamp(18px, 3vw, 36px);
   align-items: center;
 }
-.hb-colabore-icon { width: 56px; height: 56px; }
-.hb-colabore-icon svg { width: 28px; height: 28px; }
+.hb-contribute-icon { width: 56px; height: 56px; }
+.hb-contribute-icon svg { width: 28px; height: 28px; }
 @media (max-width: 760px) {
-  .hb-colabore { grid-template-columns: 1fr; }
+  .hb-contribute { grid-template-columns: 1fr; }
 }
 
 .hb-footer-link { color: var(--cafe-ink-soft); font-weight: 600; text-decoration: none; }
 .hb-footer-link:hover { color: var(--cafe-ink); text-decoration: underline; }
 
-/* ── Banner flutuante: próximo café ── */
+/* ── Floating banner: next café ── */
 .cafe-banner {
   position: fixed;
   right: clamp(12px, 3vw, 28px);
@@ -252,9 +252,9 @@
   border-bottom: 3px solid var(--cafe-brand-yellow);
   border-radius: 0 14px 0 0;
   box-shadow: 6px 6px 0 rgb(0 0 0 / 0.18), 0 18px 40px rgb(0 0 0 / 0.22);
-  animation: cafe-banner-entra 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: cafe-banner-in 700ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
-.cafe-banner-icone {
+.cafe-banner-icon {
   display: grid;
   place-items: center;
   flex: none;
@@ -265,7 +265,7 @@
   color: #322800;
 }
 .cafe-banner-kicker { font-size: 0.75rem; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--cafe-brand-yellow); }
-.cafe-banner-texto { margin-top: 4px; font-size: 0.9375rem; line-height: 1.45; }
+.cafe-banner-text { margin-top: 4px; font-size: 0.9375rem; line-height: 1.45; }
 .cafe-banner-link {
   display: inline-flex;
   align-items: center;
@@ -276,7 +276,7 @@
   text-decoration: underline;
   text-underline-offset: 4px;
 }
-.cafe-banner-fechar {
+.cafe-banner-close {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -291,33 +291,33 @@
   opacity: 0.75;
   cursor: pointer;
 }
-.cafe-banner-fechar:hover { opacity: 1; background: rgb(255 255 255 / 0.1); }
-@keyframes cafe-banner-entra { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
+.cafe-banner-close:hover { opacity: 1; background: rgb(255 255 255 / 0.1); }
+@keyframes cafe-banner-in { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .cafe-banner { animation: none; } }
 
-/* ── Agenda dos cafés ── */
+/* ── Cafés schedule ── */
 .hb-cafes-grid .hb-card p strong { color: var(--cafe-ink); }
-.hb-canal { display: block; color: inherit; text-decoration: none; transition: transform 140ms, box-shadow 140ms; }
-.hb-canal:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--cafe-panel-strong); }
-.hb-canal-abrir { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-weight: 700; font-size: 0.9375rem; }
-.hb-cafes-nota { margin-top: 28px; font: italic 500 1.25rem/1.4 var(--cafe-font-editorial); color: var(--cafe-ink-soft); }
+.hb-channel { display: block; color: inherit; text-decoration: none; transition: transform 140ms, box-shadow 140ms; }
+.hb-channel:hover { transform: translate(-1px, -1px); box-shadow: 6px 6px 0 var(--cafe-panel-strong); }
+.hb-channel-open { display: inline-flex; align-items: center; gap: 6px; margin-top: 14px; font-weight: 700; font-size: 0.9375rem; }
+.hb-cafes-note { margin-top: 28px; font: italic 500 1.25rem/1.4 var(--cafe-font-editorial); color: var(--cafe-ink-soft); }
 
-/* ── Produtos ── */
-.hb-produto { display: flex; flex-direction: column; }
-.hb-produto-etiqueta { margin-top: 14px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--cafe-muted); }
-.hb-produto h3 { margin-top: 6px; }
-.hb-produto-acao { margin-top: auto; padding-top: 16px; }
+/* ── Products ── */
+.hb-product { display: flex; flex-direction: column; }
+.hb-product-tag { margin-top: 14px; font-size: 0.75rem; font-weight: 700; letter-spacing: 0.11em; text-transform: uppercase; color: var(--cafe-muted); }
+.hb-product h3 { margin-top: 6px; }
+.hb-product-action { margin-top: auto; padding-top: 16px; }
 
-/* ── Termos e Política (página própria) ── */
+/* ── Terms and Policy (own page) ── */
 .hb-legal { max-width: 760px; margin: 0 auto; padding: clamp(40px, 6vw, 72px) clamp(16px, 5vw, 32px) 96px; }
-.hb-legal-texto { margin-top: 12px; color: var(--cafe-ink-soft); font-size: 1rem; line-height: 1.7; }
-.hb-legal-texto h1 { font: 500 clamp(2rem, 4vw, 2.75rem) / 1.1 var(--cafe-font-editorial); color: var(--cafe-ink); letter-spacing: -0.02em; }
-.hb-legal-texto h2 { margin-top: 36px; font-size: 1.25rem; font-weight: 700; color: var(--cafe-ink); }
-.hb-legal-texto h3 { margin-top: 22px; font-size: 1.0625rem; font-weight: 700; color: var(--cafe-ink); }
-.hb-legal-texto p { margin-top: 12px; }
-.hb-legal-texto ol, .hb-legal-texto ul { margin-top: 12px; padding-left: 22px; display: grid; gap: 8px; }
-.hb-legal-texto ol { list-style: decimal; }
-.hb-legal-texto ul { list-style: disc; }
-.hb-legal-texto strong { color: var(--cafe-ink); }
-.hb-legal-texto a { color: var(--cafe-focus); }
-.hb-legal-outros { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--cafe-line); }
+.hb-legal-text { margin-top: 12px; color: var(--cafe-ink-soft); font-size: 1rem; line-height: 1.7; }
+.hb-legal-text h1 { font: 500 clamp(2rem, 4vw, 2.75rem) / 1.1 var(--cafe-font-editorial); color: var(--cafe-ink); letter-spacing: -0.02em; }
+.hb-legal-text h2 { margin-top: 36px; font-size: 1.25rem; font-weight: 700; color: var(--cafe-ink); }
+.hb-legal-text h3 { margin-top: 22px; font-size: 1.0625rem; font-weight: 700; color: var(--cafe-ink); }
+.hb-legal-text p { margin-top: 12px; }
+.hb-legal-text ol, .hb-legal-text ul { margin-top: 12px; padding-left: 22px; display: grid; gap: 8px; }
+.hb-legal-text ol { list-style: decimal; }
+.hb-legal-text ul { list-style: disc; }
+.hb-legal-text strong { color: var(--cafe-ink); }
+.hb-legal-text a { color: var(--cafe-focus); }
+.hb-legal-others { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--cafe-line); }

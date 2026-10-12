@@ -11,23 +11,23 @@ import { apiClient } from '../src/api/client'
 
 const post = apiClient.post as ReturnType<typeof vi.fn>
 
-function fillValidForm() {
+function fillValidForm(): void {
   fireEvent.change(screen.getByLabelText(/Título/), { target: { value: 'Tela travou' } })
   fireEvent.change(screen.getByLabelText(/Descrição/), {
     target: { value: 'Ao salvar o contrato a tela ficou carregando.' },
   })
 }
 
-describe('ModalReportarErro — print do erro', () => {
+describe('ModalReportarErro — error screenshot', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     post.mockResolvedValue({ data: { message: 'ok' } })
-    // jsdom não implementa URLs de objeto (usadas na prévia do print).
+    // jsdom does not implement object URLs (used by the screenshot preview).
     URL.createObjectURL = vi.fn(() => 'blob:previa')
     URL.revokeObjectURL = vi.fn()
   })
 
-  it('envia o relato como formulário multipart, sem print quando não há anexo', async () => {
+  it('sends the report as a multipart form, without screenshot when none is attached', async () => {
     const onClose = vi.fn()
     renderWithProviders(<ModalReportarErro isOpen onClose={onClose} />)
     fillValidForm()
@@ -41,7 +41,7 @@ describe('ModalReportarErro — print do erro', () => {
     expect((body as FormData).get('screenshot')).toBeNull()
   })
 
-  it('anexa o print escolhido, mostra a prévia e envia junto', async () => {
+  it('attaches the chosen screenshot, previews it and sends it along', async () => {
     renderWithProviders(<ModalReportarErro isOpen onClose={vi.fn()} />)
     fillValidForm()
     const print = new File([new Uint8Array([137, 80, 78, 71])], 'erro.png', { type: 'image/png' })
@@ -54,7 +54,7 @@ describe('ModalReportarErro — print do erro', () => {
     expect((post.mock.calls[0][1] as FormData).get('screenshot')).toBe(print)
   })
 
-  it('recusa arquivo que não é imagem', () => {
+  it('rejects a file that is not an image', () => {
     renderWithProviders(<ModalReportarErro isOpen onClose={vi.fn()} />)
     const pdf = new File(['%PDF'], 'relatorio.pdf', { type: 'application/pdf' })
     fireEvent.change(screen.getByLabelText('Escolher arquivo do print'), { target: { files: [pdf] } })
@@ -63,7 +63,7 @@ describe('ModalReportarErro — print do erro', () => {
     expect(screen.queryByAltText('Prévia do print anexado')).not.toBeInTheDocument()
   })
 
-  it('aceita o print colado com Ctrl+V', async () => {
+  it('accepts a screenshot pasted with Ctrl+V', async () => {
     renderWithProviders(<ModalReportarErro isOpen onClose={vi.fn()} />)
     const pasted = new File([new Uint8Array([137, 80, 78, 71])], 'image.png', { type: 'image/png' })
     fireEvent.paste(screen.getByRole('dialog'), { clipboardData: { files: [pasted] } })

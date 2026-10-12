@@ -1,8 +1,9 @@
 """add beta signups
 
-Lista de interessados em ser Beta, captada pela página inicial na fase beta:
-nome, e-mail (único, minúsculo), WhatsApp, perfil, faixa de clientes, desafio,
-origem e data do aceite da LGPD. Não é usuário do sistema.
+Waiting list of people who want to be Beta testers, collected by the landing
+page form during the beta phase: name, e-mail (unique, lowercase), WhatsApp,
+profile, client range, challenge, source and the LGPD consent date. Not a
+platform user.
 
 Revision ID: b7e1c0a9f2d4
 Revises: d2e3f4a5b6c7
@@ -24,18 +25,18 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """Upgrade schema."""
+    """Creates the beta_signups table."""
     op.create_table(
         "beta_signups",
         sa.Column("id", sa.UUID(), nullable=False),
-        sa.Column("nome", sa.String(length=120), nullable=False),
+        sa.Column("name", sa.String(length=120), nullable=False),
         sa.Column("email", sa.String(length=255), nullable=False),
         sa.Column("whatsapp", sa.String(length=20), nullable=True),
-        sa.Column("perfil", sa.String(length=30), nullable=False),
-        sa.Column("faixa_clientes", sa.String(length=10), nullable=False),
-        sa.Column("desafio", sa.Text(), nullable=True),
-        sa.Column("origem", sa.String(length=100), nullable=True),
-        sa.Column("consentimento_em", sa.DateTime(timezone=True), nullable=False),
+        sa.Column("profile", sa.String(length=30), nullable=False),
+        sa.Column("client_range", sa.String(length=10), nullable=False),
+        sa.Column("challenge", sa.Text(), nullable=True),
+        sa.Column("source", sa.String(length=100), nullable=True),
+        sa.Column("consented_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -56,6 +57,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """Downgrade schema."""
+    """Drops the beta_signups table."""
     op.drop_index(op.f("ix_beta_signups_email"), table_name="beta_signups")
     op.drop_table("beta_signups")

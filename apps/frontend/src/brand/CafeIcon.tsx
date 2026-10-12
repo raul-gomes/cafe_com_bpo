@@ -1,7 +1,7 @@
 import React from 'react';
 import { cn } from '../lib/utils';
 
-/** Nomes do sprite `icones-assinatura.svg` do kit V4 (ver icones-manifesto.json). */
+/** Names of the V4 kit sprite `icones-assinatura.svg` (see icones-manifesto.json). */
 export type CafeIconName =
   | 'contrato' | 'nota' | 'pessoas' | 'rotina' | 'negocios' | 'direcao' | 'excluir'
   | 'processo' | 'inicio' | 'painel' | 'carteira' | 'saldo' | 'transferencia'
@@ -11,29 +11,33 @@ export type CafeIconName =
   | 'recolher' | 'notificacoes' | 'seguranca' | 'suporte' | 'mensagem' | 'encontro'
   | 'tempo' | 'favorito' | 'sair' | 'xicara' | 'grao' | 'vapor' | 'coador'
   | 'pausa-cafe' | 'conversa-cafe'
-  /* Extensões do app (fora do sprite V4), no mesmo desenho: matriz 24, traço 1,6, abertura no traço. */
+  /* App extensions (outside the V4 sprite), same drawing: 24 grid, 1.6 stroke, opening in the stroke. */
   | 'coracao' | 'aula';
 
 const SPRITE = '/brand/kit-v4/icones-assinatura.svg';
 
 const EXTENSIONS: Partial<Record<CafeIconName, string>> = {
-  // Coração do "Colabore": o traço não fecha na ponta direita (gesto de abertura da família).
+  // "Colabore" heart: the stroke stays open at the right end (the family's opening gesture).
   coracao: 'M12 20s-8-4.6-8-10.4A4.3 4.3 0 0 1 12 7.2a4.3 4.3 0 0 1 8 2.4c0 2.6-1.6 4.9-3.5 6.8',
-  // Aulas: tela com play; a borda abre no canto superior direito, base da tela embaixo.
+  // Aulas: screen with a play mark; the border opens at the top-right corner, stand below.
   aula: 'M15 5H4v12h16V9M10 8.8l4.5 2.7-4.5 2.7zM8 20.5h8',
 };
 
 interface CafeIconProps {
   name: CafeIconName;
   className?: string;
-  /** Sem rótulo o ícone é decorativo; controles só com ícone precisam de nome no botão. */
+  /** Without a label the icon is decorative; icon-only controls need a name on the button. */
   label?: string;
 }
 
-/** Ícone do kit: matriz 24, traço 1,6, cor herdada do texto. */
+/**
+ * Kit icon: 24 grid, 1.6 stroke, color inherited from the text.
+ *
+ * @returns The SVG icon.
+ */
 export const CafeIcon: React.FC<CafeIconProps> = ({ name, className, label }) => (
   <svg
-    // Medida explícita: a escala de espaçamento do tailwind.config deste app é própria (size-5 = 36px).
+    // Explicit size: this app's tailwind.config has its own spacing scale (size-5 = 36px).
     className={cn('size-[20px] shrink-0', className)}
     viewBox="0 0 24 24"
     fill="none"

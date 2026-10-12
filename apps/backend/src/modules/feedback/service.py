@@ -17,8 +17,17 @@ class FeedbackService:
         user_email: str,
         screenshot: tuple[str, bytes] | None = None,
     ) -> None:
-        # Destinatário dedicado do "Reportar Erro" (FEEDBACK_EMAIL) com
-        # fallback para a caixa de suporte (SUPPORT_EMAIL).
+        """Queues the report e-mail to the support inbox.
+
+        Args:
+            title: Report title.
+            description: Report description.
+            user_name: Name of the reporting user.
+            user_email: E-mail of the reporting user.
+            screenshot: Optional (filename, bytes) attached to the e-mail.
+        """
+        # Dedicated "Reportar Erro" recipient (FEEDBACK_EMAIL), falling back to
+        # the support inbox (SUPPORT_EMAIL).
         support_email = settings.feedback_email or settings.support_email
 
         subject = f"[Feedback] {title}"
@@ -37,7 +46,7 @@ Descrição:
 {attachment_note}
         """.strip()
 
-        # Texto do usuário é escapado: não pode virar HTML no e-mail do suporte.
+        # User text is escaped: it must never become HTML in the support e-mail.
         safe_user = escape(f"{user_name} ({user_email})")
         safe_title = escape(title)
         safe_description = escape(description)

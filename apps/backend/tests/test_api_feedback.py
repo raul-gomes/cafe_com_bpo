@@ -160,7 +160,7 @@ VALID_FORM = {
 
 
 class TestFeedbackScreenshot:
-    """Anexo opcional do print no "Reportar erro"."""
+    """Optional screenshot attached to "Reportar erro"."""
 
     @patch("src.modules.feedback.service.FeedbackService.send_feedback")
     def test_png_screenshot_is_forwarded_with_safe_name(self, mock_send, client):
@@ -174,7 +174,7 @@ class TestFeedbackScreenshot:
         assert resp.status_code == 200
         screenshot = mock_send.call_args.kwargs["screenshot"]
         filename, content = screenshot
-        # O nome do cliente nunca é usado (path traversal): o servidor gera o nome.
+        # The client filename is never used (path traversal): the server names it.
         assert filename == "print-do-erro.png"
         assert content == PNG_BYTES
 
@@ -236,7 +236,7 @@ class TestFeedbackEmailContent:
             return mock_send.call_args
 
     def test_user_text_is_html_escaped(self):
-        """Texto do usuário não pode virar HTML no e-mail do suporte."""
+        """User text must never become HTML in the support e-mail."""
         call = self._capture(
             title='<a href="https://phish.example">Clique</a>',
             description="<img src=x onerror=alert(1)>",
@@ -267,7 +267,7 @@ class TestFeedbackEmailContent:
 
 
 def test_send_email_queues_attachments_in_payload():
-    """EmailService.send_email repassa anexos para o payload lido pelo worker."""
+    """EmailService.send_email forwards attachments to the payload the worker reads."""
     from src.core.email import EmailService
 
     with patch.object(EmailService, "_enqueue") as mock_enqueue:

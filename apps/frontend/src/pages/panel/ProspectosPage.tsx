@@ -18,7 +18,7 @@ import { useWriteGate } from '../../api/hooks/useWriteGate';
 import { Lock, UserCheck, UserX, Trash2 } from 'lucide-react';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { FichaButton } from '../../components/ui/ficha-button';
+import { FolderTabButton } from '../../components/ui/folder-tab-button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -388,13 +388,13 @@ export const ProspectosPage: React.FC = () => {
           <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Meus Prospectos</h1>
           <p className="text-[14px] text-muted-foreground">Leads com dados cadastrais. Ao finalizar o contrato, converta em Cliente.</p>
         </div>
-        <FichaButton onClick={novoProspecto}>
+        <FolderTabButton onClick={novoProspecto}>
           {prospectsLocked && <Lock className="mr-1 size-4" />}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Novo Prospecto
-        </FichaButton>
+        </FolderTabButton>
       </div>
 
       {showForm && !expandedCardId && (

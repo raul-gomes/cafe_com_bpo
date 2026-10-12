@@ -5,13 +5,24 @@ from .schemas import BetaSignupCreate
 
 
 class BetaSignupService:
+    """Business rules of the Beta signup."""
+
     def __init__(self, repository: BetaSignupRepository):
+        """Binds the service to its repository.
+
+        Args:
+            repository: Signup repository.
+        """
         self.repository = repository
 
     def register(self, data: BetaSignupCreate) -> None:
-        """Grava a inscrição; robô (campo-armadilha preenchido) é descartado."""
+        """Stores the signup; a bot (honeypot filled) is silently discarded.
+
+        Args:
+            data: Validated signup payload.
+        """
         if data.website:
-            log.info("🪤 Inscrição beta descartada (campo-armadilha preenchido)")
+            log.info("Beta signup discarded (honeypot filled)")
             return
         self.repository.upsert(data)
-        log.info(f"☕ Nova inscrição beta (perfil={data.perfil})")
+        log.info(f"New Beta signup (profile={data.profile})")

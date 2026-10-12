@@ -1,9 +1,9 @@
-// Política de Privacidade — texto exibido em /politica-de-privacidade.
-// Conteúdo estático do próprio código (não vem da API): pode ser renderizado como HTML.
-// Revisada em 11/10/2026 a partir dos dados que a plataforma realmente trata
-// (módulos, integrações e armazenamento). Recomenda-se revisão por advogado antes da
-// publicação definitiva. Endereço da sede vindo de consulta pública: conferir no cartão CNPJ.
-export const POLITICA_PRIVACIDADE_HTML = `
+// Privacy Policy — shown at /politica-de-privacidade.
+// Bundled static content (never from the API), rendered by RichText.
+// Reviewed on 2026-10-11 against the data the platform really processes
+// (modules, integrations and storage). A lawyer review is recommended before
+// final publication.
+export const PRIVACY_POLICY_HTML = `
 <h1>Política de Privacidade do Café com BPO</h1>
 <p><em>Última atualização: 11 de outubro de 2026</em></p>
 

@@ -69,9 +69,14 @@ class EmailService:
         html: str = "",
         attachments: list[dict] | None = None,
     ) -> None:
-        """Enfileira um e-mail com conteúdo livre (HTML/text prontos).
+        """Queues an e-mail with free content (ready HTML/text).
 
-        `attachments` segue o formato do provedor: [{"filename", "content" (base64)}].
+        Args:
+            to_email: Recipient.
+            subject: Subject line.
+            text: Plain-text body.
+            html: HTML body.
+            attachments: Provider format: [{"filename", "content" (base64)}].
         """
         key = EmailService.build_idempotency_key("notification", to_email)
         payload = {"subject": subject, "html": html, "text": text}

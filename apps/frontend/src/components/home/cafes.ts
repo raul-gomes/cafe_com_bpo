@@ -1,44 +1,63 @@
-/** Agenda dos cafés: regras de data e canais onde o link do encontro é divulgado. */
+/** Cafés schedule: date rules and the channels where the meeting link is announced. */
+import type { CafeIconName } from '../../brand/CafeIcon';
 
-/** Os encontros são sempre às 14h (horário de Brasília). */
-export const HORARIO_CAFE = '14h';
+/** Meetings always start at 2 pm (Brasília time). */
+export const CAFE_TIME = '14h';
 
 /**
- * Próximo café aberto: a última quarta-feira do mês. Se a deste mês já passou
- * (o dia de hoje conta como "ainda vale"), devolve a do mês seguinte.
+ * Next open café: the last Wednesday of the month. When this month's one has
+ * already passed (today still counts), returns next month's.
+ *
+ * @param today Reference date.
+ * @returns The date of the next open café.
  */
-export function proximoCafeAberto(hoje: Date): Date {
-  const inicioDoDia = new Date(hoje.getFullYear(), hoje.getMonth(), hoje.getDate());
+export function nextOpenCafe(today: Date): Date {
+  const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
   for (let offset = 0; offset < 3; offset++) {
-    const candidato = ultimaQuarta(hoje.getFullYear(), hoje.getMonth() + offset);
-    if (candidato >= inicioDoDia) return candidato;
+    const candidate = lastWednesday(today.getFullYear(), today.getMonth() + offset);
+    if (candidate >= startOfDay) return candidate;
   }
-  return ultimaQuarta(hoje.getFullYear(), hoje.getMonth() + 1);
+  return lastWednesday(today.getFullYear(), today.getMonth() + 1);
 }
 
-function ultimaQuarta(ano: number, mes: number): Date {
-  const ultimoDia = new Date(ano, mes + 1, 0); // dia 0 do mês seguinte = último dia deste
-  const recuo = (ultimoDia.getDay() - 3 + 7) % 7; // 3 = quarta-feira
-  return new Date(ultimoDia.getFullYear(), ultimoDia.getMonth(), ultimoDia.getDate() - recuo);
+/**
+ * Last Wednesday of a month (month overflow rolls into the next year).
+ *
+ * @param year Full year.
+ * @param month Zero-based month; may exceed 11.
+ * @returns The date.
+ */
+function lastWednesday(year: number, month: number): Date {
+  const lastDay = new Date(year, month + 1, 0); // day 0 of the next month = last day of this one
+  const back = (lastDay.getDay() - 3 + 7) % 7; // 3 = Wednesday
+  return new Date(lastDay.getFullYear(), lastDay.getMonth(), lastDay.getDate() - back);
 }
 
-export const CANAIS_CAFE = [
+export interface CafeChannel {
+  name: string;
+  description: string;
+  url: string;
+  icon: CafeIconName;
+}
+
+/** Channels that announce the open café link (copy shown on the page stays pt-BR). */
+export const CAFE_CHANNELS: CafeChannel[] = [
   {
-    nome: 'Canal no WhatsApp',
-    descricao: 'Avisos e o link de cada encontro.',
+    name: 'Canal no WhatsApp',
+    description: 'Avisos e o link de cada encontro.',
     url: 'https://whatsapp.com/channel/0029Va95EV54Y9lnz81xJH24',
-    icone: 'mensagem',
+    icon: 'mensagem',
   },
   {
-    nome: 'Comunidade no YouTube',
-    descricao: 'Gravações, materiais e o link dos encontros.',
+    name: 'Comunidade no YouTube',
+    description: 'Gravações, materiais e o link dos encontros.',
     url: 'https://www.youtube.com/@cafecombpo/community',
-    icone: 'encontro',
+    icon: 'encontro',
   },
   {
-    nome: 'Página no LinkedIn',
-    descricao: 'Novidades do movimento e o link dos encontros.',
+    name: 'Página no LinkedIn',
+    description: 'Novidades do movimento e o link dos encontros.',
     url: 'https://www.linkedin.com/showcase/caf%C3%A9-com-bpo/about/',
-    icone: 'pessoas',
+    icon: 'pessoas',
   },
-] as const;
+];

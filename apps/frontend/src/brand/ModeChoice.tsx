@@ -3,16 +3,16 @@ import { MODES, MODE_LABELS, useAppearance, type Mode } from './appearance';
 import { cn } from '../lib/utils';
 
 /**
- * Amostras de claro e escuro da família Café, copiadas de cafe-themes.css (V4).
- * Os tokens do kit vivem no :root, então a prévia lado a lado precisa dos
- * valores literais. Ao atualizar o kit, conferir estes valores.
+ * Light and dark samples of the Café family, copied from cafe-themes.css (V4).
+ * The kit tokens live on :root, so a side-by-side preview needs the literal
+ * values. When the kit is updated, check these values.
  */
 const SWATCHES: Record<Mode, { canvas: string; paper: string; accent: string; ink: string; line: string }> = {
   light: { canvas: '#F8F5EF', paper: '#FFFDFA', accent: '#FFC72C', ink: '#29241F', line: '#DCD3C6' },
   dark: { canvas: '#211A16', paper: '#2C241E', accent: '#FFD268', ink: '#F3EEE7', line: '#584A3D' },
 };
 
-/** Miniatura de uma tela no modo: fundo, cartão, linhas de texto e o botão de ação. */
+/** Thumbnail of a screen in the mode: background, card, text lines and the action button. */
 function Preview({ mode }: { mode: Mode }) {
   const s = SWATCHES[mode];
   return (
@@ -29,7 +29,11 @@ function Preview({ mode }: { mode: Mode }) {
   );
 }
 
-/** Escolha de claro ou escuro (Configurações › Aparência). */
+/**
+ * Light or dark choice (Configurações › Aparência).
+ *
+ * @returns The radio group.
+ */
 export const ModeChoice: React.FC = () => {
   const [current, setAppearance] = useAppearance();
   return (

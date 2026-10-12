@@ -31,7 +31,7 @@ vi.mock('../src/context/AuthContext', () => ({
   }),
 }))
 
-// NotificationBell consulta a API de notificações — vira um no-op
+// NotificationBell calls the notifications API — becomes a no-op
 vi.mock('../src/components/panel/NotificationBell', () => ({
   NotificationBell: () => null,
 }))
@@ -65,24 +65,24 @@ function renderLayout(initialEntry = '/painel') {
 const shell = () => document.querySelector('.app-shell') as HTMLElement
 const toggle = () => document.querySelector('.panel-rail-toggle') as HTMLElement
 
-describe('PanelLayout — módulo de trabalho e menu', () => {
+describe('PanelLayout — work module and menu', () => {
   beforeEach(() => {
     localStorage.clear()
     delete document.body.dataset.cafeModule
   })
 
-  it('a cor do módulo vem da rota e vai no body (alcança menus em portal)', () => {
+  it('the module color comes from the route and goes on body (reaches portal menus)', () => {
     renderLayout('/painel/prospectos')
     expect(document.body.dataset.cafeModule).toBe('captacao')
     expect(screen.getAllByRole('tab', { name: /^Captar/ })[0]).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('no painel principal não há cor de módulo (vale o amarelo do café)', () => {
+  it('the main panel has no module color (café yellow applies)', () => {
     renderLayout('/painel')
     expect(document.body.dataset.cafeModule).toBeUndefined()
   })
 
-  it('trocar de aba muda o módulo, a rota e a cor', () => {
+  it('switching tabs changes the module, the route and the color', () => {
     renderLayout('/painel/tarefas')
     expect(document.body.dataset.cafeModule).toBe('tarefas')
 
@@ -92,7 +92,7 @@ describe('PanelLayout — módulo de trabalho e menu', () => {
     expect(document.body.dataset.cafeModule).toBe('comunidade')
   })
 
-  it('a seta percorre completo → só ícones → retraído → completo', () => {
+  it('the arrow cycles full → icons only → hidden → full', () => {
     renderLayout('/painel/tarefas')
     expect(shell()).toHaveAttribute('data-nav', 'expanded')
     fireEvent.click(toggle())
@@ -104,7 +104,7 @@ describe('PanelLayout — módulo de trabalho e menu', () => {
     expect(shell()).toHaveAttribute('data-nav', 'expanded')
   })
 
-  it('lembra o estado do menu entre visitas', () => {
+  it('remembers the menu state between visits', () => {
     localStorage.setItem('cafe_bpo_sidebar_nav', 'collapsed')
     renderLayout('/painel/tarefas')
     expect(shell()).toHaveAttribute('data-nav', 'collapsed')

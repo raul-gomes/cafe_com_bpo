@@ -17,8 +17,10 @@ interface LoginDialogProps {
 }
 
 /**
- * Login em janela suspensa: centro da tela, fundo esmaecido, compacto o
- * bastante para caber sem rolar. Escape ou clique fora fecham.
+ * Login as a floating dialog: screen center, dimmed background, compact
+ * enough to fit without scrolling. Escape or a click outside closes it.
+ *
+ * @returns The dialog.
  */
 export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
   const { isAuthenticated, isLoading } = useAuth();
@@ -28,12 +30,12 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
   const [showForgotPw, setShowForgotPw] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
 
-  // Já logado: o login não faz sentido, vai direto ao painel.
+  // Already signed in: the login makes no sense, go straight to the panel.
   useEffect(() => {
     if (!isLoading && isAuthenticated) navigate('/painel/tarefas');
   }, [isAuthenticated, isLoading, navigate]);
 
-  // Escape fecha; o fundo não rola enquanto a janela está aberta.
+  // Escape closes; the background does not scroll while the dialog is open.
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       if (event.key === 'Escape' && !showForgotPw) onClose();
@@ -51,15 +53,15 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
   return (
     <div
       className="login-dialog-backdrop"
-      // Só o clique direto no fundo fecha: eventos de janelas em portal (esqueci a senha,
-      // termos) também sobem pela árvore do React até aqui.
+      // Only a direct click on the backdrop closes: events of portal dialogs (forgot
+      // password, terms) also bubble up the React tree to here.
       onClick={event => {
         if (event.target === event.currentTarget) onClose();
       }}
       data-testid="login-page"
     >
       <div ref={panelRef} className="login-dialog" role="dialog" aria-modal="true" aria-label="Login">
-        {/* Coluna da marca: deixa a janela horizontal e cabendo numa só olhada. */}
+        {/* Brand column: keeps the dialog horizontal and readable at a glance. */}
         <div className="login-dialog-brand">
           <img src="/brand/kit-v4/logo-cafe-colorida.svg" alt="Café com BPO" className="login-dialog-logo" />
           <div>

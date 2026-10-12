@@ -4,9 +4,11 @@ import { LoginDialog } from '../components/auth/LoginDialog';
 import { usePageMeta } from '../lib/seo';
 
 /**
- * /login: a página inicial com a janela de login aberta por cima. Quem chega
- * aqui por link, convite ou sessão expirada vê o mesmo login suspenso que se
- * abre pelo botão do topo; fechar a janela volta para o início.
+ * /login: the landing page with the login dialog open on top. Whoever lands
+ * here from a link, invitation or expired session sees the same dialog the
+ * header button opens; closing it goes back home.
+ *
+ * @returns The page.
  */
 export default function LoginPage() {
   usePageMeta({ title: 'Login', description: 'Entre na sua conta do Café com BPO.', path: '/login', noindex: true });

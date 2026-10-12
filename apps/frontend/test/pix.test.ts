@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest'
 import { buildPixPayload, crc16 } from '../src/lib/pix'
 
 describe('PIX BR Code', () => {
-  it('CRC16-CCITT bate com o valor de referência ("123456789" → 29B1)', () => {
+  it('CRC16-CCITT matches the reference value ("123456789" → 29B1)', () => {
     expect(crc16('123456789')).toBe('29B1')
   })
 
-  it('monta o payload estático com chave, recebedor, cidade e CRC', () => {
+  it('builds the static payload with key, receiver, city and CRC', () => {
     const payload = buildPixPayload({
       key: 'ajude@cafecombpo.com',
       merchantName: 'Café com BPO',
@@ -23,7 +23,7 @@ describe('PIX BR Code', () => {
     expect(payload).toMatch(/6304[0-9A-F]{4}$/)
   })
 
-  it('limita nome (25) e cidade (15) e tira acentos', () => {
+  it('limits name (25) and city (15) and strips accents', () => {
     const payload = buildPixPayload({
       key: 'x@y.com',
       merchantName: 'Associação Café com BPO do Brasil Inteiro',

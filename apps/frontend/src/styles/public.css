@@ -1,6 +1,6 @@
-/* Páginas públicas: topo, login suspenso e peças comuns (kit V4). */
+/* Public pages: header, login dialog and shared pieces (V4 kit). */
 
-/* ── Topo ── faixa escura atrás do logo colorido (o amarelo não lia sobre o papel). */
+/* ── Header ── dark band behind the colored logo (yellow was unreadable on paper). */
 .pub-nav {
   position: sticky;
   top: 0;
@@ -22,7 +22,7 @@
 .pub-nav-brand img { width: 128px; height: auto; display: block; }
 .pub-nav-actions { display: flex; align-items: center; gap: clamp(10px, 2vw, 22px); }
 
-/* Os três gestos do kit, compactos para o topo. */
+/* The kit's three gestures, compact for the header. */
 .pub-nav-actions .cafe-command { min-height: 40px; font-size: 0.9375rem; white-space: nowrap; }
 .pub-nav-rail { color: var(--cafe-on-deep); padding: 8px 2px; gap: 0; border-bottom-color: color-mix(in srgb, var(--cafe-on-deep) 35%, transparent); }
 .pub-nav-rail > span { font: 600 0.9375rem/1.1 var(--cafe-font-text); }
@@ -47,9 +47,9 @@
   padding: 16px;
   background: rgb(20 16 12 / 0.55);
   backdrop-filter: blur(4px);
-  animation: login-fundo 200ms ease-out both;
+  animation: login-backdrop-in 200ms ease-out both;
 }
-/* Janela horizontal: marca à esquerda, formulário à direita — cabe sem rolar. */
+/* Horizontal dialog: brand on the left, form on the right — fits without scrolling. */
 .login-dialog {
   position: relative;
   display: grid;
@@ -63,7 +63,7 @@
   border-bottom: 3px solid var(--cafe-brand-yellow);
   border-radius: 0 14px 0 0;
   box-shadow: 8px 8px 0 color-mix(in srgb, var(--cafe-ink) 18%, transparent), 0 24px 60px rgb(0 0 0 / 0.25);
-  animation: login-janela 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: login-dialog-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .login-dialog-brand {
   display: flex;
@@ -102,10 +102,10 @@
   cursor: pointer;
 }
 .login-dialog-close:hover { background: var(--cafe-panel); color: var(--cafe-ink); }
-@keyframes login-fundo { from { opacity: 0; } to { opacity: 1; } }
-@keyframes login-janela { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
+@keyframes login-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes login-dialog-in { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
 
-/* Atalhos com ícone (agenda, produtos), ao lado das ações. */
+/* Icon shortcuts (schedule, products), next to the actions. */
 .pub-nav-shortcuts { display: flex; align-items: center; gap: 4px; margin-left: auto; }
 .pub-nav-icon {
   display: grid;

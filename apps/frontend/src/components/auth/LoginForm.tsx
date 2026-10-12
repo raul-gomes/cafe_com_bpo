@@ -16,7 +16,7 @@ import { logoFor, useAppearance } from '../../brand/appearance';
 
 interface LoginFormProps {
   onForgotPassword?: () => void;
-  /** Dentro da janela suspensa: sem cartão próprio e com espaçamentos menores. */
+  /** Inside the login dialog: no card of its own and tighter spacing. */
   compact?: boolean;
 }
 
@@ -31,8 +31,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite_token');
-  // Só quem veio do botão de baixar a proposta (simulador) vê o aviso de salvar a simulação.
-  const vindoDaProposta = searchParams.get('motivo') === 'proposta' && Boolean(sessionStorage.getItem('cafe_bpo_proposal'));
+  // Only people coming from the proposal download button (simulator) see the save-your-simulation notice.
+  const cameFromProposal = searchParams.get('motivo') === 'proposta' && Boolean(sessionStorage.getItem('cafe_bpo_proposal'));
   const termsAccepted = watch('terms');
   const [{ mode }] = useAppearance();
 
@@ -88,7 +88,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
     <>
     <Card className={compact ? 'border-0 bg-transparent shadow-none ring-0' : 'mx-auto max-w-[480px]'}>
       <CardContent className={compact ? 'p-0' : 'pt-7 px-8 pb-7'}>
-        {/* Marca: na janela suspensa ela fica na coluna ao lado (LoginDialog). */}
+        {/* Brand: inside the dialog it lives in the side column (LoginDialog). */}
         {!compact && <div className="text-center mb-5">
           <img src={logoFor(mode)} alt="Café com BPO" className="mx-auto mb-[12px] h-auto w-[132px]" />
           <h2 className="font-editorial text-[1.75rem] font-medium leading-tight text-foreground">
@@ -99,7 +99,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
           </p>
         </div>}
 
-        {vindoDaProposta && (
+        {cameFromProposal && (
           <Alert className="mb-5 text-center">
             <strong>Quase lá!</strong> Faça login para salvar sua simulação e baixar sua proposta em PDF.
           </Alert>
@@ -206,8 +206,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, compact 
           </div>
         </form>
 
-        {/* Login com Google: o servidor já gera a autorização (auth/oauth/service.py),
-            mas ainda não tem a rota que conecta ao site — o botão avisa "em breve". */}
+        {/* Google login: the server already builds the authorization (auth/oauth/service.py)
+            but has no route connecting it to the site yet — the button says "coming soon". */}
         <div className="my-[12px] flex items-center gap-[10px] text-xs text-muted-foreground" aria-hidden="true">
           <span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
         </div>

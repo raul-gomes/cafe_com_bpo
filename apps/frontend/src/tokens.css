@@ -5,8 +5,8 @@
    ============================================== */
 
 
-/* margin/padding zerados ficam a cargo do reset do Tailwind (camada tw-base):
-   zerar aqui, fora de camada, anulava o espaçamento de todos os componentes do kit. */
+/* Zeroed margin/padding are left to Tailwind's reset (tw-base layer):
+   zeroing them here, unlayered, wiped the spacing of every kit component. */
 *, *::before, *::after {
   box-sizing: border-box;
 }

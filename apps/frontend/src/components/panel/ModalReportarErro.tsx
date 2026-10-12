@@ -13,7 +13,11 @@ const ACCEPTED_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const fieldClass =
   'w-full rounded-md border border-input bg-background px-[12px] py-[10px] text-[0.9375rem] text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring/40';
 
-/** Reportar erro: título, descrição e print opcional (anexar ou colar com Ctrl+V). */
+/**
+ * Error report: title, description and optional screenshot (attach or paste with Ctrl+V).
+ *
+ * @returns The dialog, or nothing while closed.
+ */
 export const ModalReportarErro: React.FC<ModalReportarErroProps> = ({ isOpen, onClose }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -33,11 +37,11 @@ export const ModalReportarErro: React.FC<ModalReportarErroProps> = ({ isOpen, on
       sendFeedback.reset();
       setTimeout(() => titleRef.current?.focus(), 100);
     }
-    // sendFeedback.reset é estável; só reiniciamos ao abrir.
+    // sendFeedback.reset is stable; we only reset on open.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
-  // Prévia do print (libera a URL temporária ao trocar ou fechar).
+  // Screenshot preview (frees the temporary URL on change or close).
   useEffect(() => {
     if (!screenshot) {
       setPreviewUrl(null);
@@ -62,7 +66,7 @@ export const ModalReportarErro: React.FC<ModalReportarErroProps> = ({ isOpen, on
     setScreenshot(file);
   };
 
-  // Colar o print direto (Print Screen → Ctrl+V) em qualquer ponto da janela.
+  // Paste the screenshot directly (Print Screen → Ctrl+V) anywhere in the dialog.
   const handlePaste = (event: React.ClipboardEvent) => {
     const image = Array.from(event.clipboardData.files).find(file => file.type.startsWith('image/'));
     if (image) {
@@ -84,7 +88,7 @@ export const ModalReportarErro: React.FC<ModalReportarErroProps> = ({ isOpen, on
       });
       onClose();
     } catch {
-      // A mensagem de erro aparece no formulário (sendFeedback.isError).
+      // The error message shows in the form (sendFeedback.isError).
     }
   };
 

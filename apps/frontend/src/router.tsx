@@ -18,7 +18,7 @@ const PublicProposalPage = React.lazy(() => import('./pages/PublicProposalPage')
 const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
 const PlansPage = React.lazy(() => import('./pages/panel/PlansPage'))
 const CafesPage = React.lazy(() => import('./pages/CafesPage'))
-const ProdutosPage = React.lazy(() => import('./pages/ProdutosPage'))
+const ProductsPage = React.lazy(() => import('./pages/ProductsPage'))
 const LegalPage = React.lazy(() => import('./pages/LegalPage'))
 
 // ── Suspense wrapper ─────────────────────────────────────────────
@@ -76,8 +76,9 @@ export async function buildRoutes() {
   const { UnderConstructionPanelPage } = await import('./pages/panel/UnderConstructionPanelPage')
   const { ProjetosPage } = await import('./pages/panel/ProjetosPage')
   const { ProjetoDetalhePage } = await import('./pages/panel/ProjetoDetalhePage')
-  const { ConfiguracoesPage } = await import('./pages/panel/ConfiguracoesPage')
-  const { AulasPage } = await import('./pages/panel/AulasPage')
+  const { SettingsPage } = await import('./pages/panel/SettingsPage')
+  const { LessonsPage } = await import('./pages/panel/LessonsPage')
+  const { BetaSignupsPage } = await import('./pages/panel/BetaSignupsPage')
 
   return [
     {
@@ -120,7 +121,7 @@ export async function buildRoutes() {
           element: <SuspenseWrapper><UnderConstructionPage /></SuspenseWrapper>,
         },
         {
-          // Nome novo da calculadora (o endereço antigo /simulador continua valendo).
+          // New name of the calculator (the old /simulador address keeps working).
           path: '/precificacao',
           element: <SuspenseWrapper><SimulatorPage /></SuspenseWrapper>,
         },
@@ -130,15 +131,15 @@ export async function buildRoutes() {
         },
         {
           path: '/produtos',
-          element: <SuspenseWrapper><ProdutosPage /></SuspenseWrapper>,
+          element: <SuspenseWrapper><ProductsPage /></SuspenseWrapper>,
         },
         {
           path: '/termos-de-uso',
-          element: <SuspenseWrapper><LegalPage documento="termos" /></SuspenseWrapper>,
+          element: <SuspenseWrapper><LegalPage document="terms" /></SuspenseWrapper>,
         },
         {
           path: '/politica-de-privacidade',
-          element: <SuspenseWrapper><LegalPage documento="privacidade" /></SuspenseWrapper>,
+          element: <SuspenseWrapper><LegalPage document="privacy" /></SuspenseWrapper>,
         },
       ],
     },
@@ -276,18 +277,23 @@ export async function buildRoutes() {
             },
             {
               path: 'configuracoes',
-              element: <SuspenseWrapper><ConfiguracoesPage /></SuspenseWrapper>,
+              element: <SuspenseWrapper><SettingsPage /></SuspenseWrapper>,
             },
             // Aulas: first steps in the tool, BPO for beginners and mentoring.
             { path: 'aulas', element: <Navigate to="/painel/aulas/primeiros-passos" replace /> },
-            { path: 'aulas/primeiros-passos', element: <SuspenseWrapper><AulasPage secao="primeiros-passos" /></SuspenseWrapper> },
-            { path: 'aulas/bpo-primeiros-passos', element: <SuspenseWrapper><AulasPage secao="bpo-primeiros-passos" /></SuspenseWrapper> },
-            { path: 'aulas/mentorias', element: <SuspenseWrapper><AulasPage secao="mentorias" /></SuspenseWrapper> },
+            { path: 'aulas/primeiros-passos', element: <SuspenseWrapper><LessonsPage section="primeiros-passos" /></SuspenseWrapper> },
+            { path: 'aulas/bpo-primeiros-passos', element: <SuspenseWrapper><LessonsPage section="bpo-primeiros-passos" /></SuspenseWrapper> },
+            { path: 'aulas/mentorias', element: <SuspenseWrapper><LessonsPage section="mentorias" /></SuspenseWrapper> },
             // Placeholder modules (under construction): Notas Fiscais and Certificados Digitais.
             { path: 'notas-fiscais', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'notas-fiscais/emitir', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'certificados', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'certificados/vencimentos', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
+            {
+              path: 'inscricoes-beta',
+              element: <AdminRoute />,
+              children: [{ path: '', element: <SuspenseWrapper><BetaSignupsPage /></SuspenseWrapper> }],
+            },
             {
               path: 'design-system',
               element: <AdminRoute />,

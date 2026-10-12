@@ -1,11 +1,11 @@
-// Tokens são cores completas vindas do kit V4 (ver src/styles/globals.css);
-// color-mix permite os modificadores de opacidade do Tailwind (bg-primary/10).
+// Tokens are full colors coming from the V4 kit (see src/styles/globals.css);
+// color-mix keeps Tailwind opacity modifiers working (bg-primary/10).
 const token = (name) =>
   `color-mix(in srgb, var(${name}) calc(<alpha-value> * 100%), transparent)`
 
 /** @type {import('tailwindcss').Config} */
 export default {
-  // Variantes dark: seguem a luminosidade escolhida no kit (data-cafe-mode no <html>).
+  // dark: variants follow the lightness chosen in the kit (data-cafe-mode on <html>).
   darkMode: ['selector', '[data-cafe-mode="dark"]'],
   content: [
     './src/**/*.{ts,tsx}',
@@ -92,7 +92,7 @@ export default {
           DEFAULT: token('--card'),
           foreground: token('--card-foreground'),
         },
-        // Cor do módulo atual (data-cafe-module): orientação, não tema.
+        // Current module color (data-cafe-module): orientation, not theme.
         module: {
           DEFAULT: token('--cafe-module'),
           bg: token('--cafe-module-bg'),

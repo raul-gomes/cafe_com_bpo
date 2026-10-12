@@ -8,7 +8,7 @@ AUTH_LOGIN_LIMIT = "10/minute"
 AUTH_REGISTER_LIMIT = "3/minute"
 AUTH_FORGOT_PASSWORD_LIMIT = "3/minute"
 AUTH_REFRESH_LIMIT = "10/minute"
-# Inscrição pública de Beta (página inicial): poucas por IP para conter spam.
+# Public Beta signup (landing page): few per IP to hold back spam.
 BETA_SIGNUP_LIMIT = "5/minute"
 
 

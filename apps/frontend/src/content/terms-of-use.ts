@@ -1,8 +1,8 @@
-// Termos de Uso — texto exibido em /termos-de-uso e referenciado no login e nas inscrições.
-// Conteúdo estático do próprio código (não vem da API): pode ser renderizado como HTML.
-// Revisado em 11/10/2026 a partir do funcionamento real da plataforma. Recomenda-se revisão por advogado antes da
-// publicação definitiva. Endereço da sede vindo de consulta pública: conferir no cartão CNPJ.
-export const TERMOS_USO_HTML = `
+// Terms of Use — shown at /termos-de-uso and linked from login, sign-up and the Beta form.
+// Bundled static content (never from the API), rendered by RichText.
+// Reviewed on 2026-10-11 against how the platform really works. A lawyer review is recommended before
+// final publication.
+export const TERMS_OF_USE_HTML = `
 <h1>Termos de Uso do Café com BPO</h1>
 <p><em>Última atualização: 11 de outubro de 2026</em></p>
 

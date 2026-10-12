@@ -1,9 +1,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-/* O reset do Tailwind (preflight) fica numa camada própria, declarada antes do
-   kit em index.html, para não anular os componentes cafe-* — estilos fora de
-   camada sempre vencem os de dentro de uma camada, independente de especificidade. */
+/* Tailwind's reset (preflight) lives in its own layer, declared before the
+   kit in index.html, so it does not override the cafe-* components — unlayered
+   styles always beat layered ones, whatever the specificity. */
 @layer tw-base {
   @tailwind base;
 }
@@ -11,16 +11,16 @@
 @tailwind utilities;
 
 /* ════════════════════════════════════════════════════════════════════
-   Ponte Café com BPO V4 → tokens do app (shadcn + --ds-* legados)
+   Café com BPO V4 bridge → app tokens (shadcn + legacy --ds-*)
 
-   Fonte da verdade: public/brand/kit-v4/cafe-design-system.css e
-   cafe-themes.css (seis atmosferas: data-cafe-palette × data-cafe-mode no
-   <html>). Aqui só apontamos os nomes que as telas já usam para os tokens
-   do kit — nenhuma cor nova é inventada. Como os valores vêm do kit, a troca
-   de atmosfera vale para todas as telas sem tocar nelas.
+   Source of truth: public/brand/kit-v4/cafe-design-system.css and
+   cafe-themes.css (data-cafe-palette × data-cafe-mode on <html>). Here we
+   only point the names the screens already use to the kit tokens — no new
+   color is invented. Since the values come from the kit, a mode change
+   applies to every screen without touching them.
 
-   Os tokens agora são cores completas (não mais trincas HSL): o Tailwind
-   aplica opacidade com color-mix (ver tailwind.config.js).
+   Tokens are now full colors (no longer HSL triplets): Tailwind applies
+   opacity with color-mix (see tailwind.config.js).
    ════════════════════════════════════════════════════════════════════ */
 
 @layer base {
@@ -31,11 +31,11 @@
     --card-foreground: var(--cafe-ink);
     --popover: var(--cafe-paper);
     --popover-foreground: var(--cafe-ink);
-    /* Ação principal = acento da família (amarelo da marca na família Café). */
+    /* Main action = family accent (brand yellow in the Café family). */
     --primary: var(--cafe-accent);
     --primary-foreground: var(--cafe-on-accent);
-    /* Texto/ícone de destaque: o acento amarelo não tem contraste como texto no
-       claro, então o kit usa o tom de foco (dourado escuro / verde / azul). */
+    /* Highlight text/icon: the yellow accent has no contrast as text on light,
+       so the kit uses the focus tone (dark gold / green / blue). */
     --primary-strong: var(--cafe-focus);
     --primary-dark: var(--cafe-accent-hover);
     --secondary: var(--cafe-panel);
@@ -58,7 +58,7 @@
     --chart-4: var(--cafe-module-negocios);
     --chart-5: var(--cafe-module-notas);
 
-    /* ── Aliases --ds-* das telas antigas ── */
+    /* ── --ds-* aliases of the older screens ── */
     --ds-black:        var(--cafe-canvas);
     --ds-surface:      var(--cafe-paper);
     --ds-surface-1:    var(--cafe-panel);
@@ -99,25 +99,25 @@
   }
 }
 
-/* O kit limita <p> a 68ch para leitura editorial; dentro de cards, tabelas e
-   formulários do app isso quebra o layout. Fora de camada para vencer o kit. */
+/* The kit caps <p> at 68ch for editorial reading; inside cards, tables and
+   forms of the app that breaks the layout. Unlayered so it beats the kit. */
 p {
   max-width: none;
 }
 
-/* Utilitário legado de texto em destaque: no claro o amarelo vira ilegível como
-   texto, então segue o tom de foco do kit (mesmo critério de --primary-strong). */
+/* Legacy highlight-text utility: on light the yellow becomes unreadable as
+   text, so it follows the kit focus tone (same rule as --primary-strong). */
 .text-primary {
   color: var(--primary-strong);
 }
 
-/* ════════════ Casca do painel por módulo de trabalho ════════════
-   Regra (Ghuto, 2026-10-11): menos é mais. A cor do módulo aparece só nos
-   detalhes — seta do menu, destaque de ícones e caixas de seleção, preenchimento
-   dos botões e logo. Fundo, cartões e textos seguem a atmosfera escolhida.
-   O módulo vem do <body data-cafe-module> (PanelLayout), para alcançar também
-   menus e diálogos abertos em portal. Fora de um módulo (painel principal,
-   perfil) vale o amarelo do café. */
+/* ════════════ Panel shell per work module ════════════
+   Rule (Ghuto, 2026-10-11): less is more. The module color only shows in the
+   details — menu arrow, highlighted icons and selection boxes, button fill
+   and logo. Background, cards and text follow the chosen mode.
+   The module comes from <body data-cafe-module> (PanelLayout), so portal
+   menus and dialogs get it too. Outside a module (main panel, profile) the
+   café yellow applies. */
 body[data-cafe-module] {
   --primary: var(--cafe-module);
   --primary-foreground: var(--cafe-canvas);
@@ -132,21 +132,21 @@ body[data-cafe-module] {
   --ds-primary-text: var(--cafe-canvas);
   --ds-primary-btn-text: var(--cafe-module);
   --ds-primary-btn-hover-bg: var(--cafe-module-bg);
-  /* Componentes do próprio kit (cafe-button-primary, cafe-check…) */
+  /* The kit's own components (cafe-button-primary, cafe-check…) */
   --cafe-accent: var(--cafe-module);
   --cafe-accent-hover: var(--primary-dark);
   --cafe-accent-soft: var(--cafe-module-bg);
   --cafe-on-accent: var(--cafe-canvas);
 }
 
-/* Módulo Aulas: o kit não tem cor para ele; usa o dourado de foco do próprio kit
-   (fundo derivado por mistura, sem hex novo). */
+/* Aulas module: the kit has no color for it; it uses the kit's own focus gold
+   (background derived by mixing, no new hex). */
 [data-cafe-module="aulas"] {
   --cafe-module: var(--cafe-focus);
   --cafe-module-bg: color-mix(in srgb, var(--cafe-focus) 14%, var(--cafe-paper));
 }
 
-/* Menu em três estados (a seta percorre): completo 240 px → só ícones 76 px → retraído 0. */
+/* Three-state menu (the arrow cycles): full 240 px → icons only 76 px → hidden 0. */
 .app-shell {
   position: relative;
   grid-template-columns: 240px minmax(0, 1fr);
@@ -180,12 +180,12 @@ body[data-cafe-module] {
 .panel-rail-link[aria-current="page"] { border-left-color: var(--cafe-module); }
 .app-shell[data-nav="collapsed"] .panel-rail-link { justify-content: center; padding-inline: 8px; }
 .app-shell[data-nav="collapsed"] .panel-rail .cafe-rail-label { display: none; }
-/* Na gaveta do celular o menu é sempre completo, mesmo com o desktop em "ícones". */
+/* In the mobile drawer the menu is always full, even with the desktop in "icons". */
 dialog .panel-rail { width: 100%; }
 dialog .panel-rail .cafe-rail-label { display: block; }
 dialog .panel-rail .panel-rail-link { justify-content: flex-start; padding-inline: 12px; }
 
-/* Marca: logo completo; no modo ícones, a xícara leva ao painel principal. */
+/* Brand: full logo; in icons mode the cup goes to the main panel. */
 .panel-rail-brand { display: block; margin: 0 8px 18px; color: var(--cafe-ink); }
 .panel-brand-compact { display: none; }
 .app-shell[data-nav="collapsed"] .panel-rail .panel-brand-full { display: none; }
@@ -194,7 +194,7 @@ dialog .panel-rail .panel-rail-link { justify-content: flex-start; padding-inlin
 }
 .app-shell[data-nav="collapsed"] .panel-rail .panel-brand-compact:hover { background: var(--cafe-paper); }
 
-/* Seta flutuante na borda do menu, na cor do módulo. */
+/* Floating arrow on the menu edge, in the module color. */
 .panel-rail-toggle {
   position: absolute;
   top: 16px;
@@ -211,7 +211,7 @@ dialog .panel-rail .panel-rail-link { justify-content: flex-start; padding-inlin
 .app-shell[data-nav="hidden"] .panel-rail-toggle svg { transform: none; }
 .app-shell[data-nav="hidden"] .panel-topbar { padding-left: 68px; }
 
-/* Abas dos módulos: quebram em linhas sozinhas quando houver mais módulos. */
+/* Module tabs: they wrap into rows on their own as more modules arrive. */
 .panel-module-tabs {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
@@ -236,7 +236,7 @@ dialog .panel-rail .panel-rail-link { justify-content: flex-start; padding-inlin
 }
 .panel-module-tab:focus-visible { outline: 3px solid var(--cafe-focus); outline-offset: 2px; }
 
-/* Só o nome do módulo, discreto. */
+/* Just the module name, discreet. */
 .panel-module-name {
   margin: 10px 12px 8px;
   font-size: 0.75rem;
@@ -246,51 +246,51 @@ dialog .panel-rail .panel-rail-link { justify-content: flex-start; padding-inlin
   color: var(--cafe-module);
 }
 
-/* Logo de uma tinta tingido pelo módulo, que surge sobre o oficial (BrandLogo.tsx). */
+/* One-ink logo tinted by the module, fading in over the official one (BrandLogo.tsx). */
 .panel-logo-tinted {
   -webkit-mask: url('/brand/kit-v4/logo-cafe-preta.svg') no-repeat center / contain;
   mask: url('/brand/kit-v4/logo-cafe-preta.svg') no-repeat center / contain;
 }
-@keyframes panel-logo-veste {
+@keyframes panel-logo-tint-in {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-.panel-logo-veste { animation: panel-logo-veste 1100ms ease-out 350ms both; }
+.panel-logo-tint-in { animation: panel-logo-tint-in 1100ms ease-out 350ms both; }
 
-/* Botão fichário: a linha de baixo (amarela no kit) assume a cor do módulo. */
+/* Folder-tab button: the bottom line (yellow in the kit) takes the module color. */
 body[data-cafe-module] .cafe-command-tab { border-bottom-color: var(--cafe-module); }
-/* No cabeçalho das telas o fichário fica um pouco mais compacto que no kit
-   (52 px), com ícone junto do rótulo em vez de nas pontas. */
-.panel-ficha { min-height: 46px; padding: 11px 18px; gap: 10px; justify-content: center; white-space: nowrap; }
-.panel-ficha:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+/* In screen headers the folder tab is a bit more compact than in the kit
+   (52 px), with the icon next to the label instead of at the ends. */
+.panel-folder-tab { min-height: 46px; padding: 11px 18px; gap: 10px; justify-content: center; white-space: nowrap; }
+.panel-folder-tab:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
 
-/* Rolagem discreta: só uma linha fina que sobe e desce. */
+/* Discreet scrollbar: just a thin line going up and down. */
 .panel-thin-scroll { scrollbar-width: thin; scrollbar-color: var(--cafe-line-strong) transparent; }
 .panel-thin-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
 .panel-thin-scroll::-webkit-scrollbar-track { background: transparent; }
 .panel-thin-scroll::-webkit-scrollbar-thumb { background: var(--cafe-line-strong); border-radius: 999px; }
 
-/* ── Transição entre módulos: a ficha sobe do arquivo ──
-   Só ao trocar de área (PanelLayout troca a chave). Duração entre a resposta
-   de controle (120–180 ms) e a entrada de camada (800 ms) do manual: troca de
-   módulo é frequente e não pode cansar. */
-@keyframes panel-ficha-sobe {
+/* ── Module transition: the sheet rises from the file ──
+   Only on an area change (PanelLayout changes the key). Duration between the
+   control response (120–180 ms) and the layer entrance (800 ms) of the manual:
+   module changes are frequent and must not tire. */
+@keyframes panel-sheet-rise {
   from { opacity: 0; transform: translateY(18px); }
   to   { opacity: 1; transform: none; }
 }
-@keyframes panel-faixa-modulo {
+@keyframes panel-module-stripe-grow {
   from { transform: scaleX(0); }
   to   { transform: scaleX(1); }
 }
 .panel-module-enter {
-  animation: panel-ficha-sobe 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: panel-sheet-rise 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 .panel-module-stripe {
   transform-origin: left center;
-  animation: panel-faixa-modulo 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+  animation: panel-module-stripe-grow 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
-/* Troca de atmosfera atômica (D04 do kit): sem transição de cor entre temas. */
+/* Atomic mode switch (kit D04): no color transition between themes. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
@@ -298,7 +298,7 @@ body[data-cafe-module] .cafe-command-tab { border-bottom-color: var(--cafe-modul
   }
 }
 
-/* Plano: cadeado discreto na aba de módulo que exige assinatura para criar/enviar. */
+/* Plan: discreet lock on the module tab that needs a subscription to create/send. */
 .panel-module-tab { position: relative; }
 .panel-module-tab-lock {
   position: absolute;
@@ -322,6 +322,6 @@ body[data-cafe-module] .cafe-command-tab { border-bottom-color: var(--cafe-modul
   border-bottom: 0;
   border-radius: 3px 3px 0 0;
 }
-/* Cadeado de item (ex.: Pagamentos) — mesmo desenho do cadeado das abas, em linha. */
+/* Item lock (e.g. Pagamentos) — same drawing as the tab lock, inline. */
 .panel-item-lock { position: relative; display: inline-block; width: 10px; height: 8px; margin-top: 4px; border: 1.4px solid currentColor; border-radius: 2px; opacity: 0.55; }
 .panel-item-lock::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 6px; height: 4px; transform: translateX(-50%); border: 1.4px solid currentColor; border-bottom: 0; border-radius: 3px 3px 0 0; }

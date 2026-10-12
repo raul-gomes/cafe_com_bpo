@@ -1,28 +1,33 @@
 import React, { useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../components/ui/Navbar';
-import { CafeIcon, type CafeIconName } from '../brand/CafeIcon';
-import { CANAIS_CAFE, HORARIO_CAFE, proximoCafeAberto } from '../components/home/cafes';
-import { useFolhasSobrepostas } from '../components/home/useFolhasSobrepostas';
-import './home.css';
-import { usePageMeta } from '../lib/seo';
+import { CafeIcon } from '../brand/CafeIcon';
+import { CAFE_CHANNELS, CAFE_TIME, nextOpenCafe } from '../components/home/cafes';
+import { useStackedSheets } from '../components/home/useStackedSheets';
 import { PublicFooter } from '../components/home/PublicFooter';
+import { usePageMeta } from '../lib/seo';
+import './home.css';
 
-/** Agenda dos cafés: encontros abertos (última quarta do mês) e o café dos Betas (toda quarta). */
+/**
+ * Cafés schedule: open café (last Wednesday of the month) and the Betas café
+ * (every Wednesday), with the channels that announce the meeting link.
+ *
+ * @returns The page.
+ */
 const CafesPage: React.FC = () => {
   usePageMeta({
     title: 'Agenda dos cafés',
     description: 'Encontros do Café com BPO: café aberto na última quarta do mês, às 14h, no Meet, e café dos Betas toda quarta. Veja como participar.',
     path: '/cafes',
   });
-  const proximo = proximoCafeAberto(new Date()).toLocaleDateString('pt-BR', {
+  const pageRef = useRef<HTMLDivElement>(null);
+  useStackedSheets(pageRef);
+
+  const next = nextOpenCafe(new Date()).toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: '2-digit',
     month: 'long',
   });
-
-  const pageRef = useRef<HTMLDivElement>(null);
-  useFolhasSobrepostas(pageRef);
 
   return (
     <div ref={pageRef} className="hb-page">
@@ -44,15 +49,15 @@ const CafesPage: React.FC = () => {
           <div className="hb-grid hb-grid-3 hb-cafes-grid">
             <article className="hb-card">
               <span className="hb-card-icon"><CafeIcon name="encontro" /></span>
-              <h3>Café aberto · última quarta do mês, às {HORARIO_CAFE}</h3>
+              <h3>Café aberto · última quarta do mês, às {CAFE_TIME}</h3>
               <p>
-                Encontro aberto a toda a comunidade, no Google Meet. O próximo é <strong>{proximo}, às {HORARIO_CAFE}</strong>.
+                Encontro aberto a toda a comunidade, no Google Meet. O próximo é <strong>{next}, às {CAFE_TIME}</strong>.
                 O link sai nos nossos canais — entre em um deles para receber.
               </p>
             </article>
             <article className="hb-card">
               <span className="hb-card-icon"><CafeIcon name="conversa-cafe" /></span>
-              <h3>Café dos Betas · toda quarta, às {HORARIO_CAFE}</h3>
+              <h3>Café dos Betas · toda quarta, às {CAFE_TIME}</h3>
               <p>
                 Para quem é Beta: toda semana a gente discute a ferramenta, com muitos insights, ideias e a construção
                 da nossa ferramenta perfeita.
@@ -70,28 +75,28 @@ const CafesPage: React.FC = () => {
           </div>
         </section>
 
-        <section className="hb-sheet hb-section" aria-labelledby="canais-titulo">
+        <section className="hb-sheet hb-section" aria-labelledby="channels-title">
           <div className="hb-section-head">
             <p className="hb-kicker">Onde sai o link do encontro</p>
-            <h2 id="canais-titulo" className="hb-headline">Entre em um dos canais e não perca o próximo.</h2>
+            <h2 id="channels-title" className="hb-headline">Entre em um dos canais e não perca o próximo.</h2>
           </div>
           <div className="hb-grid hb-grid-3">
-            {CANAIS_CAFE.map(canal => (
+            {CAFE_CHANNELS.map(channel => (
               <a
-                key={canal.nome}
-                href={canal.url}
+                key={channel.name}
+                href={channel.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="hb-card hb-canal"
+                className="hb-card hb-channel"
               >
-                <span className="hb-card-icon"><CafeIcon name={canal.icone as CafeIconName} /></span>
-                <h3>{canal.nome}</h3>
-                <p>{canal.descricao}</p>
-                <span className="hb-canal-abrir">Abrir <CafeIcon name="expandir" className="size-[16px]" /></span>
+                <span className="hb-card-icon"><CafeIcon name={channel.icon} /></span>
+                <h3>{channel.name}</h3>
+                <p>{channel.description}</p>
+                <span className="hb-channel-open">Abrir <CafeIcon name="expandir" className="size-[16px]" /></span>
               </a>
             ))}
           </div>
-          <p className="hb-cafes-nota">Não deixe de nos acompanhar.</p>
+          <p className="hb-cafes-note">Não deixe de nos acompanhar.</p>
         </section>
       </main>
 

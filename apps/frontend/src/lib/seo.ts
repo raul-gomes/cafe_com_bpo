@@ -1,26 +1,26 @@
 /**
- * SEO das páginas públicas: título, descrição, endereço canônico e cartões de
- * compartilhamento (Open Graph / Twitter) por rota.
+ * SEO of the public pages: title, description, canonical address and share
+ * cards (Open Graph / Twitter) per route.
  *
- * O site é uma SPA: o Google executa o JavaScript e lê estas tags; já robôs que
- * não executam JS (prévia de link do WhatsApp/LinkedIn) leem só o index.html,
- * que traz as tags padrão da página inicial.
+ * The site is an SPA: Google runs the JavaScript and reads these tags; bots
+ * that do not run JS (WhatsApp/LinkedIn link previews) only read index.html,
+ * which carries the landing page defaults.
  */
 import { useEffect } from 'react';
 
-/** Endereço oficial do site (sem barra no fim). Ajustável por VITE_SITE_URL no build. */
+/** Official site address (no trailing slash). Set VITE_SITE_URL at build time to change it. */
 export const SITE_URL = (import.meta.env.VITE_SITE_URL || 'https://cafecombpo.cloud').replace(/\/$/, '');
 export const SITE_NAME = 'Café com BPO';
 const DEFAULT_IMAGE = `${SITE_URL}/brand/og-cafe-com-bpo.png`;
 
 interface PageMeta {
-  /** Título da aba e do resultado no Google (o nome do site é acrescentado). */
+  /** Tab and Google result title (the site name is appended). */
   title: string;
-  /** Resumo de 140 a 160 caracteres mostrado no Google. */
+  /** 140 to 160 character summary shown on Google. */
   description: string;
-  /** Caminho da página (ex.: "/precificacao"), para o endereço canônico. */
+  /** Page path (e.g. "/precificacao"), for the canonical address. */
   path: string;
-  /** Páginas que não devem aparecer no Google (login, propostas privadas). */
+  /** Pages that must stay out of Google (login, private proposals). */
   noindex?: boolean;
 }
 
@@ -44,7 +44,11 @@ function setCanonical(url: string) {
   link.href = url;
 }
 
-/** Aplica as tags da página enquanto ela estiver aberta. */
+/**
+ * Applies the page tags while it is open.
+ *
+ * @param meta Page metadata.
+ */
 export function usePageMeta({ title, description, path, noindex = false }: PageMeta): void {
   useEffect(() => {
     const fullTitle = title === SITE_NAME ? title : `${title} · ${SITE_NAME}`;

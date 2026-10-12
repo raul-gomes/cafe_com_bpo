@@ -4,7 +4,7 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PublicShell } from '../src/components/auth/LoginDialogContext'
 import { Navbar } from '../src/components/ui/Navbar'
-import { proximoCafeAberto } from '../src/components/home/cafes'
+import { nextOpenCafe } from '../src/components/home/cafes'
 
 vi.mock('../src/context/AuthContext', () => ({
   useAuth: () => ({
@@ -31,14 +31,14 @@ function renderPublic() {
   )
 }
 
-describe('topo público e login suspenso', () => {
-  it('mostra as ações na ordem Precificação, Quero ser Beta, Login', () => {
+describe('public header and login dialog', () => {
+  it('shows the actions in the order Precificação, Quero ser Beta, Login', () => {
     renderPublic()
     const nav = screen.getByRole('navigation', { name: 'Principal' })
     expect(Array.from(nav.children).map(el => el.textContent)).toEqual(['Precificação', 'Quero ser Beta', 'Login'])
   })
 
-  it('Login abre a janela por cima da página atual e Escape fecha', () => {
+  it('Login opens the dialog over the current page and Escape closes it', () => {
     renderPublic()
     expect(screen.queryByRole('dialog', { name: 'Login' })).not.toBeInTheDocument()
 
@@ -51,22 +51,22 @@ describe('topo público e login suspenso', () => {
   })
 })
 
-describe('próximo café aberto (última quarta do mês)', () => {
+describe('next open café (last Wednesday of the month)', () => {
   const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-  it('antes da última quarta, é a deste mês', () => {
-    expect(iso(proximoCafeAberto(new Date(2026, 9, 11)))).toBe('2026-10-28')
+  it('before the last Wednesday, it is this month\'s', () => {
+    expect(iso(nextOpenCafe(new Date(2026, 9, 11)))).toBe('2026-10-28')
   })
 
-  it('no próprio dia ainda vale', () => {
-    expect(iso(proximoCafeAberto(new Date(2026, 9, 28, 20, 0)))).toBe('2026-10-28')
+  it('the day itself still counts', () => {
+    expect(iso(nextOpenCafe(new Date(2026, 9, 28, 20, 0)))).toBe('2026-10-28')
   })
 
-  it('depois da última quarta, passa para o mês seguinte', () => {
-    expect(iso(proximoCafeAberto(new Date(2026, 9, 29)))).toBe('2026-11-25')
+  it('after the last Wednesday, it moves to next month', () => {
+    expect(iso(nextOpenCafe(new Date(2026, 9, 29)))).toBe('2026-11-25')
   })
 
-  it('vira o ano corretamente', () => {
-    expect(iso(proximoCafeAberto(new Date(2026, 11, 31)))).toBe('2027-01-27')
+  it('rolls over the year correctly', () => {
+    expect(iso(nextOpenCafe(new Date(2026, 11, 31)))).toBe('2027-01-27')
   })
 })

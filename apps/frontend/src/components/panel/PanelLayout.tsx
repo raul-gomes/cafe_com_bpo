@@ -22,11 +22,11 @@ function writeStorage(key: string, value: string): void {
   try {
     localStorage.setItem(key, value);
   } catch {
-    // armazenamento indisponível: vale só nesta sessão
+    // storage unavailable: applies to this session only
   }
 }
 
-/** Estados do menu, na ordem em que a seta os percorre. */
+/** Menu states, in the order the arrow cycles through them. */
 type NavState = 'expanded' | 'collapsed' | 'hidden';
 const NAV_CYCLE: NavState[] = ['expanded', 'collapsed', 'hidden'];
 const NAV_TOGGLE_LABEL: Record<NavState, string> = {
@@ -40,12 +40,14 @@ function sectionById(id: string | null): NavSection {
 }
 
 /**
- * Casca do painel (.cafe-workspace do kit V4).
+ * Panel shell (.cafe-workspace of the V4 kit).
  *
- * Módulo de trabalho: vem da rota quando ela pertence a um módulo; em telas
- * sem módulo (Início, perfil) fica o último escolhido. O módulo define o
- * data-cafe-module de toda a casca — menu, logo, seta, faixa do topo e linha
- * dos botões fichário vestem a cor dele.
+ * Work module: comes from the route when it belongs to a module; on screens
+ * outside modules (Home, profile) the last chosen one stays. The module sets
+ * data-cafe-module for the whole shell — menu, logo, arrow, top stripe and the
+ * folder-tab buttons take on its color.
+ *
+ * @returns The shell.
  */
 export const PanelLayout: React.FC = () => {
   const { pathname } = useLocation();
@@ -61,7 +63,7 @@ export const PanelLayout: React.FC = () => {
   const routeSection = sectionForPath(pathname);
   const activeSection = routeSection ?? sectionById(chosenId);
 
-  // Ao entrar numa rota de outro módulo (link, notificação…), ele vira o escolhido.
+  // Landing on a route of another module (link, notification…) makes it the chosen one.
   useEffect(() => {
     if (routeSection && routeSection.id !== chosenId) {
       setChosenId(routeSection.id);
@@ -74,7 +76,7 @@ export const PanelLayout: React.FC = () => {
     writeStorage(MODULE_KEY, section.id);
   }, []);
 
-  // Seta: completo → só ícones → retraído → completo.
+  // Arrow: full → icons only → hidden → full.
   const cycleNav = useCallback(() => {
     setNav(prev => {
       const next = NAV_CYCLE[(NAV_CYCLE.indexOf(prev) + 1) % NAV_CYCLE.length];
@@ -83,7 +85,7 @@ export const PanelLayout: React.FC = () => {
     });
   }, []);
 
-  // A cor do módulo vai no <body> para alcançar também menus e diálogos em portal.
+  // The module color goes on <body> so portal menus and dialogs get it too.
   const moduleColor = routeSection?.module;
   useEffect(() => {
     if (moduleColor) document.body.dataset.cafeModule = moduleColor;
@@ -93,7 +95,7 @@ export const PanelLayout: React.FC = () => {
     };
   }, [moduleColor]);
 
-  // Gaveta do celular: <dialog> nativo (Escape e foco preso vêm do navegador).
+  // Mobile drawer: native <dialog> (Escape and focus trap come from the browser).
   useEffect(() => {
     const dialog = drawerRef.current;
     if (!dialog) return;
@@ -103,16 +105,16 @@ export const PanelLayout: React.FC = () => {
 
   return (
     <div
-      // Linha única com altura da tela: sem isso a linha "auto" cresce com o menu e ele não rola.
+      // Single screen-high row: otherwise the "auto" row grows with the menu and it never scrolls.
       className="cafe-workspace app-shell h-screen w-screen grid-rows-[minmax(0,100vh)] overflow-hidden border-0"
       data-nav={nav}
     >
-      {/* Retraído: largura 0 e visibility:hidden (CSS), o que também tira os links do Tab. */}
+      {/* Hidden: width 0 and visibility:hidden (CSS), which also removes the links from Tab order. */}
       <div className="panel-rail-slot min-w-0 overflow-hidden">
         <PanelSidebar activeSection={activeSection} inModule={Boolean(routeSection)} onSelectSection={selectSection} />
       </div>
 
-      {/* Seta flutuante: fica na borda do menu e continua visível com ele retraído. */}
+      {/* Floating arrow: sits on the menu edge and stays visible when the menu is hidden. */}
       <button
         type="button"
         onClick={cycleNav}
@@ -134,7 +136,7 @@ export const PanelLayout: React.FC = () => {
           {access?.shows_beta_banner && access.expires_at && (
             <BetaEndingBanner expiresAt={access.expires_at} />
           )}
-          {/* A chave muda só ao trocar de módulo: a ficha sobe ao entrar numa área nova. */}
+          {/* The key only changes with the module: the sheet rises when entering a new area. */}
           <div key={routeSection?.id ?? 'inicio'} className="panel-module-enter">
             <Outlet />
           </div>

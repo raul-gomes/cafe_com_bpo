@@ -11,15 +11,15 @@ import { createBetaSignup } from '../src/api/beta'
 
 const create = createBetaSignup as ReturnType<typeof vi.fn>
 
-function preencher() {
+function fillForm(): void {
   fireEvent.change(screen.getByLabelText('Nome'), { target: { value: 'Ana Operadora' } })
   fireEvent.change(screen.getByLabelText('E-mail'), { target: { value: 'ana@cafe.com' } })
   fireEvent.change(screen.getByLabelText(/WhatsApp/), { target: { value: '(11) 98765-4321' } })
-  fireEvent.change(screen.getByLabelText('Como você atua hoje'), { target: { value: 'crescendo' } })
+  fireEvent.change(screen.getByLabelText('Como você atua hoje'), { target: { value: 'growing' } })
   fireEvent.click(screen.getByRole('radio', { name: '6 a 15' }))
 }
 
-const enviar = () => screen.getByRole('button', { name: /Quero ser Beta/ })
+const submitButton = () => screen.getByRole('button', { name: /Quero ser Beta/ })
 
 describe('BetaSignupForm', () => {
   beforeEach(() => {
@@ -27,35 +27,35 @@ describe('BetaSignupForm', () => {
     create.mockResolvedValue({ message: 'ok' })
   })
 
-  it('só libera o envio com o aceite da LGPD', () => {
+  it('only enables sending after LGPD consent', () => {
     render(<BetaSignupForm />)
-    preencher()
-    expect(enviar()).toBeDisabled()
+    fillForm()
+    expect(submitButton()).toBeDisabled()
     fireEvent.click(screen.getByRole('checkbox'))
-    expect(enviar()).toBeEnabled()
+    expect(submitButton()).toBeEnabled()
   })
 
-  it('envia os dados com origem "home" e agradece', async () => {
+  it('sends the data with source "home" and says thanks', async () => {
     render(<BetaSignupForm />)
-    preencher()
+    fillForm()
     fireEvent.click(screen.getByRole('checkbox'))
-    fireEvent.click(enviar())
+    fireEvent.click(submitButton())
 
     expect(await screen.findByText('Inscrição recebida.')).toBeInTheDocument()
     expect(create).toHaveBeenCalledWith(
       expect.objectContaining({
-        nome: 'Ana Operadora',
+        name: 'Ana Operadora',
         email: 'ana@cafe.com',
-        perfil: 'crescendo',
-        faixa_clientes: '6-15',
-        origem: 'home',
-        consentimento_lgpd: true,
+        profile: 'growing',
+        client_range: '6-15',
+        source: 'home',
+        lgpd_consent: true,
         website: undefined,
       })
     )
   })
 
-  it('avisa quando há tentativas demais (limite do servidor)', async () => {
+  it('warns when there are too many attempts (server rate limit)', async () => {
     create.mockRejectedValue(
       new AxiosError('limite', 'ERR', undefined, undefined, {
         status: 429,
@@ -66,9 +66,9 @@ describe('BetaSignupForm', () => {
       })
     )
     render(<BetaSignupForm />)
-    preencher()
+    fillForm()
     fireEvent.click(screen.getByRole('checkbox'))
-    fireEvent.click(enviar())
+    fireEvent.click(submitButton())
 
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('Muitas tentativas'))
   })

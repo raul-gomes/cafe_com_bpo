@@ -4,10 +4,10 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <!-- Identidade Café com BPO V4: servida sem alteração a partir de public/brand/kit-v4
-         (ordem do GUIA-DE-USO). Fica fora do PostCSS porque o kit usa @layer base/components/
-         utilities, nomes que o Tailwind v3 tentaria processar. -->
-    <!-- Ordem de camadas: o reset do Tailwind (tw-base) fica abaixo de todas as do kit. -->
+    <!-- Café com BPO V4 identity: served unchanged from public/brand/kit-v4
+         (GUIA-DE-USO order). Kept out of PostCSS because the kit uses @layer base/components/
+         utilities, names Tailwind v3 would try to process. -->
+    <!-- Layer order: Tailwind's reset (tw-base) sits below every kit layer. -->
     <style>@layer tw-base;</style>
     <link rel="preload" href="/brand/kit-v4/fonts/DM-Sans.ttf" as="font" type="font/ttf" crossorigin />
     <link rel="stylesheet" href="/brand/kit-v4/cafe-design-system.css" />
@@ -15,19 +15,19 @@
     <link rel="stylesheet" href="/brand/kit-v4/cafe-expression.css" />
     <link rel="stylesheet" href="/brand/kit-v4/cafe-navigation.css" />
     <script>
-      /* Aplica o modo salvo antes da primeira pintura (evita piscar o tema errado).
-         Mesma chave e formato de src/brand/appearance.ts. */
+      /* Applies the saved mode before the first paint (avoids flashing the wrong theme).
+         Same key and format as src/brand/appearance.ts. */
       (function () {
         try {
           var v = JSON.parse(localStorage.getItem('cafe-appearance') || '{}') || {};
-          /* Só claro/escuro: a família de cor é sempre Café (data-cafe-palette fixo no <html>). */
+          /* Light/dark only: the color family is always Café (data-cafe-palette pinned on <html>). */
           if (['light', 'dark'].indexOf(v.mode) >= 0) document.documentElement.dataset.cafeMode = v.mode;
-        } catch (e) { /* armazenamento indisponível: fica o padrão */ }
+        } catch (e) { /* storage unavailable: keep the default */ }
       })();
     </script>
     <title>Café com BPO · Inteligência de negócio para o BPO financeiro</title>
-    <!-- SEO padrão (página inicial). As demais páginas trocam estas tags em src/lib/seo.ts.
-         Robôs que não executam JavaScript (prévia de link no WhatsApp/LinkedIn) leem só isto. -->
+    <!-- Default SEO (landing page). Other pages swap these tags in src/lib/seo.ts.
+         Bots that do not run JavaScript (WhatsApp/LinkedIn link previews) only read this. -->
     <meta name="description" content="Comunidade, ferramenta e precificação para quem opera BPO financeiro. Inteligência de negócio não é IA: é você com a realidade. Seja Beta do Café com BPO." />
     <meta name="robots" content="index, follow" />
     <meta name="theme-color" content="#35291F" />
@@ -55,7 +55,7 @@
     <meta name="twitter:title" content="Café com BPO · Inteligência de negócio para o BPO financeiro" />
     <meta name="twitter:description" content="Comunidade, ferramenta e precificação para quem opera BPO financeiro." />
     <meta name="twitter:image" content="https://cafecombpo.cloud/brand/og-cafe-com-bpo.png" />
-    <!-- Dados estruturados: ajudam o Google a entender quem publica o site. -->
+    <!-- Structured data: helps Google understand who publishes the site. -->
     <script type="application/ld+json">
       {
         "@context": "https://schema.org",

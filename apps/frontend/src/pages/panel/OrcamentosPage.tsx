@@ -4,7 +4,7 @@ import { apiClient } from '../../api/client';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
-import { FichaButton } from '../../components/ui/ficha-button';
+import { FolderTabButton } from '../../components/ui/folder-tab-button';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Input } from '../../components/ui/input';
 import {
@@ -154,13 +154,13 @@ export const OrcamentosPage: React.FC = () => {
           <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Orçamentos</h1>
           <p className="text-[14px] text-muted-foreground">Gerencie e visualize todos os seus orçamentos salvos.</p>
         </div>
-        <FichaButton onClick={() => { if (canWriteProposals()) navigate('/painel/novo-orcamento'); }}>
+        <FolderTabButton onClick={() => { if (canWriteProposals()) navigate('/painel/novo-orcamento'); }}>
           {proposalsLocked && <Lock className="mr-1 size-4" />}
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Nova Precificação
-        </FichaButton>
+        </FolderTabButton>
       </div>
 
       {/* Stats */}

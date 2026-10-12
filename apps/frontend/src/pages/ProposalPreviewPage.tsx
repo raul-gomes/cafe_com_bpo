@@ -9,7 +9,7 @@ import { SESSION_KEY, ProposalSession } from '../schemas/proposalSession';
 import { usePageMeta } from '../lib/seo';
 
 export default function ProposalPreviewPage() {
-  // Proposta gerada no simulador: não deve aparecer no Google.
+  // Proposal generated in the simulator: must stay out of Google.
   usePageMeta({ title: 'Proposta', description: 'Prévia de proposta do Café com BPO.', path: '/proposta', noindex: true });
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();

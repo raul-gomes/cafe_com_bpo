@@ -22,7 +22,7 @@ const DECISION_OPTIONS: { value: ClientDecision; label: string }[] = [
 ];
 
 export const PublicProposalPage: React.FC = () => {
-  // Proposta compartilhada por link com o cliente: privada, nunca indexada.
+  // Proposal shared by link with the client: private, never indexed.
   usePageMeta({ title: 'Proposta', description: 'Proposta comercial compartilhada pelo Café com BPO.', path: '/orcamento', noindex: true });
   const { hash } = useParams<{ hash: string }>();
   const [proposal, setProposal] = useState<PublicProposal | null>(null);

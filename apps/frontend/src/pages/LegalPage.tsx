@@ -1,52 +1,58 @@
 import React, { useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Navbar } from '../components/ui/Navbar';
-import { TERMOS_USO_HTML } from '../content/termos-uso';
-import { POLITICA_PRIVACIDADE_HTML } from '../content/politica-privacidade';
+import { TERMS_OF_USE_HTML } from '../content/terms-of-use';
+import { PRIVACY_POLICY_HTML } from '../content/privacy-policy';
 import { usePageMeta } from '../lib/seo';
 import { RichText } from '../components/ui/RichText';
-import './home.css';
 import { PublicFooter } from '../components/home/PublicFooter';
+import './home.css';
 
-const DOCUMENTOS = {
-  termos: { titulo: 'Termos de Uso', html: TERMOS_USO_HTML },
-  privacidade: { titulo: 'Política de Privacidade', html: POLITICA_PRIVACIDADE_HTML },
+const DOCUMENTS = {
+  terms: {
+    title: 'Termos de Uso',
+    html: TERMS_OF_USE_HTML,
+    path: '/termos-de-uso',
+    description: 'Termos de Uso do Café com BPO: planos, assinatura, programa Beta, comunidade, encontros e responsabilidades.',
+  },
+  privacy: {
+    title: 'Política de Privacidade',
+    html: PRIVACY_POLICY_HTML,
+    path: '/politica-de-privacidade',
+    description: 'Política de Privacidade do Café com BPO: quais dados tratamos, para quê, com quem compartilhamos e como exercer seus direitos (LGPD).',
+  },
 } as const;
 
 interface LegalPageProps {
-  documento: keyof typeof DOCUMENTOS;
+  document: keyof typeof DOCUMENTS;
 }
 
 /**
- * Termos de Uso e Política de Privacidade em página própria (antes abriam numa
- * janela que ficava atrás do login). O topo mantém o logo para voltar ao início.
+ * Terms of Use and Privacy Policy on their own page (they used to open in a
+ * dialog that ended up behind the login). The header keeps the logo to go home.
  *
- * O HTML vem de constantes do próprio código (src/content) e é exibido pelo
- * RichText do Raul, que monta elementos React em vez de usar innerHTML.
+ * The HTML comes from bundled constants (src/content) and is rendered by
+ * Raul's RichText, which builds React elements instead of using innerHTML.
+ *
+ * @param props.document Which document to show.
+ * @returns The page.
  */
-const LegalPage: React.FC<LegalPageProps> = ({ documento }) => {
-  const { titulo, html } = DOCUMENTOS[documento];
+const LegalPage: React.FC<LegalPageProps> = ({ document: documentKey }) => {
+  const { title, html, path, description } = DOCUMENTS[documentKey];
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, [documento]);
-  usePageMeta({
-    title: titulo,
-    description:
-      documento === 'termos'
-        ? 'Termos de Uso do Café com BPO: planos, assinatura, programa Beta, comunidade, encontros e responsabilidades.'
-        : 'Política de Privacidade do Café com BPO: quais dados tratamos, para quê, com quem compartilhamos e como exercer seus direitos (LGPD).',
-    path: documento === 'termos' ? '/termos-de-uso' : '/politica-de-privacidade',
-  });
+  }, [documentKey]);
+  usePageMeta({ title, description, path });
 
   return (
     <div className="hb-page">
       <Navbar />
       <main className="hb-legal">
         <p className="hb-kicker">Documento</p>
-        <RichText html={html} className="hb-legal-texto" />
-        <nav className="hb-legal-outros" aria-label="Outros documentos">
-          {documento === 'termos' ? (
+        <RichText html={html} className="hb-legal-text" />
+        <nav className="hb-legal-others" aria-label="Outros documentos">
+          {documentKey === 'terms' ? (
             <Link to="/politica-de-privacidade" className="hb-link">Ler a Política de Privacidade</Link>
           ) : (
             <Link to="/termos-de-uso" className="hb-link">Ler os Termos de Uso</Link>

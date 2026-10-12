@@ -4,7 +4,7 @@ import { apiClient } from '../client';
 export interface FeedbackPayload {
   title: string;
   description: string;
-  /** Print opcional do erro (PNG, JPG ou WEBP, até 3 MB — validado também no servidor). */
+  /** Optional screenshot (PNG, JPG or WEBP, up to 3 MB — also validated by the server). */
   screenshot?: File | null;
 }
 
@@ -15,7 +15,7 @@ interface FeedbackResponse {
 export const useSendFeedback = () => {
   return useMutation<FeedbackResponse, Error, FeedbackPayload>({
     mutationFn: async ({ title, description, screenshot }) => {
-      // Formulário multipart para levar o print junto.
+      // Multipart form so the screenshot goes along.
       const form = new FormData();
       form.append('title', title);
       form.append('description', description);

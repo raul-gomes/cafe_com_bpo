@@ -56,13 +56,13 @@ function renderSidebar(activeId = 'operacional', onSelectSection = vi.fn()) {
   return { onSelectSection }
 }
 
-describe('PanelSidebar — um módulo de trabalho por vez', () => {
+describe('PanelSidebar — one work module at a time', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     delete mockUser.role
   })
 
-  it('mostra uma aba por módulo, sem Admin para quem não é admin', () => {
+  it('shows one tab per module, without Admin for non-admins', () => {
     renderSidebar()
     const tabs = within(screen.getByRole('tablist', { name: 'Módulo de trabalho' })).getAllByRole('tab')
     expect(tabs.map(t => t.getAttribute('aria-label'))).toEqual([
@@ -77,13 +77,13 @@ describe('PanelSidebar — um módulo de trabalho por vez', () => {
     expect(screen.getByRole('tab', { name: 'Operacional' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('admin também vê a aba Admin', () => {
+  it('admins also see the Admin tab', () => {
     mockUser.role = 'admin'
     renderSidebar()
     expect(screen.getByRole('tab', { name: 'Admin' })).toBeInTheDocument()
   })
 
-  it('lista só as áreas do módulo ativo', () => {
+  it('lists only the areas of the active module', () => {
     renderSidebar('captar')
     const nav = screen.getByRole('navigation', { name: 'Áreas de Captar' })
     expect(within(nav).getByRole('link', { name: 'Prospectos' })).toBeInTheDocument()
@@ -96,20 +96,20 @@ describe('PanelSidebar — um módulo de trabalho por vez', () => {
     ['Captar', 'captar', '/painel/prospectos'],
     ['Comunidade', 'comunidade', '/painel/forum'],
     ['Gestão', 'gestao', '/painel/projetos'],
-  ])('ao escolher a aba %s, troca o módulo e abre a primeira área (%s → %s)', (label, id, path) => {
+  ])('choosing the %s tab switches the module and opens its first area (%s → %s)', (label, id, path) => {
     const { onSelectSection } = renderSidebar()
     fireEvent.click(screen.getByRole('tab', { name: new RegExp('^' + label) }))
     expect(onSelectSection).toHaveBeenCalledWith(expect.objectContaining({ id }))
     expect(screen.getByTestId('route-probe')).toHaveTextContent(path)
   })
 
-  it('navega ao clicar numa área do módulo', () => {
+  it('navigates when an area of the module is clicked', () => {
     renderSidebar()
     fireEvent.click(screen.getByRole('link', { name: 'Gestor de Tarefas' }))
     expect(screen.getByTestId('route-probe')).toHaveTextContent('/painel/tarefas')
   })
 
-  it('ações de conta ficam no fim da lista do módulo (rolam junto)', () => {
+  it('account actions sit at the end of the module list (scroll along)', () => {
     renderSidebar()
     const nav = screen.getByRole('navigation', { name: 'Áreas de Operacional' })
     expect(within(nav).getByRole('button', { name: 'Reportar erro' })).toBeInTheDocument()
@@ -118,7 +118,7 @@ describe('PanelSidebar — um módulo de trabalho por vez', () => {
     expect(mockLogout).toHaveBeenCalled()
   })
 
-  it('Colabore abre o convite com o PIX (sem redirecionar)', () => {
+  it('Colabore opens the PIX invitation (no redirect)', () => {
     renderSidebar()
     expect(screen.queryByText(/Sem você, isso não seria possível/)).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Colabore' }))
@@ -126,7 +126,7 @@ describe('PanelSidebar — um módulo de trabalho por vez', () => {
     expect(screen.getByText(/cafe@cafecombpo.com.br/)).toBeInTheDocument()
   })
 
-  it('o café leva ao painel principal', () => {
+  it('the café logo leads to the main panel', () => {
     renderSidebar()
     expect(screen.getByRole('link', { name: /painel principal/i })).toHaveAttribute('href', '/painel')
   })
