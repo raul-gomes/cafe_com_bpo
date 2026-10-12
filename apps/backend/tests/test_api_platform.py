@@ -7,7 +7,7 @@ confirmation and courtesy grants (free full access for a period).
 """
 
 from datetime import UTC, datetime
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 
@@ -203,6 +203,46 @@ class TestAnnouncements:
             headers=admin,
         )
         assert client.get("/announcements/active", headers=admin).json() == []
+
+    def test_old_valid_post_it_survives_many_newer_hidden_ones(
+        self, client, db_session
+    ):
+        """AUD-033: the limit used to run before the expiry/audience filters.
+
+        Twenty newer announcements this user cannot see (another audience or
+        expired) pushed an older, still valid one out of the home panel.
+        """
+        from src.modules.platform.models import Announcement
+
+        admin, _ = _auth(client, "admin")
+        user, _ = _auth(client)
+        valid_id = client.post(
+            "/admin/announcements",
+            json={"title": "Ainda vale", "message": "Texto.", "audience": "all"},
+            headers=admin,
+        ).json()["id"]
+        hidden = [
+            {"title": f"Pago {i}", "message": "Texto.", "audience": "paying"}
+            for i in range(12)
+        ] + [
+            {
+                "title": f"Vencido {i}",
+                "message": "Texto.",
+                "expires_at": "2020-01-01T00:00:00Z",
+            }
+            for i in range(10)
+        ]
+        for body in hidden:
+            sent = client.post("/admin/announcements", json=body, headers=admin)
+            assert sent.status_code == 201
+        # The valid one is clearly the oldest, whatever the clock resolution.
+        db_session.get(Announcement, UUID(valid_id)).created_at = datetime(
+            2026, 1, 1, tzinfo=UTC
+        )
+        db_session.commit()
+
+        post_its = client.get("/announcements/active", headers=user).json()
+        assert [p["title"] for p in post_its] == ["Ainda vale"]
 
 
 class TestSiteSettings:

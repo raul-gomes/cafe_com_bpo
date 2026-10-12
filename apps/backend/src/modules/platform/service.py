@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from src.core.entitlements import AccessState, resolve_access
@@ -204,18 +204,23 @@ def active_announcements_for(session: Session, user: User) -> list[Announcement]
         audience; newest first.
     """
     now = datetime.now(UTC)
-    rows = session.scalars(
-        select(Announcement)
-        .where(Announcement.show_on_home.is_(True))
-        .order_by(Announcement.created_at.desc())
-        .limit(20)
-    ).all()
-    return [
-        a
-        for a in rows
-        if (a.expires_at is None or as_utc(a.expires_at) > now)
-        and _in_audience(session, user, a.audience, now)
+    # Expiry and audience go in the query, before the limit: filtering after it
+    # let 20 newer hidden announcements push a valid one out (AUD-033).
+    audiences = [
+        a for a in ("all", "paying", "free") if _in_audience(session, user, a, now)
     ]
+    return list(
+        session.scalars(
+            select(Announcement)
+            .where(
+                Announcement.show_on_home.is_(True),
+                or_(Announcement.expires_at.is_(None), Announcement.expires_at > now),
+                Announcement.audience.in_(audiences),
+            )
+            .order_by(Announcement.created_at.desc())
+            .limit(20)
+        ).all()
+    )
 
 
 def delete_announcement(session: Session, announcement_id: UUID) -> None:
