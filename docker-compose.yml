@@ -53,6 +53,9 @@ services:
       - FILE_UPLOAD_MAX_SIZE=${FILE_UPLOAD_MAX_SIZE}
       - RESEND_API_KEY=${RESEND_API_KEY}
       - RESEND_FROM_EMAIL=${RESEND_FROM_EMAIL:-onboarding@resend.dev}
+      # Signing secret do webhook do Resend: sem ele /webhooks/email-provider recusa todo
+      # evento (falha fechada), e bounces/reclamações nunca chegam (AUD-030).
+      - RESEND_WEBHOOK_SECRET=${RESEND_WEBHOOK_SECRET}
       - FRONTEND_URL=${FRONTEND_URL:-http://localhost:3000}
       - EMAIL_PROVIDER=${EMAIL_PROVIDER:-resend}
       - SUPPORT_EMAIL=${SUPPORT_EMAIL}
