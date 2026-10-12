@@ -13,6 +13,7 @@ const LoginPage = React.lazy(() => import('./pages/LoginPage'))
 const CadastroPage = React.lazy(() => import('./pages/CadastroPage'))
 const SimulatorPage = React.lazy(() => import('./pages/SimulatorPage'))
 const UnderConstructionPage = React.lazy(() => import('./pages/UnderConstructionPage'))
+const NotFoundPage = React.lazy(() => import('./pages/NotFoundPage'))
 const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage'))
 const PublicProposalPage = React.lazy(() => import('./pages/PublicProposalPage'))
 const DesignSystemPage = React.lazy(() => import('./pages/panel/DesignSystemPage'))
@@ -331,7 +332,7 @@ export async function buildRoutes() {
     },
     {
       path: '*',
-      element: <div data-testid="not-found">Página não encontrada</div>,
+      element: <SuspenseWrapper><NotFoundPage /></SuspenseWrapper>,
     }
       ],
     },

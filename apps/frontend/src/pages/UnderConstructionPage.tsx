@@ -3,8 +3,18 @@ import { Navbar } from '../components/ui/Navbar';
 import { Button } from '../components/ui/button';
 import { FadeIn } from '../components/ui/FadeIn';
 import { Link } from 'react-router-dom';
+import { usePageMeta } from '../lib/seo';
 
 const UnderConstructionPage: React.FC = () => {
+  // Own tags and out of Google: an empty area is no search result, and without
+  // this the page kept the tags of the one seen before (AUD-041).
+  usePageMeta({
+    title: 'Em construção',
+    description: 'Esta área do Café com BPO está sendo construída. Enquanto isso, conheça a comunidade e a calculadora de precificação.',
+    path: '/em-construcao',
+    noindex: true,
+  });
+
   return (
     <div className="pb-[100px]">
       <Navbar />
