@@ -10,7 +10,7 @@ from datetime import UTC, datetime
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, Query, Request, Response, status
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
@@ -316,18 +316,33 @@ def admin_save_cafe_meeting(
     return _admin_site(db)
 
 
+# Admin lists answer an array (the screen's contract) and the full count in
+# this header, so a cut list is flagged and the export can ask for all (AUD-044).
+TOTAL_COUNT_HEADER = "X-Total-Count"
+ADMIN_LIST_MAX = 20000
+
+
 @admin_router.get("/cafes/rsvps", response_model=list[CafeRsvpResponse])
-def admin_list_rsvps(_admin: AdminDep, db: SessionDep) -> list[CafeRsvp]:
+def admin_list_rsvps(
+    _admin: AdminDep,
+    db: SessionDep,
+    response: Response,
+    limit: Annotated[int, Query(ge=1, le=ADMIN_LIST_MAX)] = 500,
+) -> list[CafeRsvp]:
     """Attendance confirmations of the open cafés.
 
     Args:
         _admin: Authenticated administrator.
         db: Database session.
+        response: Outgoing response (carries the total).
+        limit: Most confirmations to return.
 
     Returns:
-        The confirmations.
+        The confirmations; the total goes in `X-Total-Count`.
     """
-    return service.list_rsvps(db)
+    rows, total = service.list_rsvps(db, limit=limit)
+    response.headers[TOTAL_COUNT_HEADER] = str(total)
+    return rows
 
 
 # ── Administrator: users and courtesy ──────────────────────────────────────
@@ -337,19 +352,25 @@ def admin_list_rsvps(_admin: AdminDep, db: SessionDep) -> list[CafeRsvp]:
 def admin_list_users(
     _admin: AdminDep,
     db: SessionDep,
+    response: Response,
     search: Annotated[str | None, Query(max_length=100)] = None,
+    limit: Annotated[int, Query(ge=1, le=ADMIN_LIST_MAX)] = 300,
 ) -> list[dict]:
-    """Users with their current access (newest first, up to 300).
+    """Users with their current access (newest first, 300 by default).
 
     Args:
         _admin: Authenticated administrator.
         db: Database session.
+        response: Outgoing response (carries the total).
         search: Optional piece of name or e-mail.
+        limit: Most users to return.
 
     Returns:
-        The users.
+        The users; how many match in all goes in `X-Total-Count`.
     """
-    return service.list_users(db, search=search)
+    rows, total = service.list_users(db, search=search, limit=limit)
+    response.headers[TOTAL_COUNT_HEADER] = str(total)
+    return rows
 
 
 @admin_router.post(

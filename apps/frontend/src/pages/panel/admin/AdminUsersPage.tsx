@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { adminGrantCourtesy, adminListUsers, adminRevokeCourtesy } from '../../../api/platform';
+import { ADMIN_EXPORT_LIMIT, adminGrantCourtesy, adminListUsers, adminRevokeCourtesy } from '../../../api/platform';
 import type { AdminUser } from '../../../schemas/platform';
 import { AdminPageHeader } from '../../../components/admin/AdminPageHeader';
 import { FolderTabButton } from '../../../components/ui/folder-tab-button';
@@ -44,10 +44,12 @@ export const AdminUsersPage: React.FC = () => {
   const [days, setDays] = useState(30);
   const [reason, setReason] = useState('');
 
-  const { data: users, isLoading } = useQuery({
+  const { data: list, isLoading } = useQuery({
     queryKey: ['admin', 'users', search],
     queryFn: () => adminListUsers(search.trim() || undefined),
   });
+  const users = list?.items;
+  const [exporting, setExporting] = useState(false);
 
   const refresh = () => queryClient.invalidateQueries({ queryKey: ['admin', 'users'] });
 
@@ -70,19 +72,33 @@ export const AdminUsersPage: React.FC = () => {
     },
   });
 
-  const exportUsers = () =>
-    downloadSpreadsheet(
-      'usuarios-cafe-com-bpo',
-      ['Nome', 'E-mail', 'Acesso', 'Acesso até', 'Cortesia (motivo)', 'Desde'],
-      (users ?? []).map(u => [
-        u.name,
-        u.email,
-        ACCESS_LABELS[u.access_state] ?? u.access_state,
-        formatDay(u.access_expires_at),
-        u.courtesy?.reason ?? '',
-        formatDay(u.created_at),
-      ])
-    );
+  /** The Excel asks the server for every user of the search, not only the
+   *  rows on screen: the list is cut at 300 (AUD-044). */
+  const exportUsers = async () => {
+    setExporting(true);
+    try {
+      const all = await adminListUsers(search.trim() || undefined, ADMIN_EXPORT_LIMIT);
+      downloadSpreadsheet(
+        'usuarios-cafe-com-bpo',
+        ['Nome', 'E-mail', 'Acesso', 'Acesso até', 'Cortesia (motivo)', 'Desde'],
+        all.items.map(u => [
+          u.name,
+          u.email,
+          ACCESS_LABELS[u.access_state] ?? u.access_state,
+          formatDay(u.access_expires_at),
+          u.courtesy?.reason ?? '',
+          formatDay(u.created_at),
+        ])
+      );
+      if (all.total > all.items.length) {
+        toast.warning(`A planilha traz ${all.items.length} de ${all.total} usuários (limite de uma exportação).`);
+      }
+    } catch (error) {
+      toast.error(apiErrorText(error, 'Não foi possível gerar a planilha.'));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-[1180px]">
@@ -91,8 +107,13 @@ export const AdminUsersPage: React.FC = () => {
         lead="Cortesia é acesso completo, sem cobrança, por um período: para parceiros, apoiadores ou um caso de suporte. Termina sozinha na data."
         actions={
           users && users.length > 0 && (
-            <button type="button" className="cafe-button cafe-button-secondary cafe-button-sm" onClick={exportUsers}>
-              <CafeIcon name="relatorio" className="size-[16px]" /> Baixar para Excel
+            <button
+              type="button"
+              className="cafe-button cafe-button-secondary cafe-button-sm"
+              onClick={() => void exportUsers()}
+              disabled={exporting}
+            >
+              <CafeIcon name="relatorio" className="size-[16px]" /> {exporting ? 'Gerando planilha…' : 'Baixar para Excel'}
             </button>
           )
         }
@@ -108,6 +129,13 @@ export const AdminUsersPage: React.FC = () => {
       />
 
       {isLoading && <p className="text-muted-foreground">Carregando…</p>}
+
+      {list && list.total > list.items.length && (
+        <p className="mb-[12px] text-sm text-muted-foreground">
+          Mostrando {list.items.length} de {list.total} usuários, os mais recentes. Use a busca para achar os demais; o
+          Excel traz todos.
+        </p>
+      )}
 
       {grantingFor && (
         <form

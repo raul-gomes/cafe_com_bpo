@@ -4,7 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
 from src.core.entitlements import AccessState, resolve_access
@@ -402,44 +402,54 @@ def confirm_presence(
     return meeting, starts
 
 
-def list_rsvps(session: Session) -> list[CafeRsvp]:
+def list_rsvps(session: Session, *, limit: int = 500) -> tuple[list[CafeRsvp], int]:
     """Confirmations, next meetings first and newest confirmations first.
 
     Args:
         session: Database session.
+        limit: Most rows to return.
 
     Returns:
-        Up to 500 confirmations.
+        Up to `limit` confirmations and how many exist in all, so the screen
+        and the export can tell when the list is cut (AUD-044).
     """
-    return list(
+    total = session.scalar(select(func.count()).select_from(CafeRsvp)) or 0
+    rows = list(
         session.scalars(
             select(CafeRsvp)
             .order_by(CafeRsvp.meeting_starts_at.desc(), CafeRsvp.created_at.desc())
-            .limit(500)
+            .limit(limit)
         ).all()
     )
+    return rows, total
 
 
 # ── Users and courtesy ─────────────────────────────────────────────────────
 
 
-def list_users(session: Session, *, search: str | None) -> list[dict]:
+def list_users(
+    session: Session, *, search: str | None, limit: int = 300
+) -> tuple[list[dict], int]:
     """Users with their resolved access, for the admin users page.
 
     Args:
         session: Database session.
         search: Optional piece of name or e-mail.
+        limit: Most users to return (newest first).
 
     Returns:
-        One dict per user, in the shape of `AdminUserResponse`.
+        One dict per user, in the shape of `AdminUserResponse`, and how many
+        users match in all, so a cut list is never taken as complete (AUD-044).
     """
     from src.core.entitlements import running_courtesy
 
     now = datetime.now(UTC)
-    query = select(User).order_by(User.created_at.desc()).limit(300)
+    query = select(User)
     if search:
         like = f"%{search.strip().lower()}%"
         query = query.where((User.email.ilike(like)) | (User.name.ilike(like)))
+    total = session.scalar(select(func.count()).select_from(query.subquery())) or 0
+    query = query.order_by(User.created_at.desc()).limit(limit)
     rows = []
     for user in session.scalars(query).all():
         access = resolve_access(session, user, now=now)
@@ -456,7 +466,7 @@ def list_users(session: Session, *, search: str | None) -> list[dict]:
                 "courtesy": courtesy,
             }
         )
-    return rows
+    return rows, total
 
 
 def grant_courtesy(

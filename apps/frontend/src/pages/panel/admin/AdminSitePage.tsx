@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { adminGetSite, adminListRsvps, adminSaveCafeMeeting, adminSaveLoginNotice } from '../../../api/platform';
+import { ADMIN_EXPORT_LIMIT, adminGetSite, adminListRsvps, adminSaveCafeMeeting, adminSaveLoginNotice } from '../../../api/platform';
 import type { CafeMeeting, LoginNotice } from '../../../schemas/platform';
 import { AdminPageHeader } from '../../../components/admin/AdminPageHeader';
 import { FolderTabButton } from '../../../components/ui/folder-tab-button';
@@ -31,7 +31,9 @@ function fromLocalInput(value: string): string | null {
 export const AdminSitePage: React.FC = () => {
   const queryClient = useQueryClient();
   const { data: site } = useQuery({ queryKey: ['admin', 'site'], queryFn: adminGetSite });
-  const { data: rsvps } = useQuery({ queryKey: ['admin', 'rsvps'], queryFn: adminListRsvps });
+  const { data: rsvpList } = useQuery({ queryKey: ['admin', 'rsvps'], queryFn: () => adminListRsvps() });
+  const rsvps = rsvpList?.items;
+  const [exporting, setExporting] = useState(false);
 
   const [notice, setNotice] = useState<LoginNotice>({ title: '', message: '', link_label: null, link_url: null });
   const [meeting, setMeeting] = useState<CafeMeeting>({ title: '', meet_url: null, starts_at: null, duration_minutes: 60 });
@@ -60,12 +62,25 @@ export const AdminSitePage: React.FC = () => {
     onError: error => toast.error(apiErrorText(error, 'Não foi possível salvar o encontro.')),
   });
 
-  const exportRsvps = () =>
-    downloadSpreadsheet(
-      'presencas-cafe-aberto',
-      ['Nome', 'E-mail', 'Telefone', 'Encontro', 'Confirmou em'],
-      (rsvps ?? []).map(r => [r.name, r.email, r.phone, formatDateTime(r.meeting_starts_at), formatDateTime(r.created_at)])
-    );
+  /** The Excel asks for every confirmation, not only the 500 on screen (AUD-044). */
+  const exportRsvps = async () => {
+    setExporting(true);
+    try {
+      const all = await adminListRsvps(ADMIN_EXPORT_LIMIT);
+      downloadSpreadsheet(
+        'presencas-cafe-aberto',
+        ['Nome', 'E-mail', 'Telefone', 'Encontro', 'Confirmou em'],
+        all.items.map(r => [r.name, r.email, r.phone, formatDateTime(r.meeting_starts_at), formatDateTime(r.created_at)])
+      );
+      if (all.total > all.items.length) {
+        toast.warning(`A planilha traz ${all.items.length} de ${all.total} presenças (limite de uma exportação).`);
+      }
+    } catch (error) {
+      toast.error(apiErrorText(error, 'Não foi possível gerar a planilha.'));
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <div className="mx-auto max-w-[1080px]">
@@ -144,14 +159,24 @@ export const AdminSitePage: React.FC = () => {
       <section className="mt-[28px]">
         <div className="mb-[12px] flex flex-wrap items-center justify-between gap-[12px]">
           <h2 className="text-sm font-bold uppercase tracking-[0.11em] text-muted-foreground">
-            Presenças confirmadas {rsvps ? `(${rsvps.length})` : ''}
+            Presenças confirmadas {rsvpList ? `(${rsvpList.total})` : ''}
           </h2>
           {rsvps && rsvps.length > 0 && (
-            <button type="button" className="cafe-button cafe-button-secondary cafe-button-sm" onClick={exportRsvps}>
-              <CafeIcon name="relatorio" className="size-[16px]" /> Baixar para Excel
+            <button
+              type="button"
+              className="cafe-button cafe-button-secondary cafe-button-sm"
+              onClick={() => void exportRsvps()}
+              disabled={exporting}
+            >
+              <CafeIcon name="relatorio" className="size-[16px]" /> {exporting ? 'Gerando planilha…' : 'Baixar para Excel'}
             </button>
           )}
         </div>
+        {rsvpList && rsvpList.total > rsvpList.items.length && (
+          <p className="mb-[12px] text-sm text-muted-foreground">
+            Mostrando as {rsvpList.items.length} mais recentes de {rsvpList.total}. O Excel traz todas.
+          </p>
+        )}
         {rsvps && rsvps.length === 0 && (
           <p className="rounded-lg border border-dashed border-input bg-card p-[20px] text-muted-foreground">Ninguém confirmou ainda.</p>
         )}

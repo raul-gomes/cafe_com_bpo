@@ -353,3 +353,63 @@ class TestCourtesy:
         )
         assert revoked.status_code == 204
         assert client.get("/access", headers=user).json()["access"] == "free"
+
+
+class TestAdminListTotals:
+    """AUD-044: admin lists said nothing when cut at a fixed size.
+
+    The users list stopped at 300 and the confirmations at 500, and the Excel
+    export used that cut array as if it were everything. Both lists now report
+    the real total in `X-Total-Count` and take a `limit`, so the screen can warn
+    and the export can ask for the whole set.
+    """
+
+    def test_users_list_reports_the_total_and_honours_the_limit(self, client):
+        admin, _ = _auth(client, "admin")
+        for _ in range(3):
+            _auth(client)
+
+        resp = client.get("/admin/users", params={"limit": 2}, headers=admin)
+        assert resp.status_code == 200
+        assert len(resp.json()) == 2
+        assert resp.headers["X-Total-Count"] == "4"
+
+        searched = client.get(
+            "/admin/users", params={"search": "platform_", "limit": 1}, headers=admin
+        )
+        assert searched.headers["X-Total-Count"] == "4"
+
+    @pytest.mark.parametrize("limit", [0, 20001])
+    def test_users_list_rejects_a_limit_out_of_range(self, client, limit):
+        admin, _ = _auth(client, "admin")
+        resp = client.get("/admin/users", params={"limit": limit}, headers=admin)
+        assert resp.status_code == 422
+
+    def test_rsvps_list_reports_the_total_and_honours_the_limit(
+        self, client, db_session
+    ):
+        from src.modules.platform.models import CafeRsvp
+
+        admin, _ = _auth(client, "admin")
+        for i in range(3):
+            db_session.add(
+                CafeRsvp(
+                    name=f"Pessoa {i}",
+                    email=f"p{i}@cafe.com",
+                    meeting_starts_at=datetime(2026, 10, 28, 17, tzinfo=UTC),
+                )
+            )
+        db_session.commit()
+
+        resp = client.get("/admin/cafes/rsvps", params={"limit": 2}, headers=admin)
+        assert len(resp.json()) == 2
+        assert resp.headers["X-Total-Count"] == "3"
+
+    def test_the_browser_can_read_the_total(self, client):
+        admin, _ = _auth(client, "admin")
+        resp = client.get(
+            "/admin/users",
+            headers={**admin, "Origin": "http://localhost:3000"},
+        )
+        exposed = resp.headers.get("access-control-expose-headers", "")
+        assert "x-total-count" in exposed.lower()

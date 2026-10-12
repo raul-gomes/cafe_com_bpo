@@ -107,14 +107,37 @@ export async function adminSaveCafeMeeting(meeting: CafeMeeting): Promise<AdminS
   return adminSiteSchema.parse(data);
 }
 
-export async function adminListRsvps(): Promise<CafeRsvp[]> {
-  const { data } = await apiClient.get('/admin/cafes/rsvps');
-  return cafeRsvpListSchema.parse(data);
+/** An admin list and how many rows exist in all (header X-Total-Count). */
+export interface AdminList<T> {
+  items: T[];
+  total: number;
 }
 
-export async function adminListUsers(search?: string): Promise<AdminUser[]> {
-  const { data } = await apiClient.get('/admin/users', { params: search ? { search } : undefined });
-  return adminUserListSchema.parse(data);
+/** Ceiling the API accepts for one admin list: what the Excel exports ask for. */
+export const ADMIN_EXPORT_LIMIT = 20000;
+
+/** Reads X-Total-Count; without it, the list is taken as complete. */
+function totalFrom(headers: unknown, fallback: number): number {
+  const raw = (headers as Record<string, unknown> | undefined)?.['x-total-count'];
+  const total = Number(raw);
+  return raw != null && Number.isFinite(total) ? total : fallback;
+}
+
+/** Confirmations of the open cafés; without `limit`, the screen default (500). */
+export async function adminListRsvps(limit?: number): Promise<AdminList<CafeRsvp>> {
+  const { data, headers } = await apiClient.get('/admin/cafes/rsvps', limit ? { params: { limit } } : undefined);
+  const items = cafeRsvpListSchema.parse(data);
+  return { items, total: totalFrom(headers, items.length) };
+}
+
+/** Users with their access; without `limit`, the screen default (300). */
+export async function adminListUsers(search?: string, limit?: number): Promise<AdminList<AdminUser>> {
+  const params = { ...(search ? { search } : {}), ...(limit ? { limit } : {}) };
+  const { data, headers } = await apiClient.get('/admin/users', {
+    params: Object.keys(params).length > 0 ? params : undefined,
+  });
+  const items = adminUserListSchema.parse(data);
+  return { items, total: totalFrom(headers, items.length) };
 }
 
 export async function adminGrantCourtesy(userId: string, days: number, reason?: string): Promise<Courtesy> {

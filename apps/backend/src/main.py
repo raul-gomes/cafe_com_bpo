@@ -125,6 +125,9 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Admin lists carry their full count here (AUD-044); without exposing
+        # it, a cross-origin page cannot read the header.
+        expose_headers=["X-Total-Count"],
     )
 
     @app.get("/health")
