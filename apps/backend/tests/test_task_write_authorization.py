@@ -202,3 +202,22 @@ def test_team_member_can_create_task_in_shared_company(client):
 
     assert resp.status_code == 201, resp.text
     assert resp.json()["title"] == "Card do Colaborador"
+
+
+def test_blank_task_title_is_refused_on_create_and_update(client):
+    """AUD-020: a card without a title never reaches the board."""
+    from tests.helpers import paid_auth_header, unique_email
+
+    auth = paid_auth_header(client, unique_email("blank_title"))
+    company = client.post("/clients/", json={"name": "Empresa"}, headers=auth).json()
+
+    created = client.post(
+        "/tasks/", json={"title": "   ", "client_id": company["id"]}, headers=auth
+    )
+    valid = client.post(
+        "/tasks/", json={"title": "Conciliar", "client_id": company["id"]}, headers=auth
+    ).json()
+    updated = client.put(f"/tasks/{valid['id']}", json={"title": ""}, headers=auth)
+
+    assert created.status_code == 422
+    assert updated.status_code == 422

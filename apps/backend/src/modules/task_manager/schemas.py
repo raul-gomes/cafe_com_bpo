@@ -23,10 +23,46 @@ class TaskBase(BaseModel):
     completed_at: datetime | None = None
 
 
+def _non_blank_title(value: str | None) -> str | None:
+    """Trims a task title and refuses a blank one (AUD-020).
+
+    Only the write schemas use it: reading must never fail on a title stored
+    before the rule existed.
+
+    Args:
+        value: Title from the request (or None when not being changed).
+
+    Returns:
+        The trimmed title, or None.
+
+    Raises:
+        ValueError: When the title is empty or only spaces.
+    """
+    if value is None:
+        return None
+    trimmed = value.strip()
+    if not trimmed:
+        raise ValueError("Informe o título da tarefa.")
+    return trimmed
+
+
 class TaskCreate(TaskBase):
     template_id: UUID | None = None
     assignment_id: UUID | None = None
     routine_instance_id: UUID | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _title_not_blank(cls, value: str | None) -> str | None:
+        """Refuses a blank title (see `_non_blank_title`).
+
+        Args:
+            value: Title from the request.
+
+        Returns:
+            The trimmed title.
+        """
+        return _non_blank_title(value)
 
 
 class TaskUpdate(BaseModel):
@@ -41,6 +77,19 @@ class TaskUpdate(BaseModel):
     phase_id: UUID | None = None
     cancelled_at: datetime | None = None
     is_cancelled: bool | None = None
+
+    @field_validator("title")
+    @classmethod
+    def _title_not_blank(cls, value: str | None) -> str | None:
+        """Refuses a blank title (see `_non_blank_title`).
+
+        Args:
+            value: Title from the request.
+
+        Returns:
+            The trimmed title.
+        """
+        return _non_blank_title(value)
 
 
 class TaskResponse(TaskBase):
