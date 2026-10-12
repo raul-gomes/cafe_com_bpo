@@ -30,7 +30,9 @@ def _body_limit(conf: str) -> int:
     Returns:
         The limit in bytes (Nginx's 1 MB default when the directive is absent).
     """
-    match = re.search(r"^\s*client_max_body_size\s+(\d+)([kmgKMG]?);", conf, re.M)
+    match = re.search(
+        r"^\s*client_max_body_size\s+(\d+)([kmgKMG]?);", conf, re.MULTILINE
+    )
     if not match:
         return 1024**2
     return int(match.group(1)) * _UNITS[match.group(2).lower()]
