@@ -20,6 +20,12 @@ from src.modules.network.models import (  # noqa: F401
     DiscussionPost,
 )
 from src.modules.payments.models import Payment  # noqa: F401
+from src.modules.platform.models import (  # noqa: F401
+    Announcement,
+    CafeRsvp,
+    Lesson,
+    SiteSetting,
+)
 from src.modules.proposals.models import PricingScenario  # noqa: F401
 from src.modules.prospects.models import Prospect  # noqa: F401
 from src.modules.subscriptions.models import (  # noqa: F401

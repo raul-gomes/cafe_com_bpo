@@ -12,7 +12,8 @@ interface Product {
   tag: string;
   name: string;
   text: string;
-  action?: { label: string; to: string };
+  /** `to` is a page of the site; `href` an external site (opens in a new tab). */
+  action?: { label: string; to?: string; href?: string };
 }
 
 /** Showcase of what Café com BPO offers; each product gets its own page later. */
@@ -28,7 +29,8 @@ const PRODUCTS: Product[] = [
     icon: 'encontro',
     tag: 'Documentário',
     name: 'Residência em BPO',
-    text: 'Uma jornada documentada de ponta a ponta: a transição de carreira e a criação de uma empresa de BPO com um cliente real. Na Hotmart.',
+    text: 'Uma jornada documentada de ponta a ponta: a transição de carreira e a criação de uma empresa de BPO com um cliente real.',
+    action: { label: 'Conhecer a Residência', href: 'https://residencia.cafecombpo.com/' },
   },
   {
     icon: 'xicara',
@@ -76,7 +78,12 @@ const ProductsPage: React.FC = () => {
                 <p className="hb-product-tag">{product.tag}</p>
                 <h3>{product.name}</h3>
                 <p>{product.text}</p>
-                {product.action && (
+                {product.action?.href && (
+                  <a href={product.action.href} target="_blank" rel="noopener noreferrer" className="hb-link hb-product-action">
+                    {product.action.label}
+                  </a>
+                )}
+                {product.action?.to && (
                   <Link to={product.action.to} className="hb-link hb-product-action">
                     {product.action.label}
                   </Link>

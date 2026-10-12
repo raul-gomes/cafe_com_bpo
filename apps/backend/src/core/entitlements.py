@@ -8,11 +8,15 @@ is nothing to keep in sync.
 
 The precedence is fixed by §2 and is not negotiable at the call site:
 
-    ADMIN → BETA → ACTIVE → PAST_DUE → FREE
+    ADMIN → BETA → COURTESY → ACTIVE → PAST_DUE → FREE
 
 Beta outranks an active subscription on purpose (§17.3): a beta user may
 subscribe while the beta runs and is only charged once it ends, so a paying user
 inside the beta window is still beta and nothing has been billed yet.
+
+A courtesy is free full access an administrator grants for a period (partners,
+supporters, support cases). It sits right after beta: both are "free full
+access until a date", and neither involves the payment provider.
 
 This module reads the subscription models directly, the way the dashboard module
 aggregates other modules' data. That is different from a provider adapter (the
@@ -49,6 +53,7 @@ from src.modules.subscriptions.models import (
     SUBSCRIPTION_STATUS_CANCELED,
     SUBSCRIPTION_STATUS_PAST_DUE,
     BetaAccess,
+    CourtesyGrant,
     Subscription,
 )
 
@@ -84,10 +89,11 @@ BETA_BANNER_WINDOW_DAYS = 30
 
 
 class AccessState(StrEnum):
-    """The five states of §2, in precedence order."""
+    """The states of §2 (plus courtesy), in precedence order."""
 
     ADMIN = "admin"
     BETA = "beta"
+    COURTESY = "courtesy"
     ACTIVE = "active"
     PAST_DUE = "past_due"
     FREE = "free"
@@ -98,6 +104,7 @@ class AccessState(StrEnum):
 FULL_ACCESS_STATES = (
     AccessState.ADMIN,
     AccessState.BETA,
+    AccessState.COURTESY,
     AccessState.ACTIVE,
     AccessState.PAST_DUE,
 )
@@ -185,6 +192,14 @@ def resolve_access(
             shows_beta_banner=0 <= days_left <= BETA_BANNER_WINDOW_DAYS,
         )
 
+    courtesy = running_courtesy(session, user_id=user.id, now=now)
+    if courtesy is not None:
+        return Access(
+            state=AccessState.COURTESY,
+            read_only_modules=(),
+            expires_at=as_utc(courtesy.expires_at),
+        )
+
     subscription = _best_subscription(session, user_id=user.id, now=now)
     if subscription is None:
         return Access(state=AccessState.FREE, read_only_modules=_read_only_for_free())
@@ -245,6 +260,28 @@ def running_beta(
         if expires_at is not None and expires_at > now:
             return beta
     return None
+
+
+def running_courtesy(
+    session: Session, *, user_id: UUID, now: datetime
+) -> CourtesyGrant | None:
+    """Returns the courtesy grant that is still running, if any.
+
+    Args:
+        session: Database session.
+        user_id: User to check.
+        now: Instant to resolve against, in UTC.
+
+    Returns:
+        The running grant that lasts the longest, or `None`.
+    """
+    grants = session.scalars(
+        select(CourtesyGrant).where(
+            CourtesyGrant.user_id == user_id, CourtesyGrant.revoked_at.is_(None)
+        )
+    ).all()
+    running = [g for g in grants if (as_utc(g.expires_at) or now) > now]
+    return max(running, key=lambda g: as_utc(g.expires_at), default=None)
 
 
 def _best_subscription(
@@ -340,6 +377,13 @@ _PLATAFORMA_PREFIXES = (
     # Public Beta signup on the landing page (anonymous, rate limited) and the
     # admin-only list: neither depends on the user's plan.
     "/beta",
+    # Administrator tools and the content they publish (lessons, announcements,
+    # site settings) plus the public café confirmation: none depends on a plan.
+    "/admin",
+    "/lessons",
+    "/announcements",
+    "/site",
+    "/cafes",
 )
 
 

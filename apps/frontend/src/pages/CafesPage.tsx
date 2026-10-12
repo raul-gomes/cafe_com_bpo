@@ -5,6 +5,7 @@ import { CafeIcon } from '../brand/CafeIcon';
 import { CAFE_CHANNELS, CAFE_TIME, nextOpenCafe } from '../components/home/cafes';
 import { useStackedSheets } from '../components/home/useStackedSheets';
 import { PublicFooter } from '../components/home/PublicFooter';
+import { CafeRsvpStrip } from '../components/home/CafeRsvp';
 import { usePageMeta } from '../lib/seo';
 import './home.css';
 
@@ -43,6 +44,7 @@ const CafesPage: React.FC = () => {
             Os encontros são frequentes, sempre com um tema e pensados para um movimento específico do BPO.
             Puxa uma cadeira: o café já está passado.
           </p>
+          <CafeRsvpStrip />
         </div></section>
 
         <section className="hb-sheet hb-section hb-section-soft" aria-label="Encontros">

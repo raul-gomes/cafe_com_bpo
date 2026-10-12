@@ -28,6 +28,9 @@ class Settings(BaseSettings):
     cloudinary_cloud_name: str
     cloudinary_api_key: str
     cloudinary_api_secret: str
+    # Public base URL of this API. Used for files saved on local disk when
+    # Cloudinary is not configured (development only).
+    public_api_url: str = "http://localhost:8000"
 
     file_upload_max_size: int = 5242880
 

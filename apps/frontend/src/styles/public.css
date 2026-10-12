@@ -77,6 +77,12 @@
 .login-dialog-logo { width: 140px; height: auto; }
 .login-dialog-title { font: 500 2rem/1.08 var(--cafe-font-editorial); letter-spacing: -0.02em; }
 .login-dialog-lead { margin-top: 8px; font-size: 0.9875rem; line-height: 1.5; opacity: 0.85; }
+.login-dialog-notice-link {
+  display: inline-block; margin-top: 12px; padding: 6px 12px;
+  font-size: 0.875rem; font-weight: 700; color: var(--cafe-yellow-ink, #2B2100);
+  background: var(--cafe-yellow); border-radius: 6px; text-decoration: none;
+}
+.login-dialog-notice-link:hover { background: var(--cafe-yellow-pressed, var(--cafe-yellow)); opacity: 1; }
 .login-dialog-beta { font-size: 0.875rem; opacity: 0.9; }
 .login-dialog-beta a { color: var(--cafe-brand-yellow); font-weight: 700; }
 .login-dialog-form { position: relative; padding: 30px 30px 24px; }

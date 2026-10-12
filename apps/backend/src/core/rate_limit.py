@@ -10,6 +10,8 @@ AUTH_FORGOT_PASSWORD_LIMIT = "3/minute"
 AUTH_REFRESH_LIMIT = "10/minute"
 # Public Beta signup (landing page): few per IP to hold back spam.
 BETA_SIGNUP_LIMIT = "5/minute"
+# Public café attendance confirmation (agenda page).
+CAFE_RSVP_LIMIT = "5/minute"
 
 
 class TestAwareLimiter(Limiter):

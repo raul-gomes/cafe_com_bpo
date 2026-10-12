@@ -3,6 +3,9 @@ import { isAxiosError } from 'axios';
 import { createBetaSignup, type BetaClientRange, type BetaProfile } from '../../api/beta';
 import { CafeIcon } from '../../brand/CafeIcon';
 
+/** WhatsApp group of the Betas; the request to join is approved by the team. */
+const BETA_GROUP_URL = 'https://chat.whatsapp.com/FNN4v2ze86K7qaezNw3RzL';
+
 /** Profile options, in the words the landing page shows. */
 // eslint-disable-next-line react-refresh/only-export-components
 export const PROFILE_LABELS: Record<BetaProfile, string> = {
@@ -79,7 +82,13 @@ export const BetaSignupForm: React.FC = () => {
       <div className="hb-form hb-form-done" role="status">
         <span className="hb-card-icon"><CafeIcon name="xicara" /></span>
         <h3>Inscrição recebida.</h3>
-        <p>Obrigado por querer construir com a gente. Em breve chamamos você para um café.</p>
+        <p>
+          Recebemos sua solicitação e vamos fazer uma breve análise. Enquanto isso, peça acesso ao grupo
+          dos Betas do Café: assim que for liberado, você já participa.
+        </p>
+        <a href={BETA_GROUP_URL} target="_blank" rel="noopener noreferrer" className="cafe-command cafe-command-tab hb-cta hb-beta-group">
+          <CafeIcon name="mensagem" /> Pedir acesso ao grupo dos Betas
+        </a>
       </div>
     );
   }

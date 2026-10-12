@@ -136,6 +136,7 @@
 .hb-form-done { text-align: left; }
 .hb-form-done h3 { font: 500 1.75rem/1.1 var(--cafe-font-editorial); }
 .hb-form-done p { color: var(--cafe-ink-soft); line-height: 1.6; }
+.hb-beta-group { justify-self: start; margin-top: 6px; text-decoration: none; }
 .hb-field { display: grid; gap: 7px; min-width: 0; }
 .hb-field-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .hb-field label, .hb-field-label { font-size: 0.875rem; font-weight: 700; color: var(--cafe-ink); }
@@ -211,7 +212,24 @@
    shadow — one sheet landing on another. Each sheet's top and z-index come
    from useStackedSheets. */
 .hb-sheet { position: relative; background: var(--cafe-canvas); }
-.hb-section-soft.hb-sheet, .hb-section-signup.hb-sheet { background: var(--cafe-panel); }
+/* Section rhythm: neighbouring sheets must not look alike, or the reader loses
+   the thread. Three tones alternate — canvas, a warm café cream and white paper
+   — and the closing sheet goes espresso. Tokens are mixed, so dark mode keeps
+   the same rhythm with its own colors. */
+.hb-section-soft.hb-sheet,
+.hb-section-soft {
+  background: color-mix(in srgb, var(--cafe-brand-yellow, #FFC72C) 13%, var(--cafe-canvas));
+  border-color: color-mix(in srgb, var(--cafe-brand-yellow, #FFC72C) 30%, var(--cafe-line));
+}
+.hb-section-signup.hb-sheet { background: var(--cafe-paper); }
+.hb-section-closing.hb-sheet,
+.hb-section-closing {
+  background: var(--cafe-deep);
+  color: var(--cafe-on-deep);
+  border-top-color: rgb(255 255 255 / 0.14);
+}
+/* Only the texts go "on deep"; the folder-tab button keeps its own paper and ink. */
+.hb-section-closing .hb-headline { color: var(--cafe-on-deep); }
 .hb-sheets-on .hb-sheet { position: sticky; }
 .hb-sheets-on .hb-sheet + .hb-sheet {
   border-radius: 22px 22px 0 0;
@@ -321,3 +339,26 @@
 .hb-legal-text strong { color: var(--cafe-ink); }
 .hb-legal-text a { color: var(--cafe-focus); }
 .hb-legal-others { display: flex; flex-wrap: wrap; gap: 24px; margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--cafe-line); }
+
+/* ── Next open café strip (agenda page) ── */
+.hb-rsvp-strip {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 16px 20px;
+  align-items: center;
+  margin-top: 32px;
+  padding: 18px 20px;
+  text-align: left;
+  background: var(--cafe-deep);
+  color: var(--cafe-on-deep);
+  border-left: 4px solid var(--cafe-brand-yellow);
+  border-radius: 12px;
+}
+.hb-rsvp-icon { display: grid; place-items: center; width: 44px; height: 44px; border-radius: 10px; background: rgb(255 255 255 / 0.1); color: var(--cafe-brand-yellow); }
+.hb-rsvp-kicker { font-size: 0.75rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; color: var(--cafe-brand-yellow); }
+.hb-rsvp-when { margin-top: 2px; font-size: 1rem; line-height: 1.45; }
+
+@media (max-width: 760px) {
+  .hb-rsvp-strip { grid-template-columns: auto 1fr; }
+  .hb-rsvp-strip .hb-cta { grid-column: 1 / -1; }
+}

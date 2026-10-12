@@ -1,8 +1,29 @@
 import React from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { listBetaSignups } from '../../api/beta';
+import { listBetaSignups, type BetaSignup } from '../../api/beta';
+import { CafeIcon } from '../../brand/CafeIcon';
 import { CLIENT_RANGE_LABELS, PROFILE_LABELS } from '../../components/home/BetaSignupForm';
 import type { BetaClientRange, BetaProfile } from '../../schemas/beta';
+import { AdminPageHeader } from '../../components/admin/AdminPageHeader';
+import { formatDay } from '../../lib/adminFormat';
+import { downloadSpreadsheet } from '../../lib/spreadsheet';
+
+/** Downloads every signup as a spreadsheet Excel opens. */
+function exportSignups(signups: BetaSignup[]): void {
+  downloadSpreadsheet(
+    'inscricoes-beta-cafe-com-bpo',
+    ['Nome', 'E-mail', 'WhatsApp', 'Como atua', 'Clientes', 'Quer resolver', 'Data'],
+    signups.map(s => [
+      s.name,
+      s.email,
+      s.whatsapp,
+      PROFILE_LABELS[s.profile as BetaProfile] ?? s.profile,
+      CLIENT_RANGE_LABELS[s.client_range as BetaClientRange] ?? s.client_range,
+      s.challenge,
+      formatDay(s.signed_up_at),
+    ])
+  );
+}
 
 /**
  * Admin › Inscrições Beta: the waiting list collected by the landing page.
@@ -14,16 +35,22 @@ export const BetaSignupsPage: React.FC = () => {
 
   return (
     <div className="mx-auto max-w-[1180px]">
-      <header className="mb-[24px]">
-        <p className="text-xs font-bold uppercase tracking-[0.11em] text-module">Admin</p>
-        <h1 className="mt-[6px] font-editorial text-[2.25rem] font-medium leading-tight tracking-[-0.02em] text-foreground">
-          Inscrições Beta
-        </h1>
-        <p className="mt-[6px] text-[0.9375rem] text-muted-foreground">
-          Quem se inscreveu pela página inicial, das mais recentes para as mais antigas.
-          {signups && ` ${signups.length} ${signups.length === 1 ? 'inscrição' : 'inscrições'}.`}
-        </p>
-      </header>
+      <AdminPageHeader
+        title="Inscrições Beta"
+        lead={
+          <>
+            Respostas do formulário “Quero ser Beta” do site, das mais recentes para as mais antigas.
+            {signups && ` ${signups.length} ${signups.length === 1 ? 'inscrição' : 'inscrições'}.`}
+          </>
+        }
+        actions={
+          signups && signups.length > 0 && (
+            <button type="button" className="cafe-button cafe-button-secondary cafe-button-sm" onClick={() => exportSignups(signups)}>
+              <CafeIcon name="relatorio" className="size-[16px]" /> Baixar para Excel
+            </button>
+          )
+        }
+      />
 
       {isLoading && <p className="text-muted-foreground">Carregando inscrições…</p>}
       {isError && <p role="alert" className="text-destructive">Não foi possível carregar as inscrições.</p>}

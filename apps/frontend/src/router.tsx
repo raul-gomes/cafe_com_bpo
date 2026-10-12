@@ -79,6 +79,11 @@ export async function buildRoutes() {
   const { SettingsPage } = await import('./pages/panel/SettingsPage')
   const { LessonsPage } = await import('./pages/panel/LessonsPage')
   const { BetaSignupsPage } = await import('./pages/panel/BetaSignupsPage')
+  const { AdminHomePage } = await import('./pages/panel/admin/AdminHomePage')
+  const { AdminAnnouncementsPage } = await import('./pages/panel/admin/AdminAnnouncementsPage')
+  const { AdminLessonsPage } = await import('./pages/panel/admin/AdminLessonsPage')
+  const { AdminSitePage } = await import('./pages/panel/admin/AdminSitePage')
+  const { AdminUsersPage } = await import('./pages/panel/admin/AdminUsersPage')
 
   return [
     {
@@ -289,6 +294,17 @@ export async function buildRoutes() {
             { path: 'notas-fiscais/emitir', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'certificados', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
             { path: 'certificados/vencimentos', element: <SuspenseWrapper><UnderConstructionPanelPage /></SuspenseWrapper> },
+            {
+              path: 'admin',
+              element: <AdminRoute />,
+              children: [
+                { path: '', element: <SuspenseWrapper><AdminHomePage /></SuspenseWrapper> },
+                { path: 'mensagens', element: <SuspenseWrapper><AdminAnnouncementsPage /></SuspenseWrapper> },
+                { path: 'aulas', element: <SuspenseWrapper><AdminLessonsPage /></SuspenseWrapper> },
+                { path: 'site', element: <SuspenseWrapper><AdminSitePage /></SuspenseWrapper> },
+                { path: 'usuarios', element: <SuspenseWrapper><AdminUsersPage /></SuspenseWrapper> },
+              ],
+            },
             {
               path: 'inscricoes-beta',
               element: <AdminRoute />,

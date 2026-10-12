@@ -34,6 +34,8 @@ from src.modules.governanca.router import router as governanca_router
 from src.modules.network.router import router as network_router
 from src.modules.notifications.router import router as notifications_router
 from src.modules.payments.router import router as payments_router
+from src.modules.platform.router import admin_router as platform_admin_router
+from src.modules.platform.router import router as platform_router
 from src.modules.pricing.router import router as pricing_router
 from src.modules.proposals.router import router as proposals_router
 from src.modules.prospects.router import router as prospects_router
@@ -176,6 +178,8 @@ def create_app() -> FastAPI:
     app.include_router(team_router)
     app.include_router(emails_router)
     app.include_router(beta_router)
+    app.include_router(platform_router)
+    app.include_router(platform_admin_router)
 
     os.makedirs("storage/avatars", exist_ok=True)
     app.mount("/avatars", StaticFiles(directory="storage/avatars"), name="avatars")

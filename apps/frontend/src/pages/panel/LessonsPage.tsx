@@ -1,4 +1,8 @@
 import React from 'react';
+import { Link } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import { listLessons } from '../../api/platform';
+import { useAuth } from '../../context/AuthContext';
 import { CafeIcon, type CafeIconName } from '../../brand/CafeIcon';
 
 export type LessonSection = 'primeiros-passos' | 'bpo-primeiros-passos' | 'mentorias';
@@ -16,7 +20,7 @@ interface SectionContent {
   emptyText?: string;
 }
 
-/** Copy of each section (shown in pt-BR). Videos are added as they are published. */
+/** Copy of each section (shown in pt-BR) and the planned lessons, shown until videos are published in Admin › Aulas. */
 const CONTENT: Record<LessonSection, SectionContent> = {
   'primeiros-passos': {
     title: 'Primeiros passos',
@@ -53,32 +57,59 @@ const CONTENT: Record<LessonSection, SectionContent> = {
  * @returns The page.
  */
 export const LessonsPage: React.FC<{ section: LessonSection }> = ({ section }) => {
-  const { title, lead, icon, lessons, emptyText } = CONTENT[section];
+  const { title, lead, icon, lessons: plannedLessons, emptyText } = CONTENT[section];
+  const { user } = useAuth();
+  const { data: allLessons } = useQuery({ queryKey: ['lessons'], queryFn: listLessons });
+  // Published lessons (Admin › Aulas) replace the planned list of the section.
+  const published = (allLessons ?? []).filter(lesson => lesson.section === section);
 
   return (
     <div className="mx-auto max-w-[1080px]">
-      <header className="mb-[28px]">
-        <p className="text-xs font-bold uppercase tracking-[0.11em] text-module">Aulas</p>
-        <h1 className="mt-[6px] font-editorial text-[2.25rem] font-medium leading-tight tracking-[-0.02em] text-foreground">
-          {title}
-        </h1>
-        <p className="mt-[8px] max-w-[60ch] text-[0.9875rem] text-muted-foreground">{lead}</p>
+      <header className="mb-[28px] flex flex-wrap items-end justify-between gap-[16px]">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.11em] text-module">Aulas</p>
+          <h1 className="mt-[6px] font-editorial text-[2.25rem] font-medium leading-tight tracking-[-0.02em] text-foreground">
+            {title}
+          </h1>
+          <p className="mt-[8px] max-w-[60ch] text-[0.9875rem] text-muted-foreground">{lead}</p>
+        </div>
+        {user?.role === 'admin' && (
+          <Link to="/painel/admin/aulas" className="cafe-button cafe-button-secondary cafe-button-sm no-underline">
+            <CafeIcon name="adicionar" className="size-[16px]" /> Gerenciar aulas
+          </Link>
+        )}
       </header>
 
-      {lessons ? (
+      {published.length > 0 ? (
         <div className="grid gap-[20px] sm:grid-cols-2">
-          {lessons.map((lesson, index) => (
-            <article key={lesson.title} className="overflow-hidden rounded-lg border border-border bg-card">
-              {/* Video frame: the lesson goes here once it is published. */}
-              <div className="relative grid aspect-video place-items-center bg-module-bg text-module">
-                <CafeIcon name="aula" className="size-[44px]" />
-                <span className="absolute left-[12px] top-[12px] rounded-sm bg-card px-[8px] py-[3px] text-xs font-bold text-muted-foreground">
-                  Aula {index + 1}
-                </span>
-                <span className="absolute bottom-[12px] right-[12px] rounded-sm bg-card px-[8px] py-[3px] text-xs font-semibold text-muted-foreground">
-                  Em breve
-                </span>
+          {published.map((lesson, index) => (
+            <article key={lesson.id} className="overflow-hidden rounded-lg border border-border bg-card">
+              {lesson.youtube_id ? (
+                <div className="aspect-video bg-black">
+                  <iframe
+                    className="size-full"
+                    src={`https://www.youtube-nocookie.com/embed/${lesson.youtube_id}?rel=0`}
+                    title={lesson.title}
+                    loading="lazy"
+                    allow="accelerometer; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowFullScreen
+                  />
+                </div>
+              ) : (
+                <ComingSoonFrame index={index} />
+              )}
+              <div className="p-[18px]">
+                <h2 className="text-[1.0625rem] font-bold text-foreground">{lesson.title}</h2>
+                {lesson.summary && <p className="mt-[6px] text-sm leading-relaxed text-muted-foreground">{lesson.summary}</p>}
               </div>
+            </article>
+          ))}
+        </div>
+      ) : plannedLessons ? (
+        <div className="grid gap-[20px] sm:grid-cols-2">
+          {plannedLessons.map((lesson, index) => (
+            <article key={lesson.title} className="overflow-hidden rounded-lg border border-border bg-card">
+              <ComingSoonFrame index={index} />
               <div className="p-[18px]">
                 <h2 className="text-[1.0625rem] font-bold text-foreground">{lesson.title}</h2>
                 <p className="mt-[6px] text-sm leading-relaxed text-muted-foreground">{lesson.summary}</p>
@@ -97,3 +128,18 @@ export const LessonsPage: React.FC<{ section: LessonSection }> = ({ section }) =
     </div>
   );
 };
+
+/** Video frame of a lesson whose video is not out yet. */
+function ComingSoonFrame({ index }: { index: number }) {
+  return (
+    <div className="relative grid aspect-video place-items-center bg-module-bg text-module">
+      <CafeIcon name="aula" className="size-[44px]" />
+      <span className="absolute left-[12px] top-[12px] rounded-sm bg-card px-[8px] py-[3px] text-xs font-bold text-muted-foreground">
+        Aula {index + 1}
+      </span>
+      <span className="absolute bottom-[12px] right-[12px] rounded-sm bg-card px-[8px] py-[3px] text-xs font-semibold text-muted-foreground">
+        Em breve
+      </span>
+    </div>
+  );
+}

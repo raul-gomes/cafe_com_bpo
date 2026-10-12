@@ -5,6 +5,17 @@ import { LoginForm } from './LoginForm';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { Alert } from '../ui/alert';
 import { CafeIcon } from '../../brand/CafeIcon';
+import { useQuery } from '@tanstack/react-query';
+import { getPublicSite } from '../../api/platform';
+import type { LoginNotice } from '../../schemas/platform';
+
+/** Shown while the editable notice loads (and if the API is unreachable). */
+const DEFAULT_NOTICE: LoginNotice = {
+  title: 'Bem-vindo de volta.',
+  message: 'Seu escritório de BPO em um lugar só.',
+  link_label: null,
+  link_url: null,
+};
 
 const ERROR_MESSAGES: Record<string, string> = {
   state_invalid: 'Sessão expirada. Tente fazer login novamente.',
@@ -29,10 +40,12 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
   const errorParam = searchParams.get('error');
   const [showForgotPw, setShowForgotPw] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
+  const { data: site } = useQuery({ queryKey: ['public-site'], queryFn: getPublicSite, staleTime: 5 * 60_000 });
+  const notice = site?.login_notice ?? DEFAULT_NOTICE;
 
   // Already signed in: the login makes no sense, go straight to the panel.
   useEffect(() => {
-    if (!isLoading && isAuthenticated) navigate('/painel/tarefas');
+    if (!isLoading && isAuthenticated) navigate('/painel');
   }, [isAuthenticated, isLoading, navigate]);
 
   // Escape closes; the background does not scroll while the dialog is open.
@@ -64,9 +77,15 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
         {/* Brand column: keeps the dialog horizontal and readable at a glance. */}
         <div className="login-dialog-brand">
           <img src="/brand/kit-v4/logo-cafe-colorida.svg" alt="Café com BPO" className="login-dialog-logo" />
+          {/* Editable in Admin › Site e encontros: a good spot for notices and promotions. */}
           <div>
-            <h2 className="login-dialog-title">Bem-vindo de volta.</h2>
-            <p className="login-dialog-lead">Seu escritório de BPO em um lugar só.</p>
+            <h2 className="login-dialog-title">{notice.title}</h2>
+            <p className="login-dialog-lead">{notice.message}</p>
+            {notice.link_url && notice.link_label && (
+              <a href={notice.link_url} className="login-dialog-notice-link" target="_blank" rel="noopener noreferrer">
+                {notice.link_label}
+              </a>
+            )}
           </div>
           <p className="login-dialog-beta">
             Ainda não tem acesso?{' '}

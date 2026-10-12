@@ -245,6 +245,35 @@ class BetaAccess(Base):
     notes = Column(Text, nullable=True)
 
 
+class CourtesyGrant(Base):
+    """Free full access an administrator grants to one user for a period.
+
+    For partners, early supporters or support cases: the user gets every
+    module until `expires_at` without paying. Unlike the beta grant there can
+    be several rows per user (history); a grant ends early when `revoked_at`
+    is set. Nothing is charged and Asaas is never involved.
+    """
+
+    __tablename__ = "courtesy_grants"
+    __table_args__ = (
+        Index("ix_courtesy_grants_user_expires", "user_id", "expires_at"),
+    )
+
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    user_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("users.id", ondelete="CASCADE"),
+        nullable=False,
+    )
+    granted_at = Column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    reason = Column(Text, nullable=True)
+    granted_by = Column(String(255), nullable=True)
+    revoked_at = Column(DateTime(timezone=True), nullable=True)
+
+
 class BillingProfile(Base):
     """Document and address the payment provider requires to sell (§17.8).
 

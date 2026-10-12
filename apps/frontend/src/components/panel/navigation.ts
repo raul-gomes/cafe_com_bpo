@@ -137,9 +137,13 @@ export const NAV_SECTIONS: NavSection[] = [
     tagline: 'Ferramentas de administração',
     adminOnly: true,
     items: [
-      { path: '/painel/design-system', icon: 'nota', label: 'Design System' },
+      { path: '/painel/admin', icon: 'painel', label: 'Visão geral' },
+      { path: '/painel/admin/mensagens', icon: 'mensagem', label: 'Mensagens' },
+      { path: '/painel/admin/aulas', icon: 'aula', label: 'Aulas' },
+      { path: '/painel/admin/site', icon: 'encontro', label: 'Site e encontros' },
+      { path: '/painel/admin/usuarios', icon: 'pessoas', label: 'Usuários e cortesias' },
+      { path: '/painel/inscricoes-beta', icon: 'relatorio', label: 'Inscrições Beta' },
       { path: '/painel/planos', icon: 'carteira', label: 'Planos' },
-      { path: '/painel/inscricoes-beta', icon: 'pessoas', label: 'Inscrições Beta' },
     ],
   },
 ];

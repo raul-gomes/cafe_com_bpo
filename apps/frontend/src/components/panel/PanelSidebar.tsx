@@ -8,6 +8,7 @@ import { CafeIcon, type CafeIconName } from '../../brand/CafeIcon';
 import { BrandLogo } from '../../brand/BrandLogo';
 import { HOME_ITEM, NAV_SECTIONS, activeItemPath, type NavItem, type NavSection } from './navigation';
 import { cn } from '../../lib/utils';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '../ui/dropdown-menu';
 
 interface PanelSidebarProps {
   /** Work module shown in the menu (the last one chosen, also on Home). */
@@ -108,6 +109,37 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
             </button>
           ))}
         </div>
+        {/* Icons mode: a single button with the current module; the list opens on click. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <button
+                type="button"
+                className="panel-module-switch"
+                data-cafe-module={activeSection.module}
+                aria-label={`Módulo: ${activeSection.label}. Trocar de módulo`}
+                title={`${activeSection.label} · trocar de módulo`}
+              />
+            }
+          >
+            <CafeIcon name={activeSection.icon} className="size-[20px]" />
+            <span className="panel-module-switch-more" aria-hidden="true" />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side="right" align="start" sideOffset={10} className="w-[220px]">
+            {sections.map(section => (
+              <DropdownMenuItem
+                key={section.id}
+                onClick={() => selectSection(section)}
+                data-cafe-module={section.module}
+                className={cn('panel-module-option', section.id === activeSection.id && 'panel-module-option-active')}
+              >
+                <CafeIcon name={section.icon} className="size-[18px]" />
+                <span className="flex-1">{section.label}</span>
+                {readOnly.has(section.id) && <span className="panel-item-lock" aria-label="Criar e enviar exige assinatura" />}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
         <div className="panel-module-name cafe-rail-label" data-cafe-module={activeSection.module}>
           {activeSection.label}
         </div>
@@ -119,7 +151,7 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
           <div className="mt-[12px] flex flex-col gap-[2px] border-t border-border/70 pt-[10px]">
             <ActionRow icon="suporte" label="Reportar erro" onClick={() => setShowReportModal(true)} />
             <ActionRow icon="coracao" label="Colabore" onClick={() => setShowDonateModal(true)} />
-            <ActionRow icon="sair" label="Sair da conta" onClick={logout} />
+            <ActionRow icon="sair" label="Sair da conta" onClick={logout} tone="danger" />
           </div>
         </nav>
       </aside>
@@ -130,15 +162,29 @@ export const PanelSidebar: React.FC<PanelSidebarProps> = ({ activeSection, inMod
   );
 };
 
-function ActionRow({ icon, label, onClick }: { icon: CafeIconName; label: string; onClick: () => void }) {
+function ActionRow({
+  icon,
+  label,
+  onClick,
+  tone,
+}: {
+  icon: CafeIconName;
+  label: string;
+  onClick: () => void;
+  /** "danger" for leaving the account: the kit's danger color, so it is never clicked by accident. */
+  tone?: 'danger';
+}) {
   return (
     <button
       type="button"
       onClick={onClick}
       title={label}
-      className="cafe-rail-link panel-rail-link w-full border-0 bg-transparent text-left text-muted-foreground hover:text-foreground"
+      className={cn(
+        'cafe-rail-link panel-rail-link w-full border-0 bg-transparent text-left',
+        tone === 'danger' ? 'panel-rail-danger' : 'text-muted-foreground hover:text-foreground'
+      )}
     >
-      <CafeIcon name={icon} className="opacity-80" />
+      <CafeIcon name={icon} className={tone === 'danger' ? undefined : 'opacity-80'} />
       <span className="cafe-rail-label truncate">{label}</span>
     </button>
   );

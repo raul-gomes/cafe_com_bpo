@@ -236,15 +236,58 @@ dialog .panel-rail .panel-rail-link { justify-content: flex-start; padding-inlin
 }
 .panel-module-tab:focus-visible { outline: 3px solid var(--cafe-focus); outline-offset: 2px; }
 
-/* Just the module name, discreet. */
+/* Icons mode: the tabs give way to one button with the current module, which
+   opens the module list. Saves the column for the areas of the module. */
+.panel-module-switch { display: none; }
+.app-shell[data-nav="collapsed"] .panel-rail .panel-module-tabs { display: none; }
+.app-shell[data-nav="collapsed"] .panel-rail .panel-module-switch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 40px;
+  color: var(--cafe-module);
+  background: var(--cafe-module-bg);
+  border: 1px solid color-mix(in srgb, var(--cafe-module) 35%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.panel-module-switch:focus-visible { outline: 3px solid var(--cafe-focus); outline-offset: 2px; }
+/* Small corner mark: "there is more here". */
+.panel-module-switch-more {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  opacity: 0.7;
+}
+dialog .panel-rail .panel-module-switch { display: none; }
+dialog .panel-rail .panel-module-tabs { display: grid; }
+.panel-module-option { gap: 10px; }
+.panel-module-option svg { color: var(--cafe-module); }
+.panel-module-option-active { background: var(--cafe-module-bg); font-weight: 700; }
+
+/* Module name: same size, more presence — a chip in the module color, with the
+   kit's left stripe, so it reads as "where I am" at a glance. */
 .panel-module-name {
-  margin: 10px 12px 8px;
+  margin: 12px 4px 10px;
+  padding: 6px 10px;
   font-size: 0.75rem;
-  font-weight: 700;
+  font-weight: 800;
   letter-spacing: 0.11em;
   text-transform: uppercase;
   color: var(--cafe-module);
+  background: var(--cafe-module-bg);
+  border-left: 3px solid var(--cafe-module);
+  border-radius: 6px;
 }
+
+/* Leaving the account: the kit's danger color (never clicked by accident). */
+.panel-rail-danger { color: var(--cafe-danger); }
+.panel-rail-danger:hover { color: var(--cafe-danger); background: var(--cafe-danger-bg); }
 
 /* One-ink logo tinted by the module, fading in over the official one (BrandLogo.tsx). */
 .panel-logo-tinted {
@@ -325,3 +368,77 @@ body[data-cafe-module] .cafe-command-tab { border-bottom-color: var(--cafe-modul
 /* Item lock (e.g. Pagamentos) — same drawing as the tab lock, inline. */
 .panel-item-lock { position: relative; display: inline-block; width: 10px; height: 8px; margin-top: 4px; border: 1.4px solid currentColor; border-radius: 2px; opacity: 0.55; }
 .panel-item-lock::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 6px; height: 4px; transform: translateX(-50%); border: 1.4px solid currentColor; border-bottom: 0; border-radius: 3px 3px 0 0; }
+
+/* ── Admin ── */
+/* The team's compass on the Admin overview: an editorial quote, module stripe. */
+.admin-compass {
+  position: relative;
+  margin: 14px 0 28px;
+  padding: 26px 28px 22px 32px;
+  background: var(--cafe-module-bg);
+  border-left: 4px solid var(--cafe-module);
+  border-radius: 10px;
+}
+.admin-compass-icon { position: absolute; top: 22px; right: 24px; width: 26px; height: 26px; color: var(--cafe-module); opacity: 0.55; }
+.admin-compass blockquote {
+  margin: 0;
+  max-width: 34ch;
+  font-family: var(--cafe-font-editorial, Georgia, serif);
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--cafe-ink);
+}
+.admin-compass figcaption { margin-top: 10px; font-size: 0.875rem; color: var(--cafe-muted); }
+.admin-tool { display: block; transition: transform 160ms, border-color 160ms; }
+.admin-tool:hover { transform: translateY(-2px); }
+
+/* Home post-its: messages from the team, a little tilted, in the café yellow. */
+.home-post-its { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-bottom: 28px; }
+.home-post-it {
+  position: relative;
+  padding: 18px 18px 14px;
+  /* A real post-it stays yellow in dark mode too, so the ink is fixed. */
+  background: #FFF1C6;
+  color: #3A2E12;
+  border-radius: 4px 4px 14px 4px;
+  box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 10px 22px -14px rgba(60,40,0,.45);
+  transform: rotate(-0.6deg);
+}
+.home-post-it:nth-child(even) { transform: rotate(0.5deg); }
+.home-post-it::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 54px;
+  height: 14px;
+  translate: -50% 0;
+  background: rgba(255,255,255,.55);
+  border-radius: 2px;
+}
+.home-post-it h3 { font-weight: 800; font-size: 0.95rem; line-height: 1.3; }
+.home-post-it p { margin-top: 6px; font-size: 0.875rem; line-height: 1.45; white-space: pre-line; }
+.home-post-it-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.75rem; opacity: .75; }
+.home-post-it-close { background: none; border: 0; padding: 2px 4px; color: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-size: 0.75rem; }
+
+/* Public calculator: offer of the free pricing study (PDF). */
+.pricing-study-offer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px 20px;
+  align-items: center;
+  max-width: 600px;
+  margin: 28px auto 0;
+  padding: 18px 20px;
+  text-align: left;
+  background: var(--cafe-paper);
+  border: 1px solid var(--cafe-line);
+  border-left: 4px solid var(--cafe-brand-yellow, #FFC72C);
+  border-radius: 10px;
+}
+.pricing-study-kicker { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; color: var(--cafe-muted); }
+.pricing-study-title { margin-top: 2px; font-weight: 800; color: var(--cafe-ink); }
+.pricing-study-text { margin-top: 4px; font-size: 0.875rem; line-height: 1.45; color: var(--cafe-ink-soft); }
+.pricing-study-warning { grid-column: 1 / -1; font-size: 0.85rem; color: var(--cafe-danger); }
+@media (max-width: 560px) { .pricing-study-offer { grid-template-columns: 1fr; } }

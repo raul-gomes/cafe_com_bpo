@@ -62,6 +62,15 @@ export const PanelTopBar: React.FC<PanelTopBarProps> = ({ sectionLabel, onOpenMo
       </div>
 
       <div className="ml-auto flex items-center gap-[8px]">
+        {/* Home is always one click away (same place as the café logo leads). */}
+        <Link
+          to="/painel"
+          className="grid size-[40px] place-items-center rounded-full text-muted-foreground no-underline transition-colors hover:bg-accent hover:text-foreground"
+          aria-label="Início"
+          title="Início"
+        >
+          <CafeIcon name="inicio" className="size-[20px]" />
+        </Link>
         <button
           type="button"
           onClick={() => setAppearance({ mode: mode === 'dark' ? 'light' : 'dark' })}

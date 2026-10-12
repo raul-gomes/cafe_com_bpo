@@ -381,13 +381,10 @@ export const TasksPage: React.FC = () => {
         <div className="animate-[panelFadeIn_0.4s_ease-out]">
             <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Gestão de Tarefas' }]} />
 
-            {/* Header */}
-            <div className="mb-8 flex items-end justify-between">
-                <div>
-                    <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Gestão de Tarefas</h1>
-                    <p className="mb-2 text-[14px] text-muted-foreground">Controle operacional e prazos por empresa.</p>
-                </div>
-                <div className="flex items-center gap-3">
+            {/* Toolbar: the breadcrumb already names the page, so the space goes to the work. */}
+            <div className="mb-4 flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+                <h1 className="sr-only">Gestão de Tarefas</h1>
+                <div className="flex flex-wrap items-center justify-end gap-3">
                     {view === 'kanban' && (
                         <Button
                             variant="ghost"

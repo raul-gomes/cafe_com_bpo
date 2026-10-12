@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useNavigate } from 'react-router-dom';
 import { pricingFormSchema, PricingFormData } from '../../schemas/pricing';
 import { calculatePricing } from '../../lib/pricingEngine';
+import { buildPricingStudy } from '../../lib/pricingStudy';
 
 // ─── Catálogo de Serviços Inicial (Metodologia BPO v4) ─────────────────────────
 const INITIAL_SERVICES = [
@@ -171,6 +172,44 @@ export const PublicPricingSimulator: React.FC = () => {
   const toggleService = (index: number) => {
     const svc = getValues(`services.${index}`);
     update(index, { ...svc, active: !svc.active });
+  };
+
+  const [studyState, setStudyState] = useState<'idle' | 'working' | 'incomplete'>('idle');
+
+  /** Free PDF study: the numbers and tips to build a proposal, with the Café visual. */
+  const handleDownloadStudy = async () => {
+    const study = buildPricingStudy(getValues());
+    if (!study || study.totalCost <= 0) {
+      setStudyState('incomplete');
+      return;
+    }
+    setStudyState('working');
+    try {
+      // Loaded on demand: the PDF engine is heavy and most visitors never click.
+      const [{ pdf }, { PricingStudyDocument }] = await Promise.all([
+        import('@react-pdf/renderer'),
+        import('../pdf/PricingStudyDocument'),
+      ]);
+      const origin = window.location.origin;
+      const blob = await pdf(
+        <PricingStudyDocument
+          study={study}
+          clientName={clientName.trim() || undefined}
+          logoOnDeepUrl={`${origin}/brand/logo-cafe-branca.png`}
+          logoUrl={`${origin}/brand/logo-cafe-colorida.png`}
+        />
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'estudo-de-precificacao-cafe-com-bpo.pdf';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
+    } finally {
+      setStudyState('idle');
+    }
   };
 
   const handleVisualize = () => {
@@ -468,6 +507,25 @@ export const PublicPricingSimulator: React.FC = () => {
             <p style={{ marginTop: '12px', fontSize: '14px', color: 'var(--ds-text-muted)' }}>
               Acesse agora para visualizar os cálculos completos, impostos e gerar seu PDF.
             </p>
+
+            {/* Free study: the base for the proposal, in PDF, without login. */}
+            <div className="pricing-study-offer">
+              <div>
+                <p className="pricing-study-kicker">Grátis · sem cadastro</p>
+                <p className="pricing-study-title">Baixe o estudo de precificação em PDF</p>
+                <p className="pricing-study-text">
+                  Custo da sua hora, preço mínimo, cenários de margem e prazo, e dicas para montar a proposta.
+                </p>
+              </div>
+              <button type="button" className="cafe-button cafe-button-secondary" onClick={handleDownloadStudy} disabled={studyState === 'working'}>
+                {studyState === 'working' ? 'Gerando o PDF…' : 'Baixar estudo (PDF)'}
+              </button>
+              {studyState === 'incomplete' && (
+                <p className="pricing-study-warning" role="alert">
+                  Preencha o custo mensal da operação e ative pelo menos um serviço para gerar o estudo.
+                </p>
+              )}
+            </div>
           </div>
         </div>
       </div>
