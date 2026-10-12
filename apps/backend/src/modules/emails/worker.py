@@ -105,15 +105,18 @@ EVENT_STATUS_MAP = {
     "complained": "complained",
 }
 
-# Status "finais" que não devem ser rebaixados por eventos posteriores
-_FINAL_STATUSES = {"sent", "bounced", "complained"}
+# Desfechos finais: nenhum evento posterior os altera. "sent" não está aqui —
+# só diz que o provedor aceitou/entregou, e bounce ou reclamação ainda podem
+# chegar depois (AUD-029).
+_FINAL_STATUSES = {"bounced", "complained"}
 
 
 def _apply_event(session, repo, delivery, event: str) -> bool:
     """Aplica o evento do provedor a uma delivery, respeitando idempotência.
 
     - Ignora eventos desconhecidos.
-    - Não rebaixa status final (ex: 'sent' não volta para 'bounced').
+    - Bounce/reclamação depois de 'sent' são aplicados (AUD-029).
+    - Não altera desfecho final: 'bounced'/'complained' não voltam a 'sent'.
     """
     status = EVENT_STATUS_MAP.get(event)
     if not status:

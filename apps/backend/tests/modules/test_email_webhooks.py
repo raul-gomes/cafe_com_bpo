@@ -85,13 +85,41 @@ class TestWebhookHandler:
 
 
 class TestWebhookIdempotency:
-    def test_repeated_event_does_not_overwrite_sent(self, session):
+    """AUD-029: "sent" only means the provider accepted or delivered the e-mail.
+
+    A complaint always arrives after delivery and a bounce can too, so both must
+    still apply on top of "sent". They are the final outcomes: a late or repeated
+    "delivered" does not turn them back into "sent".
+    """
+
+    @pytest.mark.parametrize("event", ["bounced", "complained"])
+    def test_bounce_or_complaint_after_sent_is_applied(self, session, event):
         d = _make_delivery(session)
         from src.modules.emails.worker import handle_webhook_event
 
         handle_webhook_event(str(d.id), "delivered")
-        # novo evento contraditório não deve rebaixar o status
-        handle_webhook_event(str(d.id), "bounced")
+        handle_webhook_event(str(d.id), event)
+        session.expire_all()
+        session.refresh(d)
+        assert d.status == event
+
+    @pytest.mark.parametrize("event", ["bounced", "complained"])
+    def test_late_delivered_does_not_undo_a_final_outcome(self, session, event):
+        d = _make_delivery(session)
+        from src.modules.emails.worker import handle_webhook_event
+
+        handle_webhook_event(str(d.id), event)
+        handle_webhook_event(str(d.id), "delivered")
+        session.expire_all()
+        session.refresh(d)
+        assert d.status == event
+
+    def test_repeated_delivered_keeps_sent(self, session):
+        d = _make_delivery(session)
+        from src.modules.emails.worker import handle_webhook_event
+
+        assert handle_webhook_event(str(d.id), "delivered")
+        assert handle_webhook_event(str(d.id), "delivered")
         session.expire_all()
         session.refresh(d)
         assert d.status == "sent"
