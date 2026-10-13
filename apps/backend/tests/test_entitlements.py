@@ -286,6 +286,12 @@ def test_canceled_subscription_keeps_the_paid_period(db_session):
 def test_launch_grant_resolves_to_beta(db_session):
     """A beta granted by the launch command behaves like any other beta."""
     user = _user(db_session)
+    # `create_test_user` stamps the real wall clock on `created_at`, so a user
+    # created after `NOW` (pinned at 12:00 UTC) would fall outside the
+    # inclusive `registered_until` cutoff of the launch grant and the grant
+    # would wrongly skip them — the test is about the grant, not the cutoff.
+    user.created_at = NOW - timedelta(days=30)
+    db_session.commit()
     grant_beta_to_all_users(
         db_session,
         expires_at=NOW + timedelta(days=365),

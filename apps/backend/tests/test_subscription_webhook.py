@@ -58,6 +58,7 @@ from src.modules.subscriptions.models import (
     SUBSCRIPTION_STATUS_ACTIVE,
     SUBSCRIPTION_STATUS_CANCELED,
     SUBSCRIPTION_STATUS_INCOMPLETE,
+    SUBSCRIPTION_STATUS_PAST_DUE,
     Plan,
     Subscription,
 )
@@ -438,6 +439,37 @@ def test_a_future_first_charge_ends_where_the_provider_says(
     row = _stored(db_session, subscription.id)
     assert row.status == SUBSCRIPTION_STATUS_ACTIVE
     assert as_utc(row.current_period_end) == _business_day_start(2027, 6, 1)
+
+
+def test_checkout_paid_regularizes_an_overdue_subscription(
+    db_session: Session, subscription: Subscription
+):
+    """§17.4 "quem paga dentro da janela volta ao normal sozinho" — the
+    regularize checkout (P-22, opção A) pays through the platform's own
+    authority signal: `CHECKOUT_PAID` reactivates the `past_due` row, closes
+    the grace window and advances the period, exactly as a settled payment
+    does. The provider id is not touched: the recurrence it names belongs to
+    the provider and is the key of every later event.
+
+    Args:
+        db_session: Database session.
+        subscription: The `incomplete` row, turned overdue here.
+    """
+    subscription.status = SUBSCRIPTION_STATUS_PAST_DUE
+    subscription.asaas_subscription_id = "sub_wh_1"
+    subscription.current_period_end = _business_day_start(2026, 10, 5)
+    subscription.grace_until = _business_day_start(2026, 10, 9)
+    db_session.commit()
+
+    outcome = _process(db_session, _checkout_event("evt_paid_reg", "CHECKOUT_PAID"))
+
+    assert outcome == "ok"
+    row = _stored(db_session, subscription.id)
+    assert row.status == SUBSCRIPTION_STATUS_ACTIVE
+    assert row.grace_until is None
+    # Charged 2026-10-05 (already overdue): the paid month renews the next cycle.
+    assert as_utc(row.current_period_end) == _business_day_start(2026, 11, 5)
+    assert row.asaas_subscription_id == "sub_wh_1"
 
 
 def test_checkout_canceled_deletes_the_unpaid_row(

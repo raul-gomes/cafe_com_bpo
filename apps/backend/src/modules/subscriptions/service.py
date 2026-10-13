@@ -384,7 +384,9 @@ class CheckoutService:
         Raises:
             HTTPException: 404 when the plan does not exist, 422 when it is
                 deactivated, 409 when the person already has a live
-                subscription.
+                subscription — except a `past_due` one on the same plan, which
+                is the P-22 regularize (the payment the dunning window exists
+                for).
         """
         moment = now or datetime.now(UTC)
 
@@ -411,9 +413,15 @@ class CheckoutService:
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Este plano não tem um preço válido no momento.",
             )
-        if self.subscriptions.get_open_for_user(actor.id) is not None:
+        live = self.subscriptions.get_open_for_user(actor.id)
+        if live is not None and (
+            live.status != SUBSCRIPTION_STATUS_PAST_DUE or live.plan_id != plan.id
+        ):
             # Refused before the provider is called, so nobody ends up with a
-            # live session nobody will ever confirm.
+            # live session nobody will ever confirm. The one exception is the
+            # P-22 regularize (opção A, §17.4 "volta ao normal sozinho"): an
+            # overdue row is exactly what the user must be able to pay, and
+            # only on the plan they are overdue on — never on another.
             raise HTTPException(
                 status_code=status.HTTP_409_CONFLICT,
                 detail="Você já possui uma assinatura em andamento.",
@@ -429,22 +437,36 @@ class CheckoutService:
         customer_id = await self._ensure_customer(user, actor, billing, changed)
         first_due_date = self._first_due_date(user.id, moment)
 
-        subscription = self.subscriptions.add(
-            Subscription(
-                id=uuid4(),
-                user_id=user.id,
-                plan_id=plan.id,
-                # Opening a session is not paying (§17.2): Fase 5 promotes this
-                # row when `CHECKOUT_PAID` arrives.
-                status=SUBSCRIPTION_STATUS_INCOMPLETE,
-                cycle=plan.cycle,
-                price=plan.price,
-                asaas_customer_id=customer_id,
-                # The price in the session came from the row, so there is
-                # nothing left to reconcile with the provider.
-                price_sync_status=PRICE_SYNC_SYNCED,
+        if live is None:
+            subscription = self.subscriptions.add(
+                Subscription(
+                    id=uuid4(),
+                    user_id=user.id,
+                    plan_id=plan.id,
+                    # Opening a session is not paying (§17.2): Fase 5 promotes
+                    # this row when `CHECKOUT_PAID` arrives.
+                    status=SUBSCRIPTION_STATUS_INCOMPLETE,
+                    cycle=plan.cycle,
+                    price=plan.price,
+                    asaas_customer_id=customer_id,
+                    # The price in the session came from the row, so there is
+                    # nothing left to reconcile with the provider.
+                    price_sync_status=PRICE_SYNC_SYNCED,
+                )
             )
-        )
+        else:
+            # The regularize journey re-attaches to the one row the person may
+            # still have open (`past_due`, same plan): the partial unique index
+            # `uq_subscriptions_open_per_user` holds exactly one non-canceled
+            # row per user, so minting a second one would be refused by the
+            # constraint the 409 above mirrors. The new session opens at the
+            # current plan values, and the status stays `past_due` — the
+            # tolerance continues until `CHECKOUT_PAID` reactivates it.
+            subscription = live
+            subscription.plan_id = plan.id
+            subscription.price = plan.price
+            subscription.cycle = plan.cycle
+            subscription.price_sync_status = PRICE_SYNC_SYNCED
 
         checkout = await self._call_provider(
             "checkout",
@@ -492,7 +514,9 @@ class CheckoutService:
             plan_name=plan.name,
             price=plan.price,
             cycle=plan.cycle,
-            status=SUBSCRIPTION_STATUS_INCOMPLETE,
+            # A fresh buyer is `incomplete`; a past_due user regularizing keeps
+            # their status until `CHECKOUT_PAID` reactivates it.
+            status=subscription.status,
         )
 
     def _resolve_billing(
@@ -944,7 +968,9 @@ class SubscriptionWebhookService:
     - `CHECKOUT_PAID` is the promotion (§17.2): `incomplete` → `active`, the
       provider subscription id is stored (it is the key of every later event),
       and the paid period starts — without it `resolve_access` fails closed
-      and the payer stays free.
+      and the payer stays free. It is also the P-22 regularize: a `past_due`
+      row whose checkout got paid returns to `active`, exactly like a settled
+      payment (§17.4 "quem paga volta ao normal sozinho").
     - `CHECKOUT_CANCELED`/`CHECKOUT_EXPIRED` delete a row that never paid, so
       it stops holding the one-open-subscription seat; a paid row is never
       deleted by them.
@@ -1032,10 +1058,12 @@ class SubscriptionWebhookService:
         The enrichment (provider id + authoritative due date) is best effort:
         the money already moved, so a provider outage must not block
         activation — a later `PAYMENT_*` heals the missing id through
-        `checkoutSession`.
+        `checkoutSession`. An `incomplete` row is a fresh promotion; a
+        `past_due` row is the P-22 regularize and is reactivated without
+        touching its provider id (the recurrence the events match on).
 
         Args:
-            subscription: The local `incomplete` row.
+            subscription: The local `incomplete` or `past_due` row.
             checkout: The `checkout` object of the payload.
             now: Frozen clock of the dispatch.
 
@@ -1077,6 +1105,32 @@ class SubscriptionWebhookService:
                 subscription.id,
                 period_end.isoformat(),
             )
+        elif subscription.status == SUBSCRIPTION_STATUS_PAST_DUE:
+            # The P-22 regularize (opção A): the checkout of the overdue
+            # journey was paid, so §17.4's "quem paga volta ao normal sozinho"
+            # reactivates the row exactly like a settled payment does — money
+            # for `due` arrived, the grace window closes and the period moves
+            # to the next charge, never backward. The provider id is left
+            # untouched: it names the recurrence every later event matches on.
+            subscription.status = SUBSCRIPTION_STATUS_ACTIVE
+            changed = True
+            if subscription.grace_until is not None:
+                subscription.grace_until = None
+            checkout_data = checkout.get("subscription")
+            checkout_data = checkout_data if isinstance(checkout_data, dict) else {}
+            due = parse_asaas_date(checkout_data.get("nextDueDate")) or provider_due
+            if due is not None:
+                period_end = _business_start(add_billing_month(due))
+                current_end = as_utc(subscription.current_period_end)
+                if current_end is None or period_end > current_end:
+                    subscription.current_period_end = period_end
+                    subscription.next_billing_date = period_end
+                    logger.info(
+                        "[subscriptions] CHECKOUT_PAID regularizou %s "
+                        "(próximo ciclo %s)",
+                        subscription.id,
+                        period_end.isoformat(),
+                    )
 
         if provider_id and subscription.asaas_subscription_id is None:
             subscription.asaas_subscription_id = provider_id

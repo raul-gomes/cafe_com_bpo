@@ -124,6 +124,26 @@ export function PaymentsPage() {
         }
     };
 
+    // P-22, opção A: quem está em atraso reabre o checkout do plano atual para
+    // regularizar. O plano-alvo vem do catálogo (o access só traz o `code`) e
+    // o pagamento reativa a assinatura (§17.4 "volta ao normal sozinho").
+    const handleRegularize = async () => {
+        const currentPlan = access?.plan;
+        const target = plans?.find((candidate) => candidate.code === currentPlan?.code);
+        if (!target) {
+            toast.error('Não foi possível localizar o plano em atraso.');
+            return;
+        }
+        try {
+            const checkout = await openCheckout.mutateAsync(target.id);
+            window.location.assign(checkout.link);
+        } catch (error) {
+            toast.error(
+                firstApiError(error) ?? 'Não foi possível regularizar o pagamento.',
+            );
+        }
+    };
+
     const handleSaveProfile = (data: BillingDataInput) => {
         saveProfile.mutate(data, {
             // A mensagem de produto do 422 (ex.: "Informe um CPF ou CNPJ válido")
@@ -165,6 +185,7 @@ export function PaymentsPage() {
                             hasSavedProfile={hasSavedProfile}
                             onSubscribe={handleSubscribe}
                             onCancel={handleCancel}
+                            onRegularize={handleRegularize}
                         />
                     </div>
                 )}

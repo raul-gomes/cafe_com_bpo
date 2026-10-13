@@ -188,13 +188,36 @@ describe('PaymentsPage', () => {
     })
   })
 
-  it('past_due: mostra o alerta de dunning com a data-limite e não oferece cancelar', async () => {
+  it('past_due: mostra o alerta de dunning com a data-limite e oferece regularizar, não cancelar', async () => {
     queryHooks.useAccess.mockReturnValue({ data: PAST_DUE_ACCESS })
     renderPage()
 
     expect(await screen.findByText(/pagamento.*atraso/i)).toBeInTheDocument()
     expect(screen.getByText('09/10/2026')).toBeInTheDocument()
+    expect(await screen.findByRole('button', { name: /regularizar pagamento/i })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Cancelar assinatura' })).toBeNull()
+  })
+
+it('past_due: clicar em regularizar reabre o checkout do plano atual e redireciona', async () => {
+    queryHooks.useAccess.mockReturnValue({ data: PAST_DUE_ACCESS })
+    renderPage()
+
+    // O botão não depende do catálogo, mas o regularizar precisa do `id` do
+    // plano para abrir o checkout — espera o catálogo no cache antes do clique
+    // para o handler enxergar o plano (mesmo estado de um usuário que clica
+    // com a página carregada).
+    const button = await screen.findByRole('button', {
+      name: /regularizar pagamento/i,
+    })
+    await waitFor(() => expect(queryClient.getQueryData(['plans'])).toEqual([MENSAL]))
+    fireEvent.click(button)
+
+    await waitFor(() => {
+      expect(subscriptionApi.openCheckout).toHaveBeenCalledWith('plan-1')
+    })
+    await waitFor(() => {
+      expect(assignMock).toHaveBeenCalledWith(CHECKOUT.link)
+    })
   })
 
   it('beta: mostra o prazo do beta e o catálogo para assinar', async () => {

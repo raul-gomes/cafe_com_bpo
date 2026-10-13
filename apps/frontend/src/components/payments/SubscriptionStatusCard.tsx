@@ -56,12 +56,15 @@ interface SubscriptionStatusCardProps {
     onSubscribe: (planId: string) => void;
     /** Clique em "Cancelar assinatura" do plano atual. */
     onCancel: () => void;
+    /** Clique em "Regularizar pagamento" do usuário em atraso (P-22, opção A). */
+    onRegularize?: () => void;
 }
 
 const CurrentPlanCard: React.FC<{
     access: Access;
     onCancel?: () => void;
-}> = ({ access, onCancel }) => {
+    onRegularize?: () => void;
+}> = ({ access, onCancel, onRegularize }) => {
     const plan = access.plan;
     if (!plan) {
         return null;
@@ -80,6 +83,14 @@ const CurrentPlanCard: React.FC<{
                     <span className="text-2xl font-extrabold text-primary-strong">
                         {formatBRL(Number(plan.price))}
                     </span>
+                    {onRegularize && (
+                        <Button
+                            aria-label="Regularizar pagamento"
+                            onClick={onRegularize}
+                        >
+                            <CreditCard size={16} /> Regularizar pagamento
+                        </Button>
+                    )}
                     {onCancel && (
                         <Button
                             variant="outline"
@@ -179,6 +190,7 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
     hasSavedProfile,
     onSubscribe,
     onCancel,
+    onRegularize,
 }) => {
     if (access.is_admin) {
         return (
@@ -210,7 +222,10 @@ export const SubscriptionStatusCard: React.FC<SubscriptionStatusCardProps> = ({
                         para manter o acesso ao painel.
                     </AlertDescription>
                 </Alert>
-                <CurrentPlanCard access={access} />
+                <CurrentPlanCard
+                    access={access}
+                    onRegularize={onRegularize}
+                />
             </>
         );
     }

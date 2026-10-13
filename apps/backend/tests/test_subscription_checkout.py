@@ -44,6 +44,7 @@ from src.modules.auth.models import User
 from src.modules.auth.schemas import UserResponse
 from src.modules.subscriptions.models import (
     SUBSCRIPTION_STATUS_INCOMPLETE,
+    SUBSCRIPTION_STATUS_PAST_DUE,
     BetaAccess,
     BillingProfile,
     Plan,
@@ -541,6 +542,101 @@ def test_a_second_subscription_is_refused_before_asaas_is_called(
 
     assert raised.value.status_code == 409
     assert provider.requests == [], "a refused buyer must not get a live session"
+
+
+# --- Regularizar um pagamento em atraso (P-22, decisão do dono: opção A) ------
+# §17.4 says "quem paga dentro da janela volta ao normal sozinho": the past_due
+# user must be able to pay, and the platform's own authority signal for paying is
+# the checkout. The 409 of the one-open-subscription rule applies to someone who
+# already has a live *active* subscription — exactly the person with nothing to
+# regularize — while a `past_due` row re-attaches to the same checkout, because a
+# second row would trip `uq_subscriptions_open_per_user`.
+
+
+def test_a_past_due_user_can_reopen_the_checkout_to_regularize(
+    provider, db_session: Session, plan: Plan, actor: UserResponse
+):
+    """The overdue subscriber is back on the card journey, on the same row.
+
+    Args:
+        provider: Fake Asaas provider.
+        db_session: Database session.
+        plan: Active plan.
+        actor: Authenticated user with a past_due subscription on the plan.
+    """
+    overdue = Subscription(
+        id=uuid4(),
+        user_id=actor.id,
+        plan_id=plan.id,
+        status=SUBSCRIPTION_STATUS_PAST_DUE,
+        cycle="MONTHLY",
+        price=Decimal("27.90"),
+        asaas_subscription_id="sub_regularize",
+        current_period_end=FIXED_NOW - timedelta(days=30),
+        grace_until=FIXED_NOW + timedelta(days=2),
+    )
+    db_session.add(overdue)
+    db_session.commit()
+
+    response = _open(db_session, actor, plan)
+
+    assert response.status == SUBSCRIPTION_STATUS_PAST_DUE
+    assert response.link == provider.payload["link"]
+    body = provider.body_of(provider.checkout)
+    # The session travels attached to the row the webhook already knows.
+    assert body["externalReference"] == str(overdue.id)
+    rows = db_session.query(Subscription).filter(Subscription.user_id == actor.id).all()
+    assert len(rows) == 1, "regularizing must not mint a second open row"
+    row = rows[0]
+    assert row.id == overdue.id
+    assert row.status == SUBSCRIPTION_STATUS_PAST_DUE
+    assert row.asaas_checkout_id == provider.payload["id"]
+
+
+def test_a_past_due_user_cannot_regularize_with_another_plan(
+    provider, db_session: Session, plan: Plan, actor: UserResponse
+):
+    """Regularize pays the overdue charge; switching plans is not that action.
+
+    Args:
+        provider: Fake Asaas provider.
+        db_session: Database session.
+        plan: Active plan the user is overdue on.
+        actor: Authenticated user with a past_due subscription on `plan`.
+    """
+    another = Plan(
+        id=uuid4(),
+        code="anual",
+        name="Cafe com BPO - Anual",
+        price=Decimal("279.00"),
+        cycle="MONTHLY",
+        is_active=True,
+    )
+    db_session.add(another)
+    db_session.add(
+        Subscription(
+            id=uuid4(),
+            user_id=actor.id,
+            plan_id=plan.id,
+            status=SUBSCRIPTION_STATUS_PAST_DUE,
+            cycle="MONTHLY",
+            price=Decimal("27.90"),
+            asaas_subscription_id="sub_regularize",
+        )
+    )
+    db_session.commit()
+
+    with pytest.raises(HTTPException) as raised:
+        _run(
+            CheckoutService(db_session, AsaasClient()).open_checkout(
+                actor,
+                CheckoutCreate(plan_id=another.id, billing=BillingData(**BILLING)),
+                now=FIXED_NOW,
+            )
+        )
+
+    assert raised.value.status_code == 409
+    assert provider.requests == [], "a mismatch is refused before the provider"
 
 
 def test_the_asaas_customer_is_created_once_and_then_reused(
