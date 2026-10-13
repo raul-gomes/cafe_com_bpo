@@ -16,6 +16,7 @@ from src.core.entitlements import write_gate
 from src.core.logger import log, setup_logging
 from src.core.rate_limit import limiter
 from src.modules.auth.router import router as auth_router
+from src.modules.beta.router import router as beta_router
 from src.modules.calendar.router import router as calendar_router
 from src.modules.clients.router import router as clients_router
 from src.modules.companies import sync as _companies_sync  # noqa: F401  (escrita dupla)
@@ -33,6 +34,8 @@ from src.modules.governanca.router import router as governanca_router
 from src.modules.network.router import router as network_router
 from src.modules.notifications.router import router as notifications_router
 from src.modules.payments.router import router as payments_router
+from src.modules.platform.router import admin_router as platform_admin_router
+from src.modules.platform.router import router as platform_router
 from src.modules.pricing.router import router as pricing_router
 from src.modules.proposals.router import router as proposals_router
 from src.modules.prospects.router import router as prospects_router
@@ -122,6 +125,9 @@ def create_app() -> FastAPI:
         allow_credentials=True,
         allow_methods=["*"],
         allow_headers=["*"],
+        # Admin lists carry their full count here (AUD-044); without exposing
+        # it, a cross-origin page cannot read the header.
+        expose_headers=["X-Total-Count"],
     )
 
     @app.get("/health")
@@ -174,6 +180,9 @@ def create_app() -> FastAPI:
     app.include_router(feedback_router)
     app.include_router(team_router)
     app.include_router(emails_router)
+    app.include_router(beta_router)
+    app.include_router(platform_router)
+    app.include_router(platform_admin_router)
 
     os.makedirs("storage/avatars", exist_ok=True)
     app.mount("/avatars", StaticFiles(directory="storage/avatars"), name="avatars")

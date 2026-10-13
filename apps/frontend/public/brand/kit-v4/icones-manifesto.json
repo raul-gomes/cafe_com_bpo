@@ -1,0 +1,242 @@
+[
+  {
+    "id": "contrato",
+    "label": "Contrato",
+    "group": "operacao"
+  },
+  {
+    "id": "nota",
+    "label": "Nota fiscal",
+    "group": "operacao"
+  },
+  {
+    "id": "pessoas",
+    "label": "Pessoas",
+    "group": "operacao"
+  },
+  {
+    "id": "rotina",
+    "label": "Rotina",
+    "group": "operacao"
+  },
+  {
+    "id": "negocios",
+    "label": "Negócios",
+    "group": "operacao"
+  },
+  {
+    "id": "direcao",
+    "label": "Direção",
+    "group": "operacao"
+  },
+  {
+    "id": "excluir",
+    "label": "Excluir",
+    "group": "operacao"
+  },
+  {
+    "id": "processo",
+    "label": "Processo",
+    "group": "operacao"
+  },
+  {
+    "id": "inicio",
+    "label": "Início",
+    "group": "operacao"
+  },
+  {
+    "id": "painel",
+    "label": "Painel",
+    "group": "operacao"
+  },
+  {
+    "id": "carteira",
+    "label": "Carteira",
+    "group": "operacao"
+  },
+  {
+    "id": "saldo",
+    "label": "Saldo",
+    "group": "operacao"
+  },
+  {
+    "id": "transferencia",
+    "label": "Transferência",
+    "group": "operacao"
+  },
+  {
+    "id": "conciliacao",
+    "label": "Conciliação",
+    "group": "operacao"
+  },
+  {
+    "id": "contas",
+    "label": "Contas",
+    "group": "operacao"
+  },
+  {
+    "id": "recebimentos",
+    "label": "Recebimentos",
+    "group": "operacao"
+  },
+  {
+    "id": "pagamentos",
+    "label": "Pagamentos",
+    "group": "operacao"
+  },
+  {
+    "id": "banco",
+    "label": "Banco",
+    "group": "operacao"
+  },
+  {
+    "id": "cartao",
+    "label": "Cartão",
+    "group": "operacao"
+  },
+  {
+    "id": "grafico",
+    "label": "Gráfico",
+    "group": "operacao"
+  },
+  {
+    "id": "relatorio",
+    "label": "Relatório",
+    "group": "operacao"
+  },
+  {
+    "id": "proposta",
+    "label": "Proposta",
+    "group": "operacao"
+  },
+  {
+    "id": "assinatura",
+    "label": "Assinatura",
+    "group": "operacao"
+  },
+  {
+    "id": "arquivo",
+    "label": "Arquivo",
+    "group": "operacao"
+  },
+  {
+    "id": "pasta",
+    "label": "Pasta",
+    "group": "operacao"
+  },
+  {
+    "id": "anexo",
+    "label": "Anexo",
+    "group": "operacao"
+  },
+  {
+    "id": "pesquisa",
+    "label": "Pesquisar",
+    "group": "operacao"
+  },
+  {
+    "id": "filtro",
+    "label": "Filtrar",
+    "group": "operacao"
+  },
+  {
+    "id": "ajustes",
+    "label": "Ajustes",
+    "group": "operacao"
+  },
+  {
+    "id": "adicionar",
+    "label": "Adicionar",
+    "group": "operacao"
+  },
+  {
+    "id": "fechar",
+    "label": "Fechar",
+    "group": "operacao"
+  },
+  {
+    "id": "voltar",
+    "label": "Voltar",
+    "group": "operacao"
+  },
+  {
+    "id": "expandir",
+    "label": "Expandir",
+    "group": "operacao"
+  },
+  {
+    "id": "recolher",
+    "label": "Recolher",
+    "group": "operacao"
+  },
+  {
+    "id": "notificacoes",
+    "label": "Notificações",
+    "group": "operacao"
+  },
+  {
+    "id": "seguranca",
+    "label": "Segurança",
+    "group": "operacao"
+  },
+  {
+    "id": "suporte",
+    "label": "Suporte",
+    "group": "operacao"
+  },
+  {
+    "id": "mensagem",
+    "label": "Mensagem",
+    "group": "operacao"
+  },
+  {
+    "id": "encontro",
+    "label": "Encontro",
+    "group": "operacao"
+  },
+  {
+    "id": "tempo",
+    "label": "Tempo",
+    "group": "operacao"
+  },
+  {
+    "id": "favorito",
+    "label": "Favorito",
+    "group": "operacao"
+  },
+  {
+    "id": "sair",
+    "label": "Sair",
+    "group": "operacao"
+  },
+  {
+    "id": "xicara",
+    "label": "Xícara",
+    "group": "cafe"
+  },
+  {
+    "id": "grao",
+    "label": "Grão",
+    "group": "cafe"
+  },
+  {
+    "id": "vapor",
+    "label": "Vapor",
+    "group": "cafe"
+  },
+  {
+    "id": "coador",
+    "label": "Coador",
+    "group": "cafe"
+  },
+  {
+    "id": "pausa-cafe",
+    "label": "Pausa para café",
+    "group": "cafe"
+  },
+  {
+    "id": "conversa-cafe",
+    "label": "Conversa com café",
+    "group": "cafe"
+  }
+]

@@ -4,7 +4,6 @@ import { DragDropContext } from '@hello-pangea/dnd';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useTaskEvents } from '../../api/hooks/useTaskEvents';
 import { useQuery } from '@tanstack/react-query';
-import { apiClient } from '../../api/client';
 import { TaskResponse } from '../../schemas/tasks';
 import { getClients } from '../../api/clients';
 import { TaskDrawer } from '../../components/tasks/TaskDrawer';
@@ -15,6 +14,7 @@ import { TaskTimeline } from '../../components/tasks/TaskTimeline';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { FolderTabButton } from '../../components/ui/folder-tab-button';
 import { Skeleton } from '../../components/ui/skeleton';
 import {
     DropdownMenu,
@@ -24,6 +24,7 @@ import {
     DropdownMenuSeparator,
 } from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/utils';
+import { type FilterMode, manualRange, periodForMode } from '../../lib/taskPeriods';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 
@@ -31,11 +32,13 @@ export const TasksPage: React.FC = () => {
     const { user } = useAuth();
     const confirm = useConfirm();
     const [view, setView] = useState<'kanban' | 'calendar' | 'timeline'>('kanban');
-    const [userFilter, setUserFilter] = useState<'all' | 'today' | 'week' | 'month' | 'year' | 'overdue'>('today');
+    const [userFilter, setUserFilter] = useState<FilterMode>('today');
     const [showMacroCalendar, setShowMacroCalendar] = useState(false);
     const [dateFrom, setDateFrom] = useState('');
     const [dateTo, setDateTo] = useState('');
     const [showDatePicker, setShowDatePicker] = useState(false);
+    // Manual range: a real period when valid, an inline message when not.
+    const manualPeriod = useMemo(() => manualRange(dateFrom, dateTo), [dateFrom, dateTo]);
     const [columnSearch, setColumnSearch] = useState<Record<string, string>>({});
     const [clientFilter, setClientFilter] = useState<string>('');
     const [bulkLoading, setBulkLoading] = useState<Record<string, 'completing' | 'cancelling' | null>>({});
@@ -53,7 +56,10 @@ export const TasksPage: React.FC = () => {
     const runMonthly = useRunMonthly();
     const runWeekly = useRunWeekly();
     const runYearly = useRunYearly();
-    const { data: timelineData, isLoading: timelineLoading } = useTimeline();
+    const { data: timelineData, isLoading: timelineLoading } = useTimeline(
+        manualPeriod.period?.start.toISOString(),
+        manualPeriod.period?.end.toISOString(),
+    );
     const { data: conflictsData } = useConflicts();
     // Aplica o filtro de cliente também na linha do tempo
     const filteredTimeline = useMemo(() => {
@@ -102,13 +108,25 @@ export const TasksPage: React.FC = () => {
         return (showTeamCards ? teamTasks : tasks) || [];
     }, [tasks, teamTasks, showTeamCards]);
 
-    const handleBulkComplete = async (colId: string) => {
-        if (!tasks) return;
-        const colTasks = tasks.filter(t => getTaskStatus(t) === colId);
+    /**
+     * Describes which cards a bulk action will touch, for the confirmation.
+     *
+     * @param count How many cards the column shows.
+     * @returns E.g. "as 3 tarefas visíveis nesta coluna (Empresa Beta)".
+     */
+    const describeBulkScope = (count: number): string => {
+        const noun = count === 1 ? 'tarefa visível' : 'tarefas visíveis';
+        const client = selectedClientName ? ` (${selectedClientName})` : '';
+        return `as ${count} ${noun} nesta coluna${client}`;
+    };
+
+    // Bulk actions receive the cards the column shows (filters, client, team
+    // mode and column search) — never the raw list, which has hidden cards.
+    const handleBulkComplete = async (colId: string, colTasks: TaskResponse[]) => {
         if (colTasks.length === 0) return;
         const confirmed = await confirm({
             title: 'Concluir tarefas',
-            message: `Concluir todas as ${colTasks.length} tarefas desta fase?`,
+            message: `Concluir ${describeBulkScope(colTasks.length)}?`,
             confirmLabel: 'Concluir',
             cancelLabel: 'Voltar',
             variant: 'warning',
@@ -124,13 +142,11 @@ export const TasksPage: React.FC = () => {
         }
     };
 
-    const handleBulkCancel = async (colId: string) => {
-        if (!tasks) return;
-        const colTasks = tasks.filter(t => getTaskStatus(t) === colId);
+    const handleBulkCancel = async (colId: string, colTasks: TaskResponse[]) => {
         if (colTasks.length === 0) return;
         const confirmed = await confirm({
             title: 'Cancelar tarefas',
-            message: `Cancelar todas as ${colTasks.length} tarefas desta fase?`,
+            message: `Cancelar ${describeBulkScope(colTasks.length)}?`,
             confirmLabel: 'Cancelar tarefas',
             cancelLabel: 'Voltar',
             variant: 'danger',
@@ -182,19 +198,6 @@ export const TasksPage: React.FC = () => {
         setTaskModalOpen(true);
     };
 
-    const handleSyncCalendar = async () => {
-        const activeTaskIds = tasksList
-            .filter(t => !t.completed_at && !t.is_cancelled)
-            .map(t => t.id);
-        if (activeTaskIds.length === 0) return;
-        try {
-            await apiClient.post('/calendar/sync', { task_ids: activeTaskIds });
-            toast.success('Tarefas sincronizadas com o Google Agenda!');
-        } catch (err: any) {
-            const detail = err?.response?.data?.detail || 'Erro ao sincronizar';
-            toast.error(detail);
-        }
-    };
 
     const handleRunDaily = async () => {
         toast.promise(runDaily.mutateAsync(), {
@@ -233,6 +236,14 @@ export const TasksPage: React.FC = () => {
         setTaskModalOpen(true);
     };
 
+    // The timeline sends only an id (its DTO has no description/notes): the
+    // drawer opens the full task from the loaded list (AUD-007).
+    const handleEditTaskById = (taskId: string) => {
+        const full = tasksList.find(t => t.id === taskId);
+        if (full) handleEditTask(full);
+        else toast.error('Não foi possível abrir esta tarefa. Atualize a página e tente de novo.');
+    };
+
     // Use allTasks (with team tasks merged) when toggle is on
     const tasksList = useMemo(() => allTasks || tasks || [], [allTasks, tasks]);
 
@@ -242,7 +253,22 @@ export const TasksPage: React.FC = () => {
         return tasksList.filter(t => t.client_id === clientFilter);
     }, [tasksList, clientFilter]);
 
-    const selectedClientName = (clients || []).find(c => c.id === clientFilter)?.name;
+    // Companies to identify and filter cards: the user's own plus the shared
+    // ones, which only come inside the authorized task DTOs (client_name and
+    // client_color) — the companies payload stays restricted to the owner (AUD-017).
+    const clientOptions = useMemo(() => {
+        const own = clients || [];
+        const known = new Set(own.map(c => c.id));
+        const shared: { id: string; name: string; color?: string }[] = [];
+        for (const task of [...(tasks || []), ...(teamTasks || [])]) {
+            if (known.has(task.client_id) || !task.client_name) continue;
+            known.add(task.client_id);
+            shared.push({ id: task.client_id, name: task.client_name, color: task.client_color });
+        }
+        return [...own, ...shared];
+    }, [clients, tasks, teamTasks]);
+
+    const selectedClientName = clientOptions.find(c => c.id === clientFilter)?.name;
 
     const todayStart = new Date();
     todayStart.setHours(0, 0, 0, 0);
@@ -269,23 +295,11 @@ export const TasksPage: React.FC = () => {
     };
 
     // ── Filter tasks for a given mode ──
-    const filterTasksForMode = (mode: 'all' | 'today' | 'week' | 'month' | 'year' | 'overdue'): TaskResponse[] => {
-        const computePeriodForMode = (m: string): { start: Date; end: Date } | null => {
-            if (m === 'today') return { start: todayStart, end: todayEnd };
-            if (m === 'week') {
-                const mon = new Date(); mon.setDate(mon.getDate() - mon.getDay() + 1); mon.setHours(0,0,0,0);
-                const sun = new Date(mon); sun.setDate(sun.getDate() + 6); sun.setHours(23,59,59,999);
-                return { start: mon, end: sun };
-            }
-            if (m === 'month') {
-                return { start: new Date(new Date().getFullYear(), new Date().getMonth(), 1, 0,0,0,0), end: new Date(new Date().getFullYear(), new Date().getMonth()+1, 0, 23,59,59,999) };
-            }
-            if (m === 'year') {
-                return { start: new Date(new Date().getFullYear(), 0, 1, 0,0,0,0), end: new Date(new Date().getFullYear(), 12, 0, 23,59,59,999) };
-            }
-            return null;
-        };
-        const p = computePeriodForMode(mode);
+    const filterTasksForMode = (mode: FilterMode, withManualRange = true): TaskResponse[] => {
+        // A valid manual range is the period of every mode (AUD-015); the quick
+        // filters come from the pure helper (Monday-to-Sunday weeks, AUD-016).
+        // The counters of the quick buttons ignore the manual range.
+        const p = (withManualRange ? manualPeriod.period : null) ?? periodForMode(mode, new Date());
         return clientFilteredTasks.filter(t => {
             if (t.is_cancelled) return false;
             const taskStatus = getTaskStatus(t);
@@ -318,7 +332,8 @@ export const TasksPage: React.FC = () => {
             if (isLastPhase) {
                 // Tarefas concluídas seguem o período do filtro selecionado (por completed_at)
                 if (mode === 'overdue') return false;
-                // Filtro "Todas" (e intervalo manual): mostra todas as concluídas
+                // "Todas" has no period: every completed card. A manual range
+                // filters by completion date, like the quick periods.
                 if (!p) return true;
                 return isCompletedInPeriod(t, p);
             }
@@ -331,7 +346,7 @@ export const TasksPage: React.FC = () => {
 
     // Efetivamente qual filtro está sendo usado (pode ter sido cascateado)
     const effectiveFilter = useMemo((): typeof userFilter => {
-        if (userFilter === 'overdue' || userFilter === 'all' || dateFrom) return userFilter;
+        if (userFilter === 'overdue' || userFilter === 'all' || manualPeriod.period) return userFilter;
         const startIdx = cascadeModes.indexOf(userFilter as any);
         if (startIdx === -1) return userFilter;
         for (let i = startIdx; i < cascadeModes.length; i++) {
@@ -340,11 +355,11 @@ export const TasksPage: React.FC = () => {
         }
         return 'all';
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [userFilter, tasksList, clientFilter, dateFrom, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
+    }, [userFilter, tasksList, clientFilter, manualPeriod, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
 
     const filteredTasks = useMemo(() => filterTasksForMode(effectiveFilter),
         // eslint-disable-next-line react-hooks/exhaustive-deps
-        [tasksList, clientFilter, effectiveFilter, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
+        [tasksList, clientFilter, effectiveFilter, manualPeriod, todayStart, todayEnd, firstPhaseId, lastPhaseId, phases, recentlyMoved]);
 
     // Sincroniza o botão de filtro visual com o efetivo (sem causar loop)
     const prevEffective = useRef(effectiveFilter);
@@ -361,7 +376,7 @@ export const TasksPage: React.FC = () => {
         const modes: Array<'today' | 'week' | 'month' | 'year' | 'all' | 'overdue'> = ['today', 'week', 'month', 'year', 'all', 'overdue'];
         const counts: Record<string, number> = {};
         for (const mode of modes) {
-            counts[mode] = filterTasksForMode(mode).filter(t => getTaskStatus(t) !== lastPhaseId).length;
+            counts[mode] = filterTasksForMode(mode, false).filter(t => getTaskStatus(t) !== lastPhaseId).length;
         }
         return counts;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -380,13 +395,10 @@ export const TasksPage: React.FC = () => {
         <div className="animate-[panelFadeIn_0.4s_ease-out]">
             <Breadcrumb items={[{ label: 'Painel', to: '/painel' }, { label: 'Gestão de Tarefas' }]} />
 
-            {/* Header */}
-            <div className="mb-8 flex items-end justify-between">
-                <div>
-                    <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Gestão de Tarefas</h1>
-                    <p className="mb-2 text-[14px] text-muted-foreground">Controle operacional e prazos por empresa.</p>
-                </div>
-                <div className="flex items-center gap-3">
+            {/* Toolbar: the breadcrumb already names the page, so the space goes to the work. */}
+            <div className="mb-4 flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+                <h1 className="sr-only">Gestão de Tarefas</h1>
+                <div className="flex flex-wrap items-center justify-end gap-3">
                     {view === 'kanban' && (
                         <Button
                             variant="ghost"
@@ -398,8 +410,20 @@ export const TasksPage: React.FC = () => {
                         </Button>
                     )}
                     {user?.role === 'admin' && (
-                        <Button variant="ghost" size="sm" onClick={handleSyncCalendar} title="Sincronizar tarefas ativas com Google Agenda">
-                            <CalendarIcon size={16} /> Sincronizar
+                        // Shown as unavailable until the Google OAuth connection
+                        // exists (owner decision, AUD-023/AUD-024): the old button
+                        // announced a sync that never reached the calendar.
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled
+                            aria-describedby="calendar-unavailable"
+                            title="A integração com a Google Agenda ainda não está disponível."
+                        >
+                            <CalendarIcon size={16} /> Google Agenda (em breve)
+                            <span id="calendar-unavailable" className="sr-only">
+                                A integração com a Google Agenda ainda não está disponível.
+                            </span>
                         </Button>
                     )}
                     {user?.role === 'admin' && (
@@ -444,9 +468,9 @@ export const TasksPage: React.FC = () => {
                         ))}
                     </div>
 
-                    <Button variant="default" size="sm" onClick={handleOpenNewTask}>
+                    <FolderTabButton onClick={handleOpenNewTask}>
                         <Plus size={18} /> Nova Tarefa
-                    </Button>
+                    </FolderTabButton>
                 </div>
             </div>
 
@@ -521,7 +545,7 @@ export const TasksPage: React.FC = () => {
                                 Todos os clientes
                             </DropdownMenuItem>
                             <DropdownMenuSeparator />
-                            {(clients || []).map(c => (
+                            {clientOptions.map(c => (
                                 <DropdownMenuItem key={c.id} onClick={() => setClientFilter(c.id)}>
                                     <span className="h-2 w-2 shrink-0 rounded-full" style={{ backgroundColor: c.color || '#94a3b8' }} />
                                     {c.name}
@@ -557,6 +581,9 @@ export const TasksPage: React.FC = () => {
                                     <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setUserFilter('all'); }}
                                         className="filter-date-input w-full rounded-sm border border-border bg-muted px-2 py-1 text-[12px] text-foreground outline-none focus:border-primary" />
                                 </div>
+                                {manualPeriod.error && (
+                                    <p role="alert" className="text-[11px] font-semibold text-destructive">{manualPeriod.error}</p>
+                                )}
                                 <div className="flex justify-end gap-1">
                                     <button onClick={() => { setDateFrom(''); setDateTo(''); setShowDatePicker(false); }}
                                         className="cursor-pointer rounded-sm border border-border bg-transparent px-2.5 py-1 text-[11px] text-muted-foreground">
@@ -602,7 +629,7 @@ export const TasksPage: React.FC = () => {
                             </Card>
                         ) : (
                             <DragDropContext onDragEnd={handleDragEnd}>
-                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clients || []} currentUserId={user?.id} onEdit={handleEditTask}
+                                <TaskKanban tasks={filteredTasks} phases={phases || []} clients={clientOptions} currentUserId={user?.id} onEdit={handleEditTask}
                                     getTaskStatus={getTaskStatus} columnSearch={columnSearch} setColumnSearch={setColumnSearch}
                                     onFinalize={(id) => {
                                         updateTaskStatus.mutate({ id, phase_id: doneColumnId });
@@ -615,14 +642,14 @@ export const TasksPage: React.FC = () => {
                             <TaskTimeline
                                 timeline={filteredTimeline?.timeline || []}
                                 conflicts={conflictsData?.conflicts || []}
-                                clients={clients || []}
+                                clients={clientOptions}
                                 isLoading={timelineLoading}
-                                onEdit={handleEditTask}
+                                onEdit={handleEditTaskById}
                             />
                         </Card>
                     ) : (
                         <Card className="p-6">
-                            <TaskCalendar tasks={clientFilteredTasks} clients={clients || []} onEdit={handleEditTask} isMacro={false} />
+                            <TaskCalendar tasks={clientFilteredTasks} clients={clientOptions} onEdit={handleEditTask} isMacro={false} />
                         </Card>
                     )}
                 </div>
@@ -636,7 +663,7 @@ export const TasksPage: React.FC = () => {
                                 <X size={14} />
                             </button>
                         </div>
-                        <TaskCalendar tasks={clientFilteredTasks} clients={clients || []} onEdit={handleEditTask} isMacro={true} />
+                        <TaskCalendar tasks={clientFilteredTasks} clients={clientOptions} onEdit={handleEditTask} isMacro={true} />
                     </Card>
                 )}
             </div>

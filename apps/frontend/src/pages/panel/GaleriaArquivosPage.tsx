@@ -379,7 +379,7 @@ export const GaleriaArquivosPage: React.FC = () => {
                 height="40"
                 viewBox="0 0 24 24"
                 fill="none"
-                stroke={dragOver ? 'hsl(var(--primary))' : 'hsl(var(--muted-foreground))'}
+                stroke={dragOver ? 'var(--primary)' : 'var(--muted-foreground)'}
                 strokeWidth="1.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
@@ -491,7 +491,7 @@ export const GaleriaArquivosPage: React.FC = () => {
                     height="48"
                     viewBox="0 0 24 24"
                     fill="none"
-                    stroke="hsl(var(--destructive))"
+                    stroke="var(--destructive)"
                     strokeWidth="1.5"
                     className="mx-auto mb-4 opacity-50"
                   >
@@ -596,7 +596,7 @@ export const GaleriaArquivosPage: React.FC = () => {
                             height="18"
                             viewBox="0 0 24 24"
                             fill="none"
-                            stroke="hsl(var(--primary))"
+                            stroke="var(--primary)"
                             strokeWidth="2.5"
                             strokeLinecap="round"
                             strokeLinejoin="round"

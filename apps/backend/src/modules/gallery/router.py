@@ -2,7 +2,7 @@ import os
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from sqlalchemy.orm import Session
 
@@ -69,8 +69,9 @@ async def upload_gallery_file(
     user: CurrentUserDep,
     session: Annotated[Session, Depends(get_db_session)],
     file: UploadFile = File(...),
-    title: str = Query(default=""),
-    description: str = Query(default=""),
+    # Multipart fields, as the screen sends them in the FormData (AUD-027).
+    title: str = Form(default=""),
+    description: str = Form(default=""),
 ):
     """Upload de arquivo de galeria com validação e isolamento por usuário."""
     if not file.filename:
@@ -211,8 +212,9 @@ async def upload_common_file(
     admin: Annotated[UserResponse, Depends(require_admin)],
     repo: Annotated[CommonGalleryRepository, Depends(get_common_repo)],
     file: UploadFile = File(...),
-    title: str = Query(default=""),
-    description: str = Query(default=""),
+    # Multipart fields, as the screen sends them in the FormData (AUD-027).
+    title: str = Form(default=""),
+    description: str = Form(default=""),
 ):
     """Upload de arquivo comunitário (restrito a administradores).
 
@@ -270,9 +272,17 @@ async def delete_common_file(
     if not item:
         raise HTTPException(status_code=404, detail="Arquivo não encontrado")
 
-    # Se veio do Cloudinary, remove de lá pelo public_id
+    # Common files are uploaded as Cloudinary "raw" resources, so they are
+    # destroyed as raw; the row only goes when the provider confirms (AUD-026).
     if item.public_id:
-        await CloudinaryService.delete_file(item.public_id)
+        removed = await CloudinaryService.delete_file(
+            item.public_id, resource_type="raw"
+        )
+        if not removed:
+            raise HTTPException(
+                status_code=502,
+                detail="Não foi possível remover o arquivo do armazenamento. Tente de novo.",
+            )
     else:
         local_path = os.path.join(COMMON_STORAGE_DIR, os.path.basename(item.file_path))
         if os.path.exists(local_path):

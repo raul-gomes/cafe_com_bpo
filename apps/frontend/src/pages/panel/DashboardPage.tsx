@@ -21,6 +21,7 @@ import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { PendingInvitationCard } from '../../components/dashboard/PendingInvitationCard';
 import { Carousel } from '../../components/dashboard/Carousel';
+import { HomePostIts } from '../../components/dashboard/HomePostIts';
 import { TaskCalendar } from '../../components/tasks/TaskCalendar';
 import { apiClient } from '../../api/client';
 import { Card } from '../../components/ui/card';
@@ -130,6 +131,8 @@ export const DashboardPage: React.FC = () => {
           Olá, {summary?.user_name || 'Usuário'}
         </h1>
       </div>
+
+      <HomePostIts />
 
       <div className="grid grid-cols-[1fr_300px] gap-8">
         {/* Main column */}

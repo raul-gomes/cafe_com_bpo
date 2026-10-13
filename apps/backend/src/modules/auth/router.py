@@ -47,6 +47,42 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 settings = get_settings()
 
+REFRESH_COOKIE = "refresh_token"
+REFRESH_COOKIE_MAX_AGE = 7 * 24 * 60 * 60  # 7 days
+#: Modes where the refresh cookie may travel over plain HTTP (local dev, tests).
+_INSECURE_COOKIE_MODES = frozenset({"development", "test"})
+
+
+def _refresh_cookie_secure() -> bool:
+    """Whether the refresh cookie carries the Secure attribute.
+
+    Secure is the default: only development and tests (plain-HTTP localhost)
+    are exempt, so any other mode (production, staging, a typo) fails closed
+    (AUD-011). Read per request so the current settings apply.
+
+    Returns:
+        True unless the mode is development or test.
+    """
+    return get_settings().mode not in _INSECURE_COOKIE_MODES
+
+
+def _set_refresh_cookie(response: Response, token: str) -> None:
+    """Writes the httpOnly refresh cookie with the attributes of this mode.
+
+    Args:
+        response: Outgoing response.
+        token: The new refresh token.
+    """
+    response.set_cookie(
+        key=REFRESH_COOKIE,
+        value=token,
+        httponly=True,
+        samesite="strict",
+        max_age=REFRESH_COOKIE_MAX_AGE,
+        path="/",
+        secure=_refresh_cookie_secure(),
+    )
+
 
 def get_auth_service(
     session: Annotated[Session, Depends(get_db_session)],
@@ -104,15 +140,7 @@ def login(
         log.warning(f"🚫 Tentativa de login inválida: {form_data.username}")
         raise HTTPException(status_code=401, detail="Credenciais inválidas")
 
-    response.set_cookie(
-        key="refresh_token",
-        value=tokens["refresh_token"],
-        httponly=True,
-        samesite="strict",
-        max_age=7 * 24 * 60 * 60,  # 7 days
-        path="/",
-        secure=False,  # Set to True in production
-    )
+    _set_refresh_cookie(response, tokens["refresh_token"])
 
     log.info(f"🔑 Usuário logado com sucesso: {form_data.username}")
     return {
@@ -138,15 +166,7 @@ def refresh_token(
         tokens = service.refresh_access_token(refresh_token)
 
         # Rotate the refresh cookie
-        response.set_cookie(
-            key="refresh_token",
-            value=tokens["refresh_token"],
-            httponly=True,
-            samesite="strict",
-            max_age=7 * 24 * 60 * 60,
-            path="/",
-            secure=False,
-        )
+        _set_refresh_cookie(response, tokens["refresh_token"])
 
         return {
             "access_token": tokens["access_token"],
@@ -258,7 +278,12 @@ async def upload_avatar(
         service.user_repo.session.commit()
         log.info(f"🖼️ Avatar Cloudinary ativo: {db_user.email} | URL: {read_url}")
 
-        if old_avatar_file and old_avatar_file.provider_item_id:
+        # Never delete the file that was just activated (AUD-025).
+        if (
+            old_avatar_file
+            and old_avatar_file.provider_item_id
+            and old_avatar_file.provider_item_id != public_id
+        ):
             await CloudinaryService.delete_file(old_avatar_file.provider_item_id)
             old_avatar_file.status = "deleted"
             service.user_repo.session.commit()
@@ -354,10 +379,11 @@ def user_lookup(
 def logout(response: Response):
     """Clears the refresh_token httpOnly cookie."""
     response.delete_cookie(
-        key="refresh_token",
+        key=REFRESH_COOKIE,
         path="/",
         httponly=True,
         samesite="strict",
+        secure=_refresh_cookie_secure(),
     )
     return {"message": "Sessão encerrada."}
 

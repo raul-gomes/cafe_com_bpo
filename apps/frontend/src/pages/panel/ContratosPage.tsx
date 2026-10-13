@@ -13,6 +13,7 @@ import { ContractSectionsEditor } from '../../components/contracts/ContractSecti
 import { ContractDocument } from '../../components/contracts/ContractDocument';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { FolderTabButton } from '../../components/ui/folder-tab-button';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
 import { Badge } from '../../components/ui/badge';
@@ -123,10 +124,10 @@ export const ContratosPage: React.FC = () => {
             Gere contratos a partir do modelo padrão e finalize para converter o prospecto em cliente.
           </p>
         </div>
-        <Button onClick={() => { if (canWriteContracts()) setNewContractOpen(true); }} data-testid="new-contract-button">
+        <FolderTabButton onClick={() => { if (canWriteContracts()) setNewContractOpen(true); }} data-testid="new-contract-button">
           {contractsLocked && <Lock className="size-4" />}
           <Plus className="size-4" /> Novo contrato
-        </Button>
+        </FolderTabButton>
       </div>
 
       <Tabs value={activeTab} onValueChange={setActiveTab} data-testid="contracts-tabs">

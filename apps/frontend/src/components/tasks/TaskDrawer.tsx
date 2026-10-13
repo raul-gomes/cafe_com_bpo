@@ -5,7 +5,7 @@ import { Pencil, PencilOff, Trash2, Check, XCircle } from 'lucide-react';
 import { useTasks } from '../../api/hooks/useTasks';
 import { useQuery } from '@tanstack/react-query';
 import { apiClient } from '../../api/client';
-import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
+import { TaskResponse, TaskPhaseResponse, TaskUpdate } from '../../schemas/tasks';
 import { useConfirm } from '../ui/ConfirmDialog';
 import {
   Sheet,
@@ -49,6 +49,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
   const deleteTask = useDeleteTask();
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const { data: clients } = useQuery({
     queryKey: ['clients'],
@@ -58,7 +59,27 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
     }
   });
 
-  const { register, handleSubmit, formState: { errors }, reset } = useForm<TaskFormData>();
+  const { register, handleSubmit, formState: { errors, dirtyFields }, reset } = useForm<TaskFormData>();
+
+  /**
+   * Fields the person actually changed, ready for PUT /tasks/{id}.
+   *
+   * An update sends only these: a field the form never received (e.g. the
+   * description of a task opened from the timeline, whose DTO is reduced)
+   * stays as stored instead of being overwritten with an empty value
+   * (AUD-007). A field the person emptied is sent as null, so clearing works.
+   *
+   * @param data Current form values.
+   * @returns The changed fields.
+   */
+  const changedFields = (data: TaskFormData): TaskUpdate => {
+    const changed: Record<string, unknown> = {};
+    for (const key of Object.keys(dirtyFields) as (keyof TaskFormData)[]) {
+      const value = data[key];
+      changed[key] = value === '' || (typeof value === 'number' && Number.isNaN(value)) ? null : value;
+    }
+    return changed as TaskUpdate;
+  };
 
   useEffect(() => {
     if (isOpen) {
@@ -89,6 +110,7 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
   }, [isOpen, task, reset]);
 
   const onSubmit = async (data: TaskFormData) => {
+    setSaveError(null);
     try {
       const submitData = {
         title: data.title,
@@ -100,13 +122,15 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
         time_estimate_minutes: data.time_estimate_minutes || undefined,
       };
       if (task) {
-        await updateTask.mutateAsync({ id: task.id, ...submitData });
+        await updateTask.mutateAsync({ id: task.id, ...changedFields(data) });
       } else {
         await createTask.mutateAsync(submitData);
       }
       onClose();
     } catch (err) {
-      console.error('Erro ao salvar tarefa:', err);
+      // The drawer stays open with what was typed, and says why (AUD-020).
+      const detail = (err as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
+      setSaveError(typeof detail === 'string' ? detail : 'Não foi possível salvar a tarefa. Tente de novo.');
     }
   };
 
@@ -203,7 +227,13 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
             <div>
               <label className={labelClass}>Título da Tarefa</label>
               <Input
-                {...register('title')}
+                {...register('title', {
+                  // Same rule as the declared schema, trimmed: blank titles never reach the API.
+                  validate: value => {
+                    const result = taskSchema.shape.title.safeParse((value || '').trim());
+                    return result.success || result.error.issues[0].message;
+                  },
+                })}
                 placeholder="Ex: Conciliação Bancária Setembro"
                 disabled={identityLocked}
               />
@@ -213,7 +243,11 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className={labelClass}>Empresa</label>
-                <select {...register('client_id')} className={inputClass} disabled={identityLocked}>
+                <select
+                  {...register('client_id', { validate: value => identityLocked || !!value || 'Selecione uma empresa' })}
+                  className={inputClass}
+                  disabled={identityLocked}
+                >
                   <option value="">Selecione...</option>
                   {clients?.map((c: any) => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -289,6 +323,9 @@ export const TaskDrawer: React.FC<TaskDrawerProps> = ({ isOpen, onClose, task, c
             </Button>
           ) : <div />}
 
+          {saveError && (
+            <p role="alert" className="w-full text-sm font-medium text-destructive">{saveError}</p>
+          )}
           <div className="flex gap-2">
             <Button type="button" variant="outline" onClick={onClose}>
               {detailsLocked ? 'Fechar' : 'Cancelar'}

@@ -80,8 +80,23 @@ def assign_template(
 def list_client_assignments(
     client_id: UUID, service: AssignmentServiceDep, current_user: CurrentUserDep
 ):
-    """Lista os templates vinculados a um cliente."""
-    return service.get_client_assignments(client_id)
+    """Lists the routines linked to a company owned by the caller.
+
+    Args:
+        client_id: Company id.
+        service: The assignment service.
+        current_user: The caller.
+
+    Returns:
+        The links of the company.
+
+    Raises:
+        HTTPException: 404 when the company does not exist or is not the caller's.
+    """
+    try:
+        return service.get_client_assignments(client_id, current_user.id)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Cliente não encontrado")
 
 
 @router.delete(

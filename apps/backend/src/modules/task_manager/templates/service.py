@@ -9,7 +9,7 @@ from uuid import UUID
 
 from src.core.logger import log
 
-from ..models import ActivityTemplate
+from ..models import ActivityTemplate, TemplateActivity
 from ..routine_types.repository import RoutineTypeRepository
 from ..schemas import (
     ActivityTemplateCreate,
@@ -362,6 +362,65 @@ class TemplateService:
             log.warning(f"⚠️ Falha ao gerar tasks para atividade nova: {e}")
             return 0
 
+    def _activity_for_write(
+        self, template_id: UUID, activity_id: UUID, user_id: UUID
+    ) -> TemplateActivity:
+        """Activity the caller may change, inside their own copy of the routine.
+
+        The id is checked against the routine *before* any fork is created, so
+        an unknown id leaves nothing behind. On a general routine of someone
+        else the write goes to the caller's private copy: an id of the master
+        (what the screen shows until it reloads) is mapped to the copied
+        activity through `source_activity_id` (AUD-019). Forks made before that
+        column existed fall back to a single activity with the same name and
+        order.
+
+        Args:
+            template_id: Routine id from the route.
+            activity_id: Activity id from the route.
+            user_id: The caller.
+
+        Returns:
+            The activity to change (the caller's own, or the copy of the master's).
+
+        Raises:
+            ValueError: When the routine or the activity is not reachable.
+        """
+        not_found = ValueError("Activity not found")
+        original = self.repository.get_template_by_id(
+            template_id, user_id, include_general=True
+        )
+        act = self.repository.get_activity_by_id(activity_id)
+        if not original or not act:
+            raise not_found
+        existing_fork = (
+            None
+            if original.user_id == user_id
+            else self.repository.get_user_fork_of(template_id, user_id)
+        )
+        allowed = {str(original.id)} | (
+            {str(existing_fork.id)} if existing_fork else set()
+        )
+        if str(act.template_id) not in allowed:
+            raise not_found
+
+        tmpl = self._resolve_for_write(template_id, user_id)
+        if str(act.template_id) == str(tmpl.id):
+            return act
+        copies = self.repository.get_activities_by_template(tmpl.id)
+        mapped = [c for c in copies if c.source_activity_id == act.id]
+        if not mapped:
+            mapped = [
+                c
+                for c in copies
+                if c.source_activity_id is None
+                and c.name == act.name
+                and c.order == act.order
+            ]
+        if len(mapped) != 1:
+            raise not_found
+        return mapped[0]
+
     def update_activity(
         self,
         template_id: UUID,
@@ -369,28 +428,38 @@ class TemplateService:
         user_id: UUID,
         activity_in: TemplateActivityUpdate,
     ) -> TemplateActivityResponse:
-        tmpl = self._resolve_for_write(template_id, user_id)
-        if not tmpl:
-            raise ValueError(f"Template {template_id} not found")
-        act = self.repository.get_activity_by_id(activity_id)
-        if not act or str(act.template_id) != str(tmpl.id):
-            raise ValueError(
-                f"Activity {activity_id} not found in template {template_id}"
-            )
+        """Updates an activity of the caller's routine (or of their fork).
+
+        Args:
+            template_id: Routine id.
+            activity_id: Activity id (the master's id is accepted on a fork).
+            user_id: The caller.
+            activity_in: Fields to change.
+
+        Returns:
+            The updated activity.
+
+        Raises:
+            ValueError: When the routine or the activity is not reachable.
+        """
+        act = self._activity_for_write(template_id, activity_id, user_id)
         updated = self.repository.update_activity(act, activity_in)
         return TemplateActivityResponse.model_validate(updated)
 
     def delete_activity(
         self, template_id: UUID, activity_id: UUID, user_id: UUID
     ) -> None:
-        tmpl = self._resolve_for_write(template_id, user_id)
-        if not tmpl:
-            raise ValueError(f"Template {template_id} not found")
-        act = self.repository.get_activity_by_id(activity_id)
-        if not act or str(act.template_id) != str(tmpl.id):
-            raise ValueError(
-                f"Activity {activity_id} not found in template {template_id}"
-            )
+        """Deletes an activity of the caller's routine (or of their fork).
+
+        Args:
+            template_id: Routine id.
+            activity_id: Activity id (the master's id is accepted on a fork).
+            user_id: The caller.
+
+        Raises:
+            ValueError: When the routine or the activity is not reachable.
+        """
+        act = self._activity_for_write(template_id, activity_id, user_id)
         self.repository.delete_activity(act)
 
     def reorder_activities(

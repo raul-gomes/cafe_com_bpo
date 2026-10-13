@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Briefcase, Lock, Plus } from 'lucide-react';
 import { toast } from 'sonner';
 import { Breadcrumb } from '../../components/ui/Breadcrumb';
-import { Button } from '../../components/ui/button';
+import { FolderTabButton } from '../../components/ui/folder-tab-button';
 import { Card } from '../../components/ui/card';
 import { SearchInput } from '../../components/ui/SearchInput';
 import { Tabs, TabsList, TabsTrigger } from '../../components/ui/tabs';
@@ -134,11 +134,11 @@ export function ProjetosPage() {
             e a equipe de cada um.
           </p>
         </div>
-        <Button onClick={() => { if (canWriteProjects()) setFormAberto(true); }}>
+        <FolderTabButton onClick={() => { if (canWriteProjects()) setFormAberto(true); }}>
           {projectsLocked && <Lock className="mr-2 size-4" />}
           <Plus className="mr-2 size-4" />
           Novo projeto
-        </Button>
+        </FolderTabButton>
       </div>
 
       <ProjetoIndicadores

@@ -20,7 +20,7 @@ from .schemas import (
     CalendarSyncResponse,
     TokenStatusResponse,
 )
-from .service import GoogleCalendarService
+from .service import CalendarUnavailable, GoogleCalendarService
 
 router = APIRouter(prefix="/calendar", tags=["calendar"])
 
@@ -64,9 +64,15 @@ def sync_tasks(
     if not request.task_ids:
         raise HTTPException(status_code=400, detail="Nenhuma tarefa selecionada.")
 
-    result = service.sync_tasks_to_calendar(
-        user_id=current_user.id, task_ids=request.task_ids
-    )
+    try:
+        result = service.sync_tasks_to_calendar(
+            user_id=current_user.id, task_ids=request.task_ids
+        )
+    except CalendarUnavailable:
+        raise HTTPException(
+            status_code=503,
+            detail="A integração com a Google Agenda ainda não está disponível.",
+        )
     log.info(
         f"Calendar sync for user {current_user.email}: "
         f"{result['synced']} synced, {result['failed']} failed"

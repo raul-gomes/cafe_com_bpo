@@ -1,270 +1,444 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
-
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@tailwind base;
+/* Tailwind's reset (preflight) lives in its own layer, declared before the
+   kit in index.html, so it does not override the cafe-* components — unlayered
+   styles always beat layered ones, whatever the specificity. */
+@layer tw-base {
+  @tailwind base;
+}
 @tailwind components;
 @tailwind utilities;
 
+/* ════════════════════════════════════════════════════════════════════
+   Café com BPO V4 bridge → app tokens (shadcn + legacy --ds-*)
+
+   Source of truth: public/brand/kit-v4/cafe-design-system.css and
+   cafe-themes.css (data-cafe-palette × data-cafe-mode on <html>). Here we
+   only point the names the screens already use to the kit tokens — no new
+   color is invented. Since the values come from the kit, a mode change
+   applies to every screen without touching them.
+
+   Tokens are now full colors (no longer HSL triplets): Tailwind applies
+   opacity with color-mix (see tailwind.config.js).
+   ════════════════════════════════════════════════════════════════════ */
+
 @layer base {
   :root {
-    /* ── Dark theme (default) ── */
-    --background: 0 0% 7%;
-    --foreground: 0 0% 100%;
-    --card: 0 0% 10%;
-    --card-foreground: 0 0% 100%;
-    --popover: 0 0% 13%;
-    --popover-foreground: 0 0% 100%;
-    --primary: 43 87% 56%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 16%;
-    --secondary-foreground: 0 0% 100%;
-    --muted: 0 0% 13%;
-    --muted-foreground: 0 0% 55%;
-    --accent: 43 87% 56%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 100% / 0.08;
-    --input: 0 0% 100% / 0.08;
-    --ring: 43 87% 56%;
-    --radius: 0.25rem;
-    --chart-1: 43 87% 56%;
-    --chart-2: 0 0% 55%;
-    --chart-3: 0 0% 35%;
-    --chart-4: 0 0% 20%;
-    --chart-5: 0 0% 13%;
-    --sidebar: 0 0% 10%;
-    --sidebar-foreground: 0 0% 100%;
-    --sidebar-primary: 43 87% 56%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 16%;
-    --sidebar-accent-foreground: 0 0% 100%;
-    --sidebar-border: 0 0% 100% / 0.08;
-    --sidebar-ring: 43 87% 56%;
+    --background: var(--cafe-canvas);
+    --foreground: var(--cafe-ink);
+    --card: var(--cafe-paper);
+    --card-foreground: var(--cafe-ink);
+    --popover: var(--cafe-paper);
+    --popover-foreground: var(--cafe-ink);
+    /* Main action = family accent (brand yellow in the Café family). */
+    --primary: var(--cafe-accent);
+    --primary-foreground: var(--cafe-on-accent);
+    /* Highlight text/icon: the yellow accent has no contrast as text on light,
+       so the kit uses the focus tone (dark gold / green / blue). */
+    --primary-strong: var(--cafe-focus);
+    --primary-dark: var(--cafe-accent-hover);
+    --secondary: var(--cafe-panel);
+    --secondary-foreground: var(--cafe-ink);
+    --muted: var(--cafe-panel);
+    --muted-foreground: var(--cafe-muted);
+    --accent: var(--cafe-accent-soft);
+    --accent-foreground: var(--cafe-ink);
+    --destructive: var(--cafe-danger);
+    --destructive-foreground: var(--cafe-paper);
+    --success: var(--cafe-success);
+    --warning: var(--cafe-warning);
+    --border: var(--cafe-line);
+    --input: var(--cafe-line-strong);
+    --ring: var(--cafe-focus);
+    --radius: var(--cafe-radius-sm);
+    --chart-1: var(--cafe-accent);
+    --chart-2: var(--cafe-module-captacao);
+    --chart-3: var(--cafe-module-comunidade);
+    --chart-4: var(--cafe-module-negocios);
+    --chart-5: var(--cafe-module-notas);
 
-    /* ── Legacy --ds-* aliases (for backward compat during migration) ── */
-    --ds-black:        hsl(var(--background));
-    --ds-surface:      hsl(var(--card));
-    --ds-surface-1:    #1a1a1a;
-    --ds-surface-2:    #222222;
-    --ds-surface-3:    #2a2a2a;
-    --ds-primary:      hsl(var(--primary));
-    --ds-primary-strong: #fbbf24;
-    --ds-primary-soft: rgba(251,191,36,0.10);
-    --ds-primary-dark: #d4a017;
-    --ds-primary-text: hsl(var(--primary-foreground));
-    --ds-border:       hsl(var(--border));
-    --ds-text:         hsl(var(--foreground));
-    --ds-text-muted:   hsl(var(--muted-foreground));
-    --ds-text-subtle:  rgba(255,255,255,0.35);
-    --ds-error:        hsl(var(--destructive));
-    --ds-success:      #22c55e;
-    --ds-success-strong: #4ade80;
-    --ds-warning:      hsl(var(--primary));
-    --ds-info:         #3b82f6;
-    --ds-overlay:      rgba(0, 0, 0, 0.75);
-    --radius-sm:       2px;
-    --radius-md:       4px;
-    --radius-lg:       8px;
-    --ds-primary-btn-text:      #fbbf24;
-    --ds-primary-btn-border:    rgba(251, 191, 36, 0.2);
-    --ds-primary-btn-hover-bg:  rgba(251, 191, 36, 0.1);
+    /* ── --ds-* aliases of the older screens ── */
+    --ds-black:        var(--cafe-canvas);
+    --ds-surface:      var(--cafe-paper);
+    --ds-surface-1:    var(--cafe-panel);
+    --ds-surface-2:    var(--cafe-panel-strong);
+    --ds-surface-3:    var(--cafe-panel-strong);
+    --ds-primary:      var(--cafe-accent);
+    --ds-primary-strong: var(--cafe-focus);
+    --ds-primary-soft: var(--cafe-accent-soft);
+    --ds-primary-dark: var(--cafe-accent-hover);
+    --ds-primary-text: var(--cafe-on-accent);
+    --ds-border:       var(--cafe-line);
+    --ds-text:         var(--cafe-ink);
+    --ds-text-muted:   var(--cafe-muted);
+    --ds-text-subtle:  var(--cafe-quiet);
+    --ds-error:        var(--cafe-danger);
+    --ds-success:      var(--cafe-success);
+    --ds-success-strong: var(--cafe-success);
+    --ds-warning:      var(--cafe-warning);
+    --ds-info:         var(--cafe-focus);
+    --ds-overlay:      rgb(20 16 12 / 0.55);
+    --ds-primary-btn-text:     var(--cafe-focus);
+    --ds-primary-btn-border:   var(--cafe-line-strong);
+    --ds-primary-btn-hover-bg: var(--cafe-accent-soft);
 
-    /* Typography scale */
-    --font-heading: 'Inter', sans-serif;
-    --font-sans: 'Inter', sans-serif;
-  }
-
-  /* ── Painel por modo de trabalho ──
-     O wrapper do painel recebe `data-mode` e sobrescreve os tokens de acento
-     (dark por padrão). Operacional mantém o dourado da marca. */
-
-  [data-mode="captar"] {
-    --primary: 152 62% 45%;
-    --accent: 152 62% 45%;
-    --ring: 152 62% 45%;
-    --chart-1: 152 62% 45%;
-    --ds-primary-strong: #4ade80;
-    --ds-primary-soft: rgba(74, 222, 128, 0.10);
-    --ds-primary-dark: #22c55e;
-    --ds-primary-btn-text: #4ade80;
-    --ds-primary-btn-border: rgba(74, 222, 128, 0.2);
-    --ds-primary-btn-hover-bg: rgba(74, 222, 128, 0.1);
-  }
-
-  [data-mode="comunidade"] {
-    --primary: 262 83% 68%;
-    --accent: 262 83% 68%;
-    --ring: 262 83% 68%;
-    --chart-1: 262 83% 68%;
-    --ds-primary-strong: #a78bfa;
-    --ds-primary-soft: rgba(167, 139, 250, 0.10);
-    --ds-primary-dark: #8b5cf6;
-    --ds-primary-btn-text: #a78bfa;
-    --ds-primary-btn-border: rgba(167, 139, 250, 0.2);
-    --ds-primary-btn-hover-bg: rgba(167, 139, 250, 0.1);
-  }
-
-  [data-mode="gestao"] {
-    --primary: 217 91% 60%;
-    --accent: 217 91% 60%;
-    --ring: 217 91% 60%;
-    --chart-1: 217 91% 60%;
-    --ds-primary-strong: #60a5fa;
-    --ds-primary-soft: rgba(96, 165, 250, 0.10);
-    --ds-primary-dark: #3b82f6;
-    --ds-primary-btn-text: #60a5fa;
-    --ds-primary-btn-border: rgba(96, 165, 250, 0.2);
-    --ds-primary-btn-hover-bg: rgba(96, 165, 250, 0.1);
-  }
-
-  [data-mode="config"] {
-    --primary: 0 0% 55%;
-    --accent: 0 0% 55%;
-    --ring: 0 0% 55%;
-    --chart-1: 0 0% 55%;
-    --ds-primary-strong: #a1a1aa;
-    --ds-primary-soft: rgba(161, 161, 170, 0.10);
-    --ds-primary-dark: #71717a;
-    --ds-primary-btn-text: #a1a1aa;
-    --ds-primary-btn-border: rgba(161, 161, 170, 0.2);
-    --ds-primary-btn-hover-bg: rgba(161, 161, 170, 0.1);
-  }
-
-  /* ── Tema claro por modo ── */
-  .light-theme [data-mode="captar"] {
-    --primary: 152 65% 38%;
-    --accent: 152 65% 38%;
-    --ring: 152 65% 38%;
-    --chart-1: 152 65% 38%;
-    --ds-primary-strong: #15803d;
-    --ds-primary-soft: rgba(21, 128, 61, 0.10);
-    --ds-primary-dark: #16a34a;
-    --ds-primary-btn-text: #15803d;
-    --ds-primary-btn-border: rgba(21, 128, 61, 0.3);
-    --ds-primary-btn-hover-bg: rgba(21, 128, 61, 0.1);
-  }
-
-  .light-theme [data-mode="comunidade"] {
-    --primary: 262 83% 52%;
-    --accent: 262 83% 52%;
-    --ring: 262 83% 52%;
-    --chart-1: 262 83% 52%;
-    --ds-primary-strong: #6d28d9;
-    --ds-primary-soft: rgba(109, 40, 217, 0.10);
-    --ds-primary-dark: #7c3aed;
-    --ds-primary-btn-text: #6d28d9;
-    --ds-primary-btn-border: rgba(109, 40, 217, 0.3);
-    --ds-primary-btn-hover-bg: rgba(109, 40, 217, 0.1);
-  }
-
-  .light-theme [data-mode="gestao"] {
-    --primary: 217 91% 50%;
-    --accent: 217 91% 50%;
-    --ring: 217 91% 50%;
-    --chart-1: 217 91% 50%;
-    --ds-primary-strong: #1d4ed8;
-    --ds-primary-soft: rgba(29, 78, 216, 0.10);
-    --ds-primary-dark: #2563eb;
-    --ds-primary-btn-text: #1d4ed8;
-    --ds-primary-btn-border: rgba(29, 78, 216, 0.3);
-    --ds-primary-btn-hover-bg: rgba(29, 78, 216, 0.1);
-  }
-
-  .light-theme [data-mode="config"] {
-    --primary: 0 0% 45%;
-    --accent: 0 0% 45%;
-    --ring: 0 0% 45%;
-    --chart-1: 0 0% 45%;
-    --ds-primary-strong: #52525b;
-    --ds-primary-soft: rgba(82, 82, 91, 0.10);
-    --ds-primary-dark: #71717a;
-    --ds-primary-btn-text: #52525b;
-    --ds-primary-btn-border: rgba(82, 82, 91, 0.3);
-    --ds-primary-btn-hover-bg: rgba(82, 82, 91, 0.1);
-  }
-
-  .light-theme {
-    /* ── Light theme ── */
-    --background: 0 0% 96%;
-    --foreground: 240 4% 12%;
-    --card: 0 0% 93%;
-    --card-foreground: 240 4% 12%;
-    --popover: 0 0% 88%;
-    --popover-foreground: 240 4% 12%;
-    --primary: 43 87% 56%;
-    --primary-foreground: 0 0% 0%;
-    --secondary: 0 0% 84%;
-    --secondary-foreground: 240 4% 12%;
-    --muted: 0 0% 88%;
-    --muted-foreground: 0 0% 45%;
-    --accent: 43 87% 56%;
-    --accent-foreground: 0 0% 0%;
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 0 0% 100%;
-    --border: 0 0% 0% / 0.08;
-    --input: 0 0% 0% / 0.08;
-    --ring: 43 87% 56%;
-    --chart-1: 43 87% 56%;
-    --chart-2: 0 0% 55%;
-    --chart-3: 0 0% 75%;
-    --chart-4: 0 0% 85%;
-    --chart-5: 0 0% 92%;
-    --sidebar: 0 0% 93%;
-    --sidebar-foreground: 240 4% 12%;
-    --sidebar-primary: 43 87% 56%;
-    --sidebar-primary-foreground: 0 0% 0%;
-    --sidebar-accent: 0 0% 84%;
-    --sidebar-accent-foreground: 240 4% 12%;
-    --sidebar-border: 0 0% 0% / 0.08;
-    --sidebar-ring: 43 87% 56%;
-
-    /* ── Legacy --ds-* aliases (light theme) ── */
-    --ds-black:         #e8e8e8;
-    --ds-surface:       #f5f5f5;
-    --ds-surface-1:     #ececec;
-    --ds-surface-2:     #e0e0e0;
-    --ds-surface-3:     #d5d5d5;
-    --ds-text:          #1d1d1f;
-    --ds-text-muted:    rgba(0,0,0,0.55);
-    --ds-text-subtle:   rgba(0,0,0,0.35);
-    --ds-primary:       hsl(var(--primary));
-    --ds-primary-strong: #a16207;
-    --ds-primary-soft: rgba(161,98,7,0.10);
-    --ds-primary-dark:  #d4a017;
-    --ds-primary-text:  #000000;
-    --ds-border:        rgba(0,0,0,0.08);
-    --ds-error:         #ef4444;
-    --ds-success:       #22c55e;
-    --ds-success-strong: #15803d;
-    --ds-warning:       hsl(var(--primary));
-    --ds-info:          #3b82f6;
-    --ds-overlay:      rgba(0, 0, 0, 0.6);
-    --ds-primary-btn-text:      #c49000;
-    --ds-primary-btn-border:    rgba(196, 144, 0, 0.3);
-    --ds-primary-btn-hover-bg:  rgba(196, 144, 0, 0.1);
+    --font-heading: var(--cafe-font-editorial);
+    --font-sans: var(--cafe-font-text);
   }
 
   * {
     @apply border-border outline-ring/50;
   }
 
-  .mode-transition,
-  .mode-transition * {
-    transition:
-      background-color 0.3s ease,
-      border-color 0.3s ease,
-      color 0.3s ease,
-      fill 0.3s ease,
-      stroke 0.3s ease;
-  }
-
   body {
     @apply bg-background text-foreground;
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+    font-family: var(--cafe-font-text);
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 }
+
+/* The kit caps <p> at 68ch for editorial reading; inside cards, tables and
+   forms of the app that breaks the layout. Unlayered so it beats the kit. */
+p {
+  max-width: none;
+}
+
+/* Legacy highlight-text utility: on light the yellow becomes unreadable as
+   text, so it follows the kit focus tone (same rule as --primary-strong). */
+.text-primary {
+  color: var(--primary-strong);
+}
+
+/* ════════════ Panel shell per work module ════════════
+   Rule (Ghuto, 2026-10-11): less is more. The module color only shows in the
+   details — menu arrow, highlighted icons and selection boxes, button fill
+   and logo. Background, cards and text follow the chosen mode.
+   The module comes from <body data-cafe-module> (PanelLayout), so portal
+   menus and dialogs get it too. Outside a module (main panel, profile) the
+   café yellow applies. */
+body[data-cafe-module] {
+  --primary: var(--cafe-module);
+  --primary-foreground: var(--cafe-canvas);
+  --primary-dark: color-mix(in srgb, var(--cafe-module) 82%, var(--cafe-ink));
+  --primary-strong: var(--cafe-module);
+  --ring: var(--cafe-module);
+  --accent: var(--cafe-module-bg);
+  --ds-primary: var(--cafe-module);
+  --ds-primary-strong: var(--cafe-module);
+  --ds-primary-soft: var(--cafe-module-bg);
+  --ds-primary-dark: var(--primary-dark);
+  --ds-primary-text: var(--cafe-canvas);
+  --ds-primary-btn-text: var(--cafe-module);
+  --ds-primary-btn-hover-bg: var(--cafe-module-bg);
+  /* The kit's own components (cafe-button-primary, cafe-check…) */
+  --cafe-accent: var(--cafe-module);
+  --cafe-accent-hover: var(--primary-dark);
+  --cafe-accent-soft: var(--cafe-module-bg);
+  --cafe-on-accent: var(--cafe-canvas);
+}
+
+/* Aulas module: the kit has no color for it; it uses the kit's own focus gold
+   (background derived by mixing, no new hex). */
+[data-cafe-module="aulas"] {
+  --cafe-module: var(--cafe-focus);
+  --cafe-module-bg: color-mix(in srgb, var(--cafe-focus) 14%, var(--cafe-paper));
+}
+
+/* Three-state menu (the arrow cycles): full 240 px → icons only 76 px → hidden 0. */
+.app-shell {
+  position: relative;
+  grid-template-columns: 240px minmax(0, 1fr);
+  transition: grid-template-columns 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-shell[data-nav="collapsed"] { grid-template-columns: 76px minmax(0, 1fr); }
+.app-shell[data-nav="hidden"] { grid-template-columns: 0 minmax(0, 1fr); }
+.app-shell[data-nav="hidden"] .panel-rail-slot {
+  visibility: hidden;
+  transition: visibility 0s 240ms;
+}
+@media (max-width: 760px) {
+  .app-shell,
+  .app-shell[data-nav] { grid-template-columns: minmax(0, 1fr); }
+  .app-shell > .panel-rail-slot,
+  .panel-rail-toggle { display: none; }
+}
+
+.panel-rail {
+  width: 240px;
+  padding: 18px 12px 12px;
+  transition: width 240ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+.app-shell[data-nav="collapsed"] .panel-rail { width: 76px; padding-inline: 8px; }
+.panel-rail-link {
+  min-height: 40px;
+  padding: 8px 12px;
+  font-size: 0.9375rem;
+  justify-content: flex-start;
+}
+.panel-rail-link[aria-current="page"] { border-left-color: var(--cafe-module); }
+.app-shell[data-nav="collapsed"] .panel-rail-link { justify-content: center; padding-inline: 8px; }
+.app-shell[data-nav="collapsed"] .panel-rail .cafe-rail-label { display: none; }
+/* In the mobile drawer the menu is always full, even with the desktop in "icons". */
+dialog .panel-rail { width: 100%; }
+dialog .panel-rail .cafe-rail-label { display: block; }
+dialog .panel-rail .panel-rail-link { justify-content: flex-start; padding-inline: 12px; }
+
+/* Brand: full logo; in icons mode the cup goes to the main panel. */
+.panel-rail-brand { display: block; margin: 0 8px 18px; color: var(--cafe-ink); }
+.panel-brand-compact { display: none; }
+.app-shell[data-nav="collapsed"] .panel-rail .panel-brand-full { display: none; }
+.app-shell[data-nav="collapsed"] .panel-rail .panel-brand-compact {
+  display: grid; place-items: center; height: 40px; margin-top: 44px; border-radius: 8px;
+}
+.app-shell[data-nav="collapsed"] .panel-rail .panel-brand-compact:hover { background: var(--cafe-paper); }
+
+/* Floating arrow on the menu edge, in the module color. */
+.panel-rail-toggle {
+  position: absolute;
+  top: 16px;
+  left: 218px;
+  z-index: 30;
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-color: var(--primary);
+  transition: left 240ms cubic-bezier(0.16, 1, 0.3, 1), transform 160ms;
+}
+.panel-rail-toggle svg { transform: rotate(180deg); transition: transform 240ms; }
+.app-shell[data-nav="collapsed"] .panel-rail-toggle { left: 54px; }
+.app-shell[data-nav="hidden"] .panel-rail-toggle { left: 10px; }
+.app-shell[data-nav="hidden"] .panel-rail-toggle svg { transform: none; }
+.app-shell[data-nav="hidden"] .panel-topbar { padding-left: 68px; }
+
+/* Module tabs: they wrap into rows on their own as more modules arrive. */
+.panel-module-tabs {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(40px, 1fr));
+  gap: 4px;
+}
+.panel-module-tab {
+  display: grid;
+  place-items: center;
+  height: 36px;
+  color: var(--cafe-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: color 140ms, background-color 140ms;
+}
+.panel-module-tab:hover { color: var(--cafe-module); background: var(--cafe-paper); }
+.panel-module-tab[aria-selected="true"] {
+  color: var(--cafe-module);
+  background: var(--cafe-module-bg);
+  border-color: color-mix(in srgb, var(--cafe-module) 35%, transparent);
+}
+.panel-module-tab:focus-visible { outline: 3px solid var(--cafe-focus); outline-offset: 2px; }
+
+/* Icons mode: the tabs give way to one button with the current module, which
+   opens the module list. Saves the column for the areas of the module. */
+.panel-module-switch { display: none; }
+.app-shell[data-nav="collapsed"] .panel-rail .panel-module-tabs { display: none; }
+.app-shell[data-nav="collapsed"] .panel-rail .panel-module-switch {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 40px;
+  color: var(--cafe-module);
+  background: var(--cafe-module-bg);
+  border: 1px solid color-mix(in srgb, var(--cafe-module) 35%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.panel-module-switch:focus-visible { outline: 3px solid var(--cafe-focus); outline-offset: 2px; }
+/* Small corner mark: "there is more here". */
+.panel-module-switch-more {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid currentColor;
+  border-bottom: 1.5px solid currentColor;
+  opacity: 0.7;
+}
+dialog .panel-rail .panel-module-switch { display: none; }
+dialog .panel-rail .panel-module-tabs { display: grid; }
+.panel-module-option { gap: 10px; }
+.panel-module-option svg { color: var(--cafe-module); }
+.panel-module-option-active { background: var(--cafe-module-bg); font-weight: 700; }
+
+/* Module name: same size, more presence — a chip in the module color, with the
+   kit's left stripe, so it reads as "where I am" at a glance. */
+.panel-module-name {
+  margin: 12px 4px 10px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--cafe-module);
+  background: var(--cafe-module-bg);
+  border-left: 3px solid var(--cafe-module);
+  border-radius: 6px;
+}
+
+/* Leaving the account: the kit's danger color (never clicked by accident). */
+.panel-rail-danger { color: var(--cafe-danger); }
+.panel-rail-danger:hover { color: var(--cafe-danger); background: var(--cafe-danger-bg); }
+
+/* One-ink logo tinted by the module, fading in over the official one (BrandLogo.tsx). */
+.panel-logo-tinted {
+  -webkit-mask: url('/brand/kit-v4/logo-cafe-preta.svg') no-repeat center / contain;
+  mask: url('/brand/kit-v4/logo-cafe-preta.svg') no-repeat center / contain;
+}
+@keyframes panel-logo-tint-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+.panel-logo-tint-in { animation: panel-logo-tint-in 1100ms ease-out 350ms both; }
+
+/* Folder-tab button: the bottom line (yellow in the kit) takes the module color. */
+body[data-cafe-module] .cafe-command-tab { border-bottom-color: var(--cafe-module); }
+/* In screen headers the folder tab is a bit more compact than in the kit
+   (52 px), with the icon next to the label instead of at the ends. */
+.panel-folder-tab { min-height: 46px; padding: 11px 18px; gap: 10px; justify-content: center; white-space: nowrap; }
+.panel-folder-tab:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+
+/* Discreet scrollbar: just a thin line going up and down. */
+.panel-thin-scroll { scrollbar-width: thin; scrollbar-color: var(--cafe-line-strong) transparent; }
+.panel-thin-scroll::-webkit-scrollbar { width: 4px; height: 4px; }
+.panel-thin-scroll::-webkit-scrollbar-track { background: transparent; }
+.panel-thin-scroll::-webkit-scrollbar-thumb { background: var(--cafe-line-strong); border-radius: 999px; }
+
+/* ── Module transition: the sheet rises from the file ──
+   Only on an area change (PanelLayout changes the key). Duration between the
+   control response (120–180 ms) and the layer entrance (800 ms) of the manual:
+   module changes are frequent and must not tire. */
+@keyframes panel-sheet-rise {
+  from { opacity: 0; transform: translateY(18px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes panel-module-stripe-grow {
+  from { transform: scaleX(0); }
+  to   { transform: scaleX(1); }
+}
+.panel-module-enter {
+  animation: panel-sheet-rise 460ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+.panel-module-stripe {
+  transform-origin: left center;
+  animation: panel-module-stripe-grow 560ms cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+/* Atomic mode switch (kit D04): no color transition between themes. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Plan: discreet lock on the module tab that needs a subscription to create/send. */
+.panel-module-tab { position: relative; }
+.panel-module-tab-lock {
+  position: absolute;
+  top: 3px;
+  right: 3px;
+  width: 9px;
+  height: 7px;
+  border: 1.4px solid currentColor;
+  border-radius: 2px;
+  opacity: 0.8;
+}
+.panel-module-tab-lock::before {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 100%;
+  width: 5px;
+  height: 4px;
+  transform: translateX(-50%);
+  border: 1.4px solid currentColor;
+  border-bottom: 0;
+  border-radius: 3px 3px 0 0;
+}
+/* Item lock (e.g. Pagamentos) — same drawing as the tab lock, inline. */
+.panel-item-lock { position: relative; display: inline-block; width: 10px; height: 8px; margin-top: 4px; border: 1.4px solid currentColor; border-radius: 2px; opacity: 0.55; }
+.panel-item-lock::before { content: ''; position: absolute; left: 50%; bottom: 100%; width: 6px; height: 4px; transform: translateX(-50%); border: 1.4px solid currentColor; border-bottom: 0; border-radius: 3px 3px 0 0; }
+
+/* ── Admin ── */
+/* The team's compass on the Admin overview: an editorial quote, module stripe. */
+.admin-compass {
+  position: relative;
+  margin: 14px 0 28px;
+  padding: 26px 28px 22px 32px;
+  background: var(--cafe-module-bg);
+  border-left: 4px solid var(--cafe-module);
+  border-radius: 10px;
+}
+.admin-compass-icon { position: absolute; top: 22px; right: 24px; width: 26px; height: 26px; color: var(--cafe-module); opacity: 0.55; }
+.admin-compass blockquote {
+  margin: 0;
+  max-width: 34ch;
+  font-family: var(--cafe-font-editorial, Georgia, serif);
+  font-size: clamp(1.4rem, 2.4vw, 1.9rem);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--cafe-ink);
+}
+.admin-compass figcaption { margin-top: 10px; font-size: 0.875rem; color: var(--cafe-muted); }
+.admin-tool { display: block; transition: transform 160ms, border-color 160ms; }
+.admin-tool:hover { transform: translateY(-2px); }
+
+/* Home post-its: messages from the team, a little tilted, in the café yellow. */
+.home-post-its { display: grid; gap: 14px; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); margin-bottom: 28px; }
+.home-post-it {
+  position: relative;
+  padding: 18px 18px 14px;
+  /* A real post-it stays yellow in dark mode too, so the ink is fixed. */
+  background: #FFF1C6;
+  color: #3A2E12;
+  border-radius: 4px 4px 14px 4px;
+  box-shadow: 0 1px 0 rgba(0,0,0,.04), 0 10px 22px -14px rgba(60,40,0,.45);
+  transform: rotate(-0.6deg);
+}
+.home-post-it:nth-child(even) { transform: rotate(0.5deg); }
+.home-post-it::before {
+  content: '';
+  position: absolute;
+  top: -7px;
+  left: 50%;
+  width: 54px;
+  height: 14px;
+  translate: -50% 0;
+  background: rgba(255,255,255,.55);
+  border-radius: 2px;
+}
+.home-post-it h3 { font-weight: 800; font-size: 0.95rem; line-height: 1.3; }
+.home-post-it p { margin-top: 6px; font-size: 0.875rem; line-height: 1.45; white-space: pre-line; }
+.home-post-it-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 12px; font-size: 0.75rem; opacity: .75; }
+.home-post-it-close { background: none; border: 0; padding: 2px 4px; color: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; font-size: 0.75rem; }
+
+/* Public calculator: offer of the free pricing study (PDF). */
+.pricing-study-offer {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 12px 20px;
+  align-items: center;
+  max-width: 600px;
+  margin: 28px auto 0;
+  padding: 18px 20px;
+  text-align: left;
+  background: var(--cafe-paper);
+  border: 1px solid var(--cafe-line);
+  border-left: 4px solid var(--cafe-brand-yellow, #FFC72C);
+  border-radius: 10px;
+}
+.pricing-study-kicker { font-size: 0.7rem; font-weight: 800; letter-spacing: 0.11em; text-transform: uppercase; color: var(--cafe-muted); }
+.pricing-study-title { margin-top: 2px; font-weight: 800; color: var(--cafe-ink); }
+.pricing-study-text { margin-top: 4px; font-size: 0.875rem; line-height: 1.45; color: var(--cafe-ink-soft); }
+.pricing-study-warning { grid-column: 1 / -1; font-size: 0.85rem; color: var(--cafe-danger); }
+@media (max-width: 560px) { .pricing-study-offer { grid-template-columns: 1fr; } }

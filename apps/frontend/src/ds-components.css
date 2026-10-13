@@ -5,7 +5,7 @@
   justify-content: center;
   gap: 6px;
   padding: 10px 20px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   font-size: 14px;
   font-weight: 600;
   border: none;
@@ -62,7 +62,7 @@
   border: 1.5px solid var(--ds-border);
   border-radius: var(--radius-md);
   color: var(--ds-text);
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   font-size: 14px;
   transition: border-color 0.15s ease;
   outline: none;

@@ -3,13 +3,23 @@ import { Navbar } from '../components/ui/Navbar';
 import { Button } from '../components/ui/button';
 import { FadeIn } from '../components/ui/FadeIn';
 import { Link } from 'react-router-dom';
+import { usePageMeta } from '../lib/seo';
 
 const UnderConstructionPage: React.FC = () => {
+  // Own tags and out of Google: an empty area is no search result, and without
+  // this the page kept the tags of the one seen before (AUD-041).
+  usePageMeta({
+    title: 'Em construção',
+    description: 'Esta área do Café com BPO está sendo construída. Enquanto isso, conheça a comunidade e a calculadora de precificação.',
+    path: '/em-construcao',
+    noindex: true,
+  });
+
   return (
     <div className="pb-[100px]">
       <Navbar />
 
-      <main className="pt-[120px]">
+      <main className="pt-[48px]">
         <section className="min-h-[80vh] bg-background text-foreground flex flex-col items-center justify-center text-center w-full py-[100px]">
           <div className="max-w-[1024px] mx-auto px-5">
             <FadeIn delay={1}>

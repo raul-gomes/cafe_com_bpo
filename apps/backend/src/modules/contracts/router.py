@@ -260,7 +260,10 @@ def finalize_contract(
     """Finaliza o contrato (torna-o imutável) e converte o prospecto em Cliente."""
     try:
         contract, client_id = service.finalize(
-            current_user.id, contract_id, client_repo=client_repo
+            current_user.id,
+            contract_id,
+            client_repo=client_repo,
+            contractada=_contractada_from_user(current_user),
         )
     except ValueError as e:
         raise HTTPException(status_code=404, detail=str(e)) from e

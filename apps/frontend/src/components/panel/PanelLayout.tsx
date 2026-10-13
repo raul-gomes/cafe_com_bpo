@@ -1,107 +1,174 @@
-import React, { useState, useEffect, useCallback } from 'react';
-import { Outlet } from 'react-router-dom';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
-import { NotificationBell } from './NotificationBell';
+import { PanelTopBar } from './PanelTopBar';
+import { Toaster } from '../ui/sonner';
 import { BetaEndingBanner } from './BetaEndingBanner';
 import { useAccess } from '../../api/hooks/useAccess';
-import { Toaster } from '../ui/sonner';
+import { NAV_SECTIONS, sectionForPath, type NavSection } from './navigation';
 
-function getInitialTheme(): 'light' | 'dark' {
-    try {
-      const stored = localStorage.getItem('cafe_bpo_theme');
-      if (stored === 'light' || stored === 'dark') return stored;
-    } catch {
-      // localStorage may be unavailable
-    }
-  return 'dark';
-}
+const NAV_KEY = 'cafe_bpo_sidebar_nav';
+const MODULE_KEY = 'cafe_bpo_active_menu';
 
-function getInitialCollapsed(): boolean {
+function readStorage(key: string): string | null {
   try {
-    return localStorage.getItem('cafe_bpo_sidebar_collapsed') === '1';
+    return localStorage.getItem(key);
   } catch {
-    return false;
+    return null;
   }
 }
 
-function getInitialMode(): string {
+function writeStorage(key: string, value: string): void {
   try {
-    return localStorage.getItem('cafe_bpo_active_menu') || 'operacional';
+    localStorage.setItem(key, value);
   } catch {
-    return 'operacional';
+    // storage unavailable: applies to this session only
   }
 }
 
+/** Menu states, in the order the arrow cycles through them. */
+type NavState = 'expanded' | 'collapsed' | 'hidden';
+const NAV_CYCLE: NavState[] = ['expanded', 'collapsed', 'hidden'];
+const NAV_TOGGLE_LABEL: Record<NavState, string> = {
+  expanded: 'Recolher menu: deixar só os ícones',
+  collapsed: 'Esconder o menu',
+  hidden: 'Abrir o menu completo',
+};
+
+function sectionById(id: string | null): NavSection {
+  return NAV_SECTIONS.find(section => section.id === id) ?? NAV_SECTIONS[0];
+}
+
+/**
+ * Panel shell (.cafe-workspace of the V4 kit).
+ *
+ * Work module: comes from the route when it belongs to a module; on screens
+ * outside modules (Home, profile) the last chosen one stays. The module sets
+ * data-cafe-module for the whole shell — menu, logo, arrow, top stripe and the
+ * folder-tab buttons take on its color.
+ *
+ * @returns The shell.
+ */
 export const PanelLayout: React.FC = () => {
+  const { pathname } = useLocation();
   const { data: access } = useAccess();
-  const [theme, setTheme] = useState<'light' | 'dark'>(getInitialTheme);
-  const [collapsed, setCollapsed] = useState<boolean>(getInitialCollapsed);
-  const [mode, setMode] = useState<string>(getInitialMode);
+  const [nav, setNav] = useState<NavState>(() => {
+    const stored = readStorage(NAV_KEY);
+    return NAV_CYCLE.includes(stored as NavState) ? (stored as NavState) : 'expanded';
+  });
+  const [chosenId, setChosenId] = useState<string>(() => readStorage(MODULE_KEY) || NAV_SECTIONS[0].id);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  const drawerRef = useRef<HTMLDialogElement>(null);
 
+  const routeSection = sectionForPath(pathname);
+  const activeSection = routeSection ?? sectionById(chosenId);
+
+  // Landing on a route of another module (link, notification…) makes it the chosen one.
   useEffect(() => {
-    try {
-      localStorage.setItem('cafe_bpo_theme', theme);
-    } catch {
-      // localStorage may be unavailable
+    if (routeSection && routeSection.id !== chosenId) {
+      setChosenId(routeSection.id);
+      writeStorage(MODULE_KEY, routeSection.id);
     }
-    document.documentElement.classList.toggle('light-theme', theme === 'light');
-  }, [theme]);
+  }, [routeSection, chosenId]);
 
-  useEffect(() => {
-    try {
-      localStorage.setItem('cafe_bpo_active_menu', mode);
-    } catch {
-      // localStorage may be unavailable
-    }
-    document.body.setAttribute('data-mode', mode);
-    return () => {
-      document.body.removeAttribute('data-mode');
-    };
-  }, [mode]);
-
-  const toggleTheme = useCallback(() => {
-    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  const selectSection = useCallback((section: NavSection) => {
+    setChosenId(section.id);
+    writeStorage(MODULE_KEY, section.id);
   }, []);
 
-  const toggleCollapsed = useCallback(() => {
-    setCollapsed(prev => {
-      const next = !prev;
-      try {
-        localStorage.setItem('cafe_bpo_sidebar_collapsed', next ? '1' : '0');
-      } catch {
-        // localStorage may be unavailable
-      }
+  // Arrow: full → icons only → hidden → full.
+  const cycleNav = useCallback(() => {
+    setNav(prev => {
+      const next = NAV_CYCLE[(NAV_CYCLE.indexOf(prev) + 1) % NAV_CYCLE.length];
+      writeStorage(NAV_KEY, next);
       return next;
     });
   }, []);
 
+  // The module color goes on <body> so portal menus and dialogs get it too.
+  const moduleColor = routeSection?.module;
+  useEffect(() => {
+    if (moduleColor) document.body.dataset.cafeModule = moduleColor;
+    else delete document.body.dataset.cafeModule;
+    return () => {
+      delete document.body.dataset.cafeModule;
+    };
+  }, [moduleColor]);
+
+  // Mobile drawer: native <dialog> (Escape and focus trap come from the browser).
+  useEffect(() => {
+    const dialog = drawerRef.current;
+    if (!dialog) return;
+    if (mobileNavOpen && !dialog.open) dialog.showModal?.();
+    if (!mobileNavOpen && dialog.open) dialog.close?.();
+  }, [mobileNavOpen]);
+
   return (
     <div
-      data-mode={mode}
-      className={`panel-mode-grid grid h-screen w-screen overflow-hidden mode-transition${theme === 'light' ? ' light-theme' : ''}`}
-      style={{ gridTemplateColumns: collapsed ? '72px 1fr' : '260px 1fr', gridTemplateRows: '1fr' }}>
-      <aside className="col-start-1 row-start-1">
-        <PanelSidebar 
-          isOpen={false} 
-          onClose={() => {}}
-          theme={theme}
-          onToggleTheme={toggleTheme}
-          collapsed={collapsed}
-          onToggleCollapsed={toggleCollapsed}
-          mode={mode}
-          onModeChange={setMode}
+      // Single screen-high row: otherwise the "auto" row grows with the menu and it never scrolls.
+      className="cafe-workspace app-shell h-screen w-screen grid-rows-[minmax(0,100vh)] overflow-hidden border-0"
+      data-nav={nav}
+    >
+      {/* Hidden: width 0 and visibility:hidden (CSS), which also removes the links from Tab order. */}
+      <div className="panel-rail-slot min-w-0 overflow-hidden">
+        <PanelSidebar activeSection={activeSection} inModule={Boolean(routeSection)} onSelectSection={selectSection} />
+      </div>
+
+      {/* Floating arrow: sits on the menu edge and stays visible when the menu is hidden. */}
+      <button
+        type="button"
+        onClick={cycleNav}
+        className="cafe-floating-arrow panel-rail-toggle"
+        aria-expanded={nav !== 'hidden'}
+        aria-label={NAV_TOGGLE_LABEL[nav]}
+        title={NAV_TOGGLE_LABEL[nav]}
+      >
+        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 6l6 6-6 6" /></svg>
+      </button>
+
+      <div className="flex h-screen min-w-0 flex-col overflow-hidden">
+        <PanelTopBar
+          sectionLabel={routeSection?.label ?? null}
+          onOpenMobileNav={() => setMobileNavOpen(true)}
+          mobileNavOpen={mobileNavOpen}
         />
-      </aside>
-      <main className="panel-main relative col-start-2 row-start-1 overflow-y-auto bg-background p-7 text-foreground">
-        <div className="fixed right-0 top-0 z-100 flex items-center gap-2 px-6 py-3">
-          <NotificationBell />
+        <main className="app-main panel-thin-scroll relative min-w-0 flex-1 overflow-y-auto bg-background px-[clamp(16px,3vw,40px)] py-[28px] text-foreground">
+          {access?.shows_beta_banner && access.expires_at && (
+            <BetaEndingBanner expiresAt={access.expires_at} />
+          )}
+          {/* The key only changes with the module: the sheet rises when entering a new area. */}
+          <div key={routeSection?.id ?? 'inicio'} className="panel-module-enter">
+            <Outlet />
+          </div>
+        </main>
+      </div>
+
+      <dialog
+        ref={drawerRef}
+        id="painel-menu-celular"
+        aria-label="Menu do painel"
+        onClose={() => setMobileNavOpen(false)}
+        className="m-0 h-dvh max-h-none w-[min(320px,86vw)] max-w-none border-0 bg-transparent p-0 backdrop:bg-black/50"
+      >
+        <div className="relative h-full">
+          <button
+            type="button"
+            onClick={() => setMobileNavOpen(false)}
+            className="absolute right-[12px] top-[12px] z-10 grid size-[44px] place-items-center rounded-full text-muted-foreground hover:bg-accent"
+            aria-label="Fechar menu"
+          >
+            <svg className="size-[20px]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+          </button>
+          <PanelSidebar
+            activeSection={activeSection}
+            inModule={Boolean(routeSection)}
+            onSelectSection={selectSection}
+            onNavigate={() => setMobileNavOpen(false)}
+          />
         </div>
-        {access?.shows_beta_banner && access.expires_at && (
-          <BetaEndingBanner expiresAt={access.expires_at} />
-        )}
-        <Outlet />
-        <Toaster />
-      </main>
+      </dialog>
+
+      <Toaster />
     </div>
   );
 };

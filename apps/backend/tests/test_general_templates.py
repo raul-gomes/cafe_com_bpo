@@ -385,3 +385,126 @@ def test_fork_migrates_user_assignments_for_future_generation(client):
         assert str(after.template_id) == fork["id"]
     finally:
         session.close()
+
+
+def test_scheduler_keeps_generating_a_general_routine_linked_by_an_operator(client):
+    """AUD-013: the scheduler resolves a general routine like the link does."""
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.models import Task
+    from src.modules.task_manager.scheduler import TaskScheduler
+    from tests.helpers import freeze_assignments_clock
+
+    adm = _auth_header(client, f"adm_{uuid4()}@cafe.com", role="admin")
+    op = _auth_header(client, f"op_{uuid4()}@cafe.com")
+    general = client.post(
+        "/tasks/templates/",
+        json=_template_payload(name="Fechamento geral", is_general=True, due_day=10),
+        headers=adm,
+    ).json()
+    client.post(
+        f"/tasks/templates/{general['id']}/activities/",
+        json={"name": "Conciliar", "priority": "medium", "order": 0},
+        headers=adm,
+    )
+    cli = _create_client(client, op)
+    # Linked after the 10th: nothing this month, the scheduler creates the next one.
+    with freeze_assignments_clock(datetime(2026, 7, 20, 12, tzinfo=timezone.utc)):
+        link = client.post(
+            "/tasks/client-templates/",
+            json={"client_id": cli["id"], "template_id": general["id"]},
+            headers=op,
+        )
+    assert link.status_code == 201, link.text
+
+    TaskScheduler().run_daily_check(
+        now=datetime(2026, 8, 1, 12, tzinfo=timezone.utc), mode="monthly"
+    )
+
+    session = SessionLocal()
+    try:
+        cards = (
+            session.query(Task)
+            .filter(
+                Task.client_id == UUID(cli["id"]),
+                Task.template_id == UUID(general["id"]),
+            )
+            .all()
+        )
+        assert [(c.title, str(c.user_id)) for c in cards] == [
+            ("Conciliar", op_user_id(op))
+        ]
+        # The monthly run plans the coming month; what matters is that it ran.
+        assert cards[0].deadline.day == 10, cards[0].deadline
+    finally:
+        session.close()
+
+
+def _master_activity_id(client, adm, general_id):
+    """Id of the first activity of a general routine, as the screen shows it."""
+    detail = client.get(f"/tasks/templates/{general_id}", headers=adm).json()
+    return detail["activities"][0]["id"]
+
+
+def _forks_of(general_id):
+    """Private copies of a general routine, straight from the database."""
+    from src.core.database import SessionLocal
+    from src.modules.task_manager.models import ActivityTemplate
+
+    session = SessionLocal()
+    try:
+        return (
+            session.query(ActivityTemplate)
+            .filter(ActivityTemplate.parent_template_id == UUID(general_id))
+            .all()
+        )
+    finally:
+        session.close()
+
+
+def test_operator_edits_an_activity_of_a_general_routine_by_its_shown_id(client):
+    """AUD-019: the id on screen (the master's) edits the operator's own copy."""
+    adm = _auth_header(client, f"adm_{uuid4()}@cafe.com", role="admin")
+    op = _auth_header(client, f"op_{uuid4()}@cafe.com")
+    general = _create_general_with_activity(client, adm)
+    master_act = _master_activity_id(client, adm, general["id"])
+
+    resp = client.put(
+        f"/tasks/templates/{general['id']}/activities/{master_act}",
+        json={"name": "Minha versão"},
+        headers=op,
+    )
+
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["name"] == "Minha versão"
+    master = client.get(f"/tasks/templates/{general['id']}", headers=adm).json()
+    assert master["activities"][0]["name"] == "Atividade padrão"
+
+
+def test_operator_deletes_an_activity_of_a_general_routine_by_its_shown_id(client):
+    adm = _auth_header(client, f"adm_{uuid4()}@cafe.com", role="admin")
+    op = _auth_header(client, f"op_{uuid4()}@cafe.com")
+    general = _create_general_with_activity(client, adm)
+    master_act = _master_activity_id(client, adm, general["id"])
+
+    resp = client.delete(
+        f"/tasks/templates/{general['id']}/activities/{master_act}", headers=op
+    )
+
+    assert resp.status_code in (200, 204), resp.text
+    master = client.get(f"/tasks/templates/{general['id']}", headers=adm).json()
+    assert len(master["activities"]) == 1
+
+
+def test_unknown_activity_does_not_leave_a_fork_behind(client):
+    adm = _auth_header(client, f"adm_{uuid4()}@cafe.com", role="admin")
+    op = _auth_header(client, f"op_{uuid4()}@cafe.com")
+    general = _create_general_with_activity(client, adm)
+
+    resp = client.put(
+        f"/tasks/templates/{general['id']}/activities/{uuid4()}",
+        json={"name": "x"},
+        headers=op,
+    )
+
+    assert resp.status_code == 404
+    assert _forks_of(general["id"]) == []

@@ -113,7 +113,7 @@ export const BillingProfileForm: React.FC<BillingProfileFormProps> = ({
                         id="billing-cpf-cnpj"
                         value={cpfCnpj}
                         onChange={setCpfCnpj}
-                        tipo={cpfIsCnpj ? 'cnpj' : 'cpf'}
+                        tipo="cpfCnpj"
                         placeholder={cpfIsCnpj ? '00.000.000/0000-00' : '000.000.000-00'}
                     />
                 </div>

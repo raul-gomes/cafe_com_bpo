@@ -6,6 +6,7 @@ import { ProjectCard } from './ProjectCard';
 import { SearchInput } from '../ui/SearchInput';
 import { Card } from '../ui/card';
 import { Skeleton } from '../ui/skeleton';
+import { Button } from '../ui/button';
 
 /**
  * Mural de projetos dentro do fórum — **vitrine, sem gestão**.
@@ -14,6 +15,9 @@ import { Skeleton } from '../ui/skeleton';
  * oferece a candidatura. Criar, editar, convidar, avaliar propostas e arquivar
  * ficam em Gestão › Projetos, que é também onde o bloco de Novidades aparece.
  */
+/** Projetos por página do mural. */
+const POR_PAGINA = 20;
+
 export function ProjectsSection() {
   const [data, setData] = useState<PaginatedProjects | null>(null);
   const [loading, setLoading] = useState(true);
@@ -22,17 +26,26 @@ export function ProjectsSection() {
   const primeiraCarga = useRef(true);
   const requisicaoAtual = useRef(0);
 
-  const carregar = useCallback(async (termo: string) => {
+  const [carregandoMais, setCarregandoMais] = useState(false);
+
+  /** Carrega uma página do mural; com offset > 0 soma à lista atual, para
+   *  alcançar os projetos além dos 20 primeiros (AUD-032). */
+  const carregar = useCallback(async (termo: string, offset = 0) => {
     requisicaoAtual.current += 1;
     const idRequisicao = requisicaoAtual.current;
-    setLoading(true);
+    if (offset === 0) setLoading(true);
+    else setCarregandoMais(true);
     try {
-      const resp = await getProjects(20, 0, termo);
+      const resp = await getProjects(POR_PAGINA, offset, termo);
       // resposta antiga não pode sobrescrever a busca mais recente
       if (idRequisicao !== requisicaoAtual.current) {
         return;
       }
-      setData(resp);
+      setData(prev =>
+        offset === 0 || !prev
+          ? resp
+          : { ...resp, items: [...prev.items, ...resp.items] }
+      );
       setError('');
     } catch {
       if (idRequisicao !== requisicaoAtual.current) {
@@ -44,6 +57,7 @@ export function ProjectsSection() {
     } finally {
       if (idRequisicao === requisicaoAtual.current) {
         setLoading(false);
+        setCarregandoMais(false);
       }
     }
   }, []);
@@ -128,6 +142,23 @@ export function ProjectsSection() {
           {data?.items.map((project) => (
             <ProjectCard key={project.id} project={project} />
           ))}
+          {data && data.total > POR_PAGINA && (
+            <div className="mt-2 flex flex-col items-center gap-2">
+              <p className="text-[12px] text-muted-foreground">
+                Mostrando {data.items.length} de {data.total} projetos
+              </p>
+              {data.items.length < data.total && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={carregandoMais}
+                  onClick={() => void carregar(busca, data.items.length)}
+                >
+                  {carregandoMais ? 'Carregando...' : 'Carregar mais'}
+                </Button>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>

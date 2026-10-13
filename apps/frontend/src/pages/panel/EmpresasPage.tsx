@@ -20,6 +20,7 @@ import {
 import type { InvitationData, TeamMemberData } from '../../schemas/team';
 import { Card } from '../../components/ui/card';
 import { Button } from '../../components/ui/button';
+import { FolderTabButton } from '../../components/ui/folder-tab-button';
 import { Input } from '../../components/ui/input';
 import { Textarea } from '../../components/ui/textarea';
 import { Skeleton } from '../../components/ui/skeleton';
@@ -196,23 +197,25 @@ export const EmpresasPage: React.FC = () => {
     const resolvedSegment =
       formData.segment === 'Outro' && customSegment.trim()
         ? customSegment.trim()
-        : formData.segment || undefined;
+        : formData.segment || null;
 
+    // An emptied optional field goes as null: omitting it kept the stored value
+    // (the update applies only the keys it receives) (AUD-021).
     const payload = {
       name: formData.name,
-      cnpj: formData.cnpj || undefined,
-      phone: formData.phone || undefined,
-      email: formData.email.trim() || undefined,
-      description: formData.description || undefined,
+      cnpj: formData.cnpj || null,
+      phone: formData.phone || null,
+      email: formData.email.trim() || null,
+      description: formData.description || null,
       segment: resolvedSegment,
       color: formData.color,
-      street: formData.street || undefined,
-      number: formData.number || undefined,
-      complement: formData.complement || undefined,
-      neighborhood: formData.neighborhood || undefined,
-      city: formData.city || undefined,
-      state: formData.state || undefined,
-      cep: formData.cep || undefined,
+      street: formData.street || null,
+      number: formData.number || null,
+      complement: formData.complement || null,
+      neighborhood: formData.neighborhood || null,
+      city: formData.city || null,
+      state: formData.state || null,
+      cep: formData.cep || null,
     };
 
     try {
@@ -502,12 +505,12 @@ export const EmpresasPage: React.FC = () => {
           <h1 className="text-[32px] font-extrabold tracking-tight text-foreground">Meus Clientes</h1>
           <p className="text-[14px] text-muted-foreground">Gerencie os clientes da sua carteira.</p>
         </div>
-        <Button variant="default" onClick={() => { resetForm(); setExpandedCardId(null); setShowForm(true); }}>
+        <FolderTabButton onClick={() => { resetForm(); setExpandedCardId(null); setShowForm(true); }}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
           </svg>
           Novo Cliente
-        </Button>
+        </FolderTabButton>
       </div>
 
       {/* Create form (top, not editing) */}
@@ -525,7 +528,7 @@ export const EmpresasPage: React.FC = () => {
       {/* Error state */}
       {error ? (
         <Card className="p-12 text-center">
-          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="hsl(var(--destructive))" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-4 opacity-50">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--destructive)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="mx-auto mb-4 opacity-50">
             <circle cx="12" cy="12" r="10" /><line x1="12" y1="8" x2="12" y2="12" /><line x1="12" y1="16" x2="12.01" y2="16" />
           </svg>
           <h3 className="mb-2 text-[16px] font-bold text-foreground">Erro ao carregar</h3>

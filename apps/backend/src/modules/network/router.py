@@ -1,3 +1,4 @@
+from typing import Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -77,13 +78,17 @@ def create_post(
 
 @router.get("/posts", response_model=PaginatedPosts)
 def get_posts(
-    limit: int = 10,
-    offset: int = 0,
+    limit: int = Query(default=10, ge=1, le=50),
+    offset: int = Query(default=0, ge=0),
+    post_filter: Literal["all", "mine", "answered"] = Query(
+        default="all", alias="filter"
+    ),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db_session),
 ):
+    """Lists forum posts; the filter runs on the server, before paging."""
     repo = NetworkRepository(db)
-    items, total = repo.get_posts(limit, offset)
+    items, total = repo.get_posts(limit, offset, post_filter, current_user.id)
     safe_items = [_safe_post_data(p) for p in items]
     return {"items": safe_items, "total": total}
 

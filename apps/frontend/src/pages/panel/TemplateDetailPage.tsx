@@ -117,20 +117,22 @@ export const TemplateDetailPage: React.FC = () => {
     );
   };
 
+  // The recurrence itself is saved, and the schedule fields of the other
+  // recurrences are cleared (null / empty list), so a routine switched from
+  // monthly to weekly does not keep its old monthly day (AUD-018).
   const saveConfig = async () => {
+    const numberOrNull = (value: number | ''): number | null => (value === '' ? null : Number(value));
     const payload: Record<string, unknown> = {
       id: id!,
       description: cfgDescription.trim() || undefined,
       process_type: cfgProcessType || undefined,
       routine_type_id: cfgRoutineTypeId || undefined,
+      recurrence: cfgRecurrence,
+      weekdays: cfgRecurrence === 'weekly' ? cfgWeekdays : [],
+      due_day: cfgRecurrence === 'monthly' || cfgRecurrence === 'yearly' ? numberOrNull(cfgDueDay) : null,
+      due_month: cfgRecurrence === 'yearly' ? numberOrNull(cfgDueMonth) : null,
+      due_days_from_start: cfgRecurrence === 'once' ? numberOrNull(cfgDueDaysFromStart) : null,
     };
-    if (cfgRecurrence === 'once') payload.due_days_from_start = cfgDueDaysFromStart === '' ? undefined : Number(cfgDueDaysFromStart);
-    if (cfgRecurrence === 'weekly') payload.weekdays = cfgWeekdays;
-    if (cfgRecurrence === 'monthly') payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
-    if (cfgRecurrence === 'yearly') {
-      payload.due_day = cfgDueDay === '' ? undefined : Number(cfgDueDay);
-      payload.due_month = cfgDueMonth === '' ? undefined : Number(cfgDueMonth);
-    }
     await updateTemplate.mutateAsync(payload as any);
     setShowConfig(false);
   };

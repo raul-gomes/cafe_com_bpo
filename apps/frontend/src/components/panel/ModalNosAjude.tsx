@@ -1,15 +1,30 @@
 import React, { useState } from 'react';
-import { PIX_KEY } from '../../config/env';
+import { QRCodeSVG } from 'qrcode.react';
+import { PIX_KEY, PIX_MERCHANT_CITY, PIX_MERCHANT_NAME } from '../../config/env';
+import { buildPixPayload } from '../../lib/pix';
+import { CafeIcon } from '../../brand/CafeIcon';
 
 interface ModalNosAjudeProps {
   isOpen: boolean;
   onClose: () => void;
 }
 
+/**
+ * "Colabore": an invitation to be part of it (not a plea for help), with PIX.
+ *
+ * @returns The dialog, or nothing while closed.
+ */
 export const ModalNosAjude: React.FC<ModalNosAjudeProps> = ({ isOpen, onClose }) => {
   const [copied, setCopied] = useState(false);
+  const [payloadCopied, setPayloadCopied] = useState(false);
 
   if (!isOpen) return null;
+
+  const pixPayload = buildPixPayload({
+    key: PIX_KEY,
+    merchantName: PIX_MERCHANT_NAME,
+    merchantCity: PIX_MERCHANT_CITY,
+  });
 
   const handleCopyPix = () => {
     navigator.clipboard.writeText(PIX_KEY);
@@ -17,73 +32,72 @@ export const ModalNosAjude: React.FC<ModalNosAjudeProps> = ({ isOpen, onClose })
     setTimeout(() => setCopied(false), 2000);
   };
 
+  const handleCopyPayload = () => {
+    navigator.clipboard.writeText(pixPayload);
+    setPayloadCopied(true);
+    setTimeout(() => setPayloadCopied(false), 2000);
+  };
+
   return (
-    <div className="modal-overlay" onClick={onClose}>
+    <div className="fixed inset-0 z-[100] grid place-items-center bg-black/50 p-[16px]" onClick={onClose}>
       <div
-        className="modal-nos-ajude"
+        className="relative w-full max-w-[460px] rounded-lg border border-border bg-card p-[clamp(24px,4vw,36px)] text-foreground shadow-lg"
         onClick={(e) => e.stopPropagation()}
         role="dialog"
         aria-modal="true"
-        aria-label="Nos Ajude"
+        aria-labelledby="colabore-titulo"
       >
         <button
-          className="modal-nos-ajude__close"
+          type="button"
+          className="absolute right-[12px] top-[12px] grid size-[40px] place-items-center rounded-full text-muted-foreground hover:bg-accent hover:text-foreground"
           onClick={onClose}
           aria-label="Fechar"
         >
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <CafeIcon name="fechar" />
         </button>
 
-        <div className="modal-nos-ajude__content">
-          <p className="section-label" style={{ justifyContent: 'center', color: 'rgba(255,255,255,0.25)' }}>
-            Nos ajude
-          </p>
-          <h2 className="donate-headline" style={{ fontSize: '22px' }}>
-            Ajude o Café com BPO<br />
-            a <em>continuar crescendo.</em>
-          </h2>
-          <p className="donate-body">
-            Sua contribuição mantém essa plataforma viva, gratuita e em constante evolução.
-            Cada centavo vai direto para manter o servidor, as ferramentas e a comunidade funcionando.
-          </p>
+        <p className="flex items-center gap-[8px] text-xs font-bold uppercase tracking-[0.11em] text-primary-strong">
+          <CafeIcon name="coracao" className="size-[18px]" /> Faça parte
+        </p>
+        <h2 id="colabore-titulo" className="mt-[10px] font-editorial text-[1.875rem] font-medium leading-[1.1] tracking-[-0.02em]">
+          Sem você, isso não seria possível.
+        </h2>
+        <p className="mt-[14px] text-[0.9375rem] leading-relaxed text-muted-foreground">
+          O Café com BPO é construído por quem vive o BPO de verdade. Este projeto é maior do que
+          cada um de nós — e, quando todo mundo coloca um pouco, chegar lá fica mais leve e mais rápido.
+        </p>
 
-          <div className="donate-pix-area">
-            <div className="donate-pix-card">
-              <div className="donate-pix-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="2" y="4" width="20" height="16" rx="2" />
-                  <path d="M7 15h0M2 9h20" />
-                  <path d="M12 15v-3" />
-                </svg>
-              </div>
-              <p className="donate-pix-label">PIX</p>
-              <div className="donate-pix-copy">
-                <code className="donate-pix-key">{PIX_KEY}</code>
-                <button className="donate-copy-btn" onClick={handleCopyPix}>
-                  {copied ? (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                        <polyline points="20 6 9 17 4 12" />
-                      </svg>
-                      Copiado!
-                    </>
-                  ) : (
-                    <>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
-                        <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
-                      </svg>
-                      Copiar
-                    </>
-                  )}
+        {PIX_KEY ? (
+          <div className="mt-[22px] flex gap-[16px] rounded-md border border-border bg-muted p-[16px] max-[420px]:flex-col">
+            {/* Small QR on white (bank apps read it best), plus the "copia e cola" code. */}
+            <div className="shrink-0 self-start rounded-sm bg-white p-[8px]">
+              <QRCodeSVG value={pixPayload} size={104} level="M" title="QR Code PIX do Café com BPO" />
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-bold uppercase tracking-[0.11em] text-muted-foreground">PIX</p>
+              <p className="mt-[4px] text-sm text-muted-foreground">Aponte a câmera do app do banco ou copie a chave. O valor é você quem escolhe.</p>
+              <div className="mt-[10px] flex items-center gap-[8px]">
+                <code className="min-w-0 flex-1 truncate rounded-sm bg-card px-[10px] py-[8px] text-sm">{PIX_KEY}</code>
+                <button
+                  type="button"
+                  className="flex shrink-0 items-center gap-[6px] rounded-md bg-primary px-[14px] py-[8px] text-sm font-semibold text-primary-foreground hover:bg-primary-dark"
+                  onClick={handleCopyPix}
+                >
+                  {copied ? 'Copiado!' : 'Copiar'}
                 </button>
               </div>
+              <button
+                type="button"
+                onClick={handleCopyPayload}
+                className="mt-[8px] text-xs font-semibold text-primary-strong hover:underline"
+              >
+                {payloadCopied ? 'Código copiado!' : 'Copiar código "copia e cola"'}
+              </button>
             </div>
           </div>
-        </div>
+        ) : (
+          <p className="mt-[22px] text-sm text-muted-foreground">A chave PIX ainda não foi configurada.</p>
+        )}
       </div>
     </div>
   );

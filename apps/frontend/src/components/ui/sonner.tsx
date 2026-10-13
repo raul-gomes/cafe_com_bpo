@@ -1,27 +1,15 @@
 "use client"
 
-import { useEffect, useState } from "react"
 import { Toaster as Sonner, type ToasterProps } from "sonner"
 import { CircleCheckIcon, InfoIcon, TriangleAlertIcon, OctagonXIcon, Loader2Icon } from "lucide-react"
+import { useAppearance } from "../../brand/appearance"
 
 const Toaster = ({ ...props }: ToasterProps) => {
-  const [theme, setTheme] = useState<"light" | "dark">("dark")
-
-  useEffect(() => {
-    const el = document.documentElement
-    const updateTheme = () => {
-      setTheme(el.classList.contains("light-theme") ? "light" : "dark")
-    }
-    updateTheme()
-
-    const observer = new MutationObserver(updateTheme)
-    observer.observe(el, { attributes: true, attributeFilter: ["class"] })
-    return () => observer.disconnect()
-  }, [])
+  const [{ mode }] = useAppearance()
 
   return (
     <Sonner
-      theme={theme}
+      theme={mode}
       className="toaster group"
       offset={100}
       icons={{
@@ -43,9 +31,9 @@ const Toaster = ({ ...props }: ToasterProps) => {
       }}
       style={
         {
-          "--normal-bg": "hsl(var(--popover))",
-          "--normal-text": "hsl(var(--popover-foreground))",
-          "--normal-border": "hsl(var(--border))",
+          "--normal-bg": "var(--popover)",
+          "--normal-text": "var(--popover-foreground)",
+          "--normal-border": "var(--border)",
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }

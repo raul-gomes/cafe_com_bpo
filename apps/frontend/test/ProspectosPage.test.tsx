@@ -46,7 +46,7 @@ vi.mock('../src/api/clients', () => ({
   getClientSegments: vi.fn().mockResolvedValue(['B2B - Tecnologia & Software', 'Outro']),
 }))
 
-import { getProspects, createProspect, deleteProspect, convertProspect, reproveProspect } from '../src/api/prospects'
+import { getProspects, createProspect, deleteProspect, convertProspect, reproveProspect, updateProspect } from '../src/api/prospects'
 import { lookupCnpj, lookupCep } from '../src/lib/brasilApi'
 import { getClientSegments } from '../src/api/clients'
 
@@ -121,6 +121,18 @@ describe('ProspectosPage', () => {
     await waitFor(() => {
       expect(screen.queryByPlaceholderText(/nome do prospecto/i)).not.toBeInTheDocument()
     })
+  })
+
+  it('clearing an optional field sends null so the saved value is removed (AUD-021)', async () => {
+    renderPage()
+    const user = userEvent.setup()
+    const card = (await screen.findByText('Lead A')).closest('[data-slot="card"]')!
+    await user.click(card)
+    await user.clear(screen.getByDisplayValue('12.345.678/0001-99'))
+    await user.click(screen.getByRole('button', { name: /Salvar/i }))
+
+    await waitFor(() => expect(updateProspect).toHaveBeenCalled())
+    expect((updateProspect as ReturnType<typeof vi.fn>).mock.calls[0][1]).toMatchObject({ cnpj: null, phone: null })
   })
 
   it('arquiva um prospecto após confirmação e remove da lista', async () => {

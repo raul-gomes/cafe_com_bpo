@@ -52,7 +52,7 @@
   color: var(--ds-text);
   padding: 7px 12px 7px 32px;
   font-size: 13px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   width: 200px;
   outline: none;
   transition: border-color 0.15s ease, width 0.2s ease;
@@ -194,7 +194,7 @@
   color: var(--ds-text-muted);
   font-size: 13px;
   font-weight: 500;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   cursor: pointer;
   text-align: left;
   transition: all 0.15s ease;

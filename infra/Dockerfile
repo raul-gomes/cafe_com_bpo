@@ -1,6 +1,6 @@
 FROM nginx:alpine
 
-# NGINX_CONF: "nginx.conf" (padrão, prod/SSL) ou "nginx.conf.local" (dev/HTTP)
+# NGINX_CONF: "nginx.conf" (padrão, prod/SSL) ou "nginx.dev.conf" (dev/HTTP)
 ARG NGINX_CONF=nginx.conf
 COPY ${NGINX_CONF} /etc/nginx/nginx.conf
 

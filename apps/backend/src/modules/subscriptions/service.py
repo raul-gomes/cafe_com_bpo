@@ -1329,6 +1329,18 @@ class SubscriptionWebhookService:
                 subscription.id,
             )
             return False
+        # Out-of-order delivery (AUD-008): when the period already runs past the
+        # one this charge pays for, the charge was settled and the notice is
+        # stale, so it must not reopen the dunning window.
+        paid_through = _business_start(add_billing_month(due))
+        current_end = as_utc(subscription.current_period_end)
+        if current_end is not None and current_end >= paid_through:
+            logger.info(
+                "[subscriptions] PAYMENT_OVERDUE ignorado para %s: cobrança de %s já paga",
+                subscription.id,
+                due,
+            )
+            return False
         grace_until = _business_start(due + timedelta(days=4))
         changed = False
         if subscription.status != SUBSCRIPTION_STATUS_PAST_DUE:

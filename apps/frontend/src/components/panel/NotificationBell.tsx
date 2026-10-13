@@ -17,6 +17,8 @@ export const NotificationBell: React.FC = () => {
   const unreadCount = unreadData?.count || 0;
 
   const TYPE_ICONS: Record<string, string> = {
+    // Message from the Café team (Admin › Mensagens).
+    announcement: '☕',
     task_assigned: '📋',
     task_deadline: '⏰',
     task_overdue: '🚨',
@@ -172,7 +174,10 @@ export const NotificationBell: React.FC = () => {
                       </div>
                       <div style={{
                         fontSize: '12px', color: 'var(--ds-text-muted)',
-                        overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+                        // Team messages are read in full; the others stay on one line.
+                        ...(notif.type === 'announcement'
+                          ? { whiteSpace: 'pre-line' as const }
+                          : { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' as const }),
                       }}>
                         {notif.message}
                       </div>

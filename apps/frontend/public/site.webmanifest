@@ -1,0 +1,11 @@
+{
+  "name": "Café com BPO",
+  "short_name": "Café com BPO",
+  "description": "Comunidade, ferramenta e precificação para quem opera BPO financeiro.",
+  "lang": "pt-BR",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#F8F5EF",
+  "theme_color": "#35291F",
+  "icons": [{ "src": "/favicon.png", "sizes": "any", "type": "image/png" }]
+}

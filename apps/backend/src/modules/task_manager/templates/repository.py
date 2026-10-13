@@ -218,6 +218,7 @@ class TemplateRepository:
                     estimated_minutes=act.estimated_minutes,
                     order=act.order,
                     phase_id=act.phase_id,
+                    source_activity_id=act.id,
                 )
             )
         self.session.flush()

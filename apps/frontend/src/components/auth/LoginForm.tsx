@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { LoginFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
@@ -12,30 +12,32 @@ import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Label } from '../../components/ui/label';
-import { LegalDocumentModal } from '../ui/LegalDocumentModal';
-import { TERMOS_USO_HTML } from '../../content/termos-uso';
-import { POLITICA_PRIVACIDADE_HTML } from '../../content/politica-privacidade';
-import logo from '../../assets/logo.png';
+import { logoFor, useAppearance } from '../../brand/appearance';
+import { safeReturnTo } from '../../lib/returnTo';
 
 interface LoginFormProps {
   onForgotPassword?: () => void;
   /** Abre o modal de cadastro — o login é a tela base e o registro é um popup. */
   onRegisterClick?: () => void;
+  /** Inside the login dialog: no card of its own and tighter spacing. */
+  compact?: boolean;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegisterClick }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegisterClick, compact = false }) => {
   const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm<LoginFormData & { terms: boolean }>({
     defaultValues: { email: '', password: '', terms: false },
   });
   const [genericError, setGenericError] = useState<string | null>(null);
-  const [openTerms, setOpenTerms] = useState(false);
-  const [openPrivacy, setOpenPrivacy] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [googleSoon, setGoogleSoon] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('invite_token');
+  // Only people coming from the proposal download button (simulator) see the save-your-simulation notice.
+  const cameFromProposal = searchParams.get('motivo') === 'proposta' && Boolean(sessionStorage.getItem('cafe_bpo_proposal'));
   const termsAccepted = watch('terms');
+  const [{ mode }] = useAppearance();
 
   const onSubmit = async (data: LoginFormData & { terms: boolean }) => {
     setGenericError(null);
@@ -78,7 +80,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegist
       if (res && (res as any).syncedProposalId) {
         navigate(`/painel/orcamento/${(res as any).syncedProposalId}`);
       } else {
-        navigate('/painel');
+        // Back to where the session expired, when it is a path of the app (AUD-039).
+        navigate(safeReturnTo(searchParams.get('return_to')) ?? '/painel');
       }
     } catch (error: any) {
       setGenericError(error.response?.data?.detail || 'Credenciais inválidas. Tente novamente.');
@@ -87,20 +90,20 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegist
 
   return (
     <>
-    <Card className="mx-auto max-w-[480px]">
-      <CardContent className="pt-7 px-8 pb-7">
-        {/* Brand */}
-        <div className="text-center mb-5">
-          <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
-          <h2 className="text-xl font-bold text-foreground mb-1">
-            Bem-vindo
+    <Card className={compact ? 'border-0 bg-transparent shadow-none ring-0' : 'mx-auto max-w-[480px]'}>
+      <CardContent className={compact ? 'p-0' : 'pt-7 px-8 pb-7'}>
+        {/* Brand: inside the dialog it lives in the side column (LoginDialog). */}
+        {!compact && <div className="text-center mb-5">
+          <img src={logoFor(mode)} alt="Café com BPO" className="mx-auto mb-[12px] h-auto w-[132px]" />
+          <h2 className="font-editorial text-[1.75rem] font-medium leading-tight text-foreground">
+            Bem-vindo de volta
           </h2>
-          <p className="text-sm text-muted-foreground">
-            Entre com sua conta BPO
+          <p className="mt-[2px] text-sm text-muted-foreground">
+            Entre com sua conta do Café com BPO
           </p>
-        </div>
+        </div>}
 
-        {sessionStorage.getItem('cafe_bpo_proposal') && (
+        {cameFromProposal && (
           <Alert className="mb-5 text-center">
             <strong>Quase lá!</strong> Faça login para salvar sua simulação e baixar sua proposta em PDF.
           </Alert>
@@ -170,15 +173,15 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegist
               <Label htmlFor="terms" className="cursor-pointer">
                 Li e concordo com os{' '}
               </Label>
-              <button type="button" onClick={() => setOpenTerms(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
+              <Link to="/termos-de-uso" className="text-primary-strong hover:underline text-[12px] leading-relaxed font-medium">
                 Termos de Uso
-              </button>
+              </Link>
               <Label htmlFor="terms" className="cursor-pointer">
                 {' '}e{' '}
               </Label>
-              <button type="button" onClick={() => setOpenPrivacy(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
+              <Link to="/politica-de-privacidade" className="text-primary-strong hover:underline text-[12px] leading-relaxed font-medium">
                 Política de Privacidade
-              </button>
+              </Link>
               <Label htmlFor="terms" className="cursor-pointer">
                 {' '}(LGPD).
               </Label>
@@ -207,10 +210,32 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegist
             </button>
           </div>
         </form>
+
+        {/* Google login: the server already builds the authorization (auth/oauth/service.py)
+            but has no route connecting it to the site yet — the button says "coming soon". */}
+        <div className="my-[12px] flex items-center gap-[10px] text-xs text-muted-foreground" aria-hidden="true">
+          <span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
+        </div>
+        <button
+          type="button"
+          onClick={() => setGoogleSoon(true)}
+          className="flex w-full items-center justify-center gap-[10px] rounded-md border border-input bg-card px-[14px] py-[9px] text-sm font-semibold text-foreground transition-colors hover:bg-muted"
+        >
+          <svg className="size-[18px]" viewBox="0 0 24 24" aria-hidden="true">
+            <path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z" />
+            <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.1-4.5H2.2v2.8A11 11 0 0 0 12 23z" />
+            <path fill="#FBBC05" d="M5.9 14.2a6.6 6.6 0 0 1 0-4.3V7H2.2a11 11 0 0 0 0 9.9l3.7-2.7z" />
+            <path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.2 7l3.7 2.9C6.7 7.3 9.1 5.4 12 5.4z" />
+          </svg>
+          Entrar com Google
+        </button>
+        {googleSoon && (
+          <p role="status" className="mt-[8px] text-center text-xs text-muted-foreground">
+            O login com Google chega em breve. Por enquanto, entre com e-mail e senha.
+          </p>
+        )}
       </CardContent>
     </Card>
-    <LegalDocumentModal open={openTerms} onOpenChange={setOpenTerms} title="Termos de Uso" content={TERMOS_USO_HTML} />
-    <LegalDocumentModal open={openPrivacy} onOpenChange={setOpenPrivacy} title="Política de Privacidade" content={POLITICA_PRIVACIDADE_HTML} />
     </>
   );
 };

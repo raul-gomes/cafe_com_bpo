@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { isAxiosError } from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { uploadAvatar, uploadCompanyLogo, updateProfile, adminCreateUser, CreateUserAdminData } from '../../api/clients';
 import { getMySkills, addMySkill, removeMySkill, type Skill } from '../../api/network';
@@ -316,8 +317,10 @@ export const PerfilPage: React.FC = () => {
 
       setUser(updated as unknown as User);
       toast.success('Perfil atualizado com sucesso!');
-    } catch {
-      toast.error('Erro ao salvar alterações.');
+    } catch (error) {
+      // Show the server's reason (e.g. image too large or wrong format) when there is one.
+      const detail = isAxiosError<{ detail?: unknown }>(error) ? error.response?.data?.detail : undefined;
+      toast.error(typeof detail === 'string' ? detail : 'Erro ao salvar alterações.');
     } finally {
       setIsSaving(false);
     }

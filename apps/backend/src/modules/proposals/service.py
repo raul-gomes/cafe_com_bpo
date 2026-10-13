@@ -5,6 +5,7 @@ Business logic for proposal management, PDF generation, public sharing,
 client decision, and sharing via email/WhatsApp.
 """
 
+import html
 import math
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -360,19 +361,26 @@ class ProposalService:
             self._set_share_hash(proposal)
             share_url = self._share_url(proposal.public_hash)
 
+        # Everything typed by the sender is plain text: escaped before it enters
+        # the HTML, so it can never become a link or markup in an e-mail sent by
+        # the platform (AUD-010). Line breaks of the message are kept.
+        safe_client_name = html.escape(client_name)
+        safe_message = html.escape(message).replace("\n", "<br>")
+        safe_share_url = html.escape(share_url, quote=True)
+
         body_html = f"""
         <html>
         <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
             <h2 style="color: #1a1a2e;">Orçamento — Café com BPO</h2>
             <p>Olá,</p>
-            <p>Segue o orçamento detalhado para <strong>{client_name}</strong>:</p>
+            <p>Segue o orçamento detalhado para <strong>{safe_client_name}</strong>:</p>
             <div style="background: #f8f9fa; padding: 16px; border-radius: 8px; margin: 16px 0;">
                 <p style="margin: 0;"><strong>Valor Total: {price_str}</strong></p>
             </div>
-            {f"<p>{message}</p>" if message else ""}
+            {f"<p>{safe_message}</p>" if message else ""}
             <p>Para visualizar o documento completo e dar seu parecer (aprovar, solicitar
             alteração ou reprovar), acesse o link abaixo:</p>
-            <p><a href="{share_url}" style="background: #1a1a2e; color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; display: inline-block;">Avaliar Orçamento</a></p>
+            <p><a href="{safe_share_url}" style="background: #1a1a2e; color: #fff; padding: 10px 16px; border-radius: 6px; text-decoration: none; display: inline-block;">Avaliar Orçamento</a></p>
             <p style="font-size: 11px; color: #666;">Link válido por {SHARE_LINK_TTL_HOURS}h. Se expirar, peça um novo link ao prestador.</p>
             <hr style="border: none; border-top: 1px solid #ddd; margin: 24px 0;">
             <p style="font-size: 12px; color: #666;">Enviado via Café com BPO</p>

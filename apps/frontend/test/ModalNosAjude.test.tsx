@@ -3,7 +3,8 @@ import { describe, it, expect, vi } from 'vitest'
 import { ModalNosAjude } from '../src/components/panel/ModalNosAjude'
 
 // PIX_KEY vem do env — mocka para um valor estável nos testes
-vi.mock('../src/config/env', () => ({
+vi.mock('../src/config/env', async importOriginal => ({
+  ...(await importOriginal<typeof import('../src/config/env')>()),
   PIX_KEY: 'cafe@cafecombpo.com.br',
 }))
 
@@ -13,7 +14,7 @@ describe('ModalNosAjude', () => {
 
     expect(screen.getAllByText('PIX').length).toBeGreaterThanOrEqual(1)
     expect(screen.getByText(/cafe@cafecombpo.com.br/)).toBeInTheDocument()
-    expect(screen.getByText(/Ajude o Café com BPO/)).toBeInTheDocument()
+    expect(screen.getByText(/Sem você, isso não seria possível/)).toBeInTheDocument()
   })
 
   it('does not render content when closed', () => {
@@ -26,7 +27,8 @@ describe('ModalNosAjude', () => {
     const onClose = vi.fn()
     render(<ModalNosAjude isOpen={true} onClose={onClose} />)
 
-    const overlay = document.querySelector('.modal-overlay')
+    // The dark backdrop is the dialog's parent; clicking it closes.
+    const overlay = screen.getByRole('dialog').parentElement
     expect(overlay).toBeInTheDocument()
     if (overlay) fireEvent.click(overlay)
 

@@ -3,6 +3,7 @@ import { Droppable, Draggable } from '@hello-pangea/dnd';
 import { TaskResponse, TaskPhaseResponse } from '../../schemas/tasks';
 import { TaskCard } from './TaskCard';
 import { cn } from '../../lib/utils';
+import { columnVisibleTasks } from './kanbanColumn';
 
 type Props = {
   tasks: TaskResponse[];
@@ -15,8 +16,9 @@ type Props = {
   onCancel?: (id: string) => void;
   columnSearch: Record<string, string>;
   setColumnSearch: React.Dispatch<React.SetStateAction<Record<string, string>>>;
-  handleBulkComplete: (colId: string) => void;
-  handleBulkCancel: (colId: string) => void;
+  /** Receives exactly the cards the column shows (filters + column search). */
+  handleBulkComplete: (colId: string, visible: TaskResponse[]) => void;
+  handleBulkCancel: (colId: string, visible: TaskResponse[]) => void;
   bulkLoading: Record<string, 'completing' | 'cancelling' | null>;
 };
 
@@ -69,7 +71,9 @@ const TaskKanbanInner: React.FC<Props> = ({
 
   return (
     <div className="grid gap-4" style={{ gridTemplateColumns: `repeat(${columns.length}, minmax(280px, 1fr))` } as React.CSSProperties}>
-      {columns.map(col => (
+      {columns.map(col => {
+        const visible = columnVisibleTasks(tasks, col.id, getTaskStatus, columnSearch[col.id]);
+        return (
         <Droppable key={col.id} droppableId={col.id}>
           {(provided, snapshot) => (
             <div
@@ -88,10 +92,10 @@ const TaskKanbanInner: React.FC<Props> = ({
                   {col.title}
                 </h3>
                 <div className="flex items-center gap-1">
-                  {tasks.filter(t => getTaskStatus(t) === col.id).length > 0 && (
+                  {visible.length > 0 && (
                     <>
                       <button
-                        onClick={() => handleBulkComplete(col.id)}
+                        onClick={() => handleBulkComplete(col.id, visible)}
                         disabled={bulkLoading[col.id] === 'completing'}
                         title="Concluir todos"
                         className={cn(
@@ -104,7 +108,7 @@ const TaskKanbanInner: React.FC<Props> = ({
                         {bulkLoading[col.id] === 'completing' ? '...' : '✓'}
                       </button>
                       <button
-                        onClick={() => handleBulkCancel(col.id)}
+                        onClick={() => handleBulkCancel(col.id, visible)}
                         disabled={bulkLoading[col.id] === 'cancelling'}
                         title="Cancelar todos"
                         className={cn(
@@ -120,9 +124,9 @@ const TaskKanbanInner: React.FC<Props> = ({
                   )}
                   <span className={cn(
                     'rounded-full bg-muted px-2 py-0.5 text-[10px] font-bold text-muted-foreground',
-                    tasks.filter(t => getTaskStatus(t) === col.id).length > 0 && 'ml-2'
+                    visible.length > 0 && 'ml-2'
                   )}>
-                    {tasks.filter(t => getTaskStatus(t) === col.id).length}
+                    {visible.length}
                   </span>
                 </div>
               </div>
@@ -141,11 +145,7 @@ const TaskKanbanInner: React.FC<Props> = ({
               {/* Scrollable cards container (overflow em filho, não no Droppable ref) */}
               <div className="flex flex-1 flex-col gap-3 overflow-y-auto">
                 {sortTasksByUrgency(
-                  tasks.filter(t => getTaskStatus(t) === col.id).filter(t => {
-                    const q = (columnSearch[col.id] || '').toLowerCase();
-                    if (!q) return true;
-                    return t.title.toLowerCase().includes(q) || (t.description || '').toLowerCase().includes(q);
-                  }),
+                  visible,
                   doneColumnId,
                   getTaskStatus,
                 ).map((task, index) => {
@@ -180,7 +180,8 @@ const TaskKanbanInner: React.FC<Props> = ({
             </div>
           )}
         </Droppable>
-      ))}
+        );
+      })}
     </div>
   );
 };

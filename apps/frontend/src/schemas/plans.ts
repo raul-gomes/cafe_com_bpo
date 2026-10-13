@@ -68,15 +68,9 @@ export const planCreateSchema = planUpdateSchema
                 /^[a-z0-9][a-z0-9_-]*$/,
                 'Use apenas letras minúsculas, números, hífen e underscore.',
             ),
-        cycle: z.enum([
-            'WEEKLY',
-            'BIWEEKLY',
-            'MONTHLY',
-            'BIMONTHLY',
-            'QUARTERLY',
-            'SEMIANNUALLY',
-            'YEARLY',
-        ]),
+        // Plans are always monthly; they differ by features (AUD-009, owner
+        // decision 2026-10-12). Same rule as the backend PlanCreate validator.
+        cycle: z.literal('MONTHLY'),
     })
     .strict();
 

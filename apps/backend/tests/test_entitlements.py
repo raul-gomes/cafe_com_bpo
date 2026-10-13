@@ -258,13 +258,15 @@ def test_past_due_inside_the_grace_window_keeps_full_access(db_session):
 
 
 def test_past_due_after_the_grace_window_is_free(db_session):
-    """After the tolerance expires the plan stops, and the data stays."""
+    """After the tolerance expires, with no paid period left, the plan stops and
+    the data stays (a period still paid keeps access: AUD-008)."""
     user = _user(db_session)
     _subscription(
         db_session,
         user.id,
         status=SUBSCRIPTION_STATUS_PAST_DUE,
         grace_in=timedelta(days=-1),
+        period_end_in=timedelta(days=-2),
     )
 
     access = resolve_access(db_session, user, now=NOW)
@@ -313,3 +315,22 @@ def test_module_names_are_the_ones_the_gate_speaks(db_session):
         "captar",
         "pagamentos",
     )
+
+
+def test_past_due_keeps_access_while_the_paid_period_runs(db_session):
+    """AUD-008 (owner decision 2026-10-12): an overdue notice never takes away a
+    period already paid, even after the three-day tolerance."""
+    user = _user(db_session)
+    _subscription(
+        db_session,
+        user.id,
+        status=SUBSCRIPTION_STATUS_PAST_DUE,
+        grace_in=timedelta(days=-1),
+        period_end_in=timedelta(days=12),
+    )
+
+    access = resolve_access(db_session, user, now=NOW)
+
+    assert access.state is AccessState.PAST_DUE
+    assert access.read_only_modules == ()
+    assert access.expires_at == NOW + timedelta(days=12)

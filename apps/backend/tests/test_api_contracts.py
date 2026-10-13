@@ -1214,3 +1214,37 @@ def test_contract_contratante_representative_comes_from_the_contact(client):
     keys = {f["key"] for f in missing.json()["fields"]}
     assert "contratante_representante_nome" not in keys
     assert "contratante_representante_email" not in keys
+
+
+def test_finalized_contract_preview_is_the_snapshot_taken_at_finalization(client):
+    """AUD-006: after finalizing, profile changes never alter the document."""
+    auth = _auth_header(client, f"snap_{uuid4()}@cafe.com")
+    prospect = _create_prospect(client, auth, name="Empresa Snapshot").json()
+    proposal = _create_proposal(client, auth, prospect).json()
+    contract = client.post(
+        "/contracts/generate",
+        json={"company_id": prospect["id"], "proposal_id": proposal["id"]},
+        headers=auth,
+    ).json()
+    client.patch(
+        f"/contracts/{contract['id']}",
+        json={
+            "sections": [
+                {
+                    "title": "Das Partes",
+                    "content": "Contratada {{contratada_razao_social}}.",
+                }
+            ]
+        },
+        headers=auth,
+    )
+    client.patch("/auth/me", json={"company_name": "Primeira Ltda"}, headers=auth)
+    finalized = client.post(f"/contracts/{contract['id']}/finalize", headers=auth)
+    assert finalized.status_code == 200, finalized.text
+
+    client.patch("/auth/me", json={"company_name": "Segunda Ltda"}, headers=auth)
+    preview = client.get(f"/contracts/{contract['id']}/preview", headers=auth)
+    stored = client.get(f"/contracts/{contract['id']}", headers=auth)
+
+    assert preview.json()["sections"][0]["content"] == "Contratada Primeira Ltda."
+    assert stored.json()["sections"][0]["content"] == "Contratada Primeira Ltda."

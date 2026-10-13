@@ -1,0 +1,13 @@
+{
+  "kit_version": "4.0.0",
+  "aesthetic_owner": "Ghuto César",
+  "authoritative_documents": ["INSTRUCAO-PARA-NOVOS-PROJETOS.md", "MANUAL-DE-MARCA.md", "GUIA-DE-USO.md"],
+  "palette_families": ["cafe", "verde", "azul"],
+  "modes": ["light", "dark"],
+  "direction": {"document_action": "cafe-command cafe-command-tab", "state": "bem recebida por Ghuto, aplicações revisáveis"},
+  "alternatives": ["cafe-command-cut", "cafe-command-rail"],
+  "required": ["logo preservado e transparente", "seis atmosferas", "DM Sans e Newsreader", "dados e estados explícitos", "opacidade 1 em salvamento", "menu responsivo e foco", "movimento reduzido"],
+  "experimental": ["biblioteca de 48 ícones", "vidro e dissolução", "esfumaçado e grão", "luz e placa suspensa", "cartelas e storyboard"],
+  "review": "Crítica interna da ferramenta; não criar painéis de advogado do diabo no produto.",
+  "not_delivered": ["backend financeiro", "MP4 final", "trilha sonora", "master vetorial de impressão"]
+}

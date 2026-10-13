@@ -14,6 +14,7 @@ from sqlalchemy import text
 from src.core.logger import log
 from src.core.utils import next_business_day as nb_util
 
+from ...companies.repository import CompanyRepository
 from ...team.models import InvitationRoutine, TeamInvitation
 from ...team.repository import TeamRepository
 from ..assignments.repository import AssignmentRepository
@@ -51,6 +52,64 @@ class AssignmentService:
         )
         self.task_repo = task_repo or TaskRepository(assignment_repo.session)
         self.team_repo = team_repo
+        self.companies = CompanyRepository(assignment_repo.session)
+
+    def _company_owner_id(self, client_id: UUID, user_id: UUID) -> UUID:
+        """Owner of a client company the caller may work on.
+
+        The company id comes from the request, so it is untrusted. The caller
+        must own the company or be an active member of its team (team "Model
+        A": a collaborator links their own routines to the companies they were
+        invited to). A foreign company answers exactly like a missing one, so
+        the endpoint never confirms that someone else's business exists.
+
+        Args:
+            client_id: Company id from the request.
+            user_id: The caller.
+
+        Returns:
+            The id of the company owner.
+
+        Raises:
+            ValueError: When the company does not exist or the caller is
+                neither its owner nor an active team member.
+        """
+        company = self.companies.get_client_by_id(client_id)
+        if company is not None and company.user_id == user_id:
+            return company.user_id
+        team_repo = self.team_repo or TeamRepository(self.assignment_repo.session)
+        if company is not None and team_repo.is_team_member(client_id, user_id):
+            return company.user_id
+        raise ValueError(f"Client {client_id} not found")
+
+    def _owned_assignment(self, assignment_id: UUID, user_id: UUID):
+        """Loads a link the caller may change.
+
+        The company owner manages every link of the company; a team member
+        manages only the links they created, and only while still on the team.
+
+        Args:
+            assignment_id: Link id from the route.
+            user_id: The caller.
+
+        Returns:
+            The link.
+
+        Raises:
+            ValueError: When the link does not exist or the caller may not
+                change it (same answer for both).
+        """
+        assignment = self.assignment_repo.get_assignment_by_id(assignment_id)
+        not_found = ValueError(f"Assignment {assignment_id} not found")
+        if not assignment:
+            raise not_found
+        try:
+            owner_id = self._company_owner_id(assignment.client_id, user_id)
+        except ValueError:
+            raise not_found from None
+        if user_id not in (owner_id, assignment.user_id):
+            raise not_found
+        return assignment
 
     def _build_task(
         self,
@@ -262,6 +321,7 @@ class AssignmentService:
         Returns:
             The new link id and how many tasks it generated.
         """
+        self._company_owner_id(assignment_in.client_id, user_id)
         # Validate the template exists (general templates are linkable by all).
         tmpl = self.template_repo.get_template_by_id(
             assignment_in.template_id, user_id, include_general=True
@@ -328,8 +388,21 @@ class AssignmentService:
         return len(generated_tasks)
 
     def get_client_assignments(
-        self, client_id: UUID
+        self, client_id: UUID, user_id: UUID
     ) -> list[ClientTemplateAssignmentResponse]:
+        """Lists the routine links of a company the caller works on.
+
+        Args:
+            client_id: Company id from the request.
+            user_id: The caller.
+
+        Returns:
+            The links of the company.
+
+        Raises:
+            ValueError: When the caller may not see the company.
+        """
+        self._company_owner_id(client_id, user_id)
         assignments = self.assignment_repo.get_assignments_by_client(client_id)
         return [ClientTemplateAssignmentResponse.model_validate(a) for a in assignments]
 
@@ -339,9 +412,7 @@ class AssignmentService:
         user_id: UUID,
         update_in: ClientTemplateAssignmentUpdate,
     ) -> ClientTemplateAssignmentResponse:
-        assignment = self.assignment_repo.get_assignment_by_id(assignment_id)
-        if not assignment:
-            raise ValueError(f"Assignment {assignment_id} not found")
+        assignment = self._owned_assignment(assignment_id, user_id)
         if update_in.is_active is not None:
             assignment.is_active = update_in.is_active
             self.assignment_repo.session.commit()
@@ -394,9 +465,7 @@ class AssignmentService:
         return ClientTemplateAssignmentResponse.model_validate(assignment)
 
     def remove_client_assignment(self, assignment_id: UUID, user_id: UUID) -> None:
-        assignment = self.assignment_repo.get_assignment_by_id(assignment_id)
-        if not assignment:
-            raise ValueError(f"Assignment {assignment_id} not found")
+        assignment = self._owned_assignment(assignment_id, user_id)
         # Remove todos os cards não concluídos (a fazer e em andamento).
         # Cards concluídos são preservados.
         deleted = self.assignment_repo.hard_delete_incomplete_tasks_by_assignment(
@@ -430,9 +499,7 @@ class AssignmentService:
         Returns:
             How many tasks were created.
         """
-        assignment = self.assignment_repo.get_assignment_by_id(assignment_id)
-        if not assignment:
-            raise ValueError(f"Assignment {assignment_id} not found")
+        assignment = self._owned_assignment(assignment_id, user_id)
 
         activities = self.template_repo.get_activities_by_template(
             assignment.template_id

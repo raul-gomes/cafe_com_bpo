@@ -11,9 +11,6 @@ import { Button } from '../../components/ui/button';
 import { Alert } from '../../components/ui/alert';
 import { Checkbox } from '../../components/ui/checkbox';
 import { Label } from '../../components/ui/label';
-import { LegalDocumentModal } from '../ui/LegalDocumentModal';
-import { TERMOS_USO_HTML } from '../../content/termos-uso';
-import { POLITICA_PRIVACIDADE_HTML } from '../../content/politica-privacidade';
 import { AlertCircle, X } from 'lucide-react';
 import logo from '../../assets/logo.png';
 
@@ -32,8 +29,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
   const [showPw, setShowPw] = useState(false);
   const [showCPw, setShowCPw] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [openTerms, setOpenTerms] = useState(false);
-  const [openPrivacy, setOpenPrivacy] = useState(false);
 
   const { register, handleSubmit, watch, setValue, formState: { errors, isSubmitting } } = useForm<RegisterFormData>({
     resolver: zodResolver(registerSchema) as any,
@@ -153,15 +148,16 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
               <Label htmlFor="register-terms" className="cursor-pointer">
                 Li e concordo com os{' '}
               </Label>
-              <button type="button" onClick={() => setOpenTerms(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
+              {/* Opens in a new tab so the half-filled sign-up form is not lost. */}
+              <a href="/termos-de-uso" target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline text-[12px] leading-relaxed font-medium">
                 Termos de Uso
-              </button>
+              </a>
               <Label htmlFor="register-terms" className="cursor-pointer">
                 {' '}e{' '}
               </Label>
-              <button type="button" onClick={() => setOpenPrivacy(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
+              <a href="/politica-de-privacidade" target="_blank" rel="noopener noreferrer" className="text-primary-strong hover:underline text-[12px] leading-relaxed font-medium">
                 Política de Privacidade
-              </button>
+              </a>
               <Label htmlFor="register-terms" className="cursor-pointer">
                 {' '}(LGPD).
               </Label>
@@ -178,8 +174,6 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
       </CardContent>
     </Card>
 
-    <LegalDocumentModal open={openTerms} onOpenChange={setOpenTerms} title="Termos de Uso" content={TERMOS_USO_HTML} />
-    <LegalDocumentModal open={openPrivacy} onOpenChange={setOpenPrivacy} title="Política de Privacidade" content={POLITICA_PRIVACIDADE_HTML} />
     </>
   );
 };

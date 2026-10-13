@@ -1,0 +1,14 @@
+# Café com BPO — o que os buscadores podem ler.
+# Painel (área logada), propostas compartilhadas por link e o login não devem ir para o Google.
+User-agent: *
+Allow: /
+Disallow: /painel
+Disallow: /orcamento/
+Disallow: /proposta
+Disallow: /login
+Disallow: /invitations/
+Disallow: /redefinir-senha
+Disallow: /esqueci-minha-senha
+Disallow: /auth/
+
+Sitemap: https://cafecombpo.cloud/sitemap.xml

@@ -1,5 +1,7 @@
 import hashlib
 import time
+import uuid
+from pathlib import Path
 
 import cloudinary
 import cloudinary.uploader
@@ -17,6 +19,43 @@ cloudinary.config(
     api_secret=settings.cloudinary_api_secret,
     secure=True,
 )
+
+LOCAL_STORAGE_DIR = Path("storage/avatars")
+_IMAGE_SIGNATURES = {b"\x89PNG": ".png", b"\xff\xd8\xff": ".jpg", b"RIFF": ".webp"}
+
+
+def _cloudinary_configured() -> bool:
+    """Tell whether all Cloudinary credentials are present."""
+    return bool(
+        settings.cloudinary_cloud_name
+        and settings.cloudinary_api_key
+        and settings.cloudinary_api_secret
+    )
+
+
+def _extension_for(content: bytes) -> str:
+    """Guess a file extension from its first bytes (images only, else empty)."""
+    for signature, extension in _IMAGE_SIGNATURES.items():
+        if content.startswith(signature):
+            return extension
+    return ""
+
+
+def _save_locally(content: bytes, user_id: str, folder: str) -> dict:
+    """Save a file under storage/avatars, served by the /avatars static mount.
+
+    Development fallback for machines without Cloudinary credentials, so
+    profile pictures and logos still work locally. Refused in production.
+    """
+    if settings.mode == "production":
+        raise RuntimeError("Cloudinary is not configured in production.")
+    relative = Path(folder) / user_id / f"{uuid.uuid4().hex}{_extension_for(content)}"
+    target = LOCAL_STORAGE_DIR / relative
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(content)
+    url = f"{settings.public_api_url.rstrip('/')}/avatars/{relative.as_posix()}"
+    log.info(f"💾 File saved locally (Cloudinary not configured): {url}")
+    return {"id": f"local:{relative.as_posix()}", "url": url}
 
 
 class CloudinaryService:
@@ -63,14 +102,18 @@ class CloudinaryService:
         folder: str,
         resource_type: str,
     ) -> dict:
+        if not _cloudinary_configured():
+            return _save_locally(content, user_id, folder)
         try:
-            timestamp = int(time.time())
-            public_id = f"{folder}_{timestamp}"
+            # Unique per upload, never overwritten (AUD-025): a seconds-based id
+            # collided for two uploads in the same second, the second replaced
+            # the first, and the cleanup of the "old" file deleted the new one.
+            public_id = f"{folder}_{int(time.time())}_{uuid.uuid4().hex[:12]}"
             upload_result = cloudinary.uploader.upload(
                 content,
                 folder=f"cafe_com_bpo/{folder}/{user_id}",
                 public_id=public_id,
-                overwrite=True,
+                overwrite=False,
                 resource_type=resource_type,
             )
 
@@ -83,15 +126,35 @@ class CloudinaryService:
             raise e
 
     @classmethod
-    async def delete_file(cls, public_id: str):
+    async def delete_file(cls, public_id: str, resource_type: str = "image") -> bool:
+        """Removes a file from Cloudinary (or from local storage in development).
+
+        `destroy` defaults to images, so a raw file (PDF, spreadsheet) must be
+        destroyed with its resource type or it stays on the provider while the
+        row disappears (AUD-026). The provider answer is checked.
+
+        Args:
+            public_id: Provider id of the file.
+            resource_type: "image" (avatars, logos) or "raw" (documents).
+
+        Returns:
+            True when the file was removed.
         """
-        Remove um arquivo do Cloudinary.
-        """
+        if public_id.startswith("local:"):
+            local_file = LOCAL_STORAGE_DIR / public_id.removeprefix("local:")
+            local_file.unlink(missing_ok=True)
+            return True
         try:
-            cloudinary.uploader.destroy(public_id)
-            log.info(f"🗑️ Arquivo Cloudinary removido: {public_id}")
+            result = cloudinary.uploader.destroy(public_id, resource_type=resource_type)
         except Exception as e:
             log.error(f"❌ Erro ao deletar arquivo no Cloudinary: {e!s}")
+            return False
+        removed = isinstance(result, dict) and result.get("result") == "ok"
+        if removed:
+            log.info(f"🗑️ Arquivo Cloudinary removido: {public_id}")
+        else:
+            log.error(f"❌ Cloudinary não removeu {public_id}: {result}")
+        return removed
 
 
 class OneDriveService:

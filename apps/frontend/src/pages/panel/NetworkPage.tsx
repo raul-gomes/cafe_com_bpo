@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { getPosts, createPost, PaginatedPosts, PostResponse } from '../../api/network';
+import { getPosts, createPost, PaginatedPosts, type PostFilter } from '../../api/network';
 import { RichTextEditor } from '../../components/ui/RichTextEditor';
 import { NotificationBell } from '../../components/panel/NotificationBell';
 import { MemberLink } from '../../components/network/MemberLink';
@@ -17,9 +17,7 @@ import { Button } from '../../components/ui/button';
 import { Input } from '../../components/ui/input';
 import { Skeleton } from '../../components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '../../components/ui/tabs';
-import { useAuth } from '../../context/AuthContext';
 
-type FilterType = 'all' | 'my' | 'answered';
 type ScopeType = 'public' | 'private';
 
 /** Notificação mais recente do grupo — é a que resume "o que há de novo". */
@@ -29,22 +27,10 @@ function latestOf(
   return [...notifications].sort((a, b) => b.created_at.localeCompare(a.created_at))[0];
 }
 
-/** Um tópico entra no filtro "Meus Tópicos" quando é do usuário logado, e no
- *  "Respondidos" quando tem ao menos uma resposta. O card já mostra autor e
- *  contagem de respostas, então a lista inteira dá para filtrar na tela — sem
- *  pedir outra pagina ao servidor. */
-function matchesFilter(
-  post: PostResponse,
-  filter: FilterType,
-  currentUserId: string | undefined
-): boolean {
-  if (filter === 'my') return post.author.id === currentUserId;
-  if (filter === 'answered') return post.comments_count > 0;
-  return true;
-}
+/** Tópicos por página do fórum. */
+const PAGE_SIZE = 20;
 
 export const NetworkPage: React.FC = () => {
-  const { user } = useAuth();
   const { useNotificationsList } = useAppNotifications();
   const { data: unreadNotifications } = useNotificationsList(undefined, true);
   const newReplies = groupUnreadByEntity(
@@ -61,29 +47,47 @@ export const NetworkPage: React.FC = () => {
   const [newTags, setNewTags] = useState('');
   const [error, setError] = useState('');
 
-  const [activeFilter, setActiveFilter] = useState<FilterType>('all');
+  const [activeFilter, setActiveFilter] = useState<PostFilter>('all');
+  const [loadingMore, setLoadingMore] = useState(false);
+  // Só a resposta do pedido mais recente vale: trocar de filtro durante um
+  // carregamento não pode misturar as listas.
+  const lastRequest = useRef(0);
   const [activeScope, setActiveScope] = useState<ScopeType>('public');
 
   const navigate = useNavigate();
 
-  const loadPosts = async () => {
-    setLoading(true);
+  /** Carrega uma página do fórum. O filtro roda no servidor, antes de
+   *  paginar: "Meus Tópicos" e "Respondidos" alcançam tópicos além dos 20
+   *  primeiros (AUD-031). Com offset > 0 a página é somada à lista. */
+  const loadPosts = async (filter: PostFilter, offset = 0) => {
+    const request = ++lastRequest.current;
+    if (offset === 0) setLoading(true);
+    else setLoadingMore(true);
     try {
-      const resp = await getPosts(20);
-      setData(resp);
+      const resp = await getPosts(PAGE_SIZE, offset, filter);
+      if (request !== lastRequest.current) return;
+      setData(prev =>
+        offset === 0 || !prev
+          ? resp
+          : { items: [...prev.items, ...resp.items], total: resp.total }
+      );
       setError('');
     } catch {
+      if (request !== lastRequest.current) return;
       setError(
         'Erro ao carregar tópicos da comunidade. Verifique sua conexão e tente novamente.'
       );
     } finally {
-      setLoading(false);
+      if (request === lastRequest.current) {
+        setLoading(false);
+        setLoadingMore(false);
+      }
     }
   };
 
   useEffect(() => {
-    loadPosts();
-  }, []);
+    loadPosts(activeFilter);
+  }, [activeFilter]);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -107,13 +111,13 @@ export const NetworkPage: React.FC = () => {
       setNewTitle('');
       setNewMessage('');
       setNewTags('');
-      loadPosts();
+      loadPosts(activeFilter);
     } catch {
       setError('Erro ao criar tópico.');
     }
   };
 
-  const filterBtn = (label: string, key: FilterType) => (
+  const filterBtn = (label: string, key: PostFilter) => (
     <Button
       key={key}
       variant={activeFilter === key ? 'default' : 'ghost'}
@@ -137,9 +141,8 @@ export const NetworkPage: React.FC = () => {
     </Button>
   );
 
-  const visiblePosts = (data?.items ?? []).filter(post =>
-    matchesFilter(post, activeFilter, user?.id)
-  );
+  const visiblePosts = data?.items ?? [];
+  const hasMore = !!data && data.items.length < data.total;
 
   return (
     <div className="animate-[panelFadeIn_0.4s_ease-out]">
@@ -188,7 +191,7 @@ export const NetworkPage: React.FC = () => {
                     Filtrar:
                   </span>
                   {filterBtn('Todos', 'all')}
-                  {filterBtn('Meus Tópicos', 'my')}
+                  {filterBtn('Meus Tópicos', 'mine')}
                   {filterBtn('Respondidos', 'answered')}
                 </div>
               )}
@@ -212,7 +215,7 @@ export const NetworkPage: React.FC = () => {
                 {error && (
                   <div className="mb-4 flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/10 px-4 py-3 text-[14px] text-destructive">
                     <span>{error}</span>
-                    <Button variant="ghost" size="sm" onClick={loadPosts}>
+                    <Button variant="ghost" size="sm" onClick={() => loadPosts(activeFilter)}>
                       Tentar Novamente
                     </Button>
                   </div>
@@ -368,6 +371,23 @@ export const NetworkPage: React.FC = () => {
                         </div>
                       </Card>
                     ))}
+                    {data && data.total > PAGE_SIZE && (
+                      <div className="mt-2 flex flex-col items-center gap-2">
+                        <p className="text-[12px] text-muted-foreground">
+                          Mostrando {data.items.length} de {data.total} tópicos
+                        </p>
+                        {hasMore && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            disabled={loadingMore}
+                            onClick={() => loadPosts(activeFilter, data.items.length)}
+                          >
+                            {loadingMore ? 'Carregando...' : 'Carregar mais'}
+                          </Button>
+                        )}
+                      </div>
+                    )}
                   </div>
                 )}
               </>

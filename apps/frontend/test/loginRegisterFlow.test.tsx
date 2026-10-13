@@ -3,7 +3,7 @@ import { screen, fireEvent, render, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-import LoginPage from '../src/pages/LoginPage'
+import { LoginDialog } from '../src/components/auth/LoginDialog'
 import type { Plan } from '../src/schemas/plans'
 
 // Fluxo desenhado (2026-10-09): a tela base é o login; "Cadastre-se" abre um
@@ -41,10 +41,6 @@ vi.mock('../src/api/hooks/usePlans', () => ({
   usePlans: () => ({ data: mockPlansValue.value, isLoading: mockPlansValue.loading }),
 }))
 
-vi.mock('../src/components/ui/Navbar', () => ({
-  Navbar: () => <header data-testid="navbar" />,
-}))
-
 const PLAN: Plan = {
   id: 'plan_pro',
   code: 'pro',
@@ -64,7 +60,7 @@ const renderLogin = () => {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<LoginDialog onClose={() => {}} />} />
           <Route path="/painel" element={<div data-testid="page">Painel</div>} />
           <Route path="/painel/tarefas" element={<div data-testid="page">Tarefas</div>} />
           <Route path="/painel/pagamentos" element={<div data-testid="page">Pagamentos</div>} />
@@ -79,9 +75,9 @@ const openRegisterModal = () => {
 }
 
 // O modal de cadastro vive por cima do login, que também tem campos de e-mail
-// e senha — os queries do formulário são escopados ao `dialog`.
+// e senha — os queries do formulário são escopados ao dialog do cadastro.
 const registerFields = () => {
-  const dialog = screen.getByRole('dialog')
+  const dialog = screen.getByText('Crie sua conta').closest('[role="dialog"]') as HTMLElement
   return {
     name: within(dialog).getByPlaceholderText('Ex: João Silva'),
     email: within(dialog).getByPlaceholderText('seu@email.com'),
@@ -117,12 +113,12 @@ describe('Login → Cadastre-se (modal) → oferta de assinatura', () => {
   it('clica em Cadastre-se e o modal de cadastro abre sobre a tela de login', async () => {
     renderLogin()
 
-    expect(await screen.findByText('Bem-vindo')).toBeInTheDocument()
+    expect(await screen.findByRole('dialog', { name: 'Login' })).toBeInTheDocument()
     openRegisterModal()
 
     expect(await screen.findByText('Crie sua conta')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Ex: João Silva')).toBeInTheDocument()
-    expect(screen.getByText('Bem-vindo')).toBeInTheDocument()
+    expect(screen.getByTestId('login-page')).toBeInTheDocument()
   })
 
   it('cadastro concluído → oferta no modal; "Continuar sem assinar" vai para o gestor de tarefas', async () => {

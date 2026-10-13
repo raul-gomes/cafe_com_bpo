@@ -230,3 +230,29 @@ def test_regenerating_returns_a_typed_payload(client):
 
     assert response.status_code == status.HTTP_200_OK, response.text
     assert set(response.json()) == {"tasks_generated"}
+
+
+def test_switching_monthly_to_weekly_persists_and_clears_the_monthly_day(client):
+    """AUD-018: the payload the config sheet sends is accepted and applied."""
+    auth = _auth(client, f"recurrence_{uuid4()}@cafe.com")
+    template = _template(client, auth)
+
+    resp = client.put(
+        f"/tasks/templates/{template['id']}",
+        json={
+            "recurrence": "weekly",
+            "weekdays": ["monday", "thursday"],
+            "due_day": None,
+            "due_month": None,
+            "due_days_from_start": None,
+        },
+        headers=auth,
+    )
+
+    assert resp.status_code == status.HTTP_200_OK, resp.text
+    stored = client.get(f"/tasks/templates/{template['id']}", headers=auth).json()
+    assert (stored["recurrence"], stored["weekdays"], stored["due_day"]) == (
+        "weekly",
+        ["monday", "thursday"],
+        None,
+    )

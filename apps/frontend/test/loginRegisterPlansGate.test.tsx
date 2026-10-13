@@ -3,7 +3,7 @@ import { screen, fireEvent, render, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-import LoginPage from '../src/pages/LoginPage'
+import { LoginDialog } from '../src/components/auth/LoginDialog'
 import type { Plan } from '../src/schemas/plans'
 
 // Regressão 2026-10-09: "Cadastre-se vai pra tela de cadastro e volta pra tela
@@ -39,10 +39,6 @@ vi.mock('../src/context/AuthContext', () => ({
   },
 }))
 
-vi.mock('../src/components/ui/Navbar', () => ({
-  Navbar: () => <header data-testid="navbar" />,
-}))
-
 const PLAN: Plan = {
   id: 'plan_pro',
   code: 'pro',
@@ -64,7 +60,7 @@ const renderLogin = () => {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
-          <Route path="/login" element={<LoginPage />} />
+          <Route path="/login" element={<LoginDialog onClose={() => {}} />} />
           <Route path="/painel/tarefas" element={<div data-testid="page">Tarefas</div>} />
         </Routes>
       </MemoryRouter>
@@ -73,9 +69,9 @@ const renderLogin = () => {
 }
 
 // O modal de cadastro vive por cima do login, que também tem campo de e-mail —
-// os queries do formulário são escopados ao `dialog`.
+// os queries do formulário são escopados ao dialog do cadastro.
 const submitCadastro = () => {
-  const dialog = screen.getByRole('dialog')
+  const dialog = screen.getByText('Crie sua conta').closest('[role="dialog"]') as HTMLElement
   fireEvent.change(within(dialog).getByPlaceholderText('Ex: João Silva'), { target: { value: 'João' } })
   fireEvent.change(within(dialog).getByPlaceholderText('seu@email.com'), { target: { value: 'joao@teste.com' } })
   fireEvent.change(within(dialog).getByPlaceholderText('Mínimo 8 caracteres'), { target: { value: '12345678' } })

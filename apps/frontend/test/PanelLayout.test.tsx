@@ -4,12 +4,19 @@ import { Routes, Route, MemoryRouter } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { PanelLayout } from '../src/components/panel/PanelLayout'
 
-// Mock auth to control user + logout
 const mockUser: { id: string; email: string; name: string; role?: string } = {
   id: '1',
   email: 'test@cafe.com',
   name: 'Test User',
 }
+
+// GET /access drives the read-only locks (plan write gate). null = access not
+// resolved yet, which exercises the path without locks.
+const { mockAccessValue } = vi.hoisted(() => ({ mockAccessValue: { value: null as unknown } }))
+
+vi.mock('../src/api/hooks/useAccess', () => ({
+  useAccess: () => ({ data: mockAccessValue.value }),
+}))
 
 vi.mock('../src/context/AuthContext', () => ({
   useAuth: () => ({
@@ -24,21 +31,13 @@ vi.mock('../src/context/AuthContext', () => ({
   }),
 }))
 
-// NotificationBell hits the notifications API — mock to a no-op
+// NotificationBell calls the notifications API — becomes a no-op
 vi.mock('../src/components/panel/NotificationBell', () => ({
   NotificationBell: () => null,
 }))
 
-// GET /access drive o banner beta e o upsell — mock com holder para cada teste
-// escolher o perfil. undefined = nenhum dado (testes antigos não veem banner).
-const { mockAccessValue } = vi.hoisted(() => ({ mockAccessValue: { value: null as unknown } }))
-
-vi.mock('../src/api/hooks/useAccess', () => ({
-  useAccess: () => ({ data: mockAccessValue.value }),
-}))
-
-// PIX_KEY stable for the donation modal (opened via sidebar footer)
-vi.mock('../src/config/env', () => ({
+vi.mock('../src/config/env', async importOriginal => ({
+  ...(await importOriginal<typeof import('../src/config/env')>()),
   PIX_KEY: 'cafe@cafecombpo.com.br',
 }))
 
@@ -52,10 +51,9 @@ function renderLayout(initialEntry = '/painel') {
       <MemoryRouter initialEntries={[initialEntry]}>
         <Routes>
           <Route path="/painel" element={<PanelLayout />}>
-            <Route index element={<div data-testid="page">Dashboard</div>} />
+            <Route index element={<div data-testid="page">Painel principal</div>} />
             <Route path="tarefas" element={<div data-testid="page">Tarefas</div>} />
             <Route path="prospectos" element={<div data-testid="page">Prospectos</div>} />
-            <Route path="orcamentos" element={<div data-testid="page">Orcamentos</div>} />
             <Route path="forum" element={<div data-testid="page">Forum</div>} />
           </Route>
         </Routes>
@@ -64,67 +62,51 @@ function renderLayout(initialEntry = '/painel') {
   )
 }
 
-describe('PanelLayout — modo de trabalho com cor', () => {
+const shell = () => document.querySelector('.app-shell') as HTMLElement
+const toggle = () => document.querySelector('.panel-rail-toggle') as HTMLElement
+
+describe('PanelLayout — work module and menu', () => {
   beforeEach(() => {
-    vi.restoreAllMocks()
     localStorage.clear()
-    mockAccessValue.value = null
+    delete document.body.dataset.cafeModule
   })
 
-  it('aplica data-mode operacional por padrão', () => {
-    renderLayout()
-    expect(document.querySelector('.panel-mode-grid[data-mode="operacional"]')).toBeInTheDocument()
+  it('the module color comes from the route and goes on body (reaches portal menus)', () => {
+    renderLayout('/painel/prospectos')
+    expect(document.body.dataset.cafeModule).toBe('captacao')
+    expect(screen.getAllByRole('tab', { name: /^Captar/ })[0]).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('muda data-mode ao selecionar outro menu na sidebar', () => {
-    renderLayout()
-
-    const wrapper = document.querySelector('.panel-mode-grid[data-mode]')
-    expect(wrapper).toHaveAttribute('data-mode', 'operacional')
-
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Captar' }))
-
-    expect(wrapper).toHaveAttribute('data-mode', 'captar')
-  })
-
-  it('navega para a primeira opção do modo selecionado e atualiza o data-mode', () => {
+  it('the main panel has no module color (café yellow applies)', () => {
     renderLayout('/painel')
+    expect(document.body.dataset.cafeModule).toBeUndefined()
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Comunidade' }))
+  it('switching tabs changes the module, the route and the color', () => {
+    renderLayout('/painel/tarefas')
+    expect(document.body.dataset.cafeModule).toBe('tarefas')
 
-    expect(document.querySelector('.panel-mode-grid[data-mode]')).toHaveAttribute('data-mode', 'comunidade')
+    fireEvent.click(screen.getAllByRole('tab', { name: 'Comunidade' })[0])
+
     expect(screen.getByTestId('page')).toHaveTextContent('Forum')
-  })
-})
-
-describe('PanelLayout — sem upsell no painel (só trava/cadeado)', () => {
-  const FREE_ACCESS = {
-    access: 'free',
-    read_only_modules: ['captar', 'gestao'],
-    writable_modules: ['comunidade', 'operacional', 'pagamentos'],
-    expires_at: null,
-    grace_until: null,
-    shows_dunning_banner: false,
-    shows_beta_banner: false,
-    subscription_status: null,
-    plan: null,
-    is_admin: false,
-  }
-
-  beforeEach(() => {
-    vi.restoreAllMocks()
-    localStorage.clear()
-    mockAccessValue.value = null
+    expect(document.body.dataset.cafeModule).toBe('comunidade')
   })
 
-  it('usuário free não vê mais o convite de assinatura em nenhum ponto do painel', async () => {
-    mockAccessValue.value = FREE_ACCESS
-    renderLayout('/painel')
+  it('the arrow cycles full → icons only → hidden → full', () => {
+    renderLayout('/painel/tarefas')
+    expect(shell()).toHaveAttribute('data-nav', 'expanded')
+    fireEvent.click(toggle())
+    expect(shell()).toHaveAttribute('data-nav', 'collapsed')
+    fireEvent.click(toggle())
+    expect(shell()).toHaveAttribute('data-nav', 'hidden')
+    expect(toggle()).toHaveAttribute('aria-expanded', 'false')
+    fireEvent.click(toggle())
+    expect(shell()).toHaveAttribute('data-nav', 'expanded')
+  })
 
-    expect(screen.queryByText('Você está no plano gratuito')).not.toBeInTheDocument()
-    // O write gate continua sendo o único convite: nunca um banner.
-    expect(screen.queryByRole('link', { name: /assinar/i })).not.toBeInTheDocument()
+  it('remembers the menu state between visits', () => {
+    localStorage.setItem('cafe_bpo_sidebar_nav', 'collapsed')
+    renderLayout('/painel/tarefas')
+    expect(shell()).toHaveAttribute('data-nav', 'collapsed')
   })
 })

@@ -68,24 +68,26 @@ def test_calendar_sync_empty_task_ids(client):
     assert resp.status_code == 400
 
 
-def test_calendar_sync_mock_mode(client):
-    """POST /calendar/sync returns mock success in mock mode."""
+def test_calendar_sync_says_unavailable_when_not_configured(client):
+    """AUD-023: without the integration, the sync never reports a fake success.
+
+    The old mock mode answered 200 with every task "synced"; the screen showed
+    "sincronizadas" while nothing reached the calendar. Owner decision
+    (2026-10-12): the integration is shown as unavailable for now.
+    """
     email = f"cal_sync_{uuid4()}@cafe.com"
     auth = get_auth_header(client, email)
 
-    task_id = str(uuid4())
     resp = client.post(
         "/calendar/sync",
-        json={"task_ids": [task_id]},
+        json={"task_ids": [str(uuid4())]},
         headers=auth,
     )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["synced"] == 1
-    assert data["failed"] == 0
-    assert len(data["details"]) == 1
-    assert data["details"][0]["task_id"] == task_id
-    assert data["details"][0]["status"] == "mock_synced"
+
+    assert resp.status_code == 503
+    assert resp.json()["detail"] == (
+        "A integração com a Google Agenda ainda não está disponível."
+    )
 
 
 def test_calendar_sync_requires_auth(client):

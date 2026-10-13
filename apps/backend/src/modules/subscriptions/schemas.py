@@ -6,12 +6,12 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
-from src.core.asaas_client import SUBSCRIPTION_CYCLES
 from src.core.validators import (
     validate_document,
     validate_phone,
     validate_postal_code,
 )
+from src.modules.subscriptions.models import SUBSCRIPTION_CYCLE_MONTHLY
 
 CODE_PATTERN = r"^[a-z0-9][a-z0-9_-]*$"
 
@@ -50,7 +50,12 @@ class PlanCreate(BaseModel):
     @field_validator("cycle")
     @classmethod
     def cycle_must_be_billable(cls, value: str) -> str:
-        """Accepts only the cycles the billing client knows.
+        """Accepts only the monthly cycle, the one the product sells.
+
+        Owner decision for AUD-009 (2026-10-12): plans may differ by features
+        (tabs unlocked by more advanced plans) but are always monthly. Access
+        is granted one billing month per paid charge, so another cycle would
+        charge one period and grant a different one.
 
         Args:
             value: Cycle sent by the client.
@@ -59,12 +64,10 @@ class PlanCreate(BaseModel):
             The validated cycle.
 
         Raises:
-            ValueError: When Asaas does not bill that cycle.
+            ValueError: When the cycle is not monthly.
         """
-        if value not in SUBSCRIPTION_CYCLES:
-            raise ValueError(
-                f"ciclo inválido, use um de: {', '.join(sorted(SUBSCRIPTION_CYCLES))}"
-            )
+        if value != SUBSCRIPTION_CYCLE_MONTHLY:
+            raise ValueError("ciclo inválido: os planos são sempre mensais (MONTHLY)")
         return value
 
 

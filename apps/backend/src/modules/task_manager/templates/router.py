@@ -161,8 +161,9 @@ def update_activity(
         return service.update_activity(
             template_id, activity_id, current_user.id, activity_in
         )
-    except ValueError as e:
-        raise HTTPException(status_code=404, detail=str(e))
+    except ValueError:
+        # Safe message: internal ids stay in the log, not in the answer.
+        raise HTTPException(status_code=404, detail="Atividade não encontrada")
 
 
 @router.delete(

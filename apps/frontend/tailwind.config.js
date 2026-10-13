@@ -1,6 +1,12 @@
+// Tokens are full colors coming from the V4 kit (see src/styles/globals.css);
+// color-mix keeps Tailwind opacity modifiers working (bg-primary/10).
+const token = (name) =>
+  `color-mix(in srgb, var(${name}) calc(<alpha-value> * 100%), transparent)`
+
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'class',
+  // dark: variants follow the lightness chosen in the kit (data-cafe-mode on <html>).
+  darkMode: ['selector', '[data-cafe-mode="dark"]'],
   content: [
     './src/**/*.{ts,tsx}',
     './.storybook/**/*.{ts,tsx}',
@@ -8,7 +14,8 @@ export default {
   theme: {
     extend: {
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'system-ui', 'sans-serif'],
+        sans: ['DM Sans', 'Segoe UI', 'Arial', 'sans-serif'],
+        editorial: ['Newsreader', 'Georgia', 'Times New Roman', 'serif'],
       },
       spacing: {
         '0.5': '3px',
@@ -48,39 +55,47 @@ export default {
         lg: '8px',
       },
       colors: {
-        border: 'hsl(var(--border))',
-        input: 'hsl(var(--input))',
-        ring: 'hsl(var(--ring))',
-        background: 'hsl(var(--background))',
-        foreground: 'hsl(var(--foreground))',
+        border: token('--border'),
+        input: token('--input'),
+        ring: token('--ring'),
+        background: token('--background'),
+        foreground: token('--foreground'),
         primary: {
-          DEFAULT: 'hsl(var(--primary))',
-          foreground: 'hsl(var(--primary-foreground))',
-          strong: 'var(--ds-primary-strong)',
+          DEFAULT: token('--primary'),
+          foreground: token('--primary-foreground'),
+          strong: token('--primary-strong'),
+          dark: token('--primary-dark'),
         },
         secondary: {
-          DEFAULT: 'hsl(var(--secondary))',
-          foreground: 'hsl(var(--secondary-foreground))',
+          DEFAULT: token('--secondary'),
+          foreground: token('--secondary-foreground'),
         },
         destructive: {
-          DEFAULT: 'hsl(var(--destructive))',
-          foreground: 'hsl(var(--destructive-foreground))',
+          DEFAULT: token('--destructive'),
+          foreground: token('--destructive-foreground'),
         },
+        success: token('--success'),
+        warning: token('--warning'),
         muted: {
-          DEFAULT: 'hsl(var(--muted))',
-          foreground: 'hsl(var(--muted-foreground))',
+          DEFAULT: token('--muted'),
+          foreground: token('--muted-foreground'),
         },
         accent: {
-          DEFAULT: 'hsl(var(--accent))',
-          foreground: 'hsl(var(--accent-foreground))',
+          DEFAULT: token('--accent'),
+          foreground: token('--accent-foreground'),
         },
         popover: {
-          DEFAULT: 'hsl(var(--popover))',
-          foreground: 'hsl(var(--popover-foreground))',
+          DEFAULT: token('--popover'),
+          foreground: token('--popover-foreground'),
         },
         card: {
-          DEFAULT: 'hsl(var(--card))',
-          foreground: 'hsl(var(--card-foreground))',
+          DEFAULT: token('--card'),
+          foreground: token('--card-foreground'),
+        },
+        // Current module color (data-cafe-module): orientation, not theme.
+        module: {
+          DEFAULT: token('--cafe-module'),
+          bg: token('--cafe-module-bg'),
         },
       },
     },

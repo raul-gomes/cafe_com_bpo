@@ -134,9 +134,33 @@ class NetworkRepository:
         self.session.refresh(post)
         return post
 
-    def get_posts(self, limit: int = 10, offset: int = 0):
-        # Only active posts
+    def get_posts(
+        self,
+        limit: int = 10,
+        offset: int = 0,
+        post_filter: str = "all",
+        user_id: UUID | None = None,
+    ) -> tuple[list[DiscussionPost], int]:
+        """Lists active forum posts, newest first, filtered before paging.
+
+        The filter runs in the query, so "mine"/"answered" reach posts past the
+        first page and the total counts only the matching ones (AUD-031).
+
+        Args:
+            limit: Page size.
+            offset: Rows to skip.
+            post_filter: "all", "mine" (authored by `user_id`) or "answered"
+                (at least one comment).
+            user_id: Caller, required for "mine".
+
+        Returns:
+            The page of posts and the total that match the filter.
+        """
         query = self.session.query(DiscussionPost).filter(DiscussionPost.is_active)
+        if post_filter == "mine":
+            query = query.filter(DiscussionPost.author_id == user_id)
+        elif post_filter == "answered":
+            query = query.filter(DiscussionPost.comments_count > 0)
         total = query.count()
         items = (
             query.order_by(desc(DiscussionPost.created_at))

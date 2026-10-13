@@ -202,7 +202,7 @@
   line-height: 1;
   pointer-events: none;
   user-select: none;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
 }
 
 /* ── SECTION HEADER ─────────────────────────────────────────── */
@@ -384,7 +384,7 @@
   border: none;
   cursor: pointer;
   transition: transform 0.15s ease, box-shadow 0.15s ease;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   min-height: 48px;
 }
 
@@ -479,7 +479,7 @@
   border-radius: 8px;
   color: var(--proposal-text);
   font-size: 14px;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   outline: none;
   transition: border-color 0.15s;
   min-height: 44px;
@@ -538,7 +538,7 @@
   border: none;
   border-radius: 8px;
   cursor: pointer;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
   transition: transform 0.15s ease, box-shadow 0.15s ease;
   min-height: 48px;
   margin-top: 4px;
@@ -570,7 +570,7 @@
   font-size: 12px;
   padding: 0;
   text-decoration: underline;
-  font-family: 'Inter', sans-serif;
+  font-family: var(--cafe-font-text);
 }
 
 .modal-server-error {

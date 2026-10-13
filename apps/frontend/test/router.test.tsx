@@ -1,5 +1,5 @@
 import { render, screen, waitFor, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeAll } from 'vitest'
 import { RouterProvider } from 'react-router-dom'
 import { buildRouter } from '../src/router'
 import { AppProviders } from '../src/providers/AppProviders'
@@ -22,6 +22,16 @@ const renderRouter = async (entry: string) => {
 }
 
 describe('Router', () => {
+  // Pages load on demand (React.lazy). Loading the modules these tests render
+  // up front keeps them about routing, not about how fast a chunk compiles on
+  // a busy machine (the full suite pushed the home chunk past waitFor's 1 s).
+  beforeAll(async () => {
+    await Promise.all([
+      import('../src/pages/HomePage'),
+      import('../src/pages/LoginPage'),
+    ])
+  })
+
   it('renders_home_route', async () => {
     await renderRouter('/')
 

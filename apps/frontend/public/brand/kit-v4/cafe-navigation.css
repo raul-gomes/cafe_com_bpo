@@ -1,0 +1,22 @@
+/* Componentes de navegação V4. Sidebar 240/76 px; celular usa diálogo nativo.
+   Café aparece no corte/traço, sem transformar cada significado numa xícara. */
+@layer cafeNavigation {
+ .cafe-workspace{display:grid;grid-template-columns:240px minmax(0,1fr);border:1px solid var(--cafe-line);background:var(--cafe-paper);min-width:0;position:relative;isolation:isolate}
+ .cafe-workspace[data-nav="collapsed"]{grid-template-columns:76px minmax(0,1fr)}
+ .cafe-rail{background:var(--cafe-panel);border-right:1px solid var(--cafe-line);padding:24px 16px;position:relative;min-width:0}
+ .cafe-rail-brand{font:500 1.4rem var(--cafe-font-editorial);margin-bottom:32px;white-space:nowrap}.cafe-rail-brand small{display:block;font:600 .6875rem var(--cafe-font-text);letter-spacing:.1em;margin-top:8px}
+ .cafe-rail-link{display:flex;align-items:center;gap:12px;min-height:48px;padding:12px;color:var(--cafe-ink);text-decoration:none;border-left:3px solid transparent;font-size:.875rem;white-space:nowrap}
+ .cafe-rail-link[aria-current="page"]{background:var(--cafe-paper);border-left-color:var(--cafe-accent);font-weight:700;border-radius:0 12px 0 0}
+ .cafe-rail-link:hover{background:var(--cafe-accent-soft)}.cafe-rail-link:focus-visible{outline:3px solid var(--cafe-focus);outline-offset:2px}
+ .cafe-rail-label{min-width:0}.cafe-workspace[data-nav="collapsed"] .cafe-rail-label,.cafe-workspace[data-nav="collapsed"] .cafe-rail-brand{display:none}
+ .cafe-workspace[data-nav="collapsed"] .cafe-rail{padding-inline:8px;padding-top:56px}.cafe-workspace[data-nav="collapsed"] .cafe-rail-link{justify-content:center;padding:12px 8px}
+ .cafe-floating-arrow{display:grid;place-items:center;width:44px;height:44px;flex:none;background:var(--cafe-paper);color:var(--cafe-ink);border:1px solid var(--cafe-line-strong);border-radius:50% 50% 4px 50%;box-shadow:3px 3px 0 var(--cafe-panel-strong);cursor:pointer;transition:transform 160ms}
+ .cafe-floating-arrow svg{width:20px;height:20px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+ .cafe-floating-arrow:focus-visible{outline:3px solid var(--cafe-focus);outline-offset:4px}.cafe-floating-arrow:hover{transform:translateY(-2px)}.cafe-floating-arrow:active{transform:translateY(1px)}
+ .cafe-rail-toggle{position:absolute;right:-22px;top:18px;z-index:2}.cafe-rail-toggle svg{transform:rotate(180deg)}.cafe-workspace[data-nav="collapsed"] .cafe-rail-toggle svg{transform:none}
+ .cafe-workspace-content{padding:clamp(24px,4vw,48px);min-width:0}.cafe-workspace-heading{display:flex;align-items:center;justify-content:space-between;gap:24px;flex-wrap:wrap;margin-bottom:32px}.cafe-workspace-heading h3{font:700 1.4rem var(--cafe-font-text);margin-top:12px}
+ .cafe-mobile-nav-trigger{display:none}.cafe-command-fan{position:relative;display:inline-flex;align-items:center;gap:12px}.cafe-floating-arrow[aria-expanded="true"]{background:var(--cafe-accent);color:var(--cafe-on-accent)}
+ .cafe-fan-panel{position:absolute;right:0;bottom:56px;min-width:220px;padding:8px;background:var(--cafe-paper);border:1px solid var(--cafe-line-strong);box-shadow:0 8px 24px rgb(0 0 0/.12);z-index:4}.cafe-fan-panel a{display:flex;gap:12px;align-items:center;padding:12px;min-height:44px;font-size:.875rem;color:var(--cafe-ink);text-decoration:none}.cafe-fan-panel a:hover{background:var(--cafe-accent-soft)}
+ @media(max-width:760px){.cafe-workspace,.cafe-workspace[data-nav="collapsed"]{grid-template-columns:minmax(0,1fr)}.cafe-rail{display:none}.cafe-mobile-nav-trigger{display:inline-flex}.cafe-workspace-heading{gap:20px}.cafe-workspace-content{padding:24px 20px}}
+ @media(prefers-reduced-motion:reduce){.cafe-floating-arrow{transition:none}.cafe-floating-arrow:hover,.cafe-floating-arrow:active{transform:none}}
+}

@@ -206,3 +206,54 @@ def test_legacy_stored_xss_neutralized_on_read(client):
     safe_comment = next(c for c in comments.json() if c["id"] == comment_id)
     assert "onerror" not in safe_comment["message"]
     assert "<b>Legacy comment</b>" in safe_comment["message"]
+
+
+def _post(client, auth, title):
+    resp = client.post(
+        "/network/posts",
+        json={"title": title, "message": "msg", "tags": []},
+        headers=auth,
+    )
+    assert resp.status_code == 201
+    return resp.json()["id"]
+
+
+def test_post_filters_run_on_the_server_before_paging(client):
+    """AUD-031: "Meus tópicos"/"Respondidos" must reach posts beyond page one.
+
+    The screen fetched the first 20 posts and filtered them locally, so an own
+    or answered topic further down the list never showed up.
+    """
+    me = get_auth_header(client, f"filter_me_{uuid4()}@cafe.com")
+    other = get_auth_header(client, f"filter_other_{uuid4()}@cafe.com")
+
+    mine = _post(client, me, "Meu tópico antigo")
+    answered = _post(client, other, "Tópico respondido antigo")
+    client.post(
+        f"/network/posts/{answered}/comments", json={"message": "resp"}, headers=me
+    )
+    for i in range(3):
+        _post(client, other, f"Recente {i}")
+
+    page = client.get("/network/posts?limit=2&filter=mine", headers=me).json()
+    assert [p["id"] for p in page["items"]] == [mine]
+    assert page["total"] == 1
+
+    page = client.get("/network/posts?limit=2&filter=answered", headers=me).json()
+    assert [p["id"] for p in page["items"]] == [answered]
+    assert page["total"] == 1
+
+    everything = client.get("/network/posts?limit=2&filter=all", headers=me).json()
+    assert len(everything["items"]) == 2
+    assert everything["total"] >= 5
+
+    second = client.get("/network/posts?limit=2&offset=2", headers=me).json()
+    assert {p["id"] for p in second["items"]}.isdisjoint(
+        {p["id"] for p in everything["items"]}
+    )
+
+
+def test_post_list_rejects_an_unknown_filter_and_huge_pages(client):
+    auth = get_auth_header(client, f"filter_bad_{uuid4()}@cafe.com")
+    assert client.get("/network/posts?filter=whatever", headers=auth).status_code == 422
+    assert client.get("/network/posts?limit=500", headers=auth).status_code == 422

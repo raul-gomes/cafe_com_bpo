@@ -197,3 +197,34 @@ describe('ProjectsSection — vitrine do fórum', () => {
     expect(document.querySelectorAll('.animate-pulse').length).toBe(0)
   })
 })
+
+describe('ProjectsSection — paginação do mural (AUD-032)', () => {
+  const projects = Array.from({ length: 23 }, (_, i) => ({
+    ...PROJECT,
+    id: `p-${i}`,
+    title: `Projeto ${i}`,
+  }))
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockGetProjects.mockImplementation(async (limit: number, offset: number) => ({
+      items: projects.slice(offset, offset + limit),
+      total: projects.length,
+    }))
+  })
+
+  it('carrega os projetos seguintes mantendo a busca', async () => {
+    renderSection()
+
+    expect(await screen.findByText('Projeto 0')).toBeInTheDocument()
+    expect(screen.queryByText('Projeto 22')).not.toBeInTheDocument()
+    expect(screen.getByText('Mostrando 20 de 23 projetos')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Carregar mais/i }))
+
+    expect(await screen.findByText('Projeto 22')).toBeInTheDocument()
+    expect(screen.getByText('Projeto 0')).toBeInTheDocument()
+    expect(mockGetProjects).toHaveBeenLastCalledWith(20, 20, '')
+    expect(screen.queryByRole('button', { name: /Carregar mais/i })).not.toBeInTheDocument()
+  })
+})

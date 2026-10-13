@@ -1,13 +1,101 @@
 <!doctype html>
-<html lang="pt-BR">
+<html lang="pt-BR" data-cafe-palette="cafe" data-cafe-mode="light">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" type="image/png" href="/favicon.png" />
-    <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
-    <title>Café com BPO</title>
+    <!-- Café com BPO V4 identity: served unchanged from public/brand/kit-v4
+         (GUIA-DE-USO order). Kept out of PostCSS because the kit uses @layer base/components/
+         utilities, names Tailwind v3 would try to process. -->
+    <!-- Layer order: Tailwind's reset (tw-base) sits below every kit layer. -->
+    <style>@layer tw-base;</style>
+    <link rel="preload" href="/brand/kit-v4/fonts/DM-Sans.ttf" as="font" type="font/ttf" crossorigin />
+    <link rel="stylesheet" href="/brand/kit-v4/cafe-design-system.css" />
+    <link rel="stylesheet" href="/brand/kit-v4/cafe-themes.css" />
+    <link rel="stylesheet" href="/brand/kit-v4/cafe-expression.css" />
+    <link rel="stylesheet" href="/brand/kit-v4/cafe-navigation.css" />
+    <script>
+      /* Applies the saved mode before the first paint (avoids flashing the wrong theme).
+         Same key and format as src/brand/appearance.ts. */
+      (function () {
+        try {
+          var v = JSON.parse(localStorage.getItem('cafe-appearance') || '{}') || {};
+          /* Light/dark only: the color family is always Café (data-cafe-palette pinned on <html>). */
+          if (['light', 'dark'].indexOf(v.mode) >= 0) document.documentElement.dataset.cafeMode = v.mode;
+        } catch (e) { /* storage unavailable: keep the default */ }
+      })();
+    </script>
+    <title>Café com BPO · Inteligência de negócio para o BPO financeiro</title>
+    <!-- Default SEO (landing page). Other pages swap these tags in src/lib/seo.ts.
+         Bots that do not run JavaScript (WhatsApp/LinkedIn link previews) only read this. -->
+    <meta name="description" content="Comunidade, ferramenta e precificação para quem opera BPO financeiro. Inteligência de negócio não é IA: é você com a realidade. Seja Beta do Café com BPO." />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#35291F" />
+    <link rel="canonical" href="https://cafecombpo.cloud/" />
+    <link rel="manifest" href="/site.webmanifest" />
+    <link rel="apple-touch-icon" href="/favicon.png" />
+    <!-- Google Search Console: site ownership check (URL-prefix property).
+         The Domain property is verified by the DNS TXT record instead — see GUIA-GOOGLE.md. -->
+    <meta name="google-site-verification" content="4j7u8YoCDlsVS1HQfK1KmFD2Mgdx3mYkASyg9YsIJC8" />
+    <!-- Google AdSense (publisher ca-pub-9822124118535028). Must stay in the page head:
+         AdSense looks for it here to verify the site. Ads only show after they are
+         set up in the AdSense dashboard; exclude /painel there (see GUIA-GOOGLE.md). -->
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-9822124118535028" crossorigin="anonymous"></script>
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Café com BPO" />
+    <meta property="og:locale" content="pt_BR" />
+    <meta property="og:title" content="Café com BPO · Inteligência de negócio para o BPO financeiro" />
+    <meta property="og:description" content="Comunidade, ferramenta e precificação para quem opera BPO financeiro. Seja Beta e construa com a gente." />
+    <meta property="og:url" content="https://cafecombpo.cloud/" />
+    <meta property="og:image" content="https://cafecombpo.cloud/brand/og-cafe-com-bpo.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Café com BPO — inteligência de negócio para o BPO financeiro" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Café com BPO · Inteligência de negócio para o BPO financeiro" />
+    <meta name="twitter:description" content="Comunidade, ferramenta e precificação para quem opera BPO financeiro." />
+    <meta name="twitter:image" content="https://cafecombpo.cloud/brand/og-cafe-com-bpo.png" />
+    <!-- Structured data: helps Google understand who publishes the site. -->
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@graph": [
+          {
+            "@type": "Organization",
+            "@id": "https://cafecombpo.cloud/#organizacao",
+            "name": "Café com BPO",
+            "legalName": "Castellum Financial Soluções Integradas Ltda.",
+            "taxID": "52.317.042/0001-54",
+            "url": "https://cafecombpo.cloud/",
+            "logo": "https://cafecombpo.cloud/favicon.png",
+            "email": "falarcom@cafecombpo.com",
+            "address": {
+              "@type": "PostalAddress",
+              "streetAddress": "Avenida Brigadeiro Faria Lima, 1572, conjunto 22, sala 1022",
+              "addressLocality": "São Paulo",
+              "addressRegion": "SP",
+              "postalCode": "01451-917",
+              "addressCountry": "BR"
+            },
+            "sameAs": [
+              "https://www.youtube.com/@cafecombpo",
+              "https://www.linkedin.com/showcase/caf%C3%A9-com-bpo/",
+              "https://whatsapp.com/channel/0029Va95EV54Y9lnz81xJH24"
+            ]
+          },
+          {
+            "@type": "WebSite",
+            "@id": "https://cafecombpo.cloud/#site",
+            "name": "Café com BPO",
+            "url": "https://cafecombpo.cloud/",
+            "inLanguage": "pt-BR",
+            "publisher": { "@id": "https://cafecombpo.cloud/#organizacao" }
+          }
+        ]
+      }
+    </script>
   </head>
-  <body>
+  <body class="cafe-theme">
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

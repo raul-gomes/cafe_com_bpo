@@ -2,40 +2,28 @@ import { screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { useLocation } from 'react-router-dom'
 import { PanelSidebar } from '../src/components/panel/PanelSidebar'
+import { NAV_SECTIONS } from '../src/components/panel/navigation'
 import { renderWithProviders } from './test-utils'
 
-// Permissão de módulos entra na sidebar (cadeado de somente leitura, Fase 10).
-// O valor vive fora do mock para cada teste escolher o perfil: undefined = sem
-// acesso resolvido, exercitando o caminho sem cadeados.
+vi.mock('../src/config/env', async importOriginal => ({
+  ...(await importOriginal<typeof import('../src/config/env')>()),
+  PIX_KEY: 'cafe@cafecombpo.com.br',
+}))
+
+const mockUser: { id: string; email: string; name: string; role?: string } = {
+  id: '1',
+  email: 'test@cafe.com',
+  name: 'Test User',
+}
+const mockLogout = vi.fn()
+
+// GET /access drives the read-only locks (plan write gate). null = access not
+// resolved yet, which exercises the path without locks.
 const { mockAccessValue } = vi.hoisted(() => ({ mockAccessValue: { value: null as unknown } }))
 
 vi.mock('../src/api/hooks/useAccess', () => ({
   useAccess: () => ({ data: mockAccessValue.value }),
 }))
-
-// Mock getClients to avoid API calls
-vi.mock('../src/api/clients', () => ({
-  getClients: vi.fn().mockResolvedValue([]),
-}))
-
-// Mock PIX_KEY so the donation modal renders a stable value
-vi.mock('../src/config/env', () => ({
-  PIX_KEY: 'cafe@cafecombpo.com.br',
-}))
-
-// Mock useAuth
-const mockUser: {
-  id: string;
-  email: string;
-  name: string;
-  role?: string;
-} = {
-  id: '1',
-  email: 'test@cafe.com',
-  name: 'Test User',
-}
-
-const mockLogout = vi.fn()
 
 vi.mock('../src/context/AuthContext', () => ({
   useAuth: () => ({
@@ -50,227 +38,102 @@ vi.mock('../src/context/AuthContext', () => ({
   }),
 }))
 
-describe('PanelSidebar', () => {
+const section = (id: string) => NAV_SECTIONS.find(s => s.id === id)!
+
+function RouteProbe() {
+  const location = useLocation()
+  return <span data-testid="route-probe">{location.pathname}</span>
+}
+
+function renderSidebar(activeId = 'operacional', onSelectSection = vi.fn()) {
+  renderWithProviders(
+    <>
+      <RouteProbe />
+      <PanelSidebar activeSection={section(activeId)} inModule onSelectSection={onSelectSection} />
+    </>,
+    { initialEntries: ['/painel'] }
+  )
+  return { onSelectSection }
+}
+
+describe('PanelSidebar — one work module at a time', () => {
   beforeEach(() => {
-    // Reset location href mock
-    vi.restoreAllMocks()
-  })
-
-  const renderSidebar = (isOpen = true) => {
-    return renderWithProviders(
-      <PanelSidebar isOpen={isOpen} onClose={vi.fn()} />,
-      { initialEntries: ['/painel'] }
-    )
-  }
-
-  it('renders Nos Ajude button in the donate section', () => {
-    renderSidebar()
-
-    // Get the "Nos Ajude" button
-    const donateBtn = screen.getByText('Nos Ajude')
-    expect(donateBtn).toBeInTheDocument()
-
-    // Get the "Sair da conta" button
-    const logoutBtn = screen.getByText('Sair da conta')
-    expect(logoutBtn).toBeInTheDocument()
-
-    // Both buttons should be inside the sidebar <aside>
-    const sidebar = donateBtn.closest('aside')
-    expect(sidebar).toBeTruthy()
-    expect(logoutBtn.closest('aside')).toBe(sidebar)
-  })
-
-  it('does not redirect to external page when clicking Nos Ajude', () => {
-    // Mock window.location.href
-    const originalLocation = window.location.href
-    Object.defineProperty(window, 'location', {
-      value: { href: originalLocation },
-      writable: true,
-    })
-
-    renderSidebar()
-    const donateBtn = screen.getByText('Nos Ajude')
-    
-    // The button should NOT use window.location.href
-    // We verify by checking it doesn't have an onClick that sets location.href
-    // Instead it should just be a button that toggles some state
-    expect(donateBtn.tagName).toBe('BUTTON')
-  })
-
-  it('opens ModalNosAjude when clicking Nos Ajude button', () => {
-    renderSidebar()
-
-    // Modal should not be visible initially
-    expect(screen.queryByText(/Ajude o Café com BPO/)).not.toBeInTheDocument()
-
-    // Click the Nos Ajude button
-    const donateBtn = screen.getByText('Nos Ajude')
-    fireEvent.click(donateBtn)
-
-    // Modal should now be visible
-    expect(screen.getByText(/Ajude o Café com BPO/)).toBeInTheDocument()
-    expect(screen.getByText(/cafe@cafecombpo.com.br/)).toBeInTheDocument()
-  })
-
-  it('renders only Sair da conta below the divider in footer-bottom', () => {
-    renderSidebar()
-    
-    const logoutSection = document.querySelector('aside > div:last-child > div:last-child')
-    expect(logoutSection).toBeInTheDocument()
-
-    // Logout section should contain Sair da conta
-    expect(logoutSection?.textContent).toContain('Sair da conta')
-    
-    // Logout section should NOT contain Nos Ajude (it's in the section above)
-    expect(logoutSection?.textContent).not.toContain('Nos Ajude')
-  })
-})
-
-describe('PanelSidebar — dropdown de menus', () => {
-  beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
     delete mockUser.role
   })
 
-  const renderSidebar = (isOpen = true) => {
-    return renderWithProviders(
-      <PanelSidebar isOpen={isOpen} onClose={vi.fn()} />,
-      { initialEntries: ['/painel'] }
-    )
-  }
-
-  it('mostra Operacional como menu padrão com seus submenus', () => {
+  it('shows one tab per module, without Admin for non-admins', () => {
     renderSidebar()
-
-    // Dropdown trigger exibe "Operacional"
-    expect(screen.getByRole('button', { name: /selecionar menu/i })).toHaveTextContent('Operacional')
-
-    // Submenus do Operacional renderizados por padrão
-    expect(screen.getByRole('button', { name: 'Gestor de Tarefas' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Rotinas' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Clientes' })).toBeInTheDocument()
-
-    // Submenus de outros menus NÃO aparecem por padrão
-    expect(screen.queryByRole('button', { name: 'Orçamentos' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Forum' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Gestão de equipes' })).not.toBeInTheDocument()
+    const tabs = within(screen.getByRole('tablist', { name: 'Módulo de trabalho' })).getAllByRole('tab')
+    expect(tabs.map(t => t.getAttribute('aria-label'))).toEqual([
+      'Operacional',
+      'Captar',
+      'Comunidade',
+      'Gestão',
+      'Aulas',
+      'Notas Fiscais',
+      'Certificados Digitais',
+    ])
+    expect(screen.getByRole('tab', { name: 'Operacional' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('abre dropdown listando todos os menus (sem Config para não-admin)', () => {
-    renderSidebar()
-
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-
-    expect(screen.getByRole('button', { name: 'Captar' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Comunidade' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Gestão' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Config' })).not.toBeInTheDocument()
-  })
-
-  it('troca para Captar e renderiza seus submenus (Prospectos primeiro, sem Contatos/Pagamentos que foram para Gestão)', () => {
-    renderSidebar()
-
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Captar' }))
-
-    // Trigger agora exibe "Captar"
-    expect(screen.getByRole('button', { name: /selecionar menu/i })).toHaveTextContent('Captar')
-
-    expect(screen.getByRole('button', { name: 'Prospectos' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Orçamentos' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Contratos' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Contatos' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Pagamentos' })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Gestor de Tarefas' })).not.toBeInTheDocument()
-  })
-
-  it('troca para Comunidade e renderiza Forum e Galeria (sem Workana, que é parte do Fórum)', () => {
-    renderSidebar()
-
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Comunidade' }))
-
-    expect(screen.getByRole('button', { name: 'Forum' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Galeria de Arquivos' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Workana' })).not.toBeInTheDocument()
-  })
-
-  it('troca para Gestão e renderiza Projetos, Gestão de equipes, Contatos e Pagamentos (sem Clientes, que ficou no Operacional)', () => {
-    renderSidebar()
-
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Gestão' }))
-
-    expect(screen.getByRole('button', { name: 'Projetos' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Gestão de equipes' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Contatos' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Pagamentos' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Clientes' })).not.toBeInTheDocument()
-  })
-
-  it('mostra Config apenas para admin e renderiza Design System', () => {
+  it('admins also see the Admin tab', () => {
     mockUser.role = 'admin'
     renderSidebar()
-
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    expect(screen.getByRole('button', { name: 'Config' })).toBeInTheDocument()
-
-    fireEvent.click(screen.getByRole('button', { name: 'Config' }))
-    expect(screen.getByRole('button', { name: 'Design System' })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Gestor de Tarefas' })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Admin' })).toBeInTheDocument()
   })
 
-  it('naviega para a rota do submenu ao clicar', () => {
-    const RouteProbe = () => {
-      const location = useLocation()
-      return <span data-testid="route-probe">{location.pathname}</span>
-    }
-
-    renderWithProviders(
-      <>
-        <RouteProbe />
-        <PanelSidebar isOpen onClose={vi.fn()} />
-      </>,
-      { initialEntries: ['/painel'] }
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: 'Gestor de Tarefas' }))
-    expect(screen.getByTestId('route-probe')).toHaveTextContent('/painel/tarefas')
+  it('lists only the areas of the active module', () => {
+    renderSidebar('captar')
+    const nav = screen.getByRole('navigation', { name: 'Áreas de Captar' })
+    expect(within(nav).getByRole('link', { name: 'Prospectos' })).toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Contratos' })).toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'Gestor de Tarefas' })).not.toBeInTheDocument()
+    expect(within(nav).queryByRole('link', { name: 'Fórum' })).not.toBeInTheDocument()
   })
 
   it.each([
-    ['Captar', '/painel/prospectos'],
-    ['Comunidade', '/painel/forum'],
-    ['Gestão', '/painel/projetos'],
-  ])('ao trocar para %s navega para a primeira opção do submenu (%s)', (menuLabel, expectedPath) => {
-    const RouteProbe = () => {
-      const location = useLocation()
-      return <span data-testid="route-probe">{location.pathname}</span>
-    }
+    ['Captar', 'captar', '/painel/prospectos'],
+    ['Comunidade', 'comunidade', '/painel/forum'],
+    ['Gestão', 'gestao', '/painel/projetos'],
+  ])('choosing the %s tab switches the module and opens its first area (%s → %s)', (label, id, path) => {
+    const { onSelectSection } = renderSidebar()
+    fireEvent.click(screen.getByRole('tab', { name: new RegExp('^' + label) }))
+    expect(onSelectSection).toHaveBeenCalledWith(expect.objectContaining({ id }))
+    expect(screen.getByTestId('route-probe')).toHaveTextContent(path)
+  })
 
-    renderWithProviders(
-      <>
-        <RouteProbe />
-        <PanelSidebar isOpen onClose={vi.fn()} />
-      </>,
-      { initialEntries: ['/painel'] }
-    )
+  it('navigates when an area of the module is clicked', () => {
+    renderSidebar()
+    fireEvent.click(screen.getByRole('link', { name: 'Gestor de Tarefas' }))
+    expect(screen.getByTestId('route-probe')).toHaveTextContent('/painel/tarefas')
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: menuLabel }))
+  it('account actions sit at the end of the module list (scroll along)', () => {
+    renderSidebar()
+    const nav = screen.getByRole('navigation', { name: 'Áreas de Operacional' })
+    expect(within(nav).getByRole('button', { name: 'Reportar erro' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'Colabore' })).toBeInTheDocument()
+    fireEvent.click(within(nav).getByRole('button', { name: 'Sair da conta' }))
+    expect(mockLogout).toHaveBeenCalled()
+  })
 
-    expect(screen.getByTestId('route-probe')).toHaveTextContent(expectedPath)
+  it('Colabore opens the PIX invitation (no redirect)', () => {
+    renderSidebar()
+    expect(screen.queryByText(/Sem você, isso não seria possível/)).not.toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Colabore' }))
+    expect(screen.getByText(/Sem você, isso não seria possível/)).toBeInTheDocument()
+    expect(screen.getByText(/cafe@cafecombpo.com.br/)).toBeInTheDocument()
+  })
+
+  it('the café logo leads to the main panel', () => {
+    renderSidebar()
+    expect(screen.getByRole('link', { name: /painel principal/i })).toHaveAttribute('href', '/painel')
   })
 })
 
-describe('PanelSidebar — cadeado de módulos somente leitura', () => {
-  const renderSidebar = (isOpen = true) => {
-    return renderWithProviders(
-      <PanelSidebar isOpen={isOpen} onClose={vi.fn()} />,
-      { initialEntries: ['/painel'] }
-    )
-  }
 
+describe('PanelSidebar — read-only locks from the plan (GET /access)', () => {
   const FREE_ACCESS = {
     access: 'free',
     read_only_modules: ['captar', 'gestao'],
@@ -283,7 +146,6 @@ describe('PanelSidebar — cadeado de módulos somente leitura', () => {
     plan: null,
     is_admin: false,
   }
-
   const ACTIVE_ACCESS = {
     ...FREE_ACCESS,
     access: 'active',
@@ -293,68 +155,35 @@ describe('PanelSidebar — cadeado de módulos somente leitura', () => {
   }
 
   beforeEach(() => {
-    vi.restoreAllMocks()
+    vi.clearAllMocks()
+    delete mockUser.role
     mockAccessValue.value = null
-    localStorage.clear()
   })
 
-  it('mostra cadeado nos itens de menu somente leitura e mantém a navegação', () => {
+  it('free plan: Captar and Gestão tabs show the lock, Operacional does not', () => {
     mockAccessValue.value = FREE_ACCESS
-    const RouteProbe = () => {
-      const location = useLocation()
-      return <span data-testid="route-probe">{location.pathname}</span>
-    }
+    renderSidebar()
+    expect(screen.getByRole('tab', { name: 'Captar (assinatura para criar e enviar)' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Gestão (assinatura para criar e enviar)' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Operacional' })).toBeInTheDocument()
+  })
 
-    renderWithProviders(
-      <>
-        <RouteProbe />
-        <PanelSidebar isOpen onClose={vi.fn()} />
-      </>,
-      { initialEntries: ['/painel'] }
-    )
-
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Captar' }))
-
-    // Os quatro itens de Captar são somente leitura no free → cadeados.
-    expect(screen.getAllByLabelText('Somente leitura no plano gratuito')).toHaveLength(4)
-
-    // Mesmo trancado, o item continua navegável (§5 Fase 10: cadeado visível, link vivo).
-    fireEvent.click(screen.getByRole('button', { name: 'Prospectos' }))
+  it('free plan: navigation stays open on a read-only module', () => {
+    mockAccessValue.value = FREE_ACCESS
+    renderSidebar('captar')
+    fireEvent.click(screen.getByRole('link', { name: 'Prospectos' }))
     expect(screen.getByTestId('route-probe')).toHaveTextContent('/painel/prospectos')
   })
 
-  it('não tranca módulos escrevíveis no plano free', () => {
-    mockAccessValue.value = FREE_ACCESS
-    renderSidebar()
-
-    // Operacional é escrevível no free → nenhum cadeado.
-    expect(screen.queryByLabelText('Somente leitura no plano gratuito')).not.toBeInTheDocument()
-  })
-
-  it('não tranca Pagamentos (módulo escrevível) dentro do menu Gestão', () => {
-    mockAccessValue.value = FREE_ACCESS
-    renderSidebar()
-
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Gestão' }))
-
-    // Projetos, Gestão de equipes e Contatos são gestao (somente leitura)…
-    const locks = screen.getAllByLabelText('Somente leitura no plano gratuito')
-    expect(locks).toHaveLength(3)
-
-    // …mas Pagamentos pertence ao módulo pagamentos, escrevível no free.
-    const pagamentos = screen.getByRole('button', { name: 'Pagamentos' })
-    expect(within(pagamentos).queryByLabelText('Somente leitura no plano gratuito')).toBeNull()
-  })
-
-  it('não tranca quando o acesso é completo', () => {
+  it('subscriber: no locks anywhere', () => {
     mockAccessValue.value = ACTIVE_ACCESS
     renderSidebar()
+    expect(screen.queryByRole('tab', { name: /assinatura/ })).not.toBeInTheDocument()
+  })
 
-    fireEvent.click(screen.getByRole('button', { name: /selecionar menu/i }))
-    fireEvent.click(screen.getByRole('button', { name: 'Captar' }))
-
-    expect(screen.queryByLabelText('Somente leitura no plano gratuito')).not.toBeInTheDocument()
+  it('admin sees the Planos page in the Admin module', () => {
+    mockUser.role = 'admin'
+    renderSidebar('config')
+    expect(screen.getByRole('link', { name: 'Planos' })).toHaveAttribute('href', '/painel/planos')
   })
 })

@@ -80,17 +80,32 @@ export const ContratoDetalhePage: React.FC = () => {
     }
   };
 
+  // The finalized (immutable) version must be the one on screen: pending edits
+  // are saved first, and a failed save stops the finalization (AUD-005).
   const handleFinalize = async () => {
     if (!contract) return;
+    const pendingNote = dirty ? ' As alterações não salvas serão salvas antes de finalizar.' : '';
     const ok = await confirm({
       title: 'Finalizar contrato',
-      message: 'Ao finalizar, o contrato fica imutável e o prospecto é convertido em cliente. Continuar?',
+      message: `Ao finalizar, o contrato fica imutável e o prospecto é convertido em cliente.${pendingNote} Continuar?`,
       confirmLabel: 'Finalizar',
       variant: 'warning',
     });
     if (!ok) return;
     try {
       setFinalizing(true);
+      if (dirty) {
+        try {
+          const saved = await updateContract(contract.id, sections);
+          setContract(saved);
+          setSections(saved.sections);
+          setDirty(false);
+        } catch (err) {
+          console.error(err);
+          toast.error('Não foi possível salvar as alterações, então o contrato não foi finalizado.');
+          return;
+        }
+      }
       const result = await finalizeContract(contract.id);
       toast.success(
         result.client_id

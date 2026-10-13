@@ -114,6 +114,55 @@ describe('ContratoDetalhePage', () => {
     expect(screen.queryByRole('button', { name: /adicionar seção/i })).not.toBeInTheDocument()
   })
 
+  // AUD-005: the finalized version must be the one on screen, never the old one.
+  const editFirstSectionTitle = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click((await screen.findAllByRole('button', { name: /editar seção/i }))[0])
+    const titleInput = screen.getByTestId('contract-section-title')
+    await user.clear(titleInput)
+    await user.type(titleInput, 'Das Partes Revisadas')
+    await user.click(screen.getByRole('button', { name: /salvar seção/i }))
+  }
+
+  it('saves pending edits before finalizing, in that order', async () => {
+    mockGetContract.mockResolvedValueOnce(DRAFT).mockResolvedValue(FINALIZED)
+    const calls: string[] = []
+    mockUpdateContract.mockImplementation(async (_id, sections) => {
+      calls.push('save')
+      return { ...DRAFT, sections }
+    })
+    mockFinalizeContract.mockImplementation(async () => {
+      calls.push('finalize')
+      return { contract_id: 'c1', client_id: 'cl1' }
+    })
+    renderPage()
+    const user = userEvent.setup()
+    await editFirstSectionTitle(user)
+
+    await user.click(screen.getByRole('button', { name: /finalizar contrato/i }))
+    expect(screen.getByText(/alterações não salvas serão salvas antes/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Finalizar' }))
+
+    await screen.findByText(/não pode mais ser editado/i)
+    expect(calls).toEqual(['save', 'finalize'])
+    expect(mockUpdateContract).toHaveBeenCalledWith('c1', [
+      { title: 'Das Partes Revisadas', content: 'Contratante: Alpha Consultoria.' },
+      DRAFT.sections[1],
+    ])
+  })
+
+  it('does not finalize when saving the pending edits fails', async () => {
+    mockUpdateContract.mockRejectedValue(new Error('boom'))
+    renderPage()
+    const user = userEvent.setup()
+    await editFirstSectionTitle(user)
+
+    await user.click(screen.getByRole('button', { name: /finalizar contrato/i }))
+    await user.click(screen.getByRole('button', { name: 'Finalizar' }))
+
+    expect(await screen.findByText('Alterações não salvas')).toBeInTheDocument()
+    expect(mockFinalizeContract).not.toHaveBeenCalled()
+  })
+
   it('exclui o contrato após confirmação e volta para a listagem', async () => {
     renderPage()
     const user = userEvent.setup()
