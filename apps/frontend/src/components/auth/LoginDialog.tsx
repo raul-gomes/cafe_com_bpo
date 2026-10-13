@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { LoginForm } from './LoginForm';
+import { RegisterModal } from './RegisterModal';
 import { ForgotPasswordModal } from './ForgotPasswordModal';
 import { Alert } from '../ui/alert';
 import { CafeIcon } from '../../brand/CafeIcon';
@@ -69,14 +70,17 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
   const errorParam = searchParams.get('error') ?? (searchParams.get('session_expired') ? 'session_expired' : null);
   const returnTo = safeReturnTo(searchParams.get('return_to'));
   const [showForgotPw, setShowForgotPw] = useState(false);
+  const [showRegister, setShowRegister] = useState(false);
   const panelRef = useRef<HTMLDivElement>(null);
   const { data: site } = useQuery({ queryKey: ['public-site'], queryFn: getPublicSite, staleTime: 5 * 60_000 });
   const notice = site?.login_notice ?? DEFAULT_NOTICE;
 
-  // Already signed in: the login makes no sense, go straight to the panel.
+  // Already signed in: the login makes no sense, go straight to the panel —
+  // unless the sign-up flow is open (the auto-login of the registration must
+  // not tear down the subscription offer before the new user decides).
   useEffect(() => {
-    if (!isLoading && isAuthenticated) navigate(returnTo ?? '/painel');
-  }, [isAuthenticated, isLoading, navigate, returnTo]);
+    if (!isLoading && isAuthenticated && !showRegister) navigate(returnTo ?? '/painel');
+  }, [isAuthenticated, isLoading, navigate, returnTo, showRegister]);
 
   // Escape closes; the background does not scroll while the dialog is open.
   // Focus goes back to whatever opened the dialog (the Login button) on close.
@@ -89,7 +93,7 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
-      if (showForgotPw) return; // the forgot-password modal handles its own keys
+      if (showForgotPw || showRegister) return; // the top modal handles its own keys
       if (event.key === 'Escape') onClose();
       if (event.key === 'Tab') trapFocus(event, panelRef.current);
     };
@@ -101,7 +105,7 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
       document.removeEventListener('keydown', onKey);
       document.body.style.overflow = previousOverflow;
     };
-  }, [onClose, showForgotPw]);
+  }, [onClose, showForgotPw, showRegister]);
 
   return (
     <div
@@ -142,10 +146,11 @@ export const LoginDialog: React.FC<LoginDialogProps> = ({ onClose }) => {
               <span>{ERROR_MESSAGES[errorParam] || 'Ocorreu um erro. Tente novamente.'}</span>
             </Alert>
           )}
-          <LoginForm onForgotPassword={() => setShowForgotPw(true)} compact />
+          <LoginForm onForgotPassword={() => setShowForgotPw(true)} onRegisterClick={() => setShowRegister(true)} compact />
         </div>
       </div>
       <ForgotPasswordModal open={showForgotPw} onOpenChange={setShowForgotPw} />
+      <RegisterModal open={showRegister} onOpenChange={setShowRegister} />
     </div>
   );
 };
