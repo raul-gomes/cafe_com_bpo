@@ -1,5 +1,10 @@
 # AGENTS.md — Café com BPO
 
+> **Antes de qualquer alteração, leia `log_de_evolucao/LEIA_PRIMEIRO.md`.**
+> Ele traz o estado atual (`STATUS.md`), as decisões do proprietário que não
+> podem ser contrariadas (`DECISOES.md`) e o histórico dos commits
+> (`HISTORICO.md`). Ao terminar, registre o trabalho lá.
+
 ## Project at a Glance
 
 Community platform for Brazilian financial BPO operators. Public site + pricing calculator + authenticated member area.
