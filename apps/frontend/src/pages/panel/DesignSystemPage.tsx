@@ -1086,8 +1086,8 @@ open()`}
           description="Oferta mostrada logo após o cadastro de um novo usuário: o investimento do plano ativo com 'Assinar' e 'Continuar sem assinar'."
           howToUse={`import { SignupPlanOffer } from '../../components/payments/SignupPlanOffer'
 
-// Presentacional: o CadastroPage resolve o plano ativo (usePlans) e passa aqui.
-<SignupPlanOffer plan={activePlan} onContinue={() => navigate('/painel')} />`}
+// Presentacional: o RegisterModal resolve o plano ativo (usePlans) e passa aqui.
+<SignupPlanOffer plan={activePlan} onContinue={() => navigate('/painel/tarefas')} />`}
         >
           <SignupPlanOffer
             plan={{

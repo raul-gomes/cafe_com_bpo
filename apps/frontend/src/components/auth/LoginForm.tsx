@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { Mail, Lock, LogIn, AlertCircle, Eye, EyeOff } from 'lucide-react';
-import { useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LoginFormData } from '../../schemas/auth';
 import { useAuth } from '../../context/AuthContext';
 import { apiClient } from '../../api/client';
@@ -19,9 +19,11 @@ import logo from '../../assets/logo.png';
 
 interface LoginFormProps {
   onForgotPassword?: () => void;
+  /** Abre o modal de cadastro — o login é a tela base e o registro é um popup. */
+  onRegisterClick?: () => void;
 }
 
-export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
+export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegisterClick }) => {
   const { register, handleSubmit, watch, setValue, formState: { isSubmitting } } = useForm<LoginFormData & { terms: boolean }>({
     defaultValues: { email: '', password: '', terms: false },
   });
@@ -196,12 +198,13 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword }) => {
 
           <div className="text-center mt-5 text-[13px] text-muted-foreground">
             Ainda não tem conta?{' '}
-            <Link
-              to={inviteToken ? `/cadastro?invite_token=${encodeURIComponent(inviteToken)}` : '/cadastro'}
-              className="text-primary-strong no-underline font-medium hover:underline"
+            <button
+              type="button"
+              onClick={onRegisterClick}
+              className="text-primary-strong no-underline font-medium bg-transparent border-none cursor-pointer hover:underline p-0"
             >
               Cadastre-se
-            </Link>
+            </button>
           </div>
         </form>
       </CardContent>

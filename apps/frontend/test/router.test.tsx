@@ -4,7 +4,7 @@ import { RouterProvider } from 'react-router-dom'
 import { buildRouter } from '../src/router'
 import { AppProviders } from '../src/providers/AppProviders'
 
-// O CadastroPage consulta o catálogo de planos via usePlans — aqui a rota é
+// O modal de cadastro consulta o catálogo de planos via usePlans — aqui a rota é
 // testada sem rede, o catálogo vazio é suficiente (a oferta só aparece após
 // o registro). Usa o provider de produção (QueryClient + Auth).
 vi.mock('../src/api/hooks/usePlans', () => ({
@@ -38,20 +38,11 @@ describe('Router', () => {
     })
   })
 
-  it('renders_cadastro_route', async () => {
-    await renderRouter('/cadastro')
-
-    await waitFor(() => {
-      expect(screen.getByText('Crie sua conta')).toBeInTheDocument()
-    })
-  })
-
-  it('link "Cadastre-se" da tela de login chega ao cadastro', async () => {
+  it('botão "Cadastre-se" da tela de login abre o modal de cadastro', async () => {
     await renderRouter('/login')
 
-    const link = await screen.findByRole('link', { name: /cadastre-se/i })
-    expect(link).toHaveAttribute('href', '/cadastro')
-    fireEvent.click(link)
+    const button = await screen.findByRole('button', { name: /cadastre-se/i })
+    fireEvent.click(button)
 
     expect(await screen.findByText('Crie sua conta')).toBeInTheDocument()
   })

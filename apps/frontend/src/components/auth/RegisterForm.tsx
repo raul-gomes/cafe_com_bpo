@@ -143,26 +143,26 @@ export const RegisterForm: React.FC<RegisterFormProps> = ({ onClose, onRegistere
 
           <div className="flex items-start gap-2 pt-2">
             <Checkbox
-              id="terms"
+              id="register-terms"
               checked={termsAccepted}
               onCheckedChange={(v) => setValue('terms', Boolean(v))}
               disabled={isSubmitting}
               className="mt-0.5 shrink-0"
             />
             <div className="text-[12px] text-muted-foreground leading-relaxed">
-              <Label htmlFor="terms" className="cursor-pointer">
+              <Label htmlFor="register-terms" className="cursor-pointer">
                 Li e concordo com os{' '}
               </Label>
               <button type="button" onClick={() => setOpenTerms(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
                 Termos de Uso
               </button>
-              <Label htmlFor="terms" className="cursor-pointer">
+              <Label htmlFor="register-terms" className="cursor-pointer">
                 {' '}e{' '}
               </Label>
               <button type="button" onClick={() => setOpenPrivacy(true)} className="text-primary-strong hover:underline bg-transparent border-none cursor-pointer p-0 text-[12px] leading-relaxed font-medium inline">
                 Política de Privacidade
               </button>
-              <Label htmlFor="terms" className="cursor-pointer">
+              <Label htmlFor="register-terms" className="cursor-pointer">
                 {' '}(LGPD).
               </Label>
             </div>

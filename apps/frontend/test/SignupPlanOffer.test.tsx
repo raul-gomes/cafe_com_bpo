@@ -17,7 +17,7 @@ const PLAN = {
 
 const renderOffer = (onContinue = () => {}) =>
   renderWithProviders(<SignupPlanOffer plan={PLAN} onContinue={onContinue} />, {
-    initialEntries: ['/cadastro'],
+    initialEntries: ['/login'],
   })
 
 describe('SignupPlanOffer', () => {

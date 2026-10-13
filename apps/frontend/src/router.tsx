@@ -9,7 +9,6 @@ import { UpgradeProvider } from './components/ui/UpgradeModal'
 // ── Lazy-loaded pages (default exports — use React.lazy) ─────────
 const HomePage = React.lazy(() => import('./pages/HomePage'))
 const LoginPage = React.lazy(() => import('./pages/LoginPage'))
-const CadastroPage = React.lazy(() => import('./pages/CadastroPage'))
 const SimulatorPage = React.lazy(() => import('./pages/SimulatorPage'))
 const UnderConstructionPage = React.lazy(() => import('./pages/UnderConstructionPage'))
 const ProposalPreviewPage = React.lazy(() => import('./pages/ProposalPreviewPage'))
@@ -88,10 +87,6 @@ export async function buildRoutes() {
     {
       path: '/login',
       element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
-    },
-    {
-      path: '/cadastro',
-      element: <SuspenseWrapper><CadastroPage /></SuspenseWrapper>,
     },
     {
       path: '/auth/callback',

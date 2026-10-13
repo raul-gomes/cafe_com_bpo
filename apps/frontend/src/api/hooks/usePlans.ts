@@ -14,10 +14,11 @@ import type { PlanCreateInput, PlanUpdateInput } from '../../schemas/plans';
  */
 const PLANS_KEY = ['plans'] as const;
 
-export const usePlans = () =>
+export const usePlans = (options?: { enabled?: boolean }) =>
     useQuery({
         queryKey: PLANS_KEY,
         queryFn: listPlans,
+        enabled: options?.enabled ?? true,
     });
 
 export const useCreatePlan = () => {

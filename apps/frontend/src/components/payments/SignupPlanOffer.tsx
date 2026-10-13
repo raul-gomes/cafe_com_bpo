@@ -37,7 +37,8 @@ interface SignupPlanOfferProps {
  *
  * Mostra o investimento do plano ativo (preço + ciclo) com o CTA de assinatura
  * e a alternativa explícita de continuar sem assinar. Componente presentacional:
- * quem decide o plano é o `CadastroPage` (`usePlans`), então não há rede aqui.
+ * quem decide o plano é o `RegisterModal` do login (`usePlans`), então não há
+ * rede aqui — e o destino de "Continuar sem assinar" é o gestor de tarefas.
  * Não substitui o write gate — quem continua no free vê os cadeados nas ações
  * bloqueadas de captar/gestão.
  */
