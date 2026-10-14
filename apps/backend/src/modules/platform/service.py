@@ -7,21 +7,27 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.orm import Session
 
-from src.core.entitlements import AccessState, resolve_access
+from src.core.entitlements import ROLE_ADMIN, AccessState, resolve_access
 from src.core.time_utils import as_utc
 from src.modules.auth.models import User
 from src.modules.notifications.models import AppNotification
-from src.modules.subscriptions.models import CourtesyGrant
+from src.modules.subscriptions.models import (
+    BETA_SOURCE_ADMIN,
+    BetaAccess,
+    CourtesyGrant,
+)
 
 from .models import Announcement, CafeRsvp, Lesson, SiteSetting
 from .rules import next_open_cafe, youtube_id_from
 from .schemas import (
     AnnouncementCreate,
+    BetaGrantCreate,
     CafeMeeting,
     CafeRsvpCreate,
     CourtesyCreate,
     LessonWrite,
     LoginNotice,
+    RoleUpdate,
 )
 
 LOGIN_NOTICE_KEY = "login_notice"
@@ -523,3 +529,98 @@ def revoke_courtesy(session: Session, grant_id: UUID) -> None:
         raise _not_found("Cortesia")
     grant.revoked_at = datetime.now(UTC)
     session.commit()
+
+
+def grant_beta(
+    session: Session, user_id: UUID, data: BetaGrantCreate, *, granted_by: str
+) -> BetaAccess:
+    """Gives a user beta access for a number of days (replaces a running one).
+
+    The launch backfill never touches an existing row, so it stays idempotent;
+    an administrator promoting a single user is a deliberate override and
+    restarts the term on the same row (the unique `user_id` keeps one row per
+    user, like the courtesy replaces a running grant).
+
+    Args:
+        session: Database session.
+        user_id: User who receives it.
+        data: Number of days.
+        granted_by: Administrator e-mail.
+
+    Returns:
+        The running grant.
+
+    Raises:
+        HTTPException: 404 when the user does not exist.
+    """
+    if session.get(User, user_id) is None:
+        raise _not_found("Usuário")
+    now = datetime.now(UTC)
+    beta = session.scalars(
+        select(BetaAccess).where(BetaAccess.user_id == user_id)
+    ).first()
+    if beta is None:
+        beta = BetaAccess(user_id=user_id)
+        session.add(beta)
+    beta.granted_at = now
+    beta.expires_at = now + timedelta(days=data.days)
+    beta.source = BETA_SOURCE_ADMIN
+    beta.granted_by = granted_by
+    session.commit()
+    session.refresh(beta)
+    return beta
+
+
+def revoke_beta(session: Session, user_id: UUID) -> None:
+    """Ends a user's beta access now, keeping the row for the record.
+
+    Args:
+        session: Database session.
+        user_id: User who loses it.
+
+    Raises:
+        HTTPException: 404 when the user has no beta row.
+    """
+    beta = session.scalars(
+        select(BetaAccess).where(BetaAccess.user_id == user_id)
+    ).first()
+    if beta is None:
+        raise _not_found("Beta")
+    beta.expires_at = datetime.now(UTC)
+    session.commit()
+
+
+def set_user_role(
+    session: Session, user_id: UUID, data: RoleUpdate, *, actor_id: UUID
+) -> User:
+    """Promotes a user to administrator or demotes them back to user.
+
+    An administrator cannot demote their own account: a slip would lock the
+    only way in, and promoting someone else back would already require an
+    administrator.
+
+    Args:
+        session: Database session.
+        user_id: User whose role changes.
+        data: The new role (`admin` or `user`).
+        actor_id: Administrator performing the change.
+
+    Returns:
+        The updated user.
+
+    Raises:
+        HTTPException: 404 when the user does not exist; 400 when the actor
+            tries to demote their own account.
+    """
+    user = session.get(User, user_id)
+    if user is None:
+        raise _not_found("Usuário")
+    if data.role != ROLE_ADMIN and user.id == actor_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Você não pode rebaixar a própria conta.",
+        )
+    user.role = data.role
+    session.commit()
+    session.refresh(user)
+    return user

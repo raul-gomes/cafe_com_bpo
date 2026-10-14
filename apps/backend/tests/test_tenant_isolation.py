@@ -301,7 +301,7 @@ class TestTaskCompany:
         )
 
         assert resp.status_code == 404, resp.text
-        tasks = client.get(f"/tasks/?client_id={own_company}", headers=outsider).json()
+        tasks = client.get(f"/tasks/?clients={own_company}", headers=outsider).json()
         assert [t["id"] for t in tasks] == [task_id]
 
     def test_moving_between_own_companies_keeps_canonical_link(self, client):
@@ -317,9 +317,9 @@ class TestTaskCompany:
         assert resp.status_code == 200, resp.text
         assert [
             t["id"]
-            for t in client.get(f"/tasks/?client_id={second}", headers=owner).json()
+            for t in client.get(f"/tasks/?clients={second}", headers=owner).json()
         ] == [task_id]
-        assert client.get(f"/tasks/?client_id={first}", headers=owner).json() == []
+        assert client.get(f"/tasks/?clients={first}", headers=owner).json() == []
         session = SessionLocal()
         try:
             stored = session.get(Task, UUID(task_id))
@@ -347,7 +347,7 @@ class TestTaskCompany:
             json={"client_id": first, "template_id": template_id},
             headers=owner,
         )
-        cards = client.get(f"/tasks/?client_id={first}", headers=owner).json()
+        cards = client.get(f"/tasks/?clients={first}", headers=owner).json()
         routine_card = next(c for c in cards if c["template_id"] == template_id)
 
         resp = client.put(

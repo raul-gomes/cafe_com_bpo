@@ -3,7 +3,7 @@ import { screen, fireEvent, render, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-import { LoginDialog } from '../src/components/auth/LoginDialog'
+import LoginPage from '../src/pages/LoginPage'
 import type { Plan } from '../src/schemas/plans'
 
 // Regressão 2026-10-09: "Cadastre-se vai pra tela de cadastro e volta pra tela
@@ -60,7 +60,7 @@ const renderLogin = () => {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
-          <Route path="/login" element={<LoginDialog onClose={() => {}} />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/painel/tarefas" element={<div data-testid="page">Tarefas</div>} />
         </Routes>
       </MemoryRouter>

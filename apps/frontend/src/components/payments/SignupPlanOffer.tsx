@@ -1,5 +1,4 @@
-import React from 'react';
-import { Link } from 'react-router-dom';
+import React, { useState } from 'react';
 import { Check, Sparkles } from 'lucide-react';
 
 import { Card, CardContent } from '../ui/card';
@@ -25,24 +24,29 @@ const formatBRL = (price: string): string => {
     return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value);
 };
 
+/** What the new user chose to do after signing up. */
+export type SignupChoice = 'subscribe' | 'free';
+
 interface SignupPlanOfferProps {
     /** Plano ativo do catálogo — é o "investimento" apresentado. */
     plan: Plan;
-    /** Sobe a conta para o painel sem assinar (plano gratuito). */
-    onContinue: () => void;
+    /** Sobe a conta para o painel conforme a escolha (assinar ou gratuito). */
+    onContinue: (choice: SignupChoice) => void;
 }
 
 /**
  * Oferta exibida logo após o cadastro de um novo usuário.
  *
- * Mostra o investimento do plano ativo (preço + ciclo) com o CTA de assinatura
- * e a alternativa explícita de continuar sem assinar. Componente presentacional:
- * quem decide o plano é o `RegisterModal` do login (`usePlans`), então não há
- * rede aqui — e o destino de "Continuar sem assinar" é o gestor de tarefas.
- * Não substitui o write gate — quem continua no free vê os cadeados nas ações
- * bloqueadas de captar/gestão.
+ * Duas opções selecionáveis — "Assinar {plano}" (pré-selecionada) e "Continuar
+ * no plano gratuito" — com um único botão "Continuar" que decide o destino.
+ * Componente presentacional: quem decide o plano é o `RegisterModal` do login
+ * (`usePlans`), então não há rede aqui. Não substitui o write gate — quem
+ * continua no free vê os cadeados nas ações bloqueadas de captar/gestão.
+ *
+ * @returns The offer card.
  */
 export const SignupPlanOffer: React.FC<SignupPlanOfferProps> = ({ plan, onContinue }) => {
+    const [choice, setChoice] = useState<SignupChoice>('subscribe');
     const price = formatBRL(plan.price);
     const cycle = CYCLE_LABEL[plan.cycle] ?? `/${plan.cycle.toLowerCase()}`;
 
@@ -53,49 +57,84 @@ export const SignupPlanOffer: React.FC<SignupPlanOfferProps> = ({ plan, onContin
                     <img src={logo} alt="Café com BPO" className="h-10 mx-auto mb-4" />
                     <h2 className="text-xl font-bold text-foreground mb-1">Conta criada</h2>
                     <p className="text-sm text-muted-foreground">
-                        Bem-vindo à plataforma. Seu espaço já está pronto no plano gratuito — leitura
-                        liberada em todos os módulos.
+                        Bem-vindo à plataforma. Escolha como quer começar — dá para mudar depois.
                     </p>
                 </div>
 
-                <div className="rounded-lg border border-primary/20 bg-primary/5 p-4">
-                    <div className="flex items-center justify-between gap-2">
-                        <div>
-                            <p className="text-sm text-muted-foreground">Investimento</p>
-                            <p className="text-[22px] font-extrabold text-primary-strong leading-tight">
-                                {price}
-                                <span className="text-sm font-medium text-muted-foreground">{cycle}</span>
-                            </p>
+                <div className="flex flex-col gap-3" role="radiogroup" aria-label="Escolha do plano">
+                    <button
+                        type="button"
+                        role="radio"
+                        aria-checked={choice === 'subscribe'}
+                        onClick={() => setChoice('subscribe')}
+                        className={`w-full rounded-lg border p-4 text-left transition-colors ${
+                            choice === 'subscribe'
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                : 'border-border hover:border-primary/40'
+                        }`}
+                    >
+                        <div className="flex items-center justify-between gap-2">
+                            <div>
+                                <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                                    <Sparkles size={16} className="text-primary-strong" /> Assinar {plan.name}
+                                </p>
+                                <p className="mt-1 text-[22px] font-extrabold text-primary-strong leading-tight">
+                                    {price}
+                                    <span className="text-sm font-medium text-muted-foreground">{cycle}</span>
+                                </p>
+                            </div>
+                            <span
+                                className={`grid size-5 shrink-0 place-items-center rounded-full border ${
+                                    choice === 'subscribe' ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                                }`}
+                                aria-hidden="true"
+                            >
+                                {choice === 'subscribe' && <Check size={13} />}
+                            </span>
                         </div>
-                        <span className="text-primary-strong">
-                            <Sparkles size={24} />
-                        </span>
-                    </div>
-                    {plan.description && (
-                        <p className="mt-2 text-[13px] text-muted-foreground">{plan.description}</p>
-                    )}
-                    <ul className="mt-3 space-y-1 text-[13px] text-foreground/90">
-                        <li className="flex items-center gap-2">
-                            <Check className="size-4 text-primary-strong" /> Escrita liberada em Captar e Gestão
-                        </li>
-                        <li className="flex items-center gap-2">
-                            <Check className="size-4 text-primary-strong" /> Seus dados ficam preservados
-                        </li>
-                    </ul>
+                        <ul className="mt-3 space-y-1 text-[13px] text-foreground/90">
+                            <li className="flex items-center gap-2">
+                                <Check className="size-4 text-primary-strong" /> Escrita liberada em Captar e Gestão
+                            </li>
+                            <li className="flex items-center gap-2">
+                                <Check className="size-4 text-primary-strong" /> Seus dados ficam preservados
+                            </li>
+                        </ul>
+                    </button>
+
+                    <button
+                        type="button"
+                        role="radio"
+                        aria-checked={choice === 'free'}
+                        onClick={() => setChoice('free')}
+                        className={`w-full rounded-lg border p-4 text-left transition-colors ${
+                            choice === 'free'
+                                ? 'border-primary bg-primary/5 ring-1 ring-primary'
+                                : 'border-border hover:border-primary/40'
+                        }`}
+                    >
+                        <div className="flex items-center justify-between gap-2">
+                            <p className="text-sm font-semibold text-foreground">Continuar no plano gratuito</p>
+                            <span
+                                className={`grid size-5 shrink-0 place-items-center rounded-full border ${
+                                    choice === 'free' ? 'border-primary bg-primary text-primary-foreground' : 'border-border'
+                                }`}
+                                aria-hidden="true"
+                            >
+                                {choice === 'free' && <Check size={13} />}
+                            </span>
+                        </div>
+                        <p className="mt-1 text-[13px] text-muted-foreground">
+                            Leitura liberada em todos os módulos. Assine quando quiser pela tela de Pagamentos.
+                        </p>
+                    </button>
                 </div>
 
                 <div className="mt-6 flex flex-col gap-2">
-                    <Link to="/painel/pagamentos">
-                        <Button className="w-full">Assinar {plan.name}</Button>
-                    </Link>
-                    <Button variant="outline" className="w-full" onClick={onContinue}>
-                        Continuar sem assinar
+                    <Button className="w-full" onClick={() => onContinue(choice)}>
+                        Continuar
                     </Button>
                 </div>
-
-                <p className="mt-4 text-center text-[12px] text-muted-foreground">
-                    Sem fidelidade: assine quando quiser pela tela de Pagamentos.
-                </p>
             </CardContent>
         </Card>
     );

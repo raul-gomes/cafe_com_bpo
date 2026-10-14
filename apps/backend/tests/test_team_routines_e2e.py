@@ -136,7 +136,7 @@ def test_owner_routines_and_invited_member_routines(client):
     assign_template(client, owner_auth, cli["id"], tmpl_confidencial["id"])
 
     # Owner vê suas tasks do cliente (fiscal + confidencial)
-    tasks_owner = client.get(f"/tasks/?client_id={cli['id']}", headers=owner_auth)
+    tasks_owner = client.get(f"/tasks/?clients={cli['id']}", headers=owner_auth)
     assert tasks_owner.status_code == 200
     owner_task_ids = {t["id"] for t in tasks_owner.json()}
     assert len(owner_task_ids) >= 2, "Owner deveria ter tasks das duas rotinas"
@@ -203,7 +203,7 @@ def test_owner_routines_and_invited_member_routines(client):
 
     # ── Visibilidade ──
     # Owner vê TODAS as tasks do cliente (fiscal + confidencial + atendimento)
-    tasks_owner = client.get(f"/tasks/?client_id={cli['id']}", headers=owner_auth)
+    tasks_owner = client.get(f"/tasks/?clients={cli['id']}", headers=owner_auth)
     assert tasks_owner.status_code == 200
     owner_visible = tasks_owner.json()
     templates_owner_sees = {t["template_id"] for t in owner_visible}
@@ -221,7 +221,7 @@ def test_owner_routines_and_invited_member_routines(client):
     )
 
     # Membro vê: tasks próprias (Atendimento) + rotina liberada (Fiscal)
-    tasks_member = client.get(f"/tasks/?client_id={cli['id']}", headers=member_auth)
+    tasks_member = client.get(f"/tasks/?clients={cli['id']}", headers=member_auth)
     assert tasks_member.status_code == 200
     member_visible = tasks_member.json()
     member_template_ids = {t["template_id"] for t in member_visible}

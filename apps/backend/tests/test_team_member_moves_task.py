@@ -134,7 +134,7 @@ def setup_shared_routine(client, suf):
     get_phases(client, member_auth)
 
     # Task compartilhada (do owner) da rotina liberada
-    tasks = client.get(f"/tasks/?client_id={cli['id']}", headers=member_auth)
+    tasks = client.get(f"/tasks/?clients={cli['id']}", headers=member_auth)
     assert tasks.status_code == 200
     shared_task = next(t for t in tasks.json() if t["template_id"] == tmpl["id"])
     return owner_auth, member_auth, cli, tmpl, shared_task
@@ -215,7 +215,7 @@ def test_member_cannot_move_task_of_ungranted_routine(client):
     )
     assign_template(client, owner_auth, cli["id"], tmpl_secret["id"])
 
-    tasks_owner = client.get(f"/tasks/?client_id={cli['id']}", headers=owner_auth)
+    tasks_owner = client.get(f"/tasks/?clients={cli['id']}", headers=owner_auth)
     secret_task = next(
         t for t in tasks_owner.json() if t["template_id"] == tmpl_secret["id"]
     )
@@ -243,7 +243,7 @@ def test_owner_moves_own_task_normally(client):
     owner_phases = get_phases(client, owner_auth)
     owner_done = done_phase(owner_phases)
 
-    tasks = client.get(f"/tasks/?client_id={cli['id']}", headers=owner_auth)
+    tasks = client.get(f"/tasks/?clients={cli['id']}", headers=owner_auth)
     task = next(t for t in tasks.json() if t["template_id"] == tmpl["id"])
 
     resp = client.put(

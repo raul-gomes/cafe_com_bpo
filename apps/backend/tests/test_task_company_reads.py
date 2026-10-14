@@ -193,7 +193,7 @@ class TestOrigemDaLeitura:
         assert len(depois.json()["tasks"]) == 1
 
     def test_listagem_filtrada_por_empresa_sobrevive_a_linha_legada(self, client):
-        """O filtro `GET /tasks/?client_id=` também sai da linha legada.
+        """O filtro `GET /tasks/?clients=` também sai da linha legada.
 
         Ele decide "sou o dono desta empresa?" com o dono lido de `clients`. Com
         a linha legada desativada o dono deixa de ser reconhecido e o endpoint
@@ -209,13 +209,13 @@ class TestOrigemDaLeitura:
         tarefa_pedida = _criar_tarefa(client, dono, pedida, ONTEM)
         _criar_tarefa(client, dono, outra, ONTEM)
 
-        antes = client.get(f"/tasks/?client_id={pedida}", headers=dono)
+        antes = client.get(f"/tasks/?clients={pedida}", headers=dono)
         assert antes.status_code == 200, antes.text
         assert [t["id"] for t in antes.json()] == [tarefa_pedida]
 
         _degradar_linha_legada(pedida)
 
-        depois = client.get(f"/tasks/?client_id={pedida}", headers=dono)
+        depois = client.get(f"/tasks/?clients={pedida}", headers=dono)
         assert depois.status_code == 200, depois.text
         assert [t["id"] for t in depois.json()] == [tarefa_pedida], (
             "o filtro por empresa ainda resolve o dono pela linha legada"

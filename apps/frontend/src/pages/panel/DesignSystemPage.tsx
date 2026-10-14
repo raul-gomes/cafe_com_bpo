@@ -1087,11 +1087,14 @@ open()`}
         {/* ── SignupPlanOffer ── */}
         <ComponentCard
           name="SignupPlanOffer"
-          description="Oferta mostrada logo após o cadastro de um novo usuário: o investimento do plano ativo com 'Assinar' e 'Continuar sem assinar'."
+          description="Oferta mostrada logo após o cadastro de um novo usuário: duas opções selecionáveis (Assinar pré-selecionada ou continuar no gratuito) com um único botão Continuar."
           howToUse={`import { SignupPlanOffer } from '../../components/payments/SignupPlanOffer'
 
-// Presentacional: o RegisterModal resolve o plano ativo (usePlans) e passa aqui.
-<SignupPlanOffer plan={activePlan} onContinue={() => navigate('/painel/tarefas')} />`}
+// Presentacional: o RegisterModal resolve o plano ativo (usePlans) e trata a escolha.
+<SignupPlanOffer
+  plan={activePlan}
+  onContinue={(choice) => navigate(choice === 'subscribe' ? '/painel/pagamentos' : '/painel')}
+/>`}
         >
           <SignupPlanOffer
             plan={{

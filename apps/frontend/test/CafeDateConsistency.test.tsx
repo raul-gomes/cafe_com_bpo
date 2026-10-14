@@ -24,8 +24,8 @@ vi.mock('../src/context/AuthContext', () => ({
   useAuth: () => ({ user: null, isAuthenticated: false, isLoading: false }),
 }))
 
-vi.mock('../src/components/auth/LoginDialogContext', () => ({
-  useLoginDialog: () => ({ openLogin: vi.fn() }),
+vi.mock('../src/components/auth/PublicShell', () => ({
+  useLogin: () => ({ openLogin: vi.fn() }),
 }))
 
 // Wednesday 21/10/2026 at 15:30 in Brasília: not the last Wednesday, not 14h.

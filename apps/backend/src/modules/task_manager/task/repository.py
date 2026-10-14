@@ -64,9 +64,20 @@ class TaskRepository:
         self,
         user_id: UUID,
         process_type_filter: str | None = None,
-        today_filter: bool = False,
-        overdue_filter: bool = False,
+        deadline_start: datetime | None = None,
+        deadline_end: datetime | None = None,
     ) -> list[Task]:
+        """List an owner's tasks, optionally narrowed by deadline period.
+
+        Args:
+            user_id: Owner of the tasks.
+            process_type_filter: Restrict to one process type, when given.
+            deadline_start: Inclusive lower bound of the deadline (UTC), or None.
+            deadline_end: Exclusive upper bound of the deadline (UTC), or None.
+
+        Returns:
+            The matching tasks, soonest deadline first.
+        """
         query = (
             self.session.query(Task)
             .options(joinedload(Task.client))
@@ -76,33 +87,33 @@ class TaskRepository:
         if process_type_filter:
             query = query.filter(Task.process_type == process_type_filter)
 
-        if today_filter:
-            # Dia de negócio (03:00 UTC em São Paulo), não meia-noite UTC:
-            # é o mesmo dia que o usuário vê e o mesmo que `is_overdue` mede.
-            day_start, day_end = business_day_bounds(datetime.now(timezone.utc))
-            query = query.filter(
-                Task.deadline >= day_start,
-                Task.deadline < day_end,
-            )
+        if deadline_start is not None:
+            query = query.filter(Task.deadline >= deadline_start)
 
-        if overdue_filter:
-            day_start, _ = business_day_bounds(datetime.now(timezone.utc))
-            query = query.filter(
-                Task.deadline < day_start,
-                Task.completed_at.is_(None),
-                Task.is_cancelled == False,
-            )
+        if deadline_end is not None:
+            query = query.filter(Task.deadline < deadline_end)
+
         return query.order_by(Task.deadline.asc().nullslast()).all()
 
     def get_tasks_for_member(
         self,
         user_id: UUID,
         granted_template_ids: list[UUID],
-        today_filter: bool = False,
-        overdue_filter: bool = False,
+        deadline_start: datetime | None = None,
+        deadline_end: datetime | None = None,
     ) -> list[Task]:
         """Get a member's visible tasks: their own tasks plus tasks from
-        the routines (templates) they were granted access to via invitation."""
+        the routines (templates) they were granted access to via invitation.
+
+        Args:
+            user_id: The member.
+            granted_template_ids: Templates released to the member.
+            deadline_start: Inclusive lower bound of the deadline (UTC), or None.
+            deadline_end: Exclusive upper bound of the deadline (UTC), or None.
+
+        Returns:
+            The matching tasks, soonest deadline first.
+        """
         own_cond = Task.user_id == user_id
         if granted_template_ids:
             cond = or_(own_cond, Task.template_id.in_(granted_template_ids))
@@ -114,21 +125,10 @@ class TaskRepository:
             .options(joinedload(Task.client))
             .filter(Task.is_active, cond)
         )
-        if today_filter:
-            # Dia de negócio (03:00 UTC em São Paulo), não meia-noite UTC:
-            # é o mesmo dia que o usuário vê e o mesmo que `is_overdue` mede.
-            day_start, day_end = business_day_bounds(datetime.now(timezone.utc))
-            query = query.filter(
-                Task.deadline >= day_start,
-                Task.deadline < day_end,
-            )
-        if overdue_filter:
-            day_start, _ = business_day_bounds(datetime.now(timezone.utc))
-            query = query.filter(
-                Task.deadline < day_start,
-                Task.completed_at.is_(None),
-                Task.is_cancelled == False,
-            )
+        if deadline_start is not None:
+            query = query.filter(Task.deadline >= deadline_start)
+        if deadline_end is not None:
+            query = query.filter(Task.deadline < deadline_end)
         return query.order_by(Task.deadline.asc().nullslast()).all()
 
     def create(self, task_in: TaskCreate, user_id: UUID) -> Task:

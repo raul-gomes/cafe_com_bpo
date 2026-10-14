@@ -17,11 +17,11 @@ interface RegisterModalProps {
  * Modal de cadastro aberto a partir da tela de login.
  *
  * Fluxo em dois passos: o formulário de registro e, após o cadastro (o
- * AuthContext já faz o auto-login), a oferta de assinatura — "Assinar" vai a
- * `/painel/pagamentos` (Link interno do `SignupPlanOffer`) e "Continuar sem
- * assinar" ao gestor de tarefas. O catálogo só é buscado quando a oferta está
- * aberta: `GET /plans` exige sessão e, disparado no mount, derrubaria o
- * visitante anônimo de volta ao login pelo interceptor do `client`.
+ * AuthContext já faz o auto-login), a oferta de assinatura — "Assinar" (opção
+ * pré-selecionada) leva a `/painel/pagamentos` e "Continuar no plano gratuito"
+ * ao painel (`/painel`). O catálogo só é buscado quando a oferta está aberta:
+ * `GET /plans` exige sessão e, disparado no mount, derrubaria o visitante
+ * anônimo de volta ao login pelo interceptor do `client`.
  */
 export const RegisterModal: React.FC<RegisterModalProps> = ({ open, onOpenChange }) => {
     const { isAuthenticated } = useAuth();
@@ -37,10 +37,10 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ open, onOpenChange
     }, [open]);
 
     // Sem plano ativo no catálogo não há investimento a mostrar: segue direto
-    // para o gestor de tarefas.
+    // para o painel.
     useEffect(() => {
         if (open && showOffer && !plansLoading && !activePlan) {
-            navigate('/painel/tarefas');
+            navigate('/painel');
         }
     }, [open, showOffer, plansLoading, activePlan, navigate]);
 
@@ -55,7 +55,7 @@ export const RegisterModal: React.FC<RegisterModalProps> = ({ open, onOpenChange
                     ) : (
                         <SignupPlanOffer
                             plan={activePlan}
-                            onContinue={() => navigate('/painel/tarefas')}
+                            onContinue={(choice) => navigate(choice === 'subscribe' ? '/painel/pagamentos' : '/painel')}
                         />
                     )
                 ) : (

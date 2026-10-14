@@ -14,17 +14,20 @@ vi.mock('../src/api/hooks/useTasks', () => {
   const now = new Date()
   const todayDeadline = new Date(now).toISOString()
   const mockData = {
-    useTasksList: (teamOnly = false) => ({
-      data: teamOnly
-        ? [
-            { id: 'task-gama', title: 'Gama da equipe', client_id: 'c3', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u2', is_cancelled: false },
-          ]
-        : [
-          { id: 'task-early', title: 'Fechamento antigo', client_id: 'c1', priority: 'high', phase_id: 'phase-1', deadline: '2026-10-09T15:00:00Z', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false, is_overdue: false },
-          { id: 'task-late', title: 'Conciliação futura', client_id: 'c2', priority: 'medium', phase_id: 'phase-1', deadline: '2026-10-14T15:00:00Z', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false, is_overdue: false },
-        ],
-      isLoading: false,
-    }),
+    useTasksList: (filter: any = {}) => {
+      const team = typeof filter === 'boolean' ? filter : (filter?.team ?? false);
+      return {
+        data: team
+          ? [
+              { id: 'task-gama', title: 'Gama da equipe', client_id: 'c3', priority: 'high', phase_id: 'phase-1', deadline: todayDeadline, created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u2', is_cancelled: false },
+            ]
+          : [
+            { id: 'task-early', title: 'Fechamento antigo', client_id: 'c1', priority: 'high', phase_id: 'phase-1', deadline: '2026-10-09T15:00:00Z', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false, is_overdue: false },
+            { id: 'task-late', title: 'Conciliação futura', client_id: 'c2', priority: 'medium', phase_id: 'phase-1', deadline: '2026-10-14T15:00:00Z', created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z', user_id: 'u1', is_cancelled: false, is_overdue: false },
+          ],
+        isLoading: false,
+      };
+    },
     useUpdateTaskStatus: mockMutation,
     usePhases: () => ({
       data: [

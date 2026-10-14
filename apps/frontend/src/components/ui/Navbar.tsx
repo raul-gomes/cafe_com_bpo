@@ -1,7 +1,7 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useLoginDialog } from '../auth/LoginDialogContext';
+import { useLogin } from '../auth/PublicShell';
 import { CafeIcon } from '../../brand/CafeIcon';
 import { reopenCafeBanner } from '../home/CafeBanner';
 import { useAppearance } from '../../brand/appearance';
@@ -23,7 +23,7 @@ import { useAppearance } from '../../brand/appearance';
  */
 export const Navbar: React.FC = () => {
   const { isAuthenticated } = useAuth();
-  const { openLogin } = useLoginDialog();
+  const { openLogin } = useLogin();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [{ mode }, setAppearance] = useAppearance();

@@ -3,14 +3,13 @@ import { screen, fireEvent, render, within } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-import { LoginDialog } from '../src/components/auth/LoginDialog'
+import LoginPage from '../src/pages/LoginPage'
 import type { Plan } from '../src/schemas/plans'
 
-// Fluxo desenhado (2026-10-09): a tela base é o login; "Cadastre-se" abre um
-// MODAL com os campos; ao cadastrar o usuário vê a oferta de assinatura e
-// escolhe "Assinar" (→ /painel/pagamentos) ou "Continuar sem assinar"
-// (→ /painel/tarefas). O cadastro antigo vivia numa página /cadastro separada,
-// com o login por cima — invertido do que o produto pediu.
+// Fluxo desenhado: a tela base é o login (página dedicada /login); "Cadastre-se"
+// abre um MODAL com os campos; ao cadastrar o usuário vê a oferta de assinatura
+// e escolhe "Assinar" (opção pré-selecionada → /painel/pagamentos) ou "Continuar
+// no plano gratuito" (→ /painel) com o botão "Continuar".
 const mockRegister = vi.hoisted(() => vi.fn())
 const { mockAuthValue } = vi.hoisted(() => ({
   mockAuthValue: { value: { register: mockRegister, isAuthenticated: false } as AuthState },
@@ -60,7 +59,7 @@ const renderLogin = () => {
     <QueryClientProvider client={queryClient}>
       <MemoryRouter initialEntries={['/login']}>
         <Routes>
-          <Route path="/login" element={<LoginDialog onClose={() => {}} />} />
+          <Route path="/login" element={<LoginPage />} />
           <Route path="/painel" element={<div data-testid="page">Painel</div>} />
           <Route path="/painel/tarefas" element={<div data-testid="page">Tarefas</div>} />
           <Route path="/painel/pagamentos" element={<div data-testid="page">Pagamentos</div>} />
@@ -113,7 +112,7 @@ describe('Login → Cadastre-se (modal) → oferta de assinatura', () => {
   it('clica em Cadastre-se e o modal de cadastro abre sobre a tela de login', async () => {
     renderLogin()
 
-    expect(await screen.findByRole('dialog', { name: 'Login' })).toBeInTheDocument()
+    expect(await screen.findByTestId('login-page')).toBeInTheDocument()
     openRegisterModal()
 
     expect(await screen.findByText('Crie sua conta')).toBeInTheDocument()
@@ -121,7 +120,7 @@ describe('Login → Cadastre-se (modal) → oferta de assinatura', () => {
     expect(screen.getByTestId('login-page')).toBeInTheDocument()
   })
 
-  it('cadastro concluído → oferta no modal; "Continuar sem assinar" vai para o gestor de tarefas', async () => {
+  it('cadastro concluído → oferta no modal; continuar no gratuito vai para o painel', async () => {
     renderLogin()
 
     openRegisterModal()
@@ -130,12 +129,13 @@ describe('Login → Cadastre-se (modal) → oferta de assinatura', () => {
     expect(await screen.findByText(/conta criada/i)).toBeInTheDocument()
     expect(screen.getByText(/R\$ 49,90/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /continuar sem assinar/i }))
+    fireEvent.click(screen.getByRole('radio', { name: /continuar no plano gratuito/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Continuar$/i }))
 
-    expect(await screen.findByTestId('page')).toHaveTextContent('Tarefas')
+    expect(await screen.findByTestId('page')).toHaveTextContent('Painel')
   })
 
-  it('na oferta, "Assinar Pro" vai para a tela de pagamentos', async () => {
+  it('na oferta, "Assinar" (pré-selecionada) vai para a tela de pagamentos', async () => {
     renderLogin()
 
     openRegisterModal()
@@ -143,7 +143,7 @@ describe('Login → Cadastre-se (modal) → oferta de assinatura', () => {
 
     expect(await screen.findByText(/conta criada/i)).toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('button', { name: /assinar pro/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Continuar$/i }))
 
     expect(await screen.findByTestId('page')).toHaveTextContent('Pagamentos')
   })
@@ -164,14 +164,14 @@ describe('Login → Cadastre-se (modal) → oferta de assinatura', () => {
     expect(mockRegister).not.toHaveBeenCalled()
   })
 
-  it('catálogo sem plano ativo: após cadastrar vai direto ao gestor de tarefas, sem oferta', async () => {
+  it('catálogo sem plano ativo: após cadastrar vai direto ao painel, sem oferta', async () => {
     mockPlansValue.value = []
     renderLogin()
 
     openRegisterModal()
     await submitCadastro()
 
-    expect(await screen.findByTestId('page')).toHaveTextContent('Tarefas')
+    expect(await screen.findByTestId('page')).toHaveTextContent('Painel')
     expect(screen.queryByText(/investimento/i)).not.toBeInTheDocument()
   })
 })

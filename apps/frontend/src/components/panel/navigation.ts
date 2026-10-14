@@ -88,7 +88,6 @@ export const NAV_SECTIONS: NavSection[] = [
     tagline: 'Equipe, contatos e o escritório',
     items: [
       { path: '/painel/projetos', icon: 'negocios', label: 'Projetos' },
-      { path: '/painel/gestao-equipes', icon: 'pessoas', label: 'Gestão de equipes' },
       { path: '/painel/contatos', icon: 'mensagem', label: 'Contatos' },
       { path: '/painel/pagamentos', icon: 'pagamentos', label: 'Pagamentos', gate: 'pagamentos' },
       { path: '/painel/configuracoes', icon: 'ajustes', label: 'Configurações' },
@@ -107,12 +106,14 @@ export const NAV_SECTIONS: NavSection[] = [
     ],
   },
   // Placeholder modules (under construction) to see the tabs wrapping.
+  // Admin-only for now: the feature is not public until it ships.
   {
     id: 'notas-fiscais',
     label: 'Notas Fiscais',
     module: 'notas',
     icon: 'nota',
     tagline: 'Emissão e acompanhamento de NF',
+    adminOnly: true,
     items: [
       { path: '/painel/notas-fiscais', icon: 'nota', label: 'Notas emitidas' },
       { path: '/painel/notas-fiscais/emitir', icon: 'adicionar', label: 'Emitir nota' },
@@ -124,6 +125,7 @@ export const NAV_SECTIONS: NavSection[] = [
     module: 'negocios',
     icon: 'seguranca',
     tagline: 'Validade e renovação dos certificados',
+    adminOnly: true,
     items: [
       { path: '/painel/certificados', icon: 'seguranca', label: 'Certificados' },
       { path: '/painel/certificados/vencimentos', icon: 'tempo', label: 'Vencimentos' },

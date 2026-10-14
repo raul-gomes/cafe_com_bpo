@@ -355,6 +355,175 @@ class TestCourtesy:
         assert client.get("/access", headers=user).json()["access"] == "free"
 
 
+class TestBetaPromotion:
+    """An administrator can give a user the launch-style beta access.
+
+    Same shape as the courtesy: the admin picks the number of days and the
+    access lasts until then. Unlike the launch backfill (which never mutates a
+    row), promoting again deliberately restarts the term on the same row.
+    """
+
+    def test_promoting_to_beta_unlocks_full_access_until_revoked(self, client):
+        admin, _ = _auth(client, "admin")
+        user, email = _auth(client)
+        assert client.get("/access", headers=user).json()["access"] == "free"
+
+        users = client.get(
+            "/admin/users", params={"search": email}, headers=admin
+        ).json()
+        granted = client.post(
+            f"/admin/users/{users[0]['id']}/beta",
+            json={"days": 30},
+            headers=admin,
+        )
+        assert granted.status_code == 201
+        assert granted.json()["expires_at"] is not None
+
+        access = client.get("/access", headers=user).json()
+        assert access["access"] == "beta"
+        assert access["read_only_modules"] == []
+        listed = client.get(
+            "/admin/users", params={"search": email}, headers=admin
+        ).json()
+        assert listed[0]["access_state"] == "beta"
+
+        revoked = client.delete(f"/admin/users/{users[0]['id']}/beta", headers=admin)
+        assert revoked.status_code == 204
+        assert client.get("/access", headers=user).json()["access"] == "free"
+
+    def test_promoting_again_restarts_the_term_on_a_single_row(
+        self, client, db_session
+    ):
+        from src.modules.subscriptions.models import BetaAccess
+
+        admin, _ = _auth(client, "admin")
+        _, email = _auth(client)
+        users = client.get(
+            "/admin/users", params={"search": email}, headers=admin
+        ).json()
+        user_id = users[0]["id"]
+
+        first = client.post(
+            f"/admin/users/{user_id}/beta", json={"days": 30}, headers=admin
+        ).json()
+        second = client.post(
+            f"/admin/users/{user_id}/beta", json={"days": 365}, headers=admin
+        ).json()
+        assert second["expires_at"] > first["expires_at"]
+
+        rows = (
+            db_session.query(BetaAccess)
+            .filter(BetaAccess.user_id == UUID(user_id))
+            .count()
+        )
+        assert rows == 1
+
+    def test_beta_grant_requires_a_valid_user(self, client):
+        admin, _ = _auth(client, "admin")
+        missing = client.post(
+            f"/admin/users/{uuid4()}/beta", json={"days": 30}, headers=admin
+        )
+        assert missing.status_code == 404
+
+    @pytest.mark.parametrize("days", [0, 731])
+    def test_beta_grant_rejects_days_out_of_range(self, client, days):
+        admin, _ = _auth(client, "admin")
+        _, email = _auth(client)
+        users = client.get(
+            "/admin/users", params={"search": email}, headers=admin
+        ).json()
+        resp = client.post(
+            f"/admin/users/{users[0]['id']}/beta", json={"days": days}, headers=admin
+        )
+        assert resp.status_code == 422
+
+    def test_regular_user_cannot_promote_to_beta(self, client):
+        _, email = _auth(client)
+        user, _ = _auth(client)
+        users = client.get(
+            "/admin/users",
+            params={"search": email},
+            headers=_auth(client, "admin")[0],
+        ).json()
+        resp = client.post(
+            f"/admin/users/{users[0]['id']}/beta", json={"days": 30}, headers=user
+        )
+        assert resp.status_code == 403
+
+
+class TestRoleChange:
+    """An administrator can promote a user to admin — and demote back."""
+
+    def test_promote_and_demote_admin(self, client):
+        admin, _ = _auth(client, "admin")
+        user, email = _auth(client)
+        assert client.get("/admin/users", headers=user).status_code == 403
+
+        users = client.get(
+            "/admin/users", params={"search": email}, headers=admin
+        ).json()
+        user_id = users[0]["id"]
+
+        promoted = client.patch(
+            f"/admin/users/{user_id}/role", json={"role": "admin"}, headers=admin
+        )
+        assert promoted.status_code == 200
+        assert promoted.json()["role"] == "admin"
+        assert client.get("/admin/users", headers=user).status_code == 200
+
+        demoted = client.patch(
+            f"/admin/users/{user_id}/role", json={"role": "user"}, headers=admin
+        )
+        assert demoted.status_code == 200
+        assert client.get("/admin/users", headers=user).status_code == 403
+
+    def test_an_admin_cannot_demote_their_own_account(self, client):
+        admin, email = _auth(client, "admin")
+        users = client.get(
+            "/admin/users", params={"search": email}, headers=admin
+        ).json()
+        resp = client.patch(
+            f"/admin/users/{users[0]['id']}/role", json={"role": "user"}, headers=admin
+        )
+        assert resp.status_code == 400
+        assert client.get("/admin/users", headers=admin).status_code == 200
+
+    def test_unknown_role_is_refused(self, client):
+        admin, _ = _auth(client, "admin")
+        _, email = _auth(client)
+        users = client.get(
+            "/admin/users", params={"search": email}, headers=admin
+        ).json()
+        resp = client.patch(
+            f"/admin/users/{users[0]['id']}/role",
+            json={"role": "superuser"},
+            headers=admin,
+        )
+        assert resp.status_code == 422
+
+    def test_role_change_requires_a_valid_user(self, client):
+        admin, _ = _auth(client, "admin")
+        resp = client.patch(
+            f"/admin/users/{uuid4()}/role", json={"role": "admin"}, headers=admin
+        )
+        assert resp.status_code == 404
+
+    def test_regular_user_cannot_change_roles(self, client):
+        _, email = _auth(client)
+        user, _ = _auth(client)
+        users = client.get(
+            "/admin/users",
+            params={"search": email},
+            headers=_auth(client, "admin")[0],
+        ).json()
+        resp = client.patch(
+            f"/admin/users/{users[0]['id']}/role",
+            json={"role": "admin"},
+            headers=user,
+        )
+        assert resp.status_code == 403
+
+
 class TestAdminListTotals:
     """AUD-044: admin lists said nothing when cut at a fixed size.
 

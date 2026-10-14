@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { PanelSidebar } from './PanelSidebar';
 import { PanelTopBar } from './PanelTopBar';
 import { Toaster } from '../ui/sonner';
 import { BetaEndingBanner } from './BetaEndingBanner';
 import { useAccess } from '../../api/hooks/useAccess';
+import { useAuth } from '../../context/AuthContext';
 import { NAV_SECTIONS, sectionForPath, type NavSection } from './navigation';
 
 const NAV_KEY = 'cafe_bpo_sidebar_nav';
@@ -35,8 +36,15 @@ const NAV_TOGGLE_LABEL: Record<NavState, string> = {
   hidden: 'Abrir o menu completo',
 };
 
-function sectionById(id: string | null): NavSection {
-  return NAV_SECTIONS.find(section => section.id === id) ?? NAV_SECTIONS[0];
+/**
+ * Section by id, restricted to the sections the user may see.
+ *
+ * @param id Stored section id (may be absent or blocked).
+ * @param sections Sections visible to the user.
+ * @returns The matching section, or the first visible one.
+ */
+function sectionById(id: string | null, sections: NavSection[] = NAV_SECTIONS): NavSection {
+  return sections.find(section => section.id === id) ?? sections[0];
 }
 
 /**
@@ -51,6 +59,7 @@ function sectionById(id: string | null): NavSection {
  */
 export const PanelLayout: React.FC = () => {
   const { pathname } = useLocation();
+  const { user } = useAuth();
   const { data: access } = useAccess();
   const [nav, setNav] = useState<NavState>(() => {
     const stored = readStorage(NAV_KEY);
@@ -60,8 +69,16 @@ export const PanelLayout: React.FC = () => {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const drawerRef = useRef<HTMLDialogElement>(null);
 
-  const routeSection = sectionForPath(pathname);
-  const activeSection = routeSection ?? sectionById(chosenId);
+  // Admin-only sections (Admin, Notas Fiscais, Certificados Digitais) never
+  // reach a non-admin — not through the route, not through the stored module.
+  const isAdmin = user?.role === 'admin';
+  const visibleSections = useMemo(
+    () => NAV_SECTIONS.filter(section => !section.adminOnly || isAdmin),
+    [isAdmin]
+  );
+  const matchedSection = sectionForPath(pathname);
+  const routeSection = matchedSection && (!matchedSection.adminOnly || isAdmin) ? matchedSection : null;
+  const activeSection = routeSection ?? sectionById(chosenId, visibleSections);
 
   // Landing on a route of another module (link, notification…) makes it the chosen one.
   useEffect(() => {

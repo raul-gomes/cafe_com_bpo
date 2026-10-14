@@ -28,6 +28,8 @@ from .schemas import (
     AdminUserResponse,
     AnnouncementCreate,
     AnnouncementResponse,
+    BetaGrantCreate,
+    BetaResponse,
     CafeMeeting,
     CafeRsvpAccepted,
     CafeRsvpCreate,
@@ -39,6 +41,8 @@ from .schemas import (
     LoginNotice,
     PublicCafeMeeting,
     PublicSiteResponse,
+    RoleResponse,
+    RoleUpdate,
 )
 
 router = APIRouter(tags=["platform"])
@@ -405,3 +409,55 @@ def admin_revoke_courtesy(grant_id: UUID, _admin: AdminDep, db: SessionDep) -> N
         db: Database session.
     """
     service.revoke_courtesy(db, grant_id)
+
+
+@admin_router.post(
+    "/users/{user_id}/beta",
+    response_model=BetaResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def admin_grant_beta(
+    user_id: UUID, data: BetaGrantCreate, admin: AdminDep, db: SessionDep
+):
+    """Promotes a user to the beta access for some days (replaces a running one).
+
+    Args:
+        user_id: User who receives it.
+        data: Number of days.
+        admin: Authenticated administrator.
+        db: Database session.
+
+    Returns:
+        The running beta access.
+    """
+    return service.grant_beta(db, user_id, data, granted_by=admin.email)
+
+
+@admin_router.delete("/users/{user_id}/beta", status_code=status.HTTP_204_NO_CONTENT)
+def admin_revoke_beta(user_id: UUID, _admin: AdminDep, db: SessionDep) -> None:
+    """Ends a user's beta access now.
+
+    Args:
+        user_id: User who loses it.
+        _admin: Authenticated administrator.
+        db: Database session.
+    """
+    service.revoke_beta(db, user_id)
+
+
+@admin_router.patch("/users/{user_id}/role", response_model=RoleResponse)
+def admin_set_user_role(
+    user_id: UUID, data: RoleUpdate, admin: AdminDep, db: SessionDep
+):
+    """Promotes a user to administrator or demotes them back to user.
+
+    Args:
+        user_id: User whose role changes.
+        data: The new role (`admin` or `user`).
+        admin: Authenticated administrator performing the change.
+        db: Database session.
+
+    Returns:
+        The id and the new role.
+    """
+    return service.set_user_role(db, user_id, data, actor_id=admin.id)

@@ -40,6 +40,18 @@ def business_day_bounds(reference: datetime) -> tuple[datetime, datetime]:
     return start.astimezone(timezone.utc), end.astimezone(timezone.utc)
 
 
+def business_day_bounds_for_date(day: date) -> tuple[datetime, datetime]:
+    """Início e começo do dia seguinte (exclusivo) do dia de negócio.
+
+    Recebe uma data de calendário e devolve os instantes UTC que delimitam
+    esse dia no fuso de negócio — o mesmo corte de `business_day_bounds`,
+    agora a partir de uma data. É o que o filtro de período da listagem usa
+    para não voltar a comparar por meia-noite UTC.
+    """
+    start = datetime.combine(day, time.min, tzinfo=BUSINESS_TZ)
+    return business_day_bounds(start)
+
+
 def days_remaining(
     deadline: datetime | None, *, today: date | None = None
 ) -> int | None:

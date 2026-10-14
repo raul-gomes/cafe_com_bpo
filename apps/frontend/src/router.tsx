@@ -5,7 +5,7 @@ import { PanelLayout } from './components/panel/PanelLayout'
 import { ErrorBoundary } from './components/ErrorBoundary'
 import { AdminRoute } from './components/auth/AdminRoute'
 import { UpgradeProvider } from './components/ui/UpgradeModal'
-import { PublicShell } from './components/auth/LoginDialogContext'
+import { PublicShell } from './components/auth/PublicShell'
 
 // ── Lazy-loaded pages (default exports — use React.lazy) ─────────
 const HomePage = React.lazy(() => import('./pages/HomePage'))
@@ -95,16 +95,12 @@ export async function buildRoutes() {
       ),
       children: [
     {
-      // Public pages: shared header and the login dialog (PublicShell).
+      // Public pages: shared header.
       element: <PublicShell />,
       children: [
         {
           path: '/',
           element: <SuspenseWrapper><HomePage /></SuspenseWrapper>,
-        },
-        {
-          path: '/login',
-          element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
         },
         {
           path: '/simulador',
@@ -144,6 +140,11 @@ export async function buildRoutes() {
           element: <SuspenseWrapper><LegalPage document="privacy" /></SuspenseWrapper>,
         },
       ],
+    },
+    {
+      // Standalone login page: no public header/footer.
+      path: '/login',
+      element: <SuspenseWrapper><LoginPage /></SuspenseWrapper>,
     },
     {
       path: '/auth/callback',
@@ -286,11 +287,23 @@ export async function buildRoutes() {
             { path: 'aulas/primeiros-passos', element: <SuspenseWrapper><LessonsPage section="primeiros-passos" /></SuspenseWrapper> },
             { path: 'aulas/bpo-primeiros-passos', element: <SuspenseWrapper><LessonsPage section="bpo-primeiros-passos" /></SuspenseWrapper> },
             { path: 'aulas/mentorias', element: <SuspenseWrapper><LessonsPage section="mentorias" /></SuspenseWrapper> },
-            // Placeholder modules (under construction): Notas Fiscais and Certificados Digitais.
-            { path: 'notas-fiscais', element: <SuspenseWrapper><UnderConstructionPanelPage area="notas-fiscais" /></SuspenseWrapper> },
-            { path: 'notas-fiscais/emitir', element: <SuspenseWrapper><UnderConstructionPanelPage area="notas-fiscais" /></SuspenseWrapper> },
-            { path: 'certificados', element: <SuspenseWrapper><UnderConstructionPanelPage area="certificados" /></SuspenseWrapper> },
-            { path: 'certificados/vencimentos', element: <SuspenseWrapper><UnderConstructionPanelPage area="certificados" /></SuspenseWrapper> },
+            // Placeholder modules (under construction), admin-only until they ship.
+            {
+              path: 'notas-fiscais',
+              element: <AdminRoute />,
+              children: [
+                { path: '', element: <SuspenseWrapper><UnderConstructionPanelPage area="notas-fiscais" /></SuspenseWrapper> },
+                { path: 'emitir', element: <SuspenseWrapper><UnderConstructionPanelPage area="notas-fiscais" /></SuspenseWrapper> },
+              ],
+            },
+            {
+              path: 'certificados',
+              element: <AdminRoute />,
+              children: [
+                { path: '', element: <SuspenseWrapper><UnderConstructionPanelPage area="certificados" /></SuspenseWrapper> },
+                { path: 'vencimentos', element: <SuspenseWrapper><UnderConstructionPanelPage area="certificados" /></SuspenseWrapper> },
+              ],
+            },
             {
               path: 'admin',
               element: <AdminRoute />,

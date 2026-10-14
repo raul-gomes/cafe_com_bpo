@@ -29,7 +29,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegist
   });
   const [genericError, setGenericError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
-  const [googleSoon, setGoogleSoon] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -92,7 +91,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegist
     <>
     <Card className={compact ? 'border-0 bg-transparent shadow-none ring-0' : 'mx-auto max-w-[480px]'}>
       <CardContent className={compact ? 'p-0' : 'pt-7 px-8 pb-7'}>
-        {/* Brand: inside the dialog it lives in the side column (LoginDialog). */}
+        {/* Brand: inside the login page it lives in the side column (LoginPage). */}
         {!compact && <div className="text-center mb-5">
           <img src={logoFor(mode)} alt="Café com BPO" className="mx-auto mb-[12px] h-auto w-[132px]" />
           <h2 className="font-editorial text-[1.75rem] font-medium leading-tight text-foreground">
@@ -210,30 +209,6 @@ export const LoginForm: React.FC<LoginFormProps> = ({ onForgotPassword, onRegist
             </button>
           </div>
         </form>
-
-        {/* Google login: the server already builds the authorization (auth/oauth/service.py)
-            but has no route connecting it to the site yet — the button says "coming soon". */}
-        <div className="my-[12px] flex items-center gap-[10px] text-xs text-muted-foreground" aria-hidden="true">
-          <span className="h-px flex-1 bg-border" /> ou <span className="h-px flex-1 bg-border" />
-        </div>
-        <button
-          type="button"
-          onClick={() => setGoogleSoon(true)}
-          className="flex w-full items-center justify-center gap-[10px] rounded-md border border-input bg-card px-[14px] py-[9px] text-sm font-semibold text-foreground transition-colors hover:bg-muted"
-        >
-          <svg className="size-[18px]" viewBox="0 0 24 24" aria-hidden="true">
-            <path fill="#4285F4" d="M22.6 12.2c0-.8-.1-1.5-.2-2.2H12v4.2h5.9a5 5 0 0 1-2.2 3.3v2.7h3.6c2.1-1.9 3.3-4.8 3.3-8z" />
-            <path fill="#34A853" d="M12 23c3 0 5.5-1 7.3-2.7l-3.6-2.7c-1 .7-2.2 1.1-3.7 1.1-2.9 0-5.3-1.9-6.1-4.5H2.2v2.8A11 11 0 0 0 12 23z" />
-            <path fill="#FBBC05" d="M5.9 14.2a6.6 6.6 0 0 1 0-4.3V7H2.2a11 11 0 0 0 0 9.9l3.7-2.7z" />
-            <path fill="#EA4335" d="M12 5.4c1.6 0 3.1.6 4.2 1.7l3.2-3.2A11 11 0 0 0 2.2 7l3.7 2.9C6.7 7.3 9.1 5.4 12 5.4z" />
-          </svg>
-          Entrar com Google
-        </button>
-        {googleSoon && (
-          <p role="status" className="mt-[8px] text-center text-xs text-muted-foreground">
-            O login com Google chega em breve. Por enquanto, entre com e-mail e senha.
-          </p>
-        )}
       </CardContent>
     </Card>
     </>

@@ -60,7 +60,7 @@ def assign_template(client, auth, client_id, template_id):
 
 
 def client_tasks(client, auth, client_id):
-    resp = client.get(f"/tasks/?client_id={client_id}", headers=auth)
+    resp = client.get(f"/tasks/?clients={client_id}", headers=auth)
     assert resp.status_code == 200, resp.text
     return resp.json()
 

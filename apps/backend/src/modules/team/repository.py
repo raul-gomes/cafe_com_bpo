@@ -623,7 +623,7 @@ class TeamRepository:
 
         A empresa é a fonte única do vínculo (Fase 3, item 6): a linha legada
         `clients` respondia a mesma pergunta, mas ela é o que o R4 apaga — e,
-        com ela desativada, `GET /tasks/?client_id=` deixava de reconhecer o dono
+        com ela desativada, `GET /tasks/?clients=` deixava de reconhecer o dono
         e caía no caminho geral, que devolve as tarefas de todas as empresas do
         usuário em vez de só a pedida.
         """

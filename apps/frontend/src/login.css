@@ -4,25 +4,66 @@
    Nunca use valores inline no JSX: use estas classes.
    ═══════════════════════════════════════════════════════ */
 
-:root {
-  /* BPO watermark */
-  --login-bpo-size:          clamp(180px, 38vw, 420px);
-  --login-bpo-letter-spacing: -12px;
-  --login-bpo-color:         rgba(251, 191, 36, 0.06);
-  --login-bpo-bottom:        -20px;
-  --login-bpo-right:         -20px;
+/* ── PAGE LAYOUT ── full screen, split: brand on the left and the
+   form on the right. Standalone page (no public header/footer). */
+.login-page {
+  display: grid;
+  grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+  min-height: 100dvh;
+  background: var(--cafe-paper);
+  color: var(--cafe-ink);
+}
 
+.login-page-brand {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
+  padding: 48px clamp(28px, 5vw, 64px);
+  background: var(--cafe-deep);
+  color: var(--cafe-on-deep);
+  overflow: hidden;
+}
+.login-page-logo { width: 168px; height: auto; }
+.login-page-title { font: 500 2rem/1.08 var(--cafe-font-editorial); letter-spacing: -0.02em; }
+.login-page-lead { margin-top: 10px; font-size: 1rem; line-height: 1.55; opacity: 0.85; }
+.login-page-notice-link {
+  display: inline-block; margin-top: 14px; padding: 6px 12px;
+  font-size: 0.875rem; font-weight: 700; color: var(--cafe-yellow-ink, #2B2100);
+  background: var(--cafe-yellow); border-radius: 6px; text-decoration: none;
+}
+.login-page-notice-link:hover { background: var(--cafe-yellow-pressed, var(--cafe-yellow)); opacity: 1; }
+.login-page-beta { font-size: 0.9rem; opacity: 0.9; }
+.login-page-beta a { color: var(--cafe-brand-yellow); font-weight: 700; }
+
+.login-page-form {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 48px clamp(24px, 6vw, 88px);
+}
+
+@media (max-width: 860px) {
+  .login-page { grid-template-columns: 1fr; }
+  .login-page-brand {
+    flex-direction: row; align-items: center; justify-content: space-between;
+    gap: 16px; padding: 20px clamp(20px, 5vw, 40px);
+  }
+  .login-page-brand > div { display: none; }
+  .login-page-logo { width: 120px; }
+  .login-page-form { padding: 32px clamp(20px, 6vw, 48px) 48px; }
+}
+
+:root {
   /* Glow blobs */
   --login-glow-top-size:     700px;
   --login-glow-top-color:    rgba(251, 191, 36, 0.08);
   --login-glow-bottom-size:  500px;
   --login-glow-bottom-color: rgba(251, 191, 36, 0.05);
-
-  /* Footer note */
-  --login-footer-size: 12px;
 }
 
-/* ── GLOW BLOBS ── */
+/* ── GLOW BLOBS ── (used by InvitationAcceptPage) */
 .login-glow-top {
   position: absolute;
   top: -60px;
@@ -47,28 +88,3 @@
   z-index: 0;
 }
 
-/* ── BPO WATERMARK ── */
-/* Ancorado no rodapé da página (pai relativo é o container da página).
-   right negativo faz o texto ultrapassar a borda direita.    */
-.login-bpo-watermark {
-  position: absolute;
-  bottom: var(--login-bpo-bottom);
-  right: var(--login-bpo-right);
-  font-size: var(--login-bpo-size);
-  font-weight: 800;
-  color: var(--login-bpo-color);
-  letter-spacing: var(--login-bpo-letter-spacing);
-  white-space: nowrap;
-  line-height: 1;
-  pointer-events: none;
-  user-select: none;
-  z-index: 0;
-  font-family: var(--cafe-font-text);
-}
-
-/* ── FOOTER NOTE ── */
-.login-footer-note {
-  margin-top: 24px;
-  font-size: var(--login-footer-size);
-  color: var(--ds-text-subtle);
-}

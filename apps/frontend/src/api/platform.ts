@@ -7,17 +7,20 @@ import {
   adminSiteSchema,
   adminUserListSchema,
   announcementListSchema,
+  betaAccessSchema,
   cafeRsvpAcceptedSchema,
   cafeRsvpListSchema,
   courtesySchema,
   lessonListSchema,
   publicSiteSchema,
+  roleAssignmentSchema,
   type AdminAnnouncement,
   type AdminLesson,
   type AdminSite,
   type AdminUser,
   type Announcement,
   type AnnouncementInput,
+  type BetaAccess,
   type CafeMeeting,
   type CafeRsvp,
   type CafeRsvpAccepted,
@@ -27,6 +30,7 @@ import {
   type LessonInput,
   type LoginNotice,
   type PublicSite,
+  type RoleAssignment,
 } from '../schemas/platform';
 
 /* ── Reads for everyone ─────────────────────────────────────────────────── */
@@ -147,4 +151,24 @@ export async function adminGrantCourtesy(userId: string, days: number, reason?: 
 
 export async function adminRevokeCourtesy(grantId: string): Promise<void> {
   await apiClient.delete(`/admin/courtesies/${grantId}`);
+}
+
+/** Promotes a user to the beta access for `days` (replaces a running one). */
+export async function adminGrantBeta(userId: string, days: number): Promise<BetaAccess> {
+  const { data } = await apiClient.post(`/admin/users/${userId}/beta`, { days });
+  return betaAccessSchema.parse(data);
+}
+
+/** Ends a user's beta access now. */
+export async function adminRevokeBeta(userId: string): Promise<void> {
+  await apiClient.delete(`/admin/users/${userId}/beta`);
+}
+
+/** Promotes a user to administrator (`admin`) or demotes them back to `user`. */
+export async function adminSetRole(
+  userId: string,
+  role: 'admin' | 'user'
+): Promise<RoleAssignment> {
+  const { data } = await apiClient.patch(`/admin/users/${userId}/role`, { role });
+  return roleAssignmentSchema.parse(data);
 }

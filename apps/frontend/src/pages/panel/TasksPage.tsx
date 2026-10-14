@@ -24,7 +24,7 @@ import {
     DropdownMenuSeparator,
 } from '../../components/ui/dropdown-menu';
 import { cn } from '../../lib/utils';
-import { type FilterMode, manualRange, periodForMode } from '../../lib/taskPeriods';
+import { type FilterMode, manualRange, periodForMode, queryDatesForMode } from '../../lib/taskPeriods';
 import { toast } from 'sonner';
 import { useAuth } from '../../context/AuthContext';
 
@@ -44,8 +44,19 @@ export const TasksPage: React.FC = () => {
     const [bulkLoading, setBulkLoading] = useState<Record<string, 'completing' | 'cancelling' | null>>({});
     const { useTasksList, useUpdateTaskStatus, usePhases, useTimeline, useConflicts, useCancelTask, useRunDaily, useRunMonthly, useRunWeekly, useRunYearly } = useTasks();
     useTaskEvents();
-    const { data: tasks, isLoading } = useTasksList();
     const { data: phases } = usePhases();
+    const todayRef = useMemo(() => new Date(), []);
+    const [showTeamCards, setShowTeamCards] = useState(false);
+    const taskFilter = useMemo(() => {
+        const dates = queryDatesForMode(userFilter, todayRef, dateFrom, dateTo);
+        return {
+            start_date: dates.start_date,
+            end_date: dates.end_date,
+            team: showTeamCards,
+            clients: clientFilter || undefined,
+        };
+    }, [userFilter, todayRef, dateFrom, dateTo, showTeamCards, clientFilter]);
+    const { data: tasks, isLoading } = useTasksList(taskFilter);
     const sortedPhases = [...(phases || [])].sort((a, b) => a.order - b.order);
     const doneColumnId = sortedPhases.length > 0
         ? (sortedPhases.find(p => p.is_done)?.id ?? sortedPhases[sortedPhases.length - 1].id)
@@ -90,23 +101,14 @@ export const TasksPage: React.FC = () => {
         }, 3000);
     }, []);
 
-    const [showTeamCards, setShowTeamCards] = useState(false);
-    const { data: teamTasks } = useTasksList(showTeamCards);
-
     const { data: clients } = useQuery({
         queryKey: ['clients'],
         queryFn: getClients,
     });
 
-    // When toggle on, fetch only the tasks of shared (team) clients
     const handleToggleTeamCards = () => {
         setShowTeamCards(v => !v);
     };
-
-    // Exibe apenas as tasks dos clientes compartilhados quando o switch está ativo
-    const allTasks = useMemo(() => {
-        return (showTeamCards ? teamTasks : tasks) || [];
-    }, [tasks, teamTasks, showTeamCards]);
 
     /**
      * Describes which cards a bulk action will touch, for the confirmation.
@@ -244,29 +246,23 @@ export const TasksPage: React.FC = () => {
         else toast.error('Não foi possível abrir esta tarefa. Atualize a página e tente de novo.');
     };
 
-    // Use allTasks (with team tasks merged) when toggle is on
-    const tasksList = useMemo(() => allTasks || tasks || [], [allTasks, tasks]);
+    const tasksList = useMemo(() => tasks || [], [tasks]);
 
-    // Filtro por cliente (dropdown): restringe a lista toda a um único cliente
     const clientFilteredTasks = useMemo(() => {
-        if (!clientFilter) return tasksList;
-        return tasksList.filter(t => t.client_id === clientFilter);
-    }, [tasksList, clientFilter]);
+        return tasksList;
+    }, [tasksList]);
 
-    // Companies to identify and filter cards: the user's own plus the shared
-    // ones, which only come inside the authorized task DTOs (client_name and
-    // client_color) — the companies payload stays restricted to the owner (AUD-017).
     const clientOptions = useMemo(() => {
         const own = clients || [];
         const known = new Set(own.map(c => c.id));
         const shared: { id: string; name: string; color?: string }[] = [];
-        for (const task of [...(tasks || []), ...(teamTasks || [])]) {
+        for (const task of [...(tasks || [])]) {
             if (known.has(task.client_id) || !task.client_name) continue;
             known.add(task.client_id);
             shared.push({ id: task.client_id, name: task.client_name, color: task.client_color });
         }
         return [...own, ...shared];
-    }, [clients, tasks, teamTasks]);
+    }, [clients, tasks]);
 
     const selectedClientName = clientOptions.find(c => c.id === clientFilter)?.name;
 

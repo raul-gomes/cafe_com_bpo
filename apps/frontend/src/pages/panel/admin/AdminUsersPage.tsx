@@ -1,10 +1,19 @@
 import React, { useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ADMIN_EXPORT_LIMIT, adminGrantCourtesy, adminListUsers, adminRevokeCourtesy } from '../../../api/platform';
+import {
+  ADMIN_EXPORT_LIMIT,
+  adminGrantBeta,
+  adminGrantCourtesy,
+  adminListUsers,
+  adminRevokeBeta,
+  adminRevokeCourtesy,
+  adminSetRole,
+} from '../../../api/platform';
 import type { AdminUser } from '../../../schemas/platform';
 import { AdminPageHeader } from '../../../components/admin/AdminPageHeader';
 import { FolderTabButton } from '../../../components/ui/folder-tab-button';
+import { useAuth } from '../../../context/AuthContext';
 import { apiErrorText, formatDay } from '../../../lib/adminFormat';
 import { downloadSpreadsheet } from '../../../lib/spreadsheet';
 import { CafeIcon } from '../../../brand/CafeIcon';
@@ -28,21 +37,26 @@ const ACCESS_TAGS: Record<string, string> = {
   free: '',
 };
 
-const COURTESY_DAYS = [30, 60, 90, 180, 365];
+/** Durations offered both to a courtesy and to a beta promotion. */
+const ACCESS_DAYS = [30, 60, 90, 180, 365];
 
 /**
  * Admin › Usuários e cortesias: who uses the Café, on which plan, and the
- * courtesy — full access for a period without paying (partners, supporters,
- * support cases). Granting again replaces the running courtesy.
+ * access an administrator hands out without charging — a courtesy, a beta
+ * promotion or the administrator role itself. Granting again replaces the
+ * running period.
  *
  * @returns The page.
  */
 export const AdminUsersPage: React.FC = () => {
   const queryClient = useQueryClient();
+  const { user: currentUser } = useAuth();
   const [search, setSearch] = useState('');
   const [grantingFor, setGrantingFor] = useState<AdminUser | null>(null);
   const [days, setDays] = useState(30);
   const [reason, setReason] = useState('');
+  const [betaFor, setBetaFor] = useState<AdminUser | null>(null);
+  const [betaDays, setBetaDays] = useState(365);
 
   const { data: list, isLoading } = useQuery({
     queryKey: ['admin', 'users', search],
@@ -70,6 +84,38 @@ export const AdminUsersPage: React.FC = () => {
       toast.success('Cortesia encerrada.');
       refresh();
     },
+  });
+
+  const promoteBeta = useMutation({
+    mutationFn: () => adminGrantBeta(betaFor!.id, betaDays),
+    onSuccess: () => {
+      toast.success(`Beta de ${betaDays} dias liberado para ${betaFor?.name || betaFor?.email}.`);
+      setBetaFor(null);
+      refresh();
+    },
+    onError: error => toast.error(apiErrorText(error, 'Não foi possível liberar o beta.')),
+  });
+
+  const endBeta = useMutation({
+    mutationFn: adminRevokeBeta,
+    onSuccess: () => {
+      toast.success('Beta encerrado.');
+      refresh();
+    },
+    onError: error => toast.error(apiErrorText(error, 'Não foi possível encerrar o beta.')),
+  });
+
+  const changeRole = useMutation({
+    mutationFn: ({ id, role }: { id: string; role: 'admin' | 'user' }) => adminSetRole(id, role),
+    onSuccess: (_data, variables) => {
+      toast.success(
+        variables.role === 'admin'
+          ? 'Usuário promovido a administrador.'
+          : 'Administrador rebaixado para usuário.'
+      );
+      refresh();
+    },
+    onError: error => toast.error(apiErrorText(error, 'Não foi possível alterar a função.')),
   });
 
   /** The Excel asks the server for every user of the search, not only the
@@ -104,7 +150,7 @@ export const AdminUsersPage: React.FC = () => {
     <div className="mx-auto max-w-[1180px]">
       <AdminPageHeader
         title="Usuários e cortesias"
-        lead="Cortesia é acesso completo, sem cobrança, por um período: para parceiros, apoiadores ou um caso de suporte. Termina sozinha na data."
+        lead="Cortesia é acesso completo, sem cobrança, por um período: para parceiros, apoiadores ou um caso de suporte. Você também pode promover a beta (acesso completo por um prazo) ou a administrador."
         actions={
           users && users.length > 0 && (
             <button
@@ -150,7 +196,7 @@ export const AdminUsersPage: React.FC = () => {
             <label className="cafe-field">
               <span className="cafe-field-label">Por quanto tempo</span>
               <select className="cafe-select" value={days} onChange={e => setDays(Number(e.target.value))}>
-                {COURTESY_DAYS.map(d => <option key={d} value={d}>{d} dias</option>)}
+                {ACCESS_DAYS.map(d => <option key={d} value={d}>{d} dias</option>)}
               </select>
             </label>
             <label className="cafe-field">
@@ -161,6 +207,28 @@ export const AdminUsersPage: React.FC = () => {
           <div className="flex gap-[8px]">
             <FolderTabButton type="submit" disabled={grant.isPending}>Liberar cortesia</FolderTabButton>
             <button type="button" className="cafe-button cafe-button-secondary" onClick={() => setGrantingFor(null)}>Cancelar</button>
+          </div>
+        </form>
+      )}
+
+      {betaFor && (
+        <form
+          className="cafe-card cafe-card-module mb-[16px] grid gap-[12px]"
+          onSubmit={event => {
+            event.preventDefault();
+            promoteBeta.mutate();
+          }}
+        >
+          <p className="font-semibold text-foreground">Beta para {betaFor.name || betaFor.email}</p>
+          <label className="cafe-field max-w-[180px]">
+            <span className="cafe-field-label">Por quanto tempo</span>
+            <select className="cafe-select" value={betaDays} onChange={e => setBetaDays(Number(e.target.value))}>
+              {ACCESS_DAYS.map(d => <option key={d} value={d}>{d} dias</option>)}
+            </select>
+          </label>
+          <div className="flex gap-[8px]">
+            <FolderTabButton type="submit" disabled={promoteBeta.isPending}>Liberar beta</FolderTabButton>
+            <button type="button" className="cafe-button cafe-button-secondary" onClick={() => setBetaFor(null)}>Cancelar</button>
           </div>
         </form>
       )}
@@ -200,6 +268,27 @@ export const AdminUsersPage: React.FC = () => {
                     {user.courtesy && (
                       <button type="button" className="cafe-button cafe-button-text cafe-button-sm ml-[6px]" onClick={() => revoke.mutate(user.courtesy!.id)}>
                         Encerrar
+                      </button>
+                    )}
+                    {user.role !== 'admin' && user.access_state === 'beta' && (
+                      <button type="button" className="cafe-button cafe-button-text cafe-button-sm ml-[6px]" onClick={() => endBeta.mutate(user.id)}>
+                        Encerrar beta
+                      </button>
+                    )}
+                    {user.role !== 'admin' && user.access_state !== 'beta' && (
+                      <button type="button" className="cafe-button cafe-button-secondary cafe-button-sm ml-[6px]" onClick={() => { setBetaFor(user); setBetaDays(365); }}>
+                        Promover a beta
+                      </button>
+                    )}
+                    {user.role === 'admin' ? (
+                      user.id !== currentUser?.id && (
+                        <button type="button" className="cafe-button cafe-button-text cafe-button-sm ml-[6px]" onClick={() => changeRole.mutate({ id: user.id, role: 'user' })}>
+                          Rebaixar
+                        </button>
+                      )
+                    ) : (
+                      <button type="button" className="cafe-button cafe-button-secondary cafe-button-sm ml-[6px]" onClick={() => changeRole.mutate({ id: user.id, role: 'admin' })}>
+                        Promover a admin
                       </button>
                     )}
                   </td>

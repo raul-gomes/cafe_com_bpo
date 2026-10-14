@@ -62,7 +62,7 @@ describe('PanelSidebar — one work module at a time', () => {
     delete mockUser.role
   })
 
-  it('shows one tab per module, without Admin for non-admins', () => {
+  it('shows one tab per module, hiding admin-only modules from non-admins', () => {
     renderSidebar()
     const tabs = within(screen.getByRole('tablist', { name: 'Módulo de trabalho' })).getAllByRole('tab')
     expect(tabs.map(t => t.getAttribute('aria-label'))).toEqual([
@@ -71,16 +71,23 @@ describe('PanelSidebar — one work module at a time', () => {
       'Comunidade',
       'Gestão',
       'Aulas',
-      'Notas Fiscais',
-      'Certificados Digitais',
     ])
     expect(screen.getByRole('tab', { name: 'Operacional' })).toHaveAttribute('aria-selected', 'true')
   })
 
-  it('admins also see the Admin tab', () => {
+  it('admins also see the admin-only tabs', () => {
     mockUser.role = 'admin'
     renderSidebar()
     expect(screen.getByRole('tab', { name: 'Admin' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Notas Fiscais' })).toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: 'Certificados Digitais' })).toBeInTheDocument()
+  })
+
+  it('Gestão no longer offers Gestão de equipes (deferred)', () => {
+    renderSidebar('gestao')
+    const nav = screen.getByRole('navigation', { name: 'Áreas de Gestão' })
+    expect(within(nav).queryByRole('link', { name: 'Gestão de equipes' })).not.toBeInTheDocument()
+    expect(within(nav).getByRole('link', { name: 'Projetos' })).toBeInTheDocument()
   })
 
   it('lists only the areas of the active module', () => {

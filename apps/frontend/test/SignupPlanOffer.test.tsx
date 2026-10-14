@@ -21,34 +21,32 @@ const renderOffer = (onContinue = () => {}) =>
   })
 
 describe('SignupPlanOffer', () => {
-  it('mostra o investimento (preço do plano ativo) e as duas opções de continuidade', () => {
+  it('mostra o investimento e as duas opções, com "Assinar" pré-selecionada', () => {
     renderOffer()
 
-    expect(screen.getByText(/investimento/i)).toBeInTheDocument()
     expect(screen.getByText(/R\$ 49,90/i)).toBeInTheDocument()
     expect(screen.getByText('/mês')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /continuar sem assinar/i })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: /assinar pro/i })).toHaveAttribute('aria-checked', 'true')
+    expect(screen.getByRole('radio', { name: /continuar no plano gratuito/i })).toHaveAttribute('aria-checked', 'false')
   })
 
-  it('o botão Assinar aponta para a tela de Pagamentos', () => {
-    renderOffer()
-
-    expect(screen.getByRole('link', { name: /assinar pro/i })).toHaveAttribute(
-      'href',
-      '/painel/pagamentos',
-    )
-  })
-
-  it('"Continuar sem assinar" chama onContinue e não navega para o checkout', () => {
+  it('"Continuar" com a assinatura selecionada escolhe "subscribe"', () => {
     const onContinue = vi.fn()
     renderOffer(onContinue)
 
-    fireEvent.click(screen.getByRole('button', { name: /continuar sem assinar/i }))
+    fireEvent.click(screen.getByRole('button', { name: /^Continuar$/i }))
 
-    expect(onContinue).toHaveBeenCalledTimes(1)
-    expect(screen.queryByRole('link', { name: /assinar pro/i })).toHaveAttribute(
-      'href',
-      '/painel/pagamentos',
-    )
+    expect(onContinue).toHaveBeenCalledWith('subscribe')
+  })
+
+  it('escolher o gratuito e "Continuar" decide por "free"', () => {
+    const onContinue = vi.fn()
+    renderOffer(onContinue)
+
+    fireEvent.click(screen.getByRole('radio', { name: /continuar no plano gratuito/i }))
+    expect(screen.getByRole('radio', { name: /continuar no plano gratuito/i })).toHaveAttribute('aria-checked', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /^Continuar$/i }))
+
+    expect(onContinue).toHaveBeenCalledWith('free')
   })
 })

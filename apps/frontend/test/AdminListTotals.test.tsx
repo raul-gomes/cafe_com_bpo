@@ -14,9 +14,12 @@ import { ADMIN_EXPORT_LIMIT } from '../src/api/platform'
 const apiGet = vi.hoisted(() => vi.fn())
 const download = vi.hoisted(() => vi.fn())
 
-vi.mock('../src/api/client', () => ({ apiClient: { get: apiGet, post: vi.fn(), delete: vi.fn() } }))
+vi.mock('../src/api/client', () => ({ apiClient: { get: apiGet, post: vi.fn(), delete: vi.fn(), patch: vi.fn() } }))
 vi.mock('../src/lib/spreadsheet', () => ({ downloadSpreadsheet: download }))
 vi.mock('sonner', () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() } }))
+vi.mock('../src/context/AuthContext', () => ({
+  useAuth: () => ({ user: { id: 'admin-1', role: 'admin' }, isAuthenticated: true, isLoading: false }),
+}))
 
 const user = (i: number) => ({
   id: `00000000-0000-0000-0000-00000000000${i}`,

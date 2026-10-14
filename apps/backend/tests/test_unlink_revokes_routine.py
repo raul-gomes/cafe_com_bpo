@@ -90,7 +90,7 @@ class TestUnlinkRevokesRoutine:
             f"once deve gerar 1 task por atividade, got {assign['tasks_generated']}"
         )
 
-        tasks = client.get(f"/tasks/?client_id={cli['id']}", headers=owner_auth).json()
+        tasks = client.get(f"/tasks/?clients={cli['id']}", headers=owner_auth).json()
         assert len(tasks) == 2
 
         # Move uma task para "concluido" (phase done) → completed_at setado
@@ -112,7 +112,7 @@ class TestUnlinkRevokesRoutine:
 
         # Sobra apenas o card concluído; o incompleto sumiu
         remaining = client.get(
-            f"/tasks/?client_id={cli['id']}", headers=owner_auth
+            f"/tasks/?clients={cli['id']}", headers=owner_auth
         ).json()
         assert len(remaining) == 1, (
             f"Esperado 1 card restante (concluído), got {len(remaining)}"

@@ -55,6 +55,7 @@ function renderLayout(initialEntry = '/painel') {
             <Route path="tarefas" element={<div data-testid="page">Tarefas</div>} />
             <Route path="prospectos" element={<div data-testid="page">Prospectos</div>} />
             <Route path="forum" element={<div data-testid="page">Forum</div>} />
+            <Route path="notas-fiscais" element={<div data-testid="page">Notas</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -69,6 +70,7 @@ describe('PanelLayout — work module and menu', () => {
   beforeEach(() => {
     localStorage.clear()
     delete document.body.dataset.cafeModule
+    delete mockUser.role
   })
 
   it('the module color comes from the route and goes on body (reaches portal menus)', () => {
@@ -108,5 +110,26 @@ describe('PanelLayout — work module and menu', () => {
     localStorage.setItem('cafe_bpo_sidebar_nav', 'collapsed')
     renderLayout('/painel/tarefas')
     expect(shell()).toHaveAttribute('data-nav', 'collapsed')
+  })
+
+  it('non-admin on an admin-only route falls back to a visible module', () => {
+    renderLayout('/painel/notas-fiscais')
+    expect(document.body.dataset.cafeModule).toBeUndefined()
+    expect(screen.queryByRole('tab', { name: 'Notas Fiscais' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('tab', { name: /^Operacional/ })[0]).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('admin sees the admin-only module on its route', () => {
+    mockUser.role = 'admin'
+    renderLayout('/painel/notas-fiscais')
+    expect(document.body.dataset.cafeModule).toBe('notas')
+    expect(screen.getAllByRole('tab', { name: 'Notas Fiscais' })[0]).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('a stored admin-only module falls back for non-admins', () => {
+    localStorage.setItem('cafe_bpo_active_menu', 'certificados')
+    renderLayout('/painel')
+    expect(screen.queryByRole('tab', { name: 'Certificados Digitais' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('tab', { name: /^Operacional/ })[0]).toHaveAttribute('aria-selected', 'true')
   })
 })

@@ -841,7 +841,7 @@ def test_task_has_template_fk_after_assignment(client):
     assert sched_resp.status_code == 200
 
     # 4. Verificar que as tasks geradas têm os FKs
-    tasks_resp = client.get(f"/tasks/?client_id={cli['id']}", headers=auth)
+    tasks_resp = client.get(f"/tasks/?clients={cli['id']}", headers=auth)
     assert tasks_resp.status_code == 200
     tasks = tasks_resp.json()
 
@@ -887,7 +887,7 @@ def test_task_response_includes_template_name(client):
     assert sched_resp.status_code == 200
 
     # 4. Verificar template_name na task
-    tasks_resp = client.get(f"/tasks/?client_id={cli['id']}", headers=auth)
+    tasks_resp = client.get(f"/tasks/?clients={cli['id']}", headers=auth)
     tasks = tasks_resp.json()
     tmpl_tasks = [t for t in tasks if t.get("template_id") == tmpl_id]
     assert len(tmpl_tasks) >= 1
@@ -1583,7 +1583,7 @@ def test_routine_instance_id_dedup(client):
     assert r2["tasks_skipped"] >= 1
 
 
-# ── Visão "Equipe": GET /tasks/?team_only=true ──
+# ── Visão "Equipe": GET /tasks/?team=true ──
 
 
 def _make_template_with_activity(client, auth, name, client_id):
@@ -1635,8 +1635,8 @@ def _accept_invite_raw(client, auth, client_id, invited_email, template_ids):
     assert acc.status_code == 200, acc.text
 
 
-def test_tasks_team_only_returns_shared_client_tasks(client):
-    """GET /tasks/?team_only=true retorna SÓ as tasks dos clientes onde o
+def test_tasks_team_returns_shared_client_tasks(client):
+    """GET /tasks/?team=true retorna SÓ as tasks dos clientes onde o
     usuário é MEMBRO (compartilhados), excluindo as tasks dos clientes próprios."""
     suf = uuid4().hex[:8]
     x_email = f"teamowner_{suf}@cafe.com"
@@ -1648,7 +1648,7 @@ def test_tasks_team_only_returns_shared_client_tasks(client):
 
     x_cli = create_client(client, x_auth, name=f"Cliente do X {suf}")
 
-    # Task pessoal no cliente próprio de X (não deve aparecer em team_only)
+    # Task pessoal no cliente próprio de X (não deve aparecer em team)
     own_task = client.post(
         "/tasks/",
         json={"title": "Pessoal do X", "client_id": x_cli["id"], "priority": "low"},
@@ -1691,8 +1691,8 @@ def test_tasks_team_only_returns_shared_client_tasks(client):
         "rotina liberada do Y na visão geral"
     )
 
-    # team_only=true → apenas as do cliente compartilhado
-    team = client.get("/tasks/?team_only=true", headers=x_auth)
+    # team=true → apenas as do cliente compartilhado
+    team = client.get("/tasks/?team=true", headers=x_auth)
     assert team.status_code == 200
     team_ids = {t["id"] for t in team.json()}
     assert own_task_id not in team_ids, "task do cliente próprio NÃO deve aparecer"
@@ -1759,3 +1759,148 @@ def test_task_list_says_whether_it_is_overdue(client):
 
         assert por_id[sem_prazo["id"]]["is_overdue"] is False
         assert por_id[sem_prazo["id"]]["days_remaining"] is None
+
+
+# ── Filtro por período/cliente via query string (GET /tasks/) ──
+
+
+def _criar_task_com_prazo(client, auth, client_id, title, deadline_iso):
+    """Creates a task with an explicit deadline and returns its id."""
+    resp = client.post(
+        "/tasks/",
+        json={
+            "title": title,
+            "client_id": client_id,
+            "deadline": deadline_iso,
+            "priority": "low",
+        },
+        headers=auth,
+    )
+    assert resp.status_code == 201, resp.text
+    return resp.json()["id"]
+
+
+def test_tasks_start_date_only_returns_that_business_day(client):
+    """`start_date` sozinho (e `end_date=` vazio) devolve só aquele dia.
+
+    Decisão do dono (2026-10-14): no filtro "Hoje" o `end_date` vai vazio e o
+    servidor trata como um dia só — não como "do start em diante".
+    """
+    email = f"task_filter_day_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cid = create_client(client, auth, name="Empresa Dia")["id"]
+    seg = _criar_task_com_prazo(
+        client, auth, cid, "Segunda", "2026-07-20T12:00:00+00:00"
+    )
+    ter = _criar_task_com_prazo(client, auth, cid, "Terça", "2026-07-21T12:00:00+00:00")
+
+    resp = client.get(
+        "/tasks/?start_date=2026-07-20&end_date=&team=false&clients=",
+        headers=auth,
+    )
+    assert resp.status_code == 200
+    ids = {t["id"] for t in resp.json()}
+    assert seg in ids
+    assert ter not in ids
+
+
+def test_tasks_date_range_is_inclusive_on_both_ends(client):
+    """`start_date` + `end_date` devolvem o intervalo fechado (deadline)."""
+    email = f"task_filter_range_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cid = create_client(client, auth, name="Empresa Intervalo")["id"]
+    seg = _criar_task_com_prazo(
+        client, auth, cid, "Segunda", "2026-07-20T12:00:00+00:00"
+    )
+    ter = _criar_task_com_prazo(client, auth, cid, "Terça", "2026-07-21T12:00:00+00:00")
+    qua = _criar_task_com_prazo(
+        client, auth, cid, "Quarta", "2026-07-22T12:00:00+00:00"
+    )
+
+    resp = client.get(
+        "/tasks/?start_date=2026-07-20&end_date=2026-07-21&team=false&clients=",
+        headers=auth,
+    )
+    ids = {t["id"] for t in resp.json()}
+    assert seg in ids
+    assert ter in ids
+    assert qua not in ids
+
+
+def test_tasks_end_date_only_returns_tasks_due_before_it(client):
+    """`end_date` sozinho = "Atrasadas": deadline anterior ao fim informado.
+
+    O front manda `start_date=` vazio e `end_date=` o dia anterior a hoje.
+    """
+    email = f"task_filter_overdue_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cid = create_client(client, auth, name="Empresa Atraso")["id"]
+    sex = _criar_task_com_prazo(client, auth, cid, "Sexta", "2026-07-17T12:00:00+00:00")
+    seg = _criar_task_com_prazo(
+        client, auth, cid, "Segunda", "2026-07-20T12:00:00+00:00"
+    )
+
+    resp = client.get(
+        "/tasks/?start_date=&end_date=2026-07-19&team=false&clients=",
+        headers=auth,
+    )
+    ids = {t["id"] for t in resp.json()}
+    assert sex in ids
+    assert seg not in ids
+
+
+def test_tasks_empty_filter_params_return_everything(client):
+    """Os quatro params vazios (default do browser) não recortam nada."""
+    email = f"task_filter_empty_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cid = create_client(client, auth, name="Empresa Vazia")["id"]
+    seg = _criar_task_com_prazo(
+        client, auth, cid, "Segunda", "2026-07-20T12:00:00+00:00"
+    )
+    ter = _criar_task_com_prazo(client, auth, cid, "Terça", "2026-07-21T12:00:00+00:00")
+
+    resp = client.get(
+        "/tasks/?start_date=&end_date=&team=false&clients=",
+        headers=auth,
+    )
+    assert resp.status_code == 200
+    ids = {t["id"] for t in resp.json()}
+    assert {seg, ter} <= ids
+
+
+def test_tasks_clients_param_restricts_to_one_client(client):
+    """`clients` (uuid) restringe a listagem a um único cliente."""
+    email = f"task_filter_client_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    cid_a = create_client(client, auth, name="Cliente A")["id"]
+    cid_b = create_client(client, auth, name="Cliente B")["id"]
+    task_a = _criar_task_com_prazo(
+        client, auth, cid_a, "Do A", "2026-07-20T12:00:00+00:00"
+    )
+    task_b = _criar_task_com_prazo(
+        client, auth, cid_b, "Do B", "2026-07-20T12:00:00+00:00"
+    )
+
+    resp = client.get(
+        f"/tasks/?start_date=&end_date=&team=false&clients={cid_a}", headers=auth
+    )
+    assert resp.status_code == 200
+    ids = {t["id"] for t in resp.json()}
+    assert ids == {task_a}
+    assert task_b not in ids
+
+
+def test_tasks_invalid_date_returns_422(client):
+    """Data fora do ISO vira 422, não 500."""
+    email = f"task_filter_bad_date_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    resp = client.get("/tasks/?start_date=2026-13-99", headers=auth)
+    assert resp.status_code == 422
+
+
+def test_tasks_invalid_clients_uuid_returns_422(client):
+    """`clients` que não é UUID vira 422, não 500."""
+    email = f"task_filter_bad_client_{uuid4()}@cafe.com"
+    auth = get_auth_header(client, email)
+    resp = client.get("/tasks/?clients=not-a-uuid", headers=auth)
+    assert resp.status_code == 422

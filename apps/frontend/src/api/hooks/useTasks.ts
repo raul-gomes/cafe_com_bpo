@@ -18,14 +18,28 @@ import {
   OverdueTemplateResponse,
 } from '../../schemas/tasks';
 
+export interface TaskListFilter {
+  start_date?: string; // yyyy-mm-dd
+  end_date?: string;
+  team?: boolean;
+  clients?: string;
+}
+
 export const useTasks = () => {
   const queryClient = useQueryClient();
 
-  const useTasksList = (teamOnly = false) => {
+  const useTasksList = (filter: TaskListFilter | boolean = {}) => {
+    const actual: TaskListFilter = typeof filter === 'boolean' ? { team: filter } : (filter || {});
+    const team = (actual as any).team ?? (actual as any).teamOnly ?? false;
+    const params = {
+      start_date: actual.start_date ?? '',
+      end_date: actual.end_date ?? '',
+      team,
+      clients: actual.clients ?? '',
+    };
     return useQuery<TaskResponse[]>({
-      queryKey: teamOnly ? ['tasks', 'team'] : ['tasks'],
+      queryKey: ['tasks', params],
       queryFn: async () => {
-        const params = teamOnly ? { team_only: true } : {};
         const { data } = await apiClient.get('/tasks/', { params });
         return data;
       },

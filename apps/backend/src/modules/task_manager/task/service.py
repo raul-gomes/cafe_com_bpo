@@ -114,7 +114,7 @@ class TaskService:
         Vale dono **ou** colaborador ativo, que é a regra de
         `docs/regras_negocio.md` §Equipes ("colaborador só vê/atua nos clientes
         aos quais foi convidado") e a mesma autorização que
-        `GET /tasks/?client_id=` aplica na leitura: escrita mais estrita que a
+        `GET /tasks/?clients=` aplica na leitura: escrita mais estrita que a
         leitura transformaria o convite em decoração.
 
         A empresa continua vindo de `companies` (Fase 3, item 6) — a linha legada

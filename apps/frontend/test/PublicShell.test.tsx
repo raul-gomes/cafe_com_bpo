@@ -2,7 +2,7 @@ import { render, screen, fireEvent, within } from '@testing-library/react'
 import { describe, it, expect, vi } from 'vitest'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { PublicShell } from '../src/components/auth/LoginDialogContext'
+import { PublicShell } from '../src/components/auth/PublicShell'
 import { Navbar } from '../src/components/ui/Navbar'
 import { nextOpenCafe } from '../src/components/home/cafes'
 
@@ -24,6 +24,7 @@ function renderPublic() {
         <Routes>
           <Route element={<PublicShell />}>
             <Route path="/simulador" element={<><Navbar /><main>Simulador</main></>} />
+            <Route path="/login" element={<div data-testid="login-destination">Login page</div>} />
           </Route>
         </Routes>
       </MemoryRouter>
@@ -31,47 +32,21 @@ function renderPublic() {
   )
 }
 
-describe('public header and login dialog', () => {
+describe('public header and the standalone login page', () => {
   it('shows the actions in the order Precificação, Quero ser Beta, Login', () => {
     renderPublic()
     const nav = screen.getByRole('navigation', { name: 'Principal' })
     expect(Array.from(nav.children).map(el => el.textContent)).toEqual(['Precificação', 'Quero ser Beta', 'Login'])
   })
 
-  it('Login opens the dialog over the current page and Escape closes it', () => {
+  it('the Login button goes to the standalone /login page (no dialog over the current page)', () => {
     renderPublic()
-    expect(screen.queryByRole('dialog', { name: 'Login' })).not.toBeInTheDocument()
+    expect(screen.queryByTestId('login-destination')).not.toBeInTheDocument()
 
     fireEvent.click(within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('button', { name: 'Login' }))
-    expect(screen.getByRole('dialog', { name: 'Login' })).toBeInTheDocument()
-    expect(screen.getByText('Simulador', { selector: 'main' })).toBeInTheDocument()
 
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(screen.queryByRole('dialog', { name: 'Login' })).not.toBeInTheDocument()
-  })
-
-  it('keeps keyboard focus inside the dialog and gives it back to Login on close (AUD-036)', () => {
-    renderPublic()
-    const opener = within(screen.getByRole('navigation', { name: 'Principal' })).getByRole('button', { name: 'Login' })
-    opener.focus()
-    fireEvent.click(opener)
-
-    const dialog = screen.getByRole('dialog', { name: 'Login' })
-    const focusables = Array.from(
-      dialog.querySelectorAll<HTMLElement>('a[href], button:not([disabled]), input:not([disabled])')
-    )
-    const first = focusables[0]
-    const last = focusables[focusables.length - 1]
-
-    first.focus()
-    fireEvent.keyDown(first, { key: 'Tab', shiftKey: true })
-    expect(document.activeElement).toBe(last)
-
-    fireEvent.keyDown(last, { key: 'Tab' })
-    expect(document.activeElement).toBe(first)
-
-    fireEvent.keyDown(document, { key: 'Escape' })
-    expect(document.activeElement).toBe(opener)
+    expect(screen.getByTestId('login-destination')).toBeInTheDocument()
+    expect(screen.queryByText('Simulador', { selector: 'main' })).not.toBeInTheDocument()
   })
 })
 

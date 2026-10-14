@@ -1,4 +1,4 @@
-/* Public pages: header, login dialog and shared pieces (V4 kit). */
+/* Public pages: header and shared pieces (V4 kit). */
 
 /* ── Header ── dark band behind the colored logo (yellow was unreadable on paper). */
 .pub-nav {
@@ -48,80 +48,6 @@
   .pub-nav-tab { padding: 8px 10px; }
   .pub-nav-cut { padding: 8px 16px 8px 10px; }
 }
-
-/* ── Login em janela suspensa ── */
-.login-dialog-backdrop {
-  position: fixed;
-  inset: 0;
-  z-index: 200;
-  display: grid;
-  place-items: center;
-  padding: 16px;
-  background: rgb(20 16 12 / 0.55);
-  backdrop-filter: blur(4px);
-  animation: login-backdrop-in 200ms ease-out both;
-}
-/* Horizontal dialog: brand on the left, form on the right — fits without scrolling. */
-.login-dialog {
-  position: relative;
-  display: grid;
-  grid-template-columns: minmax(0, 0.85fr) minmax(0, 1.15fr);
-  width: min(100%, 820px);
-  max-height: calc(100dvh - 32px);
-  overflow-y: auto;
-  background: var(--cafe-paper);
-  color: var(--cafe-ink);
-  border: 1px solid var(--cafe-line-strong);
-  border-bottom: 3px solid var(--cafe-brand-yellow);
-  border-radius: 0 14px 0 0;
-  box-shadow: 8px 8px 0 color-mix(in srgb, var(--cafe-ink) 18%, transparent), 0 24px 60px rgb(0 0 0 / 0.25);
-  animation: login-dialog-in 260ms cubic-bezier(0.16, 1, 0.3, 1) both;
-}
-.login-dialog-brand {
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  gap: 28px;
-  padding: 32px 30px;
-  background: var(--cafe-deep);
-  color: var(--cafe-on-deep);
-}
-.login-dialog-logo { width: 140px; height: auto; }
-.login-dialog-title { font: 500 2rem/1.08 var(--cafe-font-editorial); letter-spacing: -0.02em; }
-.login-dialog-lead { margin-top: 8px; font-size: 0.9875rem; line-height: 1.5; opacity: 0.85; }
-.login-dialog-notice-link {
-  display: inline-block; margin-top: 12px; padding: 6px 12px;
-  font-size: 0.875rem; font-weight: 700; color: var(--cafe-yellow-ink, #2B2100);
-  background: var(--cafe-yellow); border-radius: 6px; text-decoration: none;
-}
-.login-dialog-notice-link:hover { background: var(--cafe-yellow-pressed, var(--cafe-yellow)); opacity: 1; }
-.login-dialog-beta { font-size: 0.875rem; opacity: 0.9; }
-.login-dialog-beta a { color: var(--cafe-brand-yellow); font-weight: 700; }
-.login-dialog-form { position: relative; padding: 30px 30px 24px; }
-@media (max-width: 680px) {
-  .login-dialog { grid-template-columns: 1fr; width: min(100%, 440px); }
-  .login-dialog-brand { flex-direction: row; align-items: center; padding: 18px 20px; gap: 16px; }
-  .login-dialog-brand > div, .login-dialog-beta { display: none; }
-  .login-dialog-logo { width: 112px; }
-  .login-dialog-form { padding: 22px 20px 20px; }
-}
-.login-dialog-close {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  display: grid;
-  place-items: center;
-  width: 40px;
-  height: 40px;
-  color: var(--cafe-muted);
-  background: transparent;
-  border: 0;
-  border-radius: 50%;
-  cursor: pointer;
-}
-.login-dialog-close:hover { background: var(--cafe-panel); color: var(--cafe-ink); }
-@keyframes login-backdrop-in { from { opacity: 0; } to { opacity: 1; } }
-@keyframes login-dialog-in { from { opacity: 0; transform: translateY(14px) scale(0.985); } to { opacity: 1; transform: none; } }
 
 /* Icon shortcuts (schedule, products), next to the actions. */
 .pub-nav-shortcuts { display: flex; align-items: center; gap: 4px; margin-left: auto; }

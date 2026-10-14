@@ -104,7 +104,7 @@ class TestMultiActivity:
             assert data["tasks_generated"] == 2, (
                 f"Expected 2 tasks (one per activity), got {data['tasks_generated']}"
             )
-            tasks = client.get(f"/tasks/?client_id={cli['id']}", headers=auth).json()
+            tasks = client.get(f"/tasks/?clients={cli['id']}", headers=auth).json()
             titles = {t["title"] for t in tasks}
             assert titles == {"Activity Alpha", "Activity Beta"}
         else:

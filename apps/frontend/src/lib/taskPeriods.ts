@@ -13,9 +13,7 @@ export interface Period {
 
 export type FilterMode = 'all' | 'today' | 'week' | 'month' | 'year' | 'overdue';
 
-/** Far end used by an open-ended manual range ("from this date on"). */
 const FAR_FUTURE = new Date(9999, 11, 31, 23, 59, 59, 999);
-/** Far start used by a range with only an end date ("up to this date"). */
 const FAR_PAST = new Date(1970, 0, 1, 0, 0, 0, 0);
 
 const startOfDay = (d: Date): Date => new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
@@ -60,6 +58,64 @@ export function periodForMode(mode: FilterMode, today: Date): Period | null {
     };
   }
   return null;
+}
+
+export function formatISODate(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+export function queryDatesForMode(
+  mode: FilterMode,
+  today: Date,
+  dateFrom?: string,
+  dateTo?: string
+): { start_date?: string; end_date?: string } {
+  if (dateFrom || dateTo) {
+    return {
+      start_date: dateFrom && dateFrom.trim() !== '' ? dateFrom : undefined,
+      end_date: dateTo && dateTo.trim() !== '' ? dateTo : undefined,
+    };
+  }
+  if (mode === 'today') {
+    return { start_date: formatISODate(today), end_date: undefined };
+  }
+  if (mode === 'week') {
+    const monday = new Date(weekBounds(today).start);
+    const friday = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + 4);
+    let end = friday;
+    if (endOfDay(end) < endOfDay(today)) {
+      end = today;
+    }
+    return {
+      start_date: formatISODate(today),
+      end_date: formatISODate(end),
+    };
+  }
+  if (mode === 'month') {
+    const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
+    return {
+      start_date: formatISODate(today),
+      end_date: formatISODate(monthEnd),
+    };
+  }
+  if (mode === 'year') {
+    const yearEnd = new Date(today.getFullYear(), 11, 31);
+    return {
+      start_date: formatISODate(today),
+      end_date: formatISODate(yearEnd),
+    };
+  }
+  if (mode === 'overdue') {
+    const yesterday = new Date(today.getFullYear(), today.getMonth(), today.getDate() - 1);
+    return {
+      start_date: undefined,
+      end_date: formatISODate(yesterday),
+    };
+  }
+  return { start_date: undefined, end_date: undefined };
 }
 
 /** Parses a `yyyy-mm-dd` input value as a local date (never UTC). */

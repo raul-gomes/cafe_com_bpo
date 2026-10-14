@@ -143,6 +143,12 @@ export const courtesySchema = z
   .strict();
 export type Courtesy = z.infer<typeof courtesySchema>;
 
+export const betaAccessSchema = z.object({ expires_at: z.string() }).strict();
+export type BetaAccess = z.infer<typeof betaAccessSchema>;
+
+export const roleAssignmentSchema = z.object({ id: z.string(), role: z.string() }).strict();
+export type RoleAssignment = z.infer<typeof roleAssignmentSchema>;
+
 export const adminUserSchema = z
   .object({
     id: z.string(),

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Annotated
 from uuid import UUID
 
@@ -7,6 +7,7 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 
 from src.core.database import get_db_session
+from src.core.deadline import business_day_bounds_for_date
 from src.core.logger import log
 from src.modules.auth.schemas import UserResponse
 from src.modules.auth.service import get_current_user, get_current_user_for_sse
@@ -56,28 +57,119 @@ CurrentUserDep = Annotated[UserResponse, Depends(get_current_user)]
 # ── Task endpoints ──
 
 
+def _parse_iso_date(value: str | None, field: str) -> date | None:
+    """Parses a `yyyy-mm-dd` query param, treating blank as absent.
+
+    The browser always sends the four filter keys, so blank is a valid value
+    (`end_date=` means "the same day as `start_date`"), not a malformed date.
+
+    Args:
+        value: Raw query parameter value.
+        field: Param name, for the error message.
+
+    Returns:
+        The parsed date, or None when blank.
+
+    Raises:
+        HTTPException: 422 when the value is not a valid ISO date.
+    """
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Parâmetro '{field}' inválido.",
+        ) from None
+
+
+def _parse_uuid(value: str | None, field: str) -> UUID | None:
+    """Parses a UUID query param, treating blank as absent.
+
+    Args:
+        value: Raw query parameter value.
+        field: Param name, for the error message.
+
+    Returns:
+        The parsed UUID, or None when blank.
+
+    Raises:
+        HTTPException: 422 when the value is not a valid UUID.
+    """
+    if value is None or value.strip() == "":
+        return None
+    try:
+        return UUID(value)
+    except ValueError:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Parâmetro '{field}' inválido.",
+        ) from None
+
+
+def _deadline_bounds(
+    start_date: date | None, end_date: date | None
+) -> tuple[datetime | None, datetime | None]:
+    """Maps the filter dates to a deadline range, honoring "today = one day".
+
+    - `start_date` only → that single business day (blank `end_date` means the
+      same day as the start, by product decision);
+    - `start_date` and `end_date` → the inclusive range `[start, end]`;
+    - `end_date` only → everything up to the end of `end_date` ("Atrasadas");
+    - neither → no deadline filter at all.
+
+    Args:
+        start_date: First day of the filter, or None.
+        end_date: Last day of the filter, or None.
+
+    Returns:
+        Inclusive lower and exclusive upper UTC bounds, each possibly None.
+    """
+    if start_date is not None:
+        last = end_date if end_date is not None else start_date
+        lower, _ = business_day_bounds_for_date(start_date)
+        _, upper = business_day_bounds_for_date(last)
+        return lower, upper
+    if end_date is not None:
+        _, upper = business_day_bounds_for_date(end_date)
+        return None, upper
+    return None, None
+
+
 @router.get("/", response_model=list[TaskResponse])
 def get_tasks(
     repo: RepoDep,
     current_user: CurrentUserDep,
     session: Annotated[Session, Depends(get_db_session)],
-    today: bool = False,
-    overdue: bool = False,
-    client_id: UUID | None = None,
-    team_only: bool = False,
+    start_date: str | None = None,
+    end_date: str | None = None,
+    team: bool = False,
+    clients: str | None = None,
 ):
     """Retorna as tarefas visíveis ao usuário atual.
+
+    Filtros por query string, iguais para dono e membro:
+    - `start_date`/`end_date` (`yyyy-mm-dd`) recortam pelo deadline; sem data,
+      a lista inteira vem (o "Hoje" manda só o `start_date` = um dia).
+    - `team=true` mostra SOMENTE as tarefas dos clientes onde o usuário é
+      MEMBRO (clientes compartilhados), sem as dos clientes próprios.
+    - `clients` (uuid) restringe a um único cliente.
 
     - Owner do cliente: vê todas as tarefas do cliente (dele e dos membros).
     - Membro da equipe: vê as próprias tarefas individuais mais as tarefas
       das rotinas (templates) que foram liberadas a ele no convite.
-    - team_only=true: retorna SOMENTE as tarefas dos clientes onde o usuário
-      é membro (clientes compartilhados), sem as dos clientes próprios.
     """
     from src.modules.team.repository import TeamRepository
 
     team_repo = TeamRepository(session)
     companies = CompanyRepository(session)
+
+    client_id = _parse_uuid(clients, "clients")
+    deadline_start, deadline_end = _deadline_bounds(
+        _parse_iso_date(start_date, "start_date"),
+        _parse_iso_date(end_date, "end_date"),
+    )
 
     if client_id:
         owner_id = team_repo.get_company_owner_id(client_id)
@@ -97,8 +189,8 @@ def get_tasks(
                     all_tasks.extend(
                         repo.get_by_user(
                             uid,
-                            today_filter=today,
-                            overdue_filter=overdue,
+                            deadline_start=deadline_start,
+                            deadline_end=deadline_end,
                         )
                     )
                 all_tasks = [t for t in all_tasks if str(t.client_id) == str(client_id)]
@@ -116,8 +208,8 @@ def get_tasks(
             all_tasks = repo.get_tasks_for_member(
                 current_user.id,
                 granted_template_ids,
-                today_filter=today,
-                overdue_filter=overdue,
+                deadline_start=deadline_start,
+                deadline_end=deadline_end,
             )
             return [t for t in all_tasks if str(t.client_id) == str(client_id)]
 
@@ -126,9 +218,9 @@ def get_tasks(
     seen: set = set()
 
     # 1) Empresas onde o usuário é DONO → vê todas as tarefas (dele + membros).
-    #    Pule esta seção na visão "Equipe" (team_only=empresas compartilhadas).
+    #    Pule esta seção na visão "Equipe" (team=true = empresas compartilhadas).
     owned_clients = companies.list_clients(current_user.id)
-    if not team_only:
+    if not team:
         for c in owned_clients:
             cid = c.id
             user_ids = [current_user.id] + [
@@ -138,7 +230,9 @@ def get_tasks(
             ]
             for uid in user_ids:
                 for t in repo.get_by_user(
-                    uid, today_filter=today, overdue_filter=overdue
+                    uid,
+                    deadline_start=deadline_start,
+                    deadline_end=deadline_end,
                 ):
                     if str(t.client_id) == str(cid) and t.id not in seen:
                         seen.add(t.id)
@@ -153,8 +247,8 @@ def get_tasks(
         for t in repo.get_tasks_for_member(
             current_user.id,
             granted_template_ids,
-            today_filter=today,
-            overdue_filter=overdue,
+            deadline_start=deadline_start,
+            deadline_end=deadline_end,
         ):
             if str(t.client_id) == str(cid) and t.id not in seen:
                 seen.add(t.id)

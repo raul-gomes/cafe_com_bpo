@@ -53,9 +53,10 @@ PRICE_SYNC_PENDING = "pending"
 PRICE_SYNC_FAILED = "failed"
 PRICE_SYNC_STATUSES = (PRICE_SYNC_SYNCED, PRICE_SYNC_PENDING, PRICE_SYNC_FAILED)
 
-# Origin of the beta grant. Only one exists today (the launch), but the column
-# keeps a second program (referral, partnership) auditable.
+# Origin of the beta grant. The launch backfill and an administrator promoting
+# a single user share the column, so both stay auditable.
 BETA_SOURCE_LAUNCH = "launch_beta"
+BETA_SOURCE_ADMIN = "admin_grant"
 
 
 class Plan(Base):
@@ -322,6 +323,7 @@ class BillingProfile(Base):
 
 
 __all__ = [
+    "BETA_SOURCE_ADMIN",
     "BETA_SOURCE_LAUNCH",
     "PRICE_SYNC_FAILED",
     "PRICE_SYNC_PENDING",

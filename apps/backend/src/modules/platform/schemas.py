@@ -323,6 +323,35 @@ class CourtesyResponse(BaseModel):
     reason: str | None
 
 
+class BetaGrantCreate(BaseModel):
+    """A beta-access period the administrator grants to one user."""
+
+    days: int = Field(..., ge=1, le=730)
+
+
+class BetaResponse(BaseModel):
+    """A running beta access, as the admin users page shows it."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    expires_at: datetime
+
+
+class RoleUpdate(BaseModel):
+    """The role an administrator assigns to a user, and only these two."""
+
+    role: Literal["admin", "user"]
+
+
+class RoleResponse(BaseModel):
+    """The id and new role of a user, after a promote or demote."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    role: str
+
+
 class AdminUserResponse(BaseModel):
     """One row of the admin users list."""
 
